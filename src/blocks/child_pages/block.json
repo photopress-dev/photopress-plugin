@@ -1,0 +1,79 @@
+{
+	"name": "photopress/childpages",
+	"category": "layout",
+	"attributes": {
+		"className": {
+			"type": "string"
+		},
+		"align": {
+			"type": "string"
+		},
+		"postFeedType": {
+			"type": "string",
+			"default": "internal"
+		},
+		"externalRssUrl": {
+			"type": "string",
+			"default": ""
+		},
+		"postsToShow": {
+			"type": "number",
+			"default": 50
+		},
+		"displayPostContent": {
+			"type": "boolean",
+			"default": false
+		},
+		"displayPostDate": {
+			"type": "boolean",
+			"default": false
+		},
+		"displayPostLink": {
+			"type": "boolean",
+			"default": false
+		},
+		"postLink": {
+			"type": "string",
+			"default": "Read more"
+		},
+		"excerptLength": {
+			"type": "number",
+			"default": 12
+		},
+		"imageSize": {
+			"type": "string",
+			"default": "medium"
+		},
+		"imageStyle": {
+			"type": "string",
+			"default": "square"
+		},
+		"listPosition": {
+			"type": "string",
+			"default": "right"
+		},
+		"columns": {
+			"type": "number",
+			"default": 2
+		},
+		"padding": {
+			"type": "number",
+			"default": 10
+		},
+		"gutter": {
+			"type": "string",
+			"default": "medium"
+		},
+		"order": {
+			"type": "string",
+			"default": "desc"
+		},
+		"orderBy": {
+			"type": "string",
+			"default": "date"
+		},
+		"categories": {
+			"type": "string"
+		}
+	}
+}
