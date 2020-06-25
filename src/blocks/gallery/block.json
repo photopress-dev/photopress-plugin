@@ -1,0 +1,113 @@
+{
+	"name": "photopress/gallery",
+	"category": "common",
+	"attributes": {
+		"images": {
+			"type": "array",
+			"default": [],
+			"source": "query",
+			"selector": ".photopress-masonry-gallery-item",
+			"query": {
+				"url": {
+					"type": "string",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "src"
+				},
+				"fullUrl": {
+					"type": "string",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "data-full-url"
+				},
+				"link": {
+					"type": "string",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "data-link"
+				},
+				"alt": {
+					"type": "string",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "alt",
+					"default": ""
+				},
+				"id": {
+					"type": "string",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "data-id"
+				},
+				"caption": {
+					"type": "string",
+					"source": "html",
+					"selector": ".photopress-masonry-gallery-item__caption"
+				}
+			}
+		},
+		"ids": {
+			"type": "array",
+			"items": {
+				"type": "number"
+			},
+			"default": []
+		},
+		"columns": {
+			"type": "number",
+			"minimum": 1,
+			"maximum": 8,
+			"default": 4
+		},
+	
+		"caption": {
+			"type": "string",
+			"source": "html",
+			"selector": ".photopress-masonry-gallery-caption"
+		},
+		"imageCrop": {
+			"type": "boolean",
+			"default": true
+		},
+		"linkTo": {
+			"type": "string",
+			"default": "none"
+		},
+		"sizeSlug": {
+			"type": "string",
+			"default": "large"
+		},
+		"gutter": {
+			"type": "number",
+			"default": 10
+		},
+		"bottomGutter": {
+			"type": "number",
+			"default": 10
+		},
+		
+		"gridSize": {
+			"type": "string",
+			"default": "xlrg"
+		},
+		
+		"galleryStyle": {
+			"type": "string",
+			"default": "columns"
+		},
+		
+		"columnWidth": {
+			"type": "number",
+			"default": 300
+		},
+		
+		"showCaptions": {
+			"type": "boolean",
+			"default": true
+		}	
+	
+	},
+	"supports": {
+		"align": true
+	}
+}
