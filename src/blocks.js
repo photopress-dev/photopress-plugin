@@ -15,6 +15,8 @@ import './block/block.js';
 
 import * as childpages from './blocks/child_pages/index.js';
 
+import * as gallery from './blocks/gallery/index.js';
+
 const registerBlock = ( block ) => {
 	
 	if ( ! block ) {
@@ -45,6 +47,7 @@ const registerBlock = ( block ) => {
 export const registerPhotoPressBlocks = () => {
 	[
 		childpages,
+		gallery
 		
 	].forEach( registerBlock );
 };
