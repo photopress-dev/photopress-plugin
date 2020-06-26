@@ -47,6 +47,7 @@ class Inspector extends Component {
 		this.toggleImageCrop = this.toggleImageCrop.bind( this );
 		this.updateImagesSize = this.updateImagesSize.bind( this );
 		this.setColumns = this.setColumns.bind( this );
+		this.setColumnWidth = this.setColumnWidth.bind( this );
 		this.setGutter = this.setGutter.bind( this );
 
 	}
@@ -63,6 +64,11 @@ class Inspector extends Component {
 	setColumns( value ) {
 	
 		this.setAttributes( { columns: value } );
+	}
+	
+	setColumnWidth( value ) {
+	
+		this.setAttributes( { columnWidth: value } );
 	}
 	
 	setGutter ( value ) {
@@ -143,6 +149,7 @@ class Inspector extends Component {
 			galleryStyle,
 			gutter,
 			columns,
+			columnWidth,
 			showCaptions
 		} = attributes;
 		

@@ -69,7 +69,7 @@ class MasonryGallery extends Component {
 		
 		const masonryClasses = classnames( 
 		
-			'photopress-masonry-gallery' 
+			'photopress-gallery', 'photopress-masonry-gallery' 
 		);
 	
 		return (
@@ -109,7 +109,7 @@ class MasonryGallery extends Component {
 								return (
 									
 									<li
-										className="photopress-masonry-gallery-item"
+										className="photopress-gallery-item"
 										key={ img.id || img.url }
 										style={ {width: attributes.columnWidth + "px", marginBottom: attributes.bottomGutter + 'px' } }
 									>

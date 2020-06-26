@@ -35,11 +35,16 @@ class ColumnsGallery extends Component {
 	determinBreak( index ) {
 			
 		const columns = this.props.attributes.columns;
-		console.log('columns:');
-		console.log(columns);
+		
 		let num = index + 1;
 		
-		if ( columns % num === 0 ) {
+		console.log('num:');
+		console.log( num );
+		console.log('columns:');
+		console.log(columns);
+		
+		
+		if ( num >= columns && num % columns === 0 ) {
 			
 			return true;
 		} else {
@@ -78,24 +83,11 @@ class ColumnsGallery extends Component {
 			gutterMobile
 		} = attributes;
 		
-				
-		const masonryOptions = {
-			
-			columnWidth: '.grid-sizer',
-			gutter: '.gutter-sizer'
-			
-		};
-		
-		const masonryClasses = classnames( 
-		
-			'photopress-masonry-gallery' 
-		);
-	
 		return (
 			
 			<div>
 			
-				<div className="photopress-gallery photopress-gallery-columns">
+				<ul className="photopress-gallery photopress-gallery-columns columns-4" style={ {padding: '0', margin: '0'} } >
 					
 					
 					{ images.map( ( img, index ) => {
@@ -111,16 +103,11 @@ class ColumnsGallery extends Component {
 								console.log(needsBreak);
 								let rowBreak;
 								
-								rowBreak = needsBreak ? <div className="flex-row-break"></div> : '';
+								rowBreak = needsBreak ? <div key={ index + '_break'} className="flex-row-break"></div> : '';
 
 								const galleryImage = (
 									
-									<div
-										className="photopress-gallery-item"
-										key={ img.id || img.url }
-										style={ { width: attributes.columnWidth + "px", marginBottom: attributes.bottomGutter + 'px' } }
-									>
-				
+													
 										<GalleryImage
 											{ ...this.props }
 											url={ img.url }
@@ -143,21 +130,50 @@ class ColumnsGallery extends Component {
 											aria-label={ ariaLabel }
 										/>
 										
-									</div>
+									
+									
+									
 								);
 							
 								
 								return (
-									<div>
-									{galleryImage}
-									
-									{rowBreak}									
-									</div>
+										
+										
+										<li
+											className="photopress-gallery-item"
+											key={ img.id || img.url }
+											
+										>
+										
+										<GalleryImage
+											{ ...this.props }
+											url={ img.url }
+											alt={ img.alt }
+											id={ img.id }
+											isFirstItem={ index === 0 }
+											isLastItem={ index + 1 === images.length }
+											isSelected={
+												isSelected && selectedImage === index
+											}
+											onMoveBackward={ onMoveBackward( index ) }
+											onMoveForward={ onMoveForward( index ) }
+											onRemove={ onRemoveImage( index ) }
+											onSelect={ onSelectImage( index ) }
+											onDeselect={ onDeselectImage( index ) }
+											setAttributes={ ( attrs ) =>
+												onSetImageAttributes( index, attrs )
+											}
+											caption={ img.caption }
+											aria-label={ ariaLabel }
+										/>
+										
+										</li>
+										
 								);
 					} ) }
 		
 								
-				</div>
+				</ul>
 				
 				<div>
 			
