@@ -192,13 +192,30 @@ class GalleryImage extends Component {
 			'is-selected': isSelected,
 			'is-transient': isBlobURL( url ),
 		} );
+		
+		let inlineStyle;
+		
+		switch ( attributes.galleryStyle ) {
+			case 'rows':
+				inlineStyle = {margin: 0, height: attributes.rowHeight};
+				break;
+			case 'columns':
+				inlineStyle = {margin: 0};
+				break;
+			default:
+				inlineStyle = {margin: 0};
+				break;
+
+		}
+		
+		const rowHeight =  attributes.galleryStyle === 'rows' ? attributes.rowHeight : '';
 
 		return (
 			<figure
 				className={ className }
 				onBlur={ this.onBlur }
 				onFocus={ this.onFocus }
-				style={ {margin:'0'} }
+				style={ inlineStyle }
 
 			>
 				{ href ? <a href={ href }>{ img }</a> : img }

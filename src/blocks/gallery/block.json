@@ -101,6 +101,11 @@
 			"default": 300
 		},
 		
+		"rowHeight": {
+			"type": "number",
+			"default": 300
+		},
+		
 		"showCaptions": {
 			"type": "boolean",
 			"default": true

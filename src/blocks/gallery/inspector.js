@@ -33,7 +33,8 @@ import { __ } from '@wordpress/i18n';
 		const styleOptions = [
 			
 			{ value: 'columns', label: __( 'Columns' ) },
-			{ value: 'masonry', label: __( 'Masonry' ) }
+			{ value: 'masonry', label: __( 'Masonry' ) },
+			{ value: 'rows', label: __( 'Rows' ) }
 		];
 		
 class Inspector extends Component {
@@ -49,7 +50,6 @@ class Inspector extends Component {
 		this.setColumns = this.setColumns.bind( this );
 		this.setColumnWidth = this.setColumnWidth.bind( this );
 		this.setGutter = this.setGutter.bind( this );
-
 	}
 	
 	setLinkTo( value ) {
@@ -150,7 +150,8 @@ class Inspector extends Component {
 			gutter,
 			columns,
 			columnWidth,
-			showCaptions
+			showCaptions,
+			rowHeight
 		} = attributes;
 		
 		
@@ -186,15 +187,28 @@ class Inspector extends Component {
 						/>
 					) }
 					
-					{galleryStyle === 'columns' &&
+					{galleryStyle === 'columns' && images.length > 1 &&
 						
 						<RangeControl
 							label={ __( 'Columns' ) }
 							value={ columns }
 							onChange={ ( value ) => { this.setColumns( value ) } }
 							min={ 1 }
-							max={ 10 }
+							max={ 8 }
 							step={ 1 }		
+						/>
+						
+					}
+					
+					{galleryStyle === 'rows' &&
+						
+						<RangeControl
+							label={ __( 'Row Height' ) }
+							value={ rowHeight }
+							onChange={ ( value ) => { this.setAttributes( {rowHeight: value} ) } }
+							min={ 100 }
+							max={ 500 }
+							step={ 20 }		
 						/>
 						
 					}
@@ -227,7 +241,16 @@ class Inspector extends Component {
 						/>
 					</PanelBody>
 					}
-
+					
+					{galleryStyle === 'columns' &&
+						
+						<ToggleControl
+								label={ __( 'Crop images' ) }
+								checked={ !! imageCrop }
+								onChange={ this.toggleImageCrop }
+								help={ "Crop images to create a uniform display." }
+						/>
+					}
 
 					<ToggleControl
 						label={ __( 'Show Captions' ) }

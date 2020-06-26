@@ -17,12 +17,12 @@ import { Component, Fragment } from '@wordpress/element';
  * Internal dependencies
  */
 import GalleryImage from '../../shared/gallery/gallery-image.js';
-import { defaultColumnsNumber } from '../../shared/shared.js';
+
 
 /**
  * Main Gallery Class
  */
-class ColumnsGallery extends Component {
+class RowsGallery extends Component {
 	
 	constructor() {
 		
@@ -53,7 +53,7 @@ class ColumnsGallery extends Component {
 	
 		const {
 			align,
-			columns = defaultColumnsNumber( attributes ),
+			rowHeight,
 			caption,
 			imageCrop,
 			images,
@@ -67,11 +67,7 @@ class ColumnsGallery extends Component {
 			<div className={'photopress-gallery'}>
 			
 				<ul 
-					className={ classnames( 'photopress-gallery-columns', {
-						[ `align${ align }` ]: align,
-						[ `columns-${ columns }` ]: columns,
-						'is-cropped': imageCrop,
-					} ) }
+					className={ classnames( 'photopress-gallery-rows' ) }
 					style={ {padding: '0', margin: '0'} } 
 				>
 					
@@ -91,6 +87,7 @@ class ColumnsGallery extends Component {
 										<li
 											className="photopress-gallery-item"
 											key={ img.id || img.url }
+											
 											
 										>
 										
@@ -135,4 +132,4 @@ class ColumnsGallery extends Component {
 	}
 }
 
-export default ColumnsGallery;
+export default RowsGallery;
