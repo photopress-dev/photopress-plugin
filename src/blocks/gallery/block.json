@@ -6,7 +6,7 @@
 			"type": "array",
 			"default": [],
 			"source": "query",
-			"selector": ".photopress-masonry-gallery-item",
+			"selector": ".photopress-gallery-item",
 			"query": {
 				"url": {
 					"type": "string",
@@ -42,7 +42,7 @@
 				"caption": {
 					"type": "string",
 					"source": "html",
-					"selector": ".photopress-masonry-gallery-item__caption"
+					"selector": ".photopress-gallery-item__caption"
 				}
 			}
 		},
@@ -63,7 +63,7 @@
 		"caption": {
 			"type": "string",
 			"source": "html",
-			"selector": ".photopress-masonry-gallery-caption"
+			"selector": ".photopress-gallery-caption"
 		},
 		"imageCrop": {
 			"type": "boolean",

@@ -38,33 +38,10 @@ $dark-gray-primary: #f9f9f9;
 	}
 }
 
-
-
-figure.photopress-gallery {
-	display: block;
-	margin: 0;
-}
-
-.photopress-gallery {
-	
-	li { 
-		list-style:none;
-	}
-	
-	margin:0px;
-	
-}
-
 .wp-block {
     max-width: 720px;
 }
 
-// Necessary to to override default editor ul styles.
-.photopress-gallery-grid.blocks-gallery-grid {
-	padding-left: 0;
-	margin-left: 0;
-	margin-bottom: 0;
-}
 
 .photopress-gallery-item {
 	
@@ -136,21 +113,6 @@ figure.is-selected {
 }
 
 
-
- .photopress-gallery-item figcaption {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    max-height: 100%;
-    overflow: auto;
-    padding: 40px 10px 9px;
-    color: #fff;
-    text-align: center;
-    font-size: 13px;
-    background: linear-gradient(0deg, rgba(0, 0, 0, 0.7) 0, rgba(0, 0, 0, 0.3) 70%, transparent);
-
-}
-
 .photopress-gallery-item__inline-menu {
 	position: absolute;
 	top: -2px;
@@ -181,9 +143,4 @@ figure.is-selected {
 	left: 50%;
 	margin-top: -9px;
 	margin-left: -9px;
-}
-
-figcaption {
-	
-	line-height: 1.8em;
 }

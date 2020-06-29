@@ -1,4 +1,9 @@
 /**
+ * External dependencies
+ */
+import classnames from 'classnames';
+
+/**
  * WordPress dependencies
  */
 import { RichText } from '@wordpress/block-editor';
@@ -9,21 +14,53 @@ import { RichText } from '@wordpress/block-editor';
 import { defaultColumnsNumber } from '../../shared/shared.js';
 
 export default function save( { attributes } ) {
+	
 	const {
 		images,
 		columns = defaultColumnsNumber( attributes ),
 		imageCrop,
 		caption,
 		linkTo,
+		galleryStyle,
+		gutter
 	} = attributes;
+	
 
+	// gallery style classes
+	var galleryClasses = [];
+	
+	const styleClasses = {
+		
+		columns: 'photopress-gallery-columns',
+		rows:	 'photopress-gallery-rows',
+		masonry: 'photopress-gallery-masonry'
+	};
+	
+	galleryClasses.push( styleClasses[ galleryStyle ] );
+	
+	if ( galleryStyle === 'columns' ) {
+		
+		galleryClasses.push( `columns-${ columns }` );
+		
+		galleryClasses.push( { "is-cropped": imageCrop } );
+	}
+	
+	// item style for setting gutter attribute.
+	let itemStyle = {};
+	
+	if ( galleryStyle === 'columns' || 'rows' ) {
+		
+		itemStyle = {"--pp-gallery-gutter": gutter + 'px'};
+	}
+	
 	return (
 		<figure
-			className={ `columns-${ columns } ${
-				imageCrop ? 'is-cropped' : ''
-			}` }
+			className={ 'photopress-gallery' }
 		>
-			<ul className="blocks-gallery-grid">
+			<ul 
+				className={ classnames( galleryClasses ) } 
+				style={ itemStyle }
+			>
 				{ images.map( ( image ) => {
 					let href;
 
@@ -44,7 +81,7 @@ export default function save( { attributes } ) {
 							data-full-url={ image.fullUrl }
 							data-link={ image.link }
 							className={
-								image.id ? `wp-image-${ image.id }` : null
+								image.id ? `photopress-image-${ image.id }` : null
 							}
 						/>
 					);
@@ -52,14 +89,15 @@ export default function save( { attributes } ) {
 					return (
 						<li
 							key={ image.id || image.url }
-							className="blocks-gallery-item"
+							className="photopress-gallery-item"
+							style={ itemStyle }
 						>
 							<figure>
 								{ href ? <a href={ href }>{ img }</a> : img }
 								{ ! RichText.isEmpty( image.caption ) && (
 									<RichText.Content
 										tagName="figcaption"
-										className="blocks-gallery-item__caption"
+										className="photopress-gallery-item__caption"
 										value={ image.caption }
 									/>
 								) }
@@ -68,13 +106,7 @@ export default function save( { attributes } ) {
 					);
 				} ) }
 			</ul>
-			{ ! RichText.isEmpty( caption ) && (
-				<RichText.Content
-					tagName="figcaption"
-					className="blocks-gallery-caption"
-					value={ caption }
-				/>
-			) }
+
 		</figure>
 	);
 }

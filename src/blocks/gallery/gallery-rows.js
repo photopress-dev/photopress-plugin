@@ -2,7 +2,6 @@
  * External dependencies
  */
 import classnames from 'classnames';
-import Masonry from 'react-masonry-component';
 
 /**
  * WordPress dependencies
@@ -57,18 +56,18 @@ class RowsGallery extends Component {
 			caption,
 			imageCrop,
 			images,
-			gridSize,
 			gutter,
+			gridSize,
 			gutterMobile
 		} = attributes;
 		
 		return (
 			
-			<div className={'photopress-gallery'}>
+			<figure className={'photopress-gallery'}>
 			
 				<ul 
-					className={ classnames( 'photopress-gallery-rows' ) }
-					style={ {padding: '0', margin: '0'} } 
+					className={ 'photopress-gallery-rows' }
+					style={ {padding: '0', margin: '0', "--pp-gallery-gutter": gutter + 'px'} } 
 				>
 					
 					
@@ -86,9 +85,7 @@ class RowsGallery extends Component {
 										
 										<li
 											className="photopress-gallery-item"
-											key={ img.id || img.url }
-											
-											
+											key={ img.id || img.url }	
 										>
 										
 										<GalleryImage
@@ -127,7 +124,7 @@ class RowsGallery extends Component {
 			
 				</div>	
 				
-			</div>	
+			</figure>	
 		);
 	}
 }

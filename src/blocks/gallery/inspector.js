@@ -208,7 +208,7 @@ class Inspector extends Component {
 							onChange={ ( value ) => { this.setAttributes( {rowHeight: value} ) } }
 							min={ 100 }
 							max={ 500 }
-							step={ 20 }		
+							step={ 10 }		
 						/>
 						
 					}
@@ -223,10 +223,14 @@ class Inspector extends Component {
 							onChange={ ( value ) => { this.setColumnWidth( value ) } }
 							min={ 100 }
 							max={ 500 }
-							step={ 20 }		
+							step={ 10 }		
 						/>
 					
-						<RangeControl
+						
+					</PanelBody>
+					}
+					
+					<RangeControl
 							label={ __( 'Gutter' ) }
 							value={ gutter }
 							onChange={ ( value ) => { 
@@ -239,8 +243,6 @@ class Inspector extends Component {
 							max={ 100 }
 							step={ 10 }		
 						/>
-					</PanelBody>
-					}
 					
 					{galleryStyle === 'columns' &&
 						

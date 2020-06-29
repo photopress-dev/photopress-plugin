@@ -26,10 +26,7 @@ class ColumnsGallery extends Component {
 	
 	constructor() {
 		
-		
 		super( ...arguments );
-	
-		
 	}
 		
 	render() {
@@ -64,7 +61,7 @@ class ColumnsGallery extends Component {
 		
 		return (
 			
-			<div className={'photopress-gallery'}>
+			<figure className={'photopress-gallery'}>
 			
 				<ul 
 					className={ classnames( 'photopress-gallery-columns', {
@@ -72,7 +69,7 @@ class ColumnsGallery extends Component {
 						[ `columns-${ columns }` ]: columns,
 						'is-cropped': imageCrop,
 					} ) }
-					style={ {padding: '0', margin: '0'} } 
+					style={ {padding: '0', margin: '0', "--pp-gallery-gutter": gutter + 'px'} } 
 				>
 					
 					
@@ -91,7 +88,6 @@ class ColumnsGallery extends Component {
 										<li
 											className="photopress-gallery-item"
 											key={ img.id || img.url }
-											
 										>
 										
 										<GalleryImage
@@ -130,7 +126,7 @@ class ColumnsGallery extends Component {
 			
 				</div>	
 				
-			</div>	
+			</figure>	
 		);
 	}
 }

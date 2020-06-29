@@ -69,14 +69,14 @@ class MasonryGallery extends Component {
 		
 		const masonryClasses = classnames( 
 		
-			'photopress-gallery', 'photopress-masonry-gallery' 
+			'photopress-gallery-masonry' 
 		);
 	
 		return (
 			
 			<div>
 			
-				<div>
+				<figure className={'photopress-gallery'}>
 				
 					<Masonry
 						ref={function(c) {this.masonry = this.masonry || c.masonry;}.bind(this)}
@@ -141,7 +141,7 @@ class MasonryGallery extends Component {
 		
 					</Masonry>
 			
-				</div>
+				</figure>
 				
 				<div>
 			
