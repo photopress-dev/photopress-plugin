@@ -63,7 +63,8 @@ class MasonryGallery extends Component {
 		const masonryOptions = {
 			
 			columnWidth: '.grid-sizer',
-			gutter: '.gutter-sizer'
+			gutter: '.gutter-sizer',
+			isFitWidth: true
 			
 		};
 		
@@ -86,6 +87,7 @@ class MasonryGallery extends Component {
 						disableImagesLoaded={ false }
 						updateOnEachImageLoad={ true }
 						enableResizableChildren={ true }
+						style={{opacity: 1}}
 					>
 					
 					<li 

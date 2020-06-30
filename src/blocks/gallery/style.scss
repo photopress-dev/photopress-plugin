@@ -19,8 +19,8 @@ figure.photopress-gallery {
 	
 	display: flex;
 	flex-wrap: wrap;
-	padding: '0';
-	margin: '0';
+	padding: 0;
+	margin: 0;
 }
 
 .photopress-gallery-columns .photopress-gallery-item, .photopress-gallery-rows .photopress-gallery-item {
@@ -51,11 +51,16 @@ figure.photopress-gallery {
     object-fit: cover;
 }
 
+.photopress-gallery figure {
+	
+	margin:0;
+	line-height:0;
+}
+
 .photopress-gallery-columns .photopress-gallery-item figure {
     display: flex;
     align-items: flex-end;
     justify-content: flex-start;
-    margin:0px;
     height:100%;
 }
 
@@ -137,6 +142,15 @@ figure.photopress-gallery {
 	height:100%;
 }
 
+.photopress-gallery .photopress-gallery-masonry {
+	// margin auto centers the gallery. margin 0 makes it left justified.
+	margin:auto;
+	padding: 0;
+	width:auto;
+	// opacity hides the initial items untill masonry completes layout.
+	opacity: 0;
+}
+
 .photopress-gallery-item figcaption {
     position: absolute;
     bottom: 0;
@@ -153,8 +167,5 @@ figure.photopress-gallery {
 }
 
 
-.photopress-gallery .photopress-gallery-masonry {
-	
-	margin:0;
-	padding: 0;
-}
+
+

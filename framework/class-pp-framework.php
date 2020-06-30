@@ -122,6 +122,19 @@ class photopress_framework {
 				// Add more data here that you want to access from `photopressGlobal` object.
 			]
 		);
+		
+		add_action( 'enqueue_block_assets', function() {
+			// Masonry block
+			if ( has_block( 'photopress/gallery') ) {
+				wp_enqueue_script(
+					'photopress-masonry',
+					plugins_url( '/modules/gallery/assets/js/gallery-masonry.js', dirname( __FILE__ ) ),
+					array( 'jquery', 'masonry', 'imagesloaded' ),
+					'1.0.0',
+					true
+				);
+			}
+		});
 	}
 
 }

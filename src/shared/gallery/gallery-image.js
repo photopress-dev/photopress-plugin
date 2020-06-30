@@ -191,7 +191,7 @@ class GalleryImage extends Component {
 		const className = classnames( {
 			'is-selected': isSelected,
 			'is-transient': isBlobURL( url ),
-		} );
+		}, 'photopress-gallery-item__figure' );
 		
 		let inlineStyle;
 		

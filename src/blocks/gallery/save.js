@@ -22,7 +22,11 @@ export default function save( { attributes } ) {
 		caption,
 		linkTo,
 		galleryStyle,
-		gutter
+		gutter,
+		columnWidth,
+		bottomGutter,
+		showCaptions
+		
 	} = attributes;
 	
 
@@ -53,6 +57,26 @@ export default function save( { attributes } ) {
 		itemStyle = {"--pp-gallery-gutter": gutter + 'px'};
 	}
 	
+	// setup masonry sizers elements.
+	let masonryGridSizer;
+	let masonryGutterSizer;
+	let galleryItemStyle;
+	if ( galleryStyle === 'masonry' ) {
+		
+		galleryItemStyle = {width: columnWidth + "px", marginBottom: bottomGutter + 'px' }
+		
+		masonryGridSizer = (
+			
+			<li className="grid-sizer" style={ {width: columnWidth + "px"} } ></li>
+		);
+		
+		masonryGutterSizer = (
+			
+			<li className="gutter-sizer" style={ {width: gutter + "px"} } ></li>
+		);
+		
+	}
+	
 	return (
 		<figure
 			className={ 'photopress-gallery' }
@@ -61,6 +85,10 @@ export default function save( { attributes } ) {
 				className={ classnames( galleryClasses ) } 
 				style={ itemStyle }
 			>
+			
+			{ masonryGridSizer }
+			{ masonryGutterSizer }
+			
 				{ images.map( ( image ) => {
 					let href;
 
@@ -90,11 +118,11 @@ export default function save( { attributes } ) {
 						<li
 							key={ image.id || image.url }
 							className="photopress-gallery-item"
-							style={ itemStyle }
+							style={ galleryItemStyle }
 						>
-							<figure>
+							<figure className={ 'photopress-gallery-item__figure' }>
 								{ href ? <a href={ href }>{ img }</a> : img }
-								{ ! RichText.isEmpty( image.caption ) && (
+								{ ! RichText.isEmpty( image.caption ) && showCaptions && (
 									<RichText.Content
 										tagName="figcaption"
 										className="photopress-gallery-item__caption"
