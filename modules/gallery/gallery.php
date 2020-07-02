@@ -11,7 +11,8 @@ if ( ! class_exists( 'photopress_module' ) ) {
  * Adds a dynamic Gutenberg block that displays a gallery of child pages.
  */
 class photopress_core_gallery_module extends photopress_module {
-		
+	
+	var $attrs = 'foo'; 	
 	public function definePublicHooks() {
 			
 		register_block_type( 'photopress/gallery', [
@@ -22,13 +23,8 @@ class photopress_core_gallery_module extends photopress_module {
 			'editor_script' 		=> 'photopress-editor',
 			// Enqueue blocks.editor.build.css in the editor only.
 			'editor_style'  		=> 'photopress-editor'
-			
-
-		]);
-		
-						
+		]);	
 	}
-	
 }
 
 ?>

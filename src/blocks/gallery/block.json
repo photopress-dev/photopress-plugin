@@ -109,6 +109,10 @@
 		"showCaptions": {
 			"type": "boolean",
 			"default": true
+		},
+		"themeHorizontalMargin": {
+			"type": "string",
+			"default": "0px"
 		}	
 	
 	},

@@ -297,8 +297,10 @@ class GalleryEdit extends Component {
 			images,
 			linkTo,
 			sizeSlug,
-			galleryStyle
+			galleryStyle,
+			themeHorizontalMargin
 		} = attributes;
+		
 	
 		const hasImages = !! images.length;
 		
@@ -410,6 +412,7 @@ export default compose( [
 						return currentResizedImages;
 					}
 					const image = getMedia( id );
+				
 					const sizes = reduce(
 						imageSizes,
 						( currentSizes, size ) => {
@@ -424,9 +427,16 @@ export default compose( [
 								size.slug,
 								'source_url',
 							] );
+							
+							const mediaWidth = get( image, [
+								'media_details', 'width'
+							] );
+							
+							
+							
 							return {
 								...currentSizes,
-								[ size.slug ]: defaultUrl || mediaDetailsUrl,
+								[ size.slug ]: { 'src': defaultUrl || mediaDetailsUrl, 'width': mediaWidth }
 							};
 						},
 						{}
@@ -439,7 +449,7 @@ export default compose( [
 				{}
 			);
 		}
-
+		
 		return {
 			imageSizes,
 			mediaUpload,

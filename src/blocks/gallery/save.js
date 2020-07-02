@@ -24,10 +24,13 @@ export default function save( { attributes } ) {
 		galleryStyle,
 		gutter,
 		columnWidth,
+		rowHeight,
 		bottomGutter,
-		showCaptions
+		showCaptions,
+		themeHorizontalMargin
 		
 	} = attributes;
+	
 	
 
 	// gallery style classes
@@ -42,11 +45,19 @@ export default function save( { attributes } ) {
 	
 	galleryClasses.push( styleClasses[ galleryStyle ] );
 	
+	// the responsive images sizes calc.
+	let sizesAttrCalc;
+	
+	// uses to give a little wider image size for cropped images in the responsive images sizes calc
+	const cropSizeFactor = imageCrop ? 1.3 : 1;
+	
 	if ( galleryStyle === 'columns' ) {
 		
 		galleryClasses.push( `columns-${ columns }` );
 		
 		galleryClasses.push( { "is-cropped": imageCrop } );
+		
+		sizesAttrCalc = `((100vw - ${themeHorizontalMargin} ) / ${columns}) * ${cropSizeFactor}`;
 	}
 	
 	// item style for setting gutter attribute.
@@ -56,6 +67,15 @@ export default function save( { attributes } ) {
 		
 		itemStyle = {"--pp-gallery-gutter": gutter + 'px'};
 	}
+	
+	
+
+	if ( galleryStyle === 'rows' ) {
+		
+		sizesAttrCalc = `${rowHeight}px * 2`;
+	}
+	
+
 	
 	// setup masonry sizers elements.
 	let masonryGridSizer;
@@ -75,7 +95,11 @@ export default function save( { attributes } ) {
 			<li className="gutter-sizer" style={ {width: gutter + "px"} } ></li>
 		);
 		
+		sizesAttrCalc = `${columnWidth}px `;
+		
 	}
+	
+	
 	
 	return (
 		<figure
@@ -100,7 +124,8 @@ export default function save( { attributes } ) {
 							href = image.link;
 							break;
 					}
-
+					
+					
 					const img = (
 						<img
 							src={ image.url }
@@ -108,9 +133,9 @@ export default function save( { attributes } ) {
 							data-id={ image.id }
 							data-full-url={ image.fullUrl }
 							data-link={ image.link }
-							className={
-								image.id ? `photopress-image-${ image.id }` : null
-							}
+							className={ image.id ? `wp-image-${ image.id }` : null }
+							sizes={`(max-width: 700px) 100vw, calc( ${sizesAttrCalc} )`}
+							
 						/>
 					);
 

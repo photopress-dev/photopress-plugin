@@ -102,7 +102,7 @@ class Inspector extends Component {
 			}
 			const url = get( resizedImages, [
 				parseInt( image.id, 10 ),
-				sizeSlug,
+				sizeSlug, 'src'
 			] );
 			
 			return {

@@ -46,6 +46,7 @@ class ColumnsGallery extends Component {
 			onSetImageAttributes,
 			onFocusGalleryCaption,
 			insertBlocksAfter,
+			resizedImages
 		} = this.props;
 	
 		const {
@@ -58,7 +59,7 @@ class ColumnsGallery extends Component {
 			gutter,
 			gutterMobile
 		} = attributes;
-		
+			
 		return (
 			
 			<figure className={'photopress-gallery'}>
@@ -81,7 +82,8 @@ class ColumnsGallery extends Component {
 									index + 1,
 									images.length
 								);
-							
+								
+								
 								return (
 										
 										
