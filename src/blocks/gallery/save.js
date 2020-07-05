@@ -7,6 +7,7 @@ import classnames from 'classnames';
  * WordPress dependencies
  */
 import { RichText } from '@wordpress/block-editor';
+import { Fragment } from '@wordpress/element';
 
 /**
  * Internal dependencies
@@ -31,87 +32,141 @@ export default function save( { attributes } ) {
 		
 	} = attributes;
 	
-	
-
 	// gallery style classes
-	var galleryClasses = [];
+	let galleryClasses = [];
 	
 	const styleClasses = {
 		
 		columns: 'photopress-gallery-columns',
 		rows:	 'photopress-gallery-rows',
-		masonry: 'photopress-gallery-masonry'
+		masonry: 'photopress-gallery-masonry',
+		mosaic:  'photopress-gallery-mosaic'
 	};
 	
+	// choose a base class based on what style is chosen.
 	galleryClasses.push( styleClasses[ galleryStyle ] );
 	
-	// the responsive images sizes calc.
-	let sizesAttrCalc;
+	// Gallery level inline CSS
+	let galleryInlineCss = {};
+	
+	// Item level inline CSS
+	let itemInlineCss;
+	
+	// placeholder for adding elements to be the beginning of the item list.
+	let preItemList;
+	
+	// placeholder for adding elements to be the end of the item list.
+	let postItemList
 	
 	// uses to give a little wider image size for cropped images in the responsive images sizes calc
-	const cropSizeFactor = imageCrop ? 1.3 : 1;
+	const cropSizeFactor = imageCrop || galleryStyle === 'mosaic' ? 1.3 : 1;
 	
+	// set classes and variables for Column style.
 	if ( galleryStyle === 'columns' ) {
 		
 		galleryClasses.push( `columns-${ columns }` );
 		
 		galleryClasses.push( { "is-cropped": imageCrop } );
 		
-		sizesAttrCalc = `((100vw - ${themeHorizontalMargin} ) / ${columns}) * ${cropSizeFactor}`;
+		galleryInlineCss = {
+			padding: '0', 
+			margin: '0', 
+			"--pp-gallery-gutter": gutter + 'px'
+		};
 	}
 	
-	// item style for setting gutter attribute.
-	let itemStyle = {};
-	
-	if ( galleryStyle === 'columns' || 'rows' ) {
+	// set classes and variables for Row and Mosaic styles.
+	if ( galleryStyle === 'rows' || galleryStyle === 'mosaic' ) {
 		
-		itemStyle = {"--pp-gallery-gutter": gutter + 'px'};
+		galleryInlineCss = {
+			//padding: '0', 
+			//margin: '0', 
+			"--pp-gallery-gutter": gutter + 'px', 
+			"--pp-gallery-rowheight": rowHeight + 'px'
+		};
 	}
-	
-	
 
-	if ( galleryStyle === 'rows' ) {
-		
-		sizesAttrCalc = `${rowHeight}px * 2`;
-	}
-	
-
-	
-	// setup masonry sizers elements.
-	let masonryGridSizer;
-	let masonryGutterSizer;
-	let galleryItemStyle;
+	// set classes and variables for Masonry style.
 	if ( galleryStyle === 'masonry' ) {
 		
-		galleryItemStyle = {width: columnWidth + "px", marginBottom: bottomGutter + 'px' }
+		itemInlineCss = {width: columnWidth + "px", marginBottom: bottomGutter + 'px' }
 		
-		masonryGridSizer = (
+		preItemList = (
 			
-			<li className="grid-sizer" style={ {width: columnWidth + "px"} } ></li>
-		);
-		
-		masonryGutterSizer = (
-			
+			<Fragment>
 			<li className="gutter-sizer" style={ {width: gutter + "px"} } ></li>
+			<li className="grid-sizer" style={ {width: columnWidth + "px"} } ></li>
+			</Fragment>
 		);
-		
-		sizesAttrCalc = `${columnWidth}px `;
-		
 	}
 	
+	if ( galleryStyle === 'mosaic' ) {
+		
+		postItemList = (
+			
+			<li className={"mosaic-spacer"} ></li>
+		);
+
+	}
 	
+	/**
+	 * Calculates Image Crop Factor for use in <img> sizes attr.
+	 *
+	 * Calculates a crop factor is the image is a horizontal as it may be croped in 
+	 * CSS using object-fit: cover.
+	 */
+	const calcCropSizeFactor = (aspectRatio) => {
+		
+		return  ( imageCrop || galleryStyle === ' mosaic') && aspectRatio > 1 ? 1.5 : 1;
+	}
+	
+	/**
+	 * Prepares <img> tag sizes attr css calculation 
+	 *
+	 * Dynamically calc the responsive image sizes attr based on image dimentions
+	 */
+	const getImageSizeCalc = (aspectRatio) => {
+		
+		let size;
+		
+		let cropSizeFactor = calcCropSizeFactor(aspectRatio);
+		
+		switch(galleryStyle) {
+			
+			case "mosaic":
+				// calculate image width and apply crop factor.
+				size = `${rowHeight}px * ${aspectRatio} * ${cropSizeFactor}`;
+				break;
+				
+			case "rows":
+			// calculate image width
+				size = `${rowHeight}px * ${aspectRatio}`;
+				break;
+				
+			case "masonry":
+				// do nothing as we get an explicit width
+				size = `${columnWidth}px`;
+				break;
+				
+			case "columns":
+				// calculate width based on column count and apply possible crop factor 
+				size = `( (100vw - ${themeHorizontalMargin} ) / ${columns} ) * ${cropSizeFactor}`;
+				break;
+		}
+		
+		return size;
+	};
 	
 	return (
-		<figure
-			className={ 'photopress-gallery' }
-		>
+		
+		<figure className={ 'photopress-gallery' } >
+			
 			<ul 
 				className={ classnames( galleryClasses ) } 
-				style={ itemStyle }
+				style={ galleryInlineCss }
 			>
 			
-			{ masonryGridSizer }
-			{ masonryGutterSizer }
+				{ preItemList }
 			
 				{ images.map( ( image ) => {
 					let href;
@@ -125,17 +180,17 @@ export default function save( { attributes } ) {
 							break;
 					}
 					
-					
 					const img = (
 						<img
 							src={ image.url }
 							alt={ image.alt }
 							data-id={ image.id }
+							data-aspectRatio={image.aspectRatio}
 							data-full-url={ image.fullUrl }
 							data-link={ image.link }
 							className={ image.id ? `wp-image-${ image.id }` : null }
-							sizes={`(max-width: 700px) 100vw, calc( ${sizesAttrCalc} )`}
-							
+							//sizes={`(max-width: 700px) 100vw, calc( ${sizesAttrCalc} )`}
+							sizes={'(max-width: 700px) 100vw, calc(' + getImageSizeCalc( image.aspectRatio ) +')'}
 						/>
 					);
 
@@ -143,7 +198,7 @@ export default function save( { attributes } ) {
 						<li
 							key={ image.id || image.url }
 							className="photopress-gallery-item"
-							style={ galleryItemStyle }
+							style={ itemInlineCss }
 						>
 							<figure className={ 'photopress-gallery-item__figure' }>
 								{ href ? <a href={ href }>{ img }</a> : img }
@@ -158,6 +213,9 @@ export default function save( { attributes } ) {
 						</li>
 					);
 				} ) }
+				
+				{ postItemList }
+				
 			</ul>
 
 		</figure>

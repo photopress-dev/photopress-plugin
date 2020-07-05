@@ -4,19 +4,25 @@
  * CSS for both Frontend+Backend.
  */
 
-.wp-block-cgb-block-photopress-block  {
-  background: $red;
-  border: 0.2rem solid $black;
-  color: $black;
-  margin: 0 auto;
-  max-width: 740px;
-  padding: 2rem;
-}
-
-wp-block-photopress-childpages__inner {
+.wp-block-photopress-childpages__inner {
 	
 	display: flex;
 	flex-direction: row;
 	flex-wrap: wrap;
 	justify-content: space-around;
+	align-items: center;
+	text-align: center;
+}
+
+.wp-block-photopress-childpages__item {
+	
+	flex: 1 1 auto;
+	
+}
+
+.wp-block-photopress-childpages__image img {
+	
+	object-fit: cover;	
+	height: inherit;
+	
 }

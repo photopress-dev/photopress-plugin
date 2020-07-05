@@ -12,6 +12,10 @@ import transforms from './transforms';
  */
 import { __ } from '@wordpress/i18n';
 
+//  Import CSS.
+import './style.scss';
+import './editor.scss';
+
 /**
  * Block constants
  */

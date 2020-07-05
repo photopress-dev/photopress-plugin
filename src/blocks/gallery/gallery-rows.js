@@ -19,16 +19,13 @@ import GalleryImage from '../../shared/gallery/gallery-image.js';
 
 
 /**
- * Main Gallery Class
+ * Rows Gallery Class
  */
 class RowsGallery extends Component {
 	
 	constructor() {
 		
-		
 		super( ...arguments );
-	
-		
 	}
 		
 	render() {
@@ -67,7 +64,7 @@ class RowsGallery extends Component {
 			
 				<ul 
 					className={ 'photopress-gallery-rows' }
-					style={ {padding: '0', margin: '0', "--pp-gallery-gutter": gutter + 'px'} } 
+					style={ {"--pp-gallery-gutter": gutter + 'px',"--pp-gallery-rowheight": rowHeight + 'px'} } 
 				>
 					
 					

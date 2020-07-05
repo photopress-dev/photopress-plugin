@@ -138,6 +138,7 @@ class GalleryImage extends Component {
 			id,
 			linkTo,
 			link,
+			aspectRatio,
 			isFirstItem,
 			isLastItem,
 			isSelected,
@@ -197,7 +198,7 @@ class GalleryImage extends Component {
 		
 		switch ( attributes.galleryStyle ) {
 			case 'rows':
-				inlineStyle = {margin: 0, height: attributes.rowHeight};
+				inlineStyle = {margin: 0};
 				break;
 			case 'columns':
 				inlineStyle = {margin: 0};
@@ -207,8 +208,6 @@ class GalleryImage extends Component {
 				break;
 
 		}
-		
-		const rowHeight =  attributes.galleryStyle === 'rows' ? attributes.rowHeight : '';
 
 		return (
 			<figure

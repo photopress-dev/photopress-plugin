@@ -20,7 +20,7 @@ import GalleryImage from '../../shared/gallery/gallery-image.js';
 import { defaultColumnsNumber } from '../../shared/shared.js';
 
 /**
- * Main Gallery Class
+ * Masonry Gallery Class
  */
 class MasonryGallery extends Component {
 	

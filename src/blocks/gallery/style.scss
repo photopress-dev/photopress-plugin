@@ -1,3 +1,10 @@
+@import "../../shared/styles/columns.scss";
+
+:root {
+	
+	--pp-gallery-rowheight: 300px;
+}
+
 .photopress-gallery {
 	
 	li { 
@@ -6,50 +13,128 @@
 	
 }
 
-
-
 figure.photopress-gallery {
 	display: block;
 	margin: 0;
+	// needed for rows layout to offset negative margin hack for gutters
+	overflow-x: hidden;
 }
 
-.photopress-gallery-columns, .photopress-gallery-rows {
+.photopress-gallery-columns, .photopress-gallery-rows, .photopress-gallery-mosaic {
 	
 	display: flex;
 	flex-wrap: wrap;
 	padding: 0;
 	margin: 0;
+	margin-left:0;
 }
 
-.photopress-gallery-columns .photopress-gallery-item, .photopress-gallery-rows .photopress-gallery-item {
+.photopress-gallery-rows, .photopress-gallery-mosaic {
 	
-	display:flex;
-	flex-flow: column;
-	margin: 0 16px 16px 0;
-	margin-bottom: var(--pp-gallery-gutter);
-	margin-right: var(--pp-gallery-gutter);
-	flex-grow: 1;
-	justify-content: center;
-	position: relative;
-	box-sizing: inherit;
-	flex-grow: inherit;
+	// use negative margin hack to create even gutters.
+	// https://www.rawkblog.com/2019/01/flexbox-gutters-negative-margins-solved/
+	margin-left: calc( var(--pp-gallery-gutter) * -1 );
+	padding:0;
+	
+	.photopress-gallery-item {
+		
+		display:flex;
+		flex-flow: column;
+		margin: 0;
+		margin-bottom: var(--pp-gallery-gutter);
+		margin-left: var(--pp-gallery-gutter);
+		flex-grow: 1;
+		justify-content: center;
+		position: relative;
+		box-sizing: inherit;
+		flex-grow: inherit;
+	}
+	
+	
 }
 
-.photopress-gallery-columns .photopress-gallery-item  img, .photopress-gallery-rows .photopress-gallery-item  img {
-
-    display: block;
-    max-width: 100%;
-    height: auto;
-    width:auto;
-    
-    width:100%;
+.photopress-gallery-mosaic {
+	
+	.photopress-gallery-item {
+		
+		flex-grow: 1;
+		
+		img {
+			
+			object-fit:cover;
+		}
+	}
+	
+	// this is needded to avoid the last item in the flexbox from
+	// becoming distorted
+	.mosaic-spacer {
+		
+		flex-grow: 10;
+	}
 }
 
-.photopress-gallery .is-cropped .photopress-gallery-item img {
-    height: 100%;
-    width:100%;
-    //flex: 1;
-    object-fit: cover;
+
+.photopress-gallery-columns {
+	
+	.photopress-gallery-item {
+	
+		display:flex;
+		flex-flow: column;
+		margin: 0 16px 16px 0;
+		margin-bottom: var(--pp-gallery-gutter);
+		margin-right: var(--pp-gallery-gutter);
+		flex-grow: 1;
+		justify-content: center;
+		position: relative;
+		box-sizing: inherit;
+		flex-grow: inherit;
+		width: calc((100% - var(--pp-gallery-gutter) * 3) / 1);
+		margin-right: var(--pp-gallery-gutter);
+	}
+}
+
+.photopress-gallery-columns, .photopress-gallery-rows, .photopress-gallery-mosaic {
+	
+	.photopress-gallery-item  {
+		
+		img {
+			
+			display: block;
+		    max-width: 100%;
+		    height: auto;
+		    width:auto;
+		    width:100%;
+		}
+		
+		figure {
+			
+		    display: flex;
+		    align-items: flex-end;
+		    justify-content: flex-start;
+		    height:100%;
+		}
+	}
+}
+
+.photopress-gallery {
+
+	.is-cropped { 
+		
+		.photopress-gallery-item { 
+			
+			figure {
+	
+				align-items: normal;
+			}
+			
+			img {
+				
+				height: 100%;
+			    width:100%;
+			    object-fit: cover;
+			}
+		}
+	}
 }
 
 .photopress-gallery figure {
@@ -58,95 +143,26 @@ figure.photopress-gallery {
 	line-height:0;
 }
 
-.photopress-gallery-columns .photopress-gallery-item figure {
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-start;
-    height:100%;
-}
 
+/*
 .photopress-gallery-columns .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 3) / 1);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-
-
-@media only screen and (min-width: 600px) {
 	
-	.photopress-gallery-columns.columns-2 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 3) / 2);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-	
-	.photopress-gallery-columns.columns-2 .photopress-gallery-item:nth-of-type(2n) {
-	    margin-right: 0;
-	}
-	
-	.photopress-gallery-columns.columns-3 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 3) / 3);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-	
-	.photopress-gallery-columns.columns-3 .photopress-gallery-item:nth-of-type(3n) {
-	    margin-right: 0;
-	}
-	
-	.photopress-gallery-columns.columns-4 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 3) / 4);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-	
-	.photopress-gallery-columns.columns-4 .photopress-gallery-item:nth-of-type(4n) {
-	    margin-right: 0;
-	}
-	
-	.photopress-gallery-columns.columns-5 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 4) / 5);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-	
-	.photopress-gallery-columns.columns-5 .photopress-gallery-item:nth-of-type(5n) {
-	    margin-right: 0;
-	}
-	
-	.photopress-gallery-columns.columns-6 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 5) / 6);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-	
-	.photopress-gallery-columns.columns-6 .photopress-gallery-item:nth-of-type(6n) {
-	    margin-right: 0;
-	}
-	
-	.photopress-gallery-columns.columns-7 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 6) / 7);
-	    margin-right: var(--pp-gallery-gutter);
-	}
-	
-	.photopress-gallery-columns.columns-7 .photopress-gallery-item:nth-of-type(7n) {
-	    margin-right: 0;
-	}
-	
-	.photopress-gallery-columns.columns-8 .photopress-gallery-item {
-	    width: calc((100% - var(--pp-gallery-gutter) * 7) / 8);
-	    margin-right: var(--pp-gallery-gutter)x;
-	}
-	
-	.photopress-gallery-columns.columns-8 .photopress-gallery-item:nth-of-type(8n) {
-	    margin-right: 0;
-	}
+	width: calc((100% - var(--pp-gallery-gutter) * 3) / 1);
+	margin-right: var(--pp-gallery-gutter);
 }
-.photopress-gallery-rows .photopress-gallery-item  {
+*/
+
+.photopress-gallery-rows .photopress-gallery-item, .photopress-gallery-mosaic .photopress-gallery-item  {
 	
 	max-width:100%
 }
 
-.photopress-gallery-rows .photopress-gallery-item figure {
+.photopress-gallery-rows .photopress-gallery-item figure, .photopress-gallery-mosaic .photopress-gallery-item figure {
 	
-	height:300px;
+	height: var(--pp-gallery-rowheight);
 }
 
-.photopress-gallery-rows .photopress-gallery-item figure img {
+.photopress-gallery-rows .photopress-gallery-item figure img, .photopress-gallery-mosaic .photopress-gallery-item figure img {
 	
 	height:100%;
 }
@@ -176,5 +192,78 @@ figure.photopress-gallery {
 }
 
 
+.lightbox {
+	//Default lightbox to hidden
+	display: none;
+	position: fixed;
+	z-index: 999;
+	width: 100%;
+	height: 100%;
+	text-align: center;
+	top: 0;
+	left: 0;
+	background: rgba(255, 255, 255, 1);
+}
 
+.lightbox:target {
+	/** Remove default browser outline */
+	outline: none;
+
+	/** Unhide lightbox **/
+	display: block;
+}
+
+.lightbox__close {
+	
+	position: absolute;
+	top: 30px;
+	right: 30px;
+}
+
+.photopress-slideshow {
+	
+	display: flex;
+	flex-direction: column;
+	height:100vh;
+	align-items: flex-end;
+		
+	.panels {
+		
+		display: flex;
+		flex-direction: row;
+		flex-wrap: nowrap;
+		justify-content: space-between;
+		height:100%;
+		
+		
+		.left-panel {
+			
+		}
+		
+		.center-panel {
+			
+		}
+		
+		.right-panel {
+			
+		}
+	}
+	
+	.thumbnails {
+		
+		display: flex;    
+		overflow-x: auto;
+		-ms-overflow-style: none;  /* hide scrolbar IE and Edge */
+		scrollbar-width: none;  /* hide scrolbar Firefox */
+		height:200px;
+		
+	}
+	
+	/* Hide scrollbar for Chrome, Safari and Opera */
+	.thumbnails::-webkit-scrollbar {
+		display: none;
+	}
+	
+	
+}
 

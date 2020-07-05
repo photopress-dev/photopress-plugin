@@ -34,6 +34,7 @@ import { defaultColumnsNumber, pickRelevantMediaFiles } from '../../shared/share
 import MasonryGallery from './gallery-masonry.js';
 import ColumnsGallery from './gallery-columns.js';
 import RowsGallery from './gallery-rows.js';
+import MosaicGallery from './gallery-mosaic.js';
 import Inspector from './inspector';
 
 const MAX_COLUMNS = 8;
@@ -196,7 +197,7 @@ class GalleryEdit extends Component {
 				caption: newImage.caption,
 			} ) ),
 		} );
-		
+		console.log(newImages);
 		this.setAttributes( {
 			images: newImages.map( ( newImage ) => ( {
 				...pickRelevantMediaFiles( newImage, sizeSlug ),
@@ -209,9 +210,12 @@ class GalleryEdit extends Component {
 				// block is parsed it's converted to a string. Converting
 				// to a string here ensures it's type is consistent.
 				id: toString( newImage.id ),
+				aspectRatio: Math.floor( (newImage.sizes.full.width / newImage.sizes.full.height) * 100) /100
 			} ) ),
 			columns: columns ? Math.min( newImages.length, columns ) : columns,
 		} );
+		
+		console.log(this.props.attributes.images);
 	}
 
 	onUploadError( message ) {
@@ -377,6 +381,22 @@ class GalleryEdit extends Component {
 				
 				{ galleryStyle === 'rows' &&
 				<RowsGallery
+					{ ...this.props }
+					selectedImage={ this.state.selectedImage }
+					mediaPlaceholder={ mediaPlaceholder }
+					onMoveBackward={ this.onMoveBackward }
+					onMoveForward={ this.onMoveForward }
+					onRemoveImage={ this.onRemoveImage }
+					onSelectImage={ this.onSelectImage }
+					onDeselectImage={ this.onDeselectImage }
+					onSetImageAttributes={ this.setImageAttributes }
+					onFocusGalleryCaption={ this.onFocusGalleryCaption }
+					insertBlocksAfter={ insertBlocksAfter }
+				/>
+				}
+				
+				{ galleryStyle === 'mosaic' &&
+				<MosaicGallery
 					{ ...this.props }
 					selectedImage={ this.state.selectedImage }
 					mediaPlaceholder={ mediaPlaceholder }

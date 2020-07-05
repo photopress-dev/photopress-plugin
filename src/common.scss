@@ -1,9 +1,7 @@
 /**
  * #.# Common SCSS
  *
- * Can include things like variables and mixins
- * that are used across the project.
-*/
+ */
 
 // Colors.
 $black: rgb(41, 41, 41);
@@ -19,71 +17,9 @@ $break-zoomedin: 280px;
 $content-width: 700px;
 
 
-@mixin break-huge() {
-  @media ( min-width: #{ ( $break-huge ) } ) {
-    @content;
-  }
-}
-
-@mixin break-wide() {
-  @media ( min-width: #{ ( $break-wide ) } ) {
-    @content;
-  }
-}
-
-@mixin break-large() {
-  @media ( min-width: #{ ( $break-large ) } ) {
-    @content;
-  }
-}
-
-@mixin break-medium() {
-  @media ( min-width: #{ ( $break-medium ) } ) {
-    @content;
-  }
-}
-
-@mixin break-small() {
-  @media ( min-width: #{ ( $break-small ) } ) {
-    @content;
-  }
-}
-
-@mixin break-mobile() {
-  @media ( min-width: #{ ( $break-mobile ) } ) {
-    @content;
-  }
-}
-
-
-
 /* Inserting this collapsed row between two flex items will make 
  * the flex item that comes after it break to a new row */
 .flex-row-break {
   flex-basis: 100%;
   height: 0;
 }
-
-.wp-block-photopress-childpages__inner {
-	
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
-	justify-content: space-around;
-	align-items: center;
-	text-align: center;
-}
-
-.wp-block-photopress-childpages__item {
-	
-	flex: 1 1 auto;
-	
-}
-
-.wp-block-photopress-childpages__image img {
-	
-	object-fit: cover;	
-	height: inherit;
-	
-}
-

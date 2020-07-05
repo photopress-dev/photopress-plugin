@@ -43,6 +43,12 @@
 					"type": "string",
 					"source": "html",
 					"selector": ".photopress-gallery-item__caption"
+				},
+				"aspectRatio": {
+					"type": "number",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "data-aspectRatio"
 				}
 			}
 		},

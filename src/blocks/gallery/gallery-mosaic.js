@@ -2,7 +2,6 @@
  * External dependencies
  */
 import classnames from 'classnames';
-import Masonry from 'react-masonry-component';
 
 /**
  * WordPress dependencies
@@ -17,16 +16,16 @@ import { Component, Fragment } from '@wordpress/element';
  * Internal dependencies
  */
 import GalleryImage from '../../shared/gallery/gallery-image.js';
-import { defaultColumnsNumber } from '../../shared/shared.js';
+
 
 /**
- * Columns Gallery Class
+ * Mosaic Gallery Class
  */
-class ColumnsGallery extends Component {
+class MosaicGallery extends Component {
 	
 	constructor() {
 		
-		super( ...arguments );
+		super( ...arguments );	
 	}
 		
 	render() {
@@ -46,31 +45,34 @@ class ColumnsGallery extends Component {
 			onSetImageAttributes,
 			onFocusGalleryCaption,
 			insertBlocksAfter,
-			resizedImages
 		} = this.props;
 	
 		const {
 			align,
-			columns = defaultColumnsNumber( attributes ),
+			rowHeight,
 			caption,
 			imageCrop,
 			images,
-			gridSize,
 			gutter,
+			gridSize,
 			gutterMobile
 		} = attributes;
+		
+		
+		
+		
+		let mosaicSpacer = (
 			
+			<li className={"mosaic-spacer"} ></li>
+		);
+		
 		return (
 			
 			<figure className={'photopress-gallery'}>
 			
 				<ul 
-					className={ classnames( 'photopress-gallery-columns', {
-						[ `align${ align }` ]: align,
-						[ `columns-${ columns }` ]: columns,
-						'is-cropped': imageCrop,
-					} ) }
-					style={ {"--pp-gallery-gutter": gutter + 'px'} } 
+					className={ 'photopress-gallery-mosaic' }
+					style={ {"--pp-gallery-gutter": gutter + 'px', "--pp-gallery-rowheight": rowHeight + 'px'} } 
 				>
 					
 					
@@ -82,14 +84,12 @@ class ColumnsGallery extends Component {
 									index + 1,
 									images.length
 								);
-								
-								
+							
 								return (
-										
 										
 										<li
 											className="photopress-gallery-item"
-											key={ img.id || img.url }
+											key={ img.id || img.url }	
 										>
 										
 										<GalleryImage
@@ -119,7 +119,8 @@ class ColumnsGallery extends Component {
 								);
 					} ) }
 		
-								
+					{ mosaicSpacer }
+									
 				</ul>
 				
 				<div>
@@ -133,4 +134,4 @@ class ColumnsGallery extends Component {
 	}
 }
 
-export default ColumnsGallery;
+export default MosaicGallery;

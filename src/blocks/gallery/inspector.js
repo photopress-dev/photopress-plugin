@@ -34,7 +34,8 @@ import { __ } from '@wordpress/i18n';
 			
 			{ value: 'columns', label: __( 'Columns' ) },
 			{ value: 'masonry', label: __( 'Masonry' ) },
-			{ value: 'rows', label: __( 'Rows' ) }
+			{ value: 'rows', label: __( 'Justified' ) },
+			{ value: 'mosaic', label: __( 'Mosaic' ) }
 		];
 		
 class Inspector extends Component {
@@ -178,14 +179,16 @@ class Inspector extends Component {
 						options={ styleOptions }
 					/>
 					
-					{ shouldShowColumnStyleOptions && (
+					{ /*
+						shouldShowColumnStyleOptions && (
 						<SelectControl
 							label={ __( 'Images size' ) }
 							value={ sizeSlug }
 							options={ imageSizeOptions }
 							onChange={ this.updateImagesSize }
 						/>
-					) }
+					) 
+					*/}
 					
 					{galleryStyle === 'columns' && images.length > 1 &&
 						
@@ -197,7 +200,6 @@ class Inspector extends Component {
 							max={ 8 }
 							step={ 1 }		
 						/>
-						
 					}
 					
 					{galleryStyle === 'rows' &&
@@ -210,12 +212,22 @@ class Inspector extends Component {
 							max={ 500 }
 							step={ 10 }		
 						/>
-						
 					}
 					
+					{galleryStyle === 'mosaic' &&
+						
+						<RangeControl
+							label={ __( 'Row Height' ) }
+							value={ rowHeight }
+							onChange={ ( value ) => { this.setAttributes( {rowHeight: value} ) } }
+							min={ 100 }
+							max={ 500 }
+							step={ 10 }		
+						/>
+					}
 					
 					{ shouldShowMasonryStyleOptions && images.length > 1 && 
-					<PanelBody title={ __( 'Masonry settings' ) }>
+					
 
 						<RangeControl
 							label={ __( 'Column Width' ) }
@@ -224,10 +236,7 @@ class Inspector extends Component {
 							min={ 100 }
 							max={ 500 }
 							step={ 10 }		
-						/>
-					
-						
-					</PanelBody>
+						/>				
 					}
 					
 					<RangeControl
