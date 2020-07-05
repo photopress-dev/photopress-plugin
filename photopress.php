@@ -75,7 +75,7 @@ class photopress_plugin {
 						'package_name'			=> 'core',
 						'package_label'			=> 'PhotoPress',
 						'version'				=> '1.0.8',
-						'modules'				=> array('base', 'childpages', 'gallery'),
+						'modules'				=> array('base', 'childpages', 'gallery', 'slideshow'),
 						'dependencies'			=> array()
 					)
 				);

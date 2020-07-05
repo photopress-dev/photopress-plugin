@@ -345,10 +345,23 @@ abstract class photopress_package {
 	 */	
 	public function registerModule( $module_name ) {
 		
+		$path = pp_api::getModulePath( $this->package_name, $module_name ) . $module_name .'.php';
+		
+		if ( ! file_exists( $path ) ) {
+			
+			$path = pp_api::getModulePath( $this->package_name, $module_name ) .'index.php';
+		}
+		
+		if ( ! file_exists( $path ) ) {
+			// no file found, let's return.	
+		
+			return;
+		}
+		
 		$this->modules[ $module_name ] = array(
 		
 			'class'			=> sprintf('%s_%s_%s_module', 'photopress', $this->package_name, $module_name),
-			'path'			=> pp_api::getModulePath( $this->package_name, $module_name ) . $module_name .'.php'
+			'path'			=> $path
 		);
 	}
 	
