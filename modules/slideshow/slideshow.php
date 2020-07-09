@@ -48,14 +48,14 @@ class photopress_core_slideshow_module extends photopress_module {
 				
 				$o[] = '<div class="panels">';
 				
-					$o[] ='<div class="left-panel"></div>';
-					$o[] ='<div class="center-panel"></div>';
-					$o[] ='<div class="right-panel"></div>';
+					$o[] ='<div class="nav-control left"><i class="arrow left"></i></div>';
+					$o[] ='<div class="center"><div class="loader-circle"></div></div>';
+					$o[] ='<div class="nav-control right"><i class="arrow right"></i></div>';
 					
 				$o[] = '</div>';
 				
-				$o[] = '<div class="thumbnails"></div>';
-						
+				$o[] = '<div class="thumbnails"><div class="thumbnail-list owl-carousel"></div></div>';
+					
 			$o[] = '</div>';
 			
 			$o[] = '<a class="lightbox__close">Close</a>';
@@ -67,21 +67,28 @@ class photopress_core_slideshow_module extends photopress_module {
 	
 	public function public_scripts() {
 				
-/*
+
 		wp_register_style( 
-			'pp-slideshow', 
-			plugins_url('css/pp-slideshow.css',
+			'tns', 
+			plugins_url('assets/css/owl.carousel.min.css',
 			__FILE__) 
 		 );
-		 
-	    wp_enqueue_style( 'pp-slideshow' );
+	 
+	    wp_enqueue_style( 'tns' );
 				
+		
 		wp_enqueue_script(
-			'photopress-gallery-slideshow',
-			plugins_url( 'modules/slideshow/assets/js/slideshow.js' , __FILE__ ),
-			[ 'jquery', 'photopress' ]
+			'tns',
+			plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
+			[ 'jquery', ]
 		);
-*/
+		
+		wp_enqueue_script(
+			'photopress-slideshow',
+			plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
+			[ 'jquery' ]
+		);
+
 		
 	}
 	

@@ -18,22 +18,30 @@ photopress.slideshow = function( selector, options ) {
 	// initial right cpation height
 	this.right_caption_height;
 	
+	this.thumbnailCarousel = null;
 	// default options
 	this.options = {
-	
+		isLoaded: false,
 		showDetails: true,										// show slide details
 		detail_components: {									// detail components to be displayed
 			title: true, 
 			caption: true,
 			description: false
-		},		
-		lightbox: true,											// display slideshow in lightbox mode
-		clickStart: false, 										// delay start of slideshow until something is clicked.
-		clickStartSelector: '.gallery-icon', 					// DOM element to start the slideshow
+		},
+		gallerySelector: '.photopress-gallery',
+		clickStart: true, 										// delay start of slideshow until something is clicked.
+		clickStartSelector: '.photopress-gallery-item', 		// DOM element to start the slideshow
 		detail_position: 'bottom',
 		thumbnail_height: 120,
-		mobile_width_breakpoint: 900								// Position of the slide details relative to image. e.g. bottom || right		
-		
+		thumbnailCarousel: {
+			
+			loop: true,
+			autoWidth: true,
+			center: true,
+			margin:10,
+			slideBy: 1,
+			dots: false
+		}
 	};
 	
 	// apply instance specific options
@@ -63,7 +71,7 @@ photopress.slideshow = function( selector, options ) {
 /**
  * Abscract Slideshow Class
  */
-photopress.gallery.slideshow.prototype = {
+photopress.slideshow.prototype = {
 	
 	/**
 	 * Helper method for getting option values
@@ -80,91 +88,75 @@ photopress.gallery.slideshow.prototype = {
 		
 		var that = this;
 		
+		// render if the click start is disabled.
+		if ( this.getOption( 'clickStart' ) ) {
+			
+			// register click start handler
+			var selector = this.getOption( 'clickStartSelector') ;
+			
+			jQuery(document).on('click', selector, function() {
+				
+				that.showLightbox();
+			});
+			
+		} else {
+			
+			this.render();
+		}
+	
+		// Keypress event handlers
+		// these just fire the click event on the prev/next elements.
+		jQuery(document).keydown( function( e ) {
+			
+			switch( e.which ) {
+		        
+		        case 27: // esc
+		        	e.preventDefault(); // prevent the default action (scroll / move caret)
+		        	jQuery( '.lightbox .lightbox__close' ).click();
+					break;
 		
-		//  once document is ready
-		jQuery( document ).ready( function() {
-			
-			// REDNER LIGHTBOX
-			that.render();	
-			
-
-		   	
-		   	jQuery( document ).on( 'click', '.main_image_container .next', function() {
-        	
-        		// needed?
-	        	if ( jQuery( this ).hasClass( "pending" ) ) {
-	        		return;
-	        	}
-				
-				// find the target slide to show
-				var target = jQuery( '.makeMeScrollable img.current' ).next();
-				
-				if ( ! jQuery(target).length) {
-	         	
-	         	   target = jQuery( '.makeMeScrollable img:first-child' );
-			 	}
-			 	
-			 	// trigger a click on the target
-			 	target.click();
-			
-			});
-		
-			// prev next click event handlers.
-			jQuery(document).on('click', '.main_image_container .prev', function(){
-	        	
-	        	// needed?
-	        	if ( jQuery(this).hasClass("pending") ) {
-	        		return;
-	        	}
-				
-				// find the target slide to show
-				var target = jQuery('.makeMeScrollable img.current').prev();
-				
-				if ( ! jQuery(target).length) {
-	         	
-	         	   target = jQuery('.makeMeScrollable img:last-child');
-			 	}
-			 	
-			 	// trigger click on the target
-			 	target.click();
-			
-			});
-		
-			// Keypress event handlers
-			// these just fire the click event on the prev/next elements.
-			jQuery(document).keydown( function( e ) {
-				
-				switch( e.which ) {
-				
-			        case 37: // left arrow
-			        	e.preventDefault(); // prevent the default action (scroll / move caret)
-			        	jQuery( '.makeMeScrollable img.current' ).prev().click();
-						break;
-			
-			        case 39: // right arrow
-			        	e.preventDefault(); // prevent the default action (scroll / move caret)
-			        	jQuery( '.makeMeScrollable img.current' ).next().click();
-			        break;
-			        
-			        case 27: // esc
-			        	e.preventDefault(); // prevent the default action (scroll / move caret)
-			        	jQuery( '.photopress_gallery_slideshow .lightbox_close' ).click();
-						break;
-			
-			        default: 
-			        	return; // exit this handler is needed for other keypress handlers
-			    }
-			     
-			});
-			
-			jQuery(document).on('click', '.photopress_gallery_slideshow .lightbox_close', function(){
-        	
-				that.hideLightbox();
-			});
-
-			
+		        default: 
+		        	return; // exit this handler is needed for other keypress handlers
+		    }
+		     
 		});
+		
+		jQuery(document).on('click', '.lightbox .lightbox__close', function(){
+    	
+			that.hideLightbox();
+		});
+		
+	},
+	
+	showSlide: function ( img ) {
+		
+		jQuery('.panels .center').html('<div class="loader-circle"></div>');
+		var i = new Image;
+		i.srcset = jQuery(img).attr('srcset');
+		
+		// calculate the img tags resposive "sizes" attribute: 
+		// window height - thumbnails container height * aspect ratio of image.
+		let aspectratio = jQuery(img).data('aspectratio');
+		let vh = window.innerHeight;
+		let thumbsHeight = jQuery('.thumbnails').outerHeight(true);
+		i.sizes = `calc((${vh}px - ${thumbsHeight}px) * ${aspectratio})`;
+		
+		// fade in class
+		jQuery(i).addClass('fade-in');
+		
+		// add data-id from the gallery image, just in case...
+		jQuery(i).attr('data-id', jQuery(img).attr('data-id'));
+		
+		//load handler that once image is loaded will insert it into the DOM
+		jQuery(i).on('load', function() {
 			
+			//jQuery('.panels .center').html('<div class="main-image"></div>');
+			jQuery('.panels .center').html(i);
+		});
+		
+		// load the src of the image.
+		i.src = jQuery(img).attr('data-full-url');
+		
 	},
 	
 	/**
@@ -172,12 +164,12 @@ photopress.gallery.slideshow.prototype = {
 	 */
 	hideLightbox: function () {
 		
-		jQuery( '.photopress_gallery_slideshow' ).css('opacity','0');
-		jQuery( '.photopress_gallery_slideshow' ).css({'z-index': '-100'});
+		jQuery( '.lightbox' ).css('opacity','0');
+		jQuery( '.lightbox' ).css({'z-index': '-100'});
 		// re-enable scrolling of the body content
 		jQuery( 'body' ).css('overflow', 'auto');
 		// fire hidden event in case anyone is listening
-		jQuery( '.photopress_gallery_slideshow').trigger('slideshow-hidden');
+		jQuery( '.lightbox').trigger('pp-slideshow-closed');
 		
 	},
 	
@@ -186,12 +178,27 @@ photopress.gallery.slideshow.prototype = {
 	 */
 	showLightbox: function() {
 		
-		jQuery( '.photopress_gallery_slideshow' ).css('opacity', '1');
-		jQuery( '.photopress_gallery_slideshow' ).css('z-index', '99999');
-		// remove scroll bar for body of document
-		jQuery( 'body' ).css('overflow', 'hidden');
-		// fire reveals event in case anyone is listening
-		jQuery( '.photopress_gallery_slideshow').trigger('slideshow-revealed');
+		var that = this;
+		
+		jQuery( '.lightbox' ).show('slow', function() {
+			
+			var img = jQuery( '.owl-item.center' ).find('img');
+			that.showSlide( img );
+			
+			if ( ! that.getOption('isLoaded') ) {
+				
+				that.render();
+			}
+			
+			jQuery( '.lightbox' ).css('opacity', '1');
+			jQuery( '.lightbox' ).css('z-index', '99999');
+			// remove scroll bar for body of document
+			jQuery( 'body' ).css('overflow', 'hidden');
+			// fire reveals event in case anyone is listening
+			jQuery( '.lightbox').trigger('pp-slideshow-opened');
+			
+		});
+		
 		
 	},
 	
@@ -213,6 +220,135 @@ photopress.gallery.slideshow.prototype = {
 	 */
 	render: function () {
 		
+		var that = this;
+		var count;
+		var containerWidth = jQuery('.thumbnails').outerWidth();
+		var itemsWidth = 0;
+		//load images from the gallery
+		jQuery( that.getOption( 'gallerySelector' ) ).find('img').each( function( i ) {
+			
+			// clone the image
+			var ni = jQuery(this).clone();
+			// add thumnail class
+			jQuery(ni).addClass('thumbnail');
+			// add data position attribute
+			jQuery(ni).attr('data-position', i + 1);
+			// append it to the thumbnail 
+			jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
+			count = i;
+			itemsWidth = itemsWidth + jQuery('.thumbnail-item').last().width();
+		});	
+		
+		console.log(itemsWidth);
+		console.log(containerWidth);
+		if (itemsWidth < containerWidth) {
+			
+			// double the slides to create a wrap around effect in the carousel.
+			jQuery( that.getOption( 'gallerySelector' ) ).find('img').each( function( i ) {
+				
+				// clone the image
+				var ni = jQuery(this).clone();
+				// add thumnail class
+				jQuery(ni).addClass('thumbnail');
+				// add data position attribute
+				jQuery(ni).attr('data-position', i + count + 1);
+				// append it to the thumbnail 
+				jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
+				count = i;
+				
+			});	
+		}
+		
+	
+		//initialize the thumbnail carousel
+		this.initThumbnailCarousel( that.getOption('thumbnailCarousel') );
+		
+		//show first slide
+		var img = jQuery( '.owl-item.center' ).find('img');
+		that.showSlide( img );
+		
+		// hook left arrow icon handler	
+		jQuery( document ).on( 'click', '.nav-control.left', function(e) {
+		
+			that.scrollToPreviousSlide();
+			
+			var img = jQuery( '.owl-item.center' ).find('img');
+			that.showSlide( img );
+			
+		
+		});
+		
+		// hook right arrow icon handler
+		jQuery( document ).on( 'click', '.nav-control.right', function(e) {
+					
+			that.scrollToNextSlide();
+			
+			var img = jQuery( '.owl-item.center' ).find('img');
+			that.showSlide( img );
+		
+		});
+		
+		// hook arrow key handlers
+		jQuery(document).on('keydown', function( event ) { //attach event listener
+		   
+		    if( event.keyCode == 37) {
+			    
+		        jQuery('.nav-control.left').click();
+		        		    }
+		    if(event.keyCode == 39) {
+			   
+		        jQuery('.nav-control.right').click();
+		    }
+		});
+		
+		// hook handler for clicking on image directly.
+		jQuery( document ).on( 'click', '.thumbnail-item', function(e) {
+			
+			let position = that.getSlidePosition(e.target);
+			
+			that.scrollToSlide( position );
+		
+			that.showSlide( jQuery( e.target ) );
+		
+		});
+		
+		// set the loaded flag so that we do not render again.
+		this.options.isLoaded = true;
 	},
 	
+	getSlidePosition: function( el ) {
+		
+		return jQuery( el ).attr('data-position') - 1;
+	},
+	
+	scrollToSlide: function( index ) {
+		
+		this.thumbnailCarousel.trigger("to.owl.carousel", [ index, 300, true]);
+	},
+	
+	scrollToNextSlide: function() {
+		
+		this.thumbnailCarousel.trigger('next.owl');
+	},
+	
+	scrollToPreviousSlide: function() {
+		
+		this.thumbnailCarousel.trigger('prev.owl');
+		
+	},
+	
+	initThumbnailCarousel: function( options ) {
+		
+		this.thumbnailCarousel = jQuery(".thumbnail-list").owlCarousel( options );
+	}
+	
 };
+
+
+
+jQuery(window).load(function() {
+	
+	new photopress.slideshow();	
+});
+
+

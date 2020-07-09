@@ -23,3 +23,228 @@ $content-width: 700px;
   flex-basis: 100%;
   height: 0;
 }
+
+$thumbnail-height: 130px;
+$slide-margin: 20px;
+$thumbnail-bottom-margin: 10px;
+$thumbnail-total-height: ($thumbnail-height + ($slide-margin *2 ) + $thumbnail-bottom-margin);
+
+
+.photopress-slideshow {
+	
+	display: flex;
+	flex-direction: column;
+	height:100vh;
+	align-items: flex-end;
+	justify-content: flex-end;
+	
+	.panels {
+		
+		display: flex;
+		height:100%;
+		width: 100%;
+		align-items:center;
+		justify-content: space-between;
+		
+		.nav-control {
+			
+			width: 100px;
+			flex-grow: 0;
+			flex-shrink: 1;
+		}
+		
+		.center {
+			
+			height: calc(100vh - #{$thumbnail-total-height} );
+			width:auto;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: $slide-margin;
+			
+			.main-image {
+				
+				height: calc(100vh - #{$thumbnail-total-height} );
+			}
+
+			
+			img {
+				
+				height:100%;
+				width: auto;
+			}
+		}
+	}
+	
+	.thumbnails {
+	  
+		width:100%;
+		height: 100%;
+		margin-bottom:10px;
+		display: flex;
+		flex-direction: column;
+		justify-content: flex-end;
+		
+		
+		
+		.thumbnail {
+			// must give an explicit height to each thumbnail	    
+			max-height: $thumbnail-height;	
+			
+		}
+	}
+}
+
+
+.thumbnail-list {
+	// needs to be 100% in order to get owl carousel to show	
+	width: 100vw;
+	
+}
+
+/////////// Fade
+
+.fade-in {
+  animation: fadeIn ease 1s;
+  -webkit-animation: fadeIn ease 1s;
+  -moz-animation: fadeIn ease 1s;
+  -o-animation: fadeIn ease 1s;
+  -ms-animation: fadeIn ease 1s;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity:0;
+  }
+  100% {
+    opacity:1;
+  }
+}
+
+@-moz-keyframes fadeIn {
+  0% {
+    opacity:0;
+  }
+  100% {
+    opacity:1;
+  }
+}
+
+@-webkit-keyframes fadeIn {
+  0% {
+    opacity:0;
+  }
+  100% {
+    opacity:1;
+  }
+}
+
+@-o-keyframes fadeIn {
+  0% {
+    opacity:0;
+  }
+  100% {
+    opacity:1;
+  }
+}
+
+@-ms-keyframes fadeIn {
+  0% {
+    opacity:0;
+  }
+  100% {
+    opacity:1;
+  }
+}
+
+////////// Lightbox
+
+.lightbox {
+	//Default lightbox to hidden
+	display: none;
+	position: fixed;
+	z-index: -100;
+	opacity:0;
+	width: 100%;
+	height: 100%;
+	text-align: center;
+	top: 0;
+	left: 0;
+	background: rgba(255, 255, 255, 1);
+}
+
+.lightbox:target {
+	/** Remove default browser outline */
+	outline: none;
+
+	/** Unhide lightbox **/
+	display: block;
+}
+
+.lightbox__close {
+	
+	position: absolute;
+	top: 30px;
+	right: 30px;
+}
+
+
+/////// loader
+
+.loader-circle {
+  height: 48px;
+  width: 48px;
+  color: rgba(90, 90, 90, 0.2);
+  position: relative;
+  display: inline-block;
+  border: 5px solid;
+  border-radius: 50%;
+  border-right-color: #5a5a5a;
+  animation: rotate 1s linear infinite; }
+
+@keyframes rotate {
+  0% {
+    transform: rotate(0); }
+  100% {
+    transform: rotate(360deg); } }
+    
+///// arrows
+
+
+  .arrow {
+	
+	display: inline-block;
+	width: 4vmin;
+	height: 4vmin;
+	background: transparent;
+	border-top: .5vmin solid lightgray;
+	border-right: .5vmin solid lightgray;
+	box-shadow: 0 0 0 lightgray;
+	transition: all 200ms ease;
+	
+	&.left {
+		left: 20;
+		transform: translate3d(0,-50%,0) rotate(-135deg);
+	}
+
+	&.right {
+		right: 20;
+		transform: translate3d(0,-50%,0) rotate(45deg);
+	}
+	
+	&:hover {
+		border-color: lightgray;
+		box-shadow: 0.5vmin -0.5vmin 0 black;
+	}
+	
+	&:before { // for better hit area
+		content: '';
+		position: relative;
+		top: 50%;
+		left: 50%;
+		transform: translate(-40%,-60%) rotate(45deg);
+		width: 200%;
+		height: 200%;
+	}
+}
