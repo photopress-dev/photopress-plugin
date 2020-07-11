@@ -24,24 +24,51 @@ $content-width: 700px;
   height: 0;
 }
 
-$thumbnail-height: 130px;
+$thumbnail-height: 150px;
 $slide-margin: 20px;
 $thumbnail-bottom-margin: 10px;
-$thumbnail-total-height: ($thumbnail-height + ($slide-margin *2 ) + $thumbnail-bottom-margin);
+$thumbnail-total-height: ($thumbnail-height + ( $slide-margin * 2 ) + $thumbnail-bottom-margin);
 
+:root {
+	
+	--pp-slideshow-thumbnails-total-height: #{$thumbnail-total-height};
+	--pp-slideshow-thumbnail-height: #{$thumbnail-height};
+	--vh: 100vh;
+}
+
+@media only screen and (max-width:1024px) {
+	
+	:root {
+	
+		--pp-slideshow-thumbnails-total-height: 80px;
+	}
+	
+	.photopress-slideshow {
+		
+		.panels {
+			
+			.center {
+				
+				
+			}
+		}
+		
+		
+	}
+}
 
 .photopress-slideshow {
 	
 	display: flex;
 	flex-direction: column;
-	height:100vh;
+	height: var(--vh);
 	align-items: flex-end;
 	justify-content: flex-end;
 	
 	.panels {
 		
 		display: flex;
-		height:100%;
+	
 		width: 100%;
 		align-items:center;
 		justify-content: space-between;
@@ -49,48 +76,69 @@ $thumbnail-total-height: ($thumbnail-height + ($slide-margin *2 ) + $thumbnail-b
 		.nav-control {
 			
 			width: 100px;
-			flex-grow: 0;
-			flex-shrink: 1;
 		}
 		
 		.center {
 			
-			height: calc(100vh - #{$thumbnail-total-height} );
-			width:auto;
+			height: calc( var(--vh) - #{$thumbnail-total-height} );
+			
 			display: flex;
 			flex-direction: column;
 			align-items: center;
 			justify-content: center;
-			padding: $slide-margin;
+			margin: $slide-margin;
+			
+			//margin: auto;
 			
 			.main-image {
 				
-				height: calc(100vh - #{$thumbnail-total-height} );
+				height: calc( var(--vh) - var(--pp-slideshow-thumbnails-total-height) );
+				width:auto;
 			}
 
 			
 			img {
 				
-				height:100%;
+				height:auto;
 				width: auto;
 			}
+			
+			.caption {
+				
+				font-size: 14px;
+				padding:5px;
+			}
+		}
+	}
+	
+	.right-caption {
+		
+		flex-direction: row;
+		
+		.caption {
+			
+			max-width:200px;
+			
 		}
 	}
 	
 	.thumbnails {
 	  
 		width:100%;
-		height: 100%;
-		margin-bottom:10px;
-		display: flex;
-		flex-direction: column;
-		justify-content: flex-end;
+		height: var(--pp-slideshow-thumbnail-height);
+		//flex-grow:1;
+		margin-bottom: $thumbnail-bottom-margin;
+		//display: flex;
+		//flex-direction: column;
+		//justify-content: flex-end;
+		flex-grow: 0;
 		
 		
 		
 		.thumbnail {
 			// must give an explicit height to each thumbnail	    
-			max-height: $thumbnail-height;	
+			max-height: var(--pp-slideshow-thumbnail-height);	
+			width:auto;
 			
 		}
 	}

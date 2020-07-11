@@ -199,6 +199,7 @@ export default function save( { attributes } ) {
 							key={ image.id || image.url }
 							className="photopress-gallery-item"
 							style={ itemInlineCss }
+							data-id={ image.id }
 						>
 							<figure className={ 'photopress-gallery-item__figure' }>
 								{ href ? <a href={ href }>{ img }</a> : img }
