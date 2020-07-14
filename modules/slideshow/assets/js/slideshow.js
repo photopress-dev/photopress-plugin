@@ -9,15 +9,6 @@
  */
 photopress.slideshow = function( selector, options ) {
 	
-	// set the viewport height
-	this.setViewportHeight();
-	
-	// add window resize handler so that we can make the main slide image 
-	// responsive to changes in viewport height.This is necessary because the flexbox
-	// height is set explicitly using a css calc and will not shrink on its own unless 
-	// we tell the CSS that the viewport height has changed. 
-	window.onresize = this.setViewportHeight;
-	
 	// apply instance specific options
 	if ( options ) {
 		
@@ -49,6 +40,8 @@ photopress.slideshow.prototype = {
 	},
 	viewportHeight: null,
 	slideViewCount: 0,
+	totalGalleryImages: 0,
+	carouselNotWideEnough: false,
 	options: {
 		isLoaded: false,
 		showDetails: true,										// show slide details
@@ -61,15 +54,28 @@ photopress.slideshow.prototype = {
 		clickStart: true, 										// delay start of slideshow until something is clicked.
 		clickStartSelector: '.photopress-gallery-item', 		// DOM element to start the slideshow
 		detail_position: 'bottom',
-		thumbnailHeight: 150,
+		thumbnailHeight: 120,
+		hideThumnails: false,
 		thumbnailCarousel: {
 			
+
 			loop: true,
 			autoWidth: true,
 			center: true,
 			margin:10,
 			slideBy: 1,
 			dots: false
+
+/*
+			wrapAround: true,
+			setGallerySize: false,
+			pageDots: false,
+			imagesLoaded: true,
+			prevNextButtons: false,
+			initialIndex: 0
+*/
+			
+			
 		}
 	},
 	
@@ -86,6 +92,24 @@ photopress.slideshow.prototype = {
 
 	init: function() {
 		
+		// set the viewport height
+		this.setViewportHeight();
+		
+		this.options.thumbnailHeight = this.getThumbnailHeight();
+		
+		// set the total number of images in the gallery/slideshow
+		// needed to tell when images are all loaded.
+		let cs = this.getOption('clickStartSelector');
+		this.totalGalleryImages = jQuery( cs ).length;
+		
+		// add window resize handler so that we can make the main slide image 
+		// responsive to changes in viewport height.This is necessary because the flexbox
+		// height is set explicitly using a css calc and will not shrink on its own unless 
+		// we tell the CSS that the viewport height has changed. 
+		window.onresize = this.setViewportHeight;
+		window.onorientationchange = this.setViewportHeight;
+		
+		
 		var that = this;
 		
 		// render if the click start is disabled.
@@ -94,8 +118,9 @@ photopress.slideshow.prototype = {
 			// register click start handler
 			var selector = this.getOption( 'clickStartSelector') ;
 			
-			jQuery(document).on('click', selector, function() {
+			jQuery(document).on('click', selector, function(e) {
 				
+				e.preventDefault();
 				that.showLightbox();
 			});
 			
@@ -150,12 +175,22 @@ photopress.slideshow.prototype = {
 		
 	},
 	
+	getThumbnailHeight: function() {
+		
+		var bodyStyles = window.getComputedStyle(document.body);
+		
+		let th = bodyStyles.getPropertyValue('--pp-slideshow-thumbnail-height'); //get
+		
+		return th;
+	},
+	
 	setViewportHeight: function() {
 		
 		// set class variable
 		this.viewportHeight = window.innerHeight;
 		// set value as CSS variable for use in calculated styles
 		document.documentElement.style.setProperty('--vh', `${this.viewportHeight}px`);
+		//alert('height: ' + this.viewportHeight + ' ' + document.documentElement.clientHeight );
 	},
 	
 	/**
@@ -225,16 +260,52 @@ photopress.slideshow.prototype = {
 			// add data position attribute
 			jQuery(ni).attr('data-position', i + 1);
 			
-			// append it to the thumbnail 
-			jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
+			let aspectRatio = jQuery(ni).attr('data-aspectRatio');
+			let thumbnailHeight = that.getOption('thumbnailHeight'); 
+			let thumbnailWidth = Math.round(parseInt(thumbnailHeight, 10) * aspectRatio);
 			
-			// update totle width of thumbnails.
-			aspectRatio = jQuery(ni).attr('data-aspectRatio');
-			that.thumbnails.totalWidth += that.getOption('thumbnailHeight') *  aspectRatio;
+			// add data sizes attribute
+			jQuery(ni).attr('sizes', `${thumbnailWidth}px`);
 			
 			// update thumbnail count
 			that.thumbnails.count++;
+			
+			// update total width of thumbnails.
+			that.thumbnails.totalWidth += thumbnailWidth;
+
+			// append it to the thumbnail 
+			jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
+			
+			
 		});
+		
+
+		// if there are so few slides that thy don't even reach half way acrosos the container
+		if (that.thumbnails.count == that.totalGalleryImages && that.thumbnails.totalWidth < that.thumbnails.containerWidth / 2 ) {
+			//console.log('stopping thumb generation short.');
+			
+			//shrink the thumbnail container
+			jQuery('.thumbnails').css({
+				
+				'width': that.thumbnails.totalWidth +'px'
+			});
+			
+			// stop the thumbnail generation process by returing false
+			return false;
+				
+		}
+
+		// stop generating once we have double the width of the container
+		// Extra duplicate thumbnails are needed becuase the carousel libraries don't 
+		// handle looping well and show gaps etc.
+		if (that.thumbnails.totalWidth > that.thumbnails.containerWidth * 2 ) {
+			//console.log('thumb generation complete.');
+			// stops the do loop
+			return false;
+		}
+		
+		return true;
+
 
 	},
 	
@@ -255,41 +326,85 @@ photopress.slideshow.prototype = {
 	 */
 	render: function () {
 		
+		if ( this.getOption( 'hideThumbnails' ) ) {
+			
+			//center the flex container items as thumbs no longer need ot be pined to the bottom.
+			jQuery('.photopress-slideshow').css( { 'justify-content':'center' } );
+			
+			// hide the container
+			jQuery('.photopress-slideshow .thumbnails').css({'opacity':'0', 'height':0});
+			jQuery('.panels .center').css({'padding':'20px'});
+			
+			// reset css variable to 0
+			document.documentElement.style.setProperty('--pp-slideshow-thumbnails-total-height', '0px');
+		}
+		
 		this.thumbnails.containerWidth = jQuery('.thumbnails').outerWidth();
 		
 		// Clone gallery images for thumbnail carousel
-		this.generateThumbnailImages();
+		//this.generateThumbnailImages();
 		
 		// clone a second set of thumbnails if there aren't enough to fill the entire container.
 		// the carousel library should handle this but it does not, so better safe than sorry.		
-		if (this.thumbnails.totalWidth > this.thumbnails.containerWidth / 2 && this.thumbnails.totalWidth < this.thumbnails.containerWidth ) {
+		
+		do {
 			
-			//console.log('starting second cloning pass');
+			var ret = this.generateThumbnailImages();
 			
-			this.generateThumbnailImages();
-		}
-		
-		// disable the loop/wrap-around on the carousel if there are too few slides
-		if (this.thumbnails.totalWidth < this.thumbnails.containerWidth / 2 ) {
-			
-			this.options.thumbnailCarousel.loop = false;
-		}
-	
-		// initialize the thumbnail carousel
-		this.initThumbnailCarousel( this.getOption('thumbnailCarousel') );
-		
-		// show first slide
-		var img = this.getCurrentSlide();
-		
-		// set right caption class
-		
-		this.showSlide( img );
-		
-		this.registerHandlers();
+			if ( ! ret ) {
 				
-		// set the loaded flag so that we do not render again if lightbox is 
-		// closed and then re-opened.
-		this.options.isLoaded = true;
+				break;
+			}
+		
+		} while ( true );
+		
+		var that = this;
+		
+		jQuery('.thumbnail-list').imagesLoaded().always( function( instance ) {
+			
+			setTimeout(function() {
+				
+				that.initCarousel();	
+				
+			}, 500)
+			
+		});
+	},
+	
+	
+	
+	initCarousel: function() {
+		console.log('init carousel');
+		// disable the loop/wrap-around on the carousel if there are too few slides
+		//if ( this.thumbnails.totalWidth < this.thumbnails.containerWidth / 2  ) {
+			//console.log('turning off loop');
+			
+			//jQuery('.thumbnail-list').css('width', that.thumbnails.totalWidth * .66 );
+			//this.options.thumbnailCarousel.loop = false;
+			//this.options.thumbnailCarousel.center = false;
+			//this.options.thumbnailCarousel.rewind = true;
+			//this.options.thumbnailCarousel.items = 7;//this.thumbnails.count;
+		//}
+
+		var that = this;
+		// initialize the thumbnail carousel
+		this.initThumbnailCarousel( this.getOption('thumbnailCarousel'), function() {
+			
+			// show first slide
+			var img = that.getCurrentSlide();
+			
+			// set right caption class
+			
+			that.showSlide( img );
+			
+			that.registerHandlers();
+					
+			// set the loaded flag so that we do not render again if lightbox is 
+			// closed and then re-opened.
+			that.options.isLoaded = true;
+
+			
+		});
 	},
 	
 	/**
@@ -375,31 +490,41 @@ photopress.slideshow.prototype = {
 	scrollToSlide: function( index ) {
 		
 		this.thumbnails.carousel.trigger("to.owl.carousel", [ index, 300, true]);
+		//this.thumbnails.carousel.select( index, this.options.thumbnailCarousel.wrapAround);
 	},
 	
 	// Carousel specific implementation
 	scrollToNextSlide: function() {
 		
 		this.thumbnails.carousel.trigger('next.owl');
+		//this.thumbnails.carousel.next();
 	},
 	
 	// Carousel specific implementation
 	scrollToPreviousSlide: function() {
 		
 		this.thumbnails.carousel.trigger('prev.owl');
+		//this.thumbnails.carousel.previous();
 		
 	},
 	
 	// Carousel specific implementation
-	initThumbnailCarousel: function( options ) {
+	initThumbnailCarousel: function( options, callback ) {
 		
 		this.thumbnails.carousel = jQuery(".thumbnail-list").owlCarousel( options );
+		//this.thumbnails.carousel = new Flickity(".thumbnail-list", options );
+		
+		if (callback) {
+			
+			callback();
+		}
 	},
 	
 	// Carousel specific implementation
 	getCurrentSlide: function() {
-		
+	
 		return jQuery( '.owl-item.center' ).find('img');
+		//return jQuery( '.is-selected' ).find('img');
 	}
 		
 };

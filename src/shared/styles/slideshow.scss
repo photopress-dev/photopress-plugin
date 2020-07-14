@@ -1,0 +1,106 @@
+$thumbnail-height: 120px;
+$slide-margin: 20px;
+$thumbnail-bottom-margin: 10px;
+
+:root {
+	--pp-slideshow-thumbnail-height: #{$thumbnail-height};
+	--pp-slideshow-thumbnails-total-height: calc( var(--pp-slideshow-thumbnail-height ) + ( #{$slide-margin} * 2 ) +  #{$thumbnail-bottom-margin} ) ;
+	--vh: 100vh;
+}
+
+
+.photopress-slideshow {
+	
+	display: flex;
+	flex-direction: column;
+	height: var(--vh);
+	align-items: center;
+	justify-content: space-between;
+	
+	.panels {
+		
+		display: flex;
+	
+		width: 100%;
+		align-items:center;
+		justify-content: space-between;
+		
+		.nav-control {
+			
+			width: 100px;
+		}
+		
+		.center {
+			
+			height: calc( var( --vh ) - var( --pp-slideshow-thumbnails-total-height ) );
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			margin: $slide-margin;
+			width: 100%;
+			
+			img {
+				
+				max-height:100%;
+				width: auto;
+			}
+			
+			.caption {
+				
+				font-size: 14px;
+				padding:5px;
+			}
+		}
+	}
+	
+	.right-caption {
+		
+		flex-direction: row;
+		
+		.caption {
+			
+			max-width:200px;
+			
+		}
+	}
+	
+	.thumbnails {
+	  
+		width:100%;
+		height: var(--pp-slideshow-thumbnail-height);
+		margin-bottom: $thumbnail-bottom-margin;
+		flex-grow: 0;
+		display: flex;
+		//justify-content: flex-start;
+		
+		.thumbnail-list {
+			// needs to be 100% in order to get owl carousel to show	
+			width: 100%;
+			
+			.thumbnail-item {
+				
+				//margin-right: 10px;
+			
+			
+				.thumbnail {
+					// must give an explicit height to each thumbnail	    
+					min-height: var(--pp-slideshow-thumbnail-height);	
+					width:auto;
+					
+				}
+			}	
+		}
+	}
+}
+
+//// mobile
+
+@media only screen and (max-width:700px) {
+	
+	:root {
+	
+		--pp-slideshow-thumbnail-height: 150px;
+	}
+}
+

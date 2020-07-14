@@ -6,7 +6,7 @@
 	const container = $( '.photopress-gallery-masonry' );
 
 	$( document ).ready( function() {
-		container.imagesLoaded( function() {
+		container.imagesLoaded().done( function() {
 			container.masonry( {
 				itemSelector: '.photopress-gallery-item',
 				transitionDuration: '0',

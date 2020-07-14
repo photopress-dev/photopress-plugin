@@ -16,7 +16,8 @@ class photopress_core_slideshow_module extends photopress_module {
 		
 		if ( pp_api::getOption( 'core', 'slideshow', 'enable' ) ) {
 		
-			add_action( 'wp_enqueue_scripts', array( $this, 'public_scripts' ) );
+			//add_action( 'wp_enqueue_scripts', [ $this, 'public_scripts' ] );
+			add_filter( 'the_content', [ $this, 'public_scripts' ] );
 			// configure gallery HTML
 			
 			add_filter( 'render_block', [$this, 'render_slideshow'], 10, 3);
@@ -32,10 +33,12 @@ class photopress_core_slideshow_module extends photopress_module {
 		}
 		
 		// check to see if the showSlideshow attr is set on the block
-		if (  isset( $block['attrs']['showSlideshow'] ) ) {
+		if (! isset( $block['attrs']['linkToSlideshow'] ) ) {
 			
 			return $block_content;
 		}
+		
+		//add_action( 'wp_enqueue_scripts', array( $this, 'public_scripts' ) );
 		
 		// output slideshow html scafolding
 		$o = [];
@@ -65,31 +68,50 @@ class photopress_core_slideshow_module extends photopress_module {
 		return implode( $o, " \n " );
 	}
 	
-	public function public_scripts() {
+	public function public_scripts( $content ) {
 				
-
-		wp_register_style( 
-			'tns', 
-			plugins_url('assets/css/owl.carousel.min.css',
-			__FILE__) 
-		 );
-	 
-	    wp_enqueue_style( 'tns' );
-				
+		if ( has_block( 'photopress/gallery' ) ) { 
 		
-		wp_enqueue_script(
-			'tns',
-			plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
-			[ 'jquery', ]
-		);
+			wp_register_style( 
+				'owl', 
+				plugins_url('assets/css/owl.carousel.min.css',
+				__FILE__) 
+			 );
+			 
+		    wp_enqueue_style( 'owl' );
+			
+/*
+			wp_register_style( 
+				'flickity', 
+				plugins_url('assets/css/flickity.css',
+				__FILE__) 
+			 );
+			 
+		    wp_enqueue_style( 'flickity' );		
+*/
+			
+			wp_enqueue_script(
+				'owl',
+				plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
+				[ 'jquery', ]
+			);
+			
+/*
+			wp_enqueue_script(
+				'flickity',
+				plugins_url( 'assets/js/flickity.pkgd.min.js' , __FILE__ ),
+				[ 'jquery', ]
+			);
+*/
+			
+			wp_enqueue_script(
+				'photopress-slideshow',
+				plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
+				[ 'jquery', 'imagesloaded', 'owl' ]
+			);
+		}
 		
-		wp_enqueue_script(
-			'photopress-slideshow',
-			plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-			[ 'jquery' ]
-		);
-
-		
+		return $content;
 	}
 	
 		
@@ -110,36 +132,7 @@ class photopress_core_slideshow_module extends photopress_module {
 					'error_message'							=> 'You must select On or Off.'		
 				)				
 			),
-			
-			'clickStart'				=> array(
-			
-				'default_value'							=> true,
-				'field'									=> array(
-					'type'									=> 'boolean',
-					'title'									=> 'Click Start Mode',
-					'page_name'								=> 'gallery-slideshow',
-					'section'								=> 'general',
-					'description'							=> 'Click to Start the Slideshow',
-					'label_for'								=> 'Gallery Slideshow Click Start mode',
-					'error_message'							=> 'You must select On or Off.'		
-				)				
-			),
-			
-			
-			'clickStartSelector'				=> array(
-			
-				'default_value'							=> '.gallery-icon',
-				'field'									=> array(
-					'type'									=> 'text',
-					'title'									=> 'Click Start Selector',
-					'page_name'								=> 'gallery-slideshow',
-					'section'								=> 'general',
-					'description'							=> 'DOM Element to click on to start the slideshow.',
-					'label_for'								=> 'Click Start Selector',
-					'error_message'							=> ''		
-				)				
-			),
-			
+						
 			'detail_position'				=> array(
 			
 				'default_value'							=> 'bottom',

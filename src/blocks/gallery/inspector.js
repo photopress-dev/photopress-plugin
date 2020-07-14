@@ -152,7 +152,8 @@ class Inspector extends Component {
 			columns,
 			columnWidth,
 			showCaptions,
-			rowHeight
+			rowHeight,
+			linkToSlideshow
 		} = attributes;
 		
 		
@@ -278,6 +279,12 @@ class Inspector extends Component {
 						options={ linkOptions }
 					/>
 					
+					<ToggleControl
+						label={ __( 'Slideshow' ) }
+						checked={ !! linkToSlideshow }
+						onChange={ ( value ) => { this.setAttributes( {linkToSlideshow: value} ) } }
+						help={ "Display a slideshow when images are clicked." }
+					/>
 					
 				</Fragment>	
 				

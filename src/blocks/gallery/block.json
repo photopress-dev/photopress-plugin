@@ -119,6 +119,10 @@
 		"themeHorizontalMargin": {
 			"type": "string",
 			"default": "0px"
+		},
+		"linkToSlideshow": {
+			"type": "boolean",
+			"default": false
 		}	
 	
 	},
