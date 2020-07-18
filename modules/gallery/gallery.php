@@ -1,18 +1,15 @@
 <?php
 
-if ( ! class_exists( 'photopress_module' ) ) {
-
-	require_once( PHOTOPRESS_FRAMEWORK_PATH . 'class-module.php' );
-}
+namespace PhotoPress\modules\gallery;
+use photopress_module;
 
 /**
  * Child Pages Module
  *
  * Adds a dynamic Gutenberg block that displays a gallery of child pages.
  */
-class photopress_core_gallery_module extends photopress_module {
-	
-	var $attrs = 'foo'; 	
+class gallery extends photopress_module {
+		
 	public function definePublicHooks() {
 			
 		register_block_type( 'photopress/gallery', [
@@ -24,6 +21,7 @@ class photopress_core_gallery_module extends photopress_module {
 			// Enqueue blocks.editor.build.css in the editor only.
 			'editor_style'  		=> 'photopress-editor'
 		]);	
+		
 	}
 }
 

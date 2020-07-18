@@ -15,6 +15,9 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
+// require the composer autoloader
+require_once('vendor/autoload.php');
+
 // Define the path to this plugin
 if ( ! defined( 'PHOTOPRESS_CORE_PATH' ) ) {
 
@@ -28,7 +31,7 @@ if ( ! defined( 'PHOTOPRESS_FRAMEWORK_PATH' ) ) {
 }
 
 // Include the Photopress API which can be used by other plugins
-require_once PHOTOPRESS_FRAMEWORK_PATH . 'class-pp-api.php';
+//require_once PHOTOPRESS_FRAMEWORK_PATH . 'class-pp-api.php';
 
 // Hook for plugin package creation
 add_action('plugins_loaded', array( 'photopress_plugin', 'getInstance'), 1 );
@@ -75,8 +78,8 @@ class photopress_plugin {
 						'package_name'			=> 'core',
 						'package_label'			=> 'PhotoPress',
 						'version'				=> '1.0.8',
-						'modules'				=> array('base', 'childpages', 'gallery', 'slideshow'),
-						'dependencies'			=> array()
+						'modules'				=> ['base', 'childpages', 'gallery', 'slideshow'],
+						'dependencies'			=> []
 					)
 				);
 				

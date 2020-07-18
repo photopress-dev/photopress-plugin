@@ -44,6 +44,12 @@
 					"source": "html",
 					"selector": ".photopress-gallery-item__caption"
 				},
+				"title": {
+					"type": "string",
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "data-title"
+				},
 				"aspectRatio": {
 					"type": "number",
 					"source": "attribute",

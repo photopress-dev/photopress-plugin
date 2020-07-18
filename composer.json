@@ -1,0 +1,27 @@
+{
+    "name": "photopress/core",
+    "description": "WordPress for Photographers",
+    "keywords": ["WordPress","photpress","photo","photography"],
+    "homepage": "https://www.photopressdev.com",
+    "license": "GPL-3.0",
+    "authors": [
+        {
+            "name": "The PhotoPress Team",
+            "email": "hello@photopressdev.com"
+        }
+    ],
+    
+    "config": {
+        "sort-packages": true
+    },
+    
+    
+    "require": {
+    	
+    },
+    
+    "autoload": {
+        "psr-4": {"PhotoPress\\": ["./"]},
+        "classmap": ["framework/"]
+    }
+}

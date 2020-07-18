@@ -9,6 +9,7 @@
  */
 photopress.slideshow = function( selector, options ) {
 	
+	this.options.selector = selector ? selector : this.options.selector;
 	// apply instance specific options
 	if ( options ) {
 		
@@ -21,6 +22,20 @@ photopress.slideshow = function( selector, options ) {
 			}
 		}
 	}
+	
+	var dom_options = ['thumbnailHeight', 'showThumbnails', 'showCaptions'];
+	
+	// load overrides from dom data attributes
+	var that = this;
+	dom_options.forEach( function (opt) {
+		let dom_opt = jQuery( that.options.selector ).data( opt.toLowerCase() );
+		console.log(opt);
+		console.log(dom_opt);
+		
+		that.options[ opt ] = dom_opt;
+	});
+	
+	console.log(this.options);
 	
 	// initialize the slideshow
 	this.init();
@@ -42,8 +57,9 @@ photopress.slideshow.prototype = {
 	slideViewCount: 0,
 	totalGalleryImages: 0,
 	carouselNotWideEnough: false,
+	isLoaded: false,
 	options: {
-		isLoaded: false,
+		selector: '.photopress-slideshow',
 		showDetails: true,										// show slide details
 		detail_components: {									// detail components to be displayed
 			title: true, 
@@ -55,7 +71,7 @@ photopress.slideshow.prototype = {
 		clickStartSelector: '.photopress-gallery-item', 		// DOM element to start the slideshow
 		detail_position: 'bottom',
 		thumbnailHeight: 120,
-		hideThumnails: false,
+		showThumbnails: true,
 		thumbnailCarousel: {
 			
 
@@ -64,7 +80,8 @@ photopress.slideshow.prototype = {
 			center: true,
 			margin:10,
 			slideBy: 1,
-			dots: false
+			dots: false,
+			startPosition: 0 									// the id of the image to start the slideshow on
 
 /*
 			wrapAround: true,
@@ -120,8 +137,14 @@ photopress.slideshow.prototype = {
 			
 			jQuery(document).on('click', selector, function(e) {
 				
+				let i = jQuery(e.target).data( 'position' );
+				
+				
+				that.setStartPosition( i );
+				
 				e.preventDefault();
 				that.showLightbox();
+				console.log( i );
 			});
 			
 		} else {
@@ -216,7 +239,7 @@ photopress.slideshow.prototype = {
 		
 		jQuery( '.lightbox' ).show('slow', function() {
 			
-			if ( ! that.getOption('isLoaded') ) {
+			if ( ! that.isLoaded ) {
 				
 				that.render();
 			}
@@ -326,7 +349,24 @@ photopress.slideshow.prototype = {
 	 */
 	render: function () {
 		
-		if ( this.getOption( 'hideThumbnails' ) ) {
+		var that = this;
+		
+		// create inner dom scaffolding
+		let o;
+		
+		o += '<div class="panels">';
+				
+			o +='<div class="nav-control left"><i class="arrow left"></i></div>';
+			o +='<div class="center"><div class="loader-circle"></div></div>';
+			o +='<div class="nav-control right"><i class="arrow right"></i></div>';
+			
+		o += '</div>';
+		
+		o += '<div class="thumbnails"><div class="thumbnail-list owl-carousel"></div></div>';
+				
+		jQuery( that.options.selector ).append( o );
+		
+		if (! this.getOption( 'showThumbnails' ) ) {
 			
 			//center the flex container items as thumbs no longer need ot be pined to the bottom.
 			jQuery('.photopress-slideshow').css( { 'justify-content':'center' } );
@@ -340,10 +380,7 @@ photopress.slideshow.prototype = {
 		}
 		
 		this.thumbnails.containerWidth = jQuery('.thumbnails').outerWidth();
-		
-		// Clone gallery images for thumbnail carousel
-		//this.generateThumbnailImages();
-		
+			
 		// clone a second set of thumbnails if there aren't enough to fill the entire container.
 		// the carousel library should handle this but it does not, so better safe than sorry.		
 		
@@ -358,7 +395,7 @@ photopress.slideshow.prototype = {
 		
 		} while ( true );
 		
-		var that = this;
+		
 		
 		jQuery('.thumbnail-list').imagesLoaded().always( function( instance ) {
 			
@@ -366,7 +403,7 @@ photopress.slideshow.prototype = {
 				
 				that.initCarousel();	
 				
-			}, 500)
+			}, 700)
 			
 		});
 	},
@@ -401,7 +438,7 @@ photopress.slideshow.prototype = {
 					
 			// set the loaded flag so that we do not render again if lightbox is 
 			// closed and then re-opened.
-			that.options.isLoaded = true;
+			that.isLoaded = true;
 
 			
 		});
@@ -479,6 +516,11 @@ photopress.slideshow.prototype = {
 
 	},
 	
+	getSlideImgById: function( id ) {
+		
+		return jQuery( '.thumbnail[data-id=' + id + ']' );
+	},
+	
 	// uses img data-position attr which is set on each thumbnail during
 	// the cloning process.
 	getSlidePosition: function( el ) {
@@ -525,6 +567,12 @@ photopress.slideshow.prototype = {
 	
 		return jQuery( '.owl-item.center' ).find('img');
 		//return jQuery( '.is-selected' ).find('img');
+	},
+	
+	// Carousel specific implementation
+	setStartPosition: function( index ) {
+		
+		this.options.thumbnailCarousel.startPosition = index;
 	}
 		
 };

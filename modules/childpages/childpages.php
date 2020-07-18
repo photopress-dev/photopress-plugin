@@ -1,16 +1,15 @@
 <?php
 
-if ( ! class_exists( 'photopress_module' ) ) {
-
-	require_once( PHOTOPRESS_FRAMEWORK_PATH . 'class-module.php' );
-}
+namespace PhotoPress\modules\childpages;
+use photopress_module;
+use photopress_util;
 
 /**
  * Child Pages Module
  *
  * Adds a dynamic Gutenberg block that displays a gallery of child pages.
  */
-class photopress_core_childpages_module extends photopress_module {
+class childpages extends photopress_module {
 		
 	public function definePublicHooks() {
 			

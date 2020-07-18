@@ -11,7 +11,7 @@
  
 import { registerBlockType, } from '@wordpress/blocks';
 
-import './block/block.js';
+//import './block/block.js';
 
 import * as childpages from './blocks/child_pages/index.js';
 
@@ -38,10 +38,6 @@ const registerBlock = ( block ) => {
 		...settings,
 	} );
 };
-
-
-
-//Function to register blocks provided by CoBlocks.
 
 
 export const registerPhotoPressBlocks = () => {

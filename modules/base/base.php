@@ -1,11 +1,9 @@
 <?php 
 
-if ( ! class_exists( 'photopress_module' ) ) {
+namespace PhotoPress\modules\base;
+use photopress_module; 
 
-	require_once( PHOTOPRESS_FRAMEWORK_PATH . 'class-module.php' );
-}
-
-class photopress_core_base_module extends photopress_module {
+class base extends photopress_module {
 
 	public function definePublicHooks() {
 	

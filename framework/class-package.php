@@ -358,11 +358,23 @@ abstract class photopress_package {
 			return;
 		}
 		
-		$this->modules[ $module_name ] = array(
+		if ( $this->package_name === 'core' ) {
+
+			$this->modules[ $module_name ] = [
+			
+				'class'			=> "PhotoPress\modules\\$module_name\\$module_name",
+				'path'			=> ''
+			];
+			
+		} else {
+			
+			$this->modules[ $module_name ] = [
+			
+				'class'			=> sprintf('%s_%s_%s_module', 'photopress', $this->package_name, $module_name),
+				'path'			=> $path
+			];
+		}
 		
-			'class'			=> sprintf('%s_%s_%s_module', 'photopress', $this->package_name, $module_name),
-			'path'			=> $path
-		);
 	}
 	
 	/**

@@ -168,7 +168,7 @@ export default function save( { attributes } ) {
 			
 				{ preItemList }
 			
-				{ images.map( ( image ) => {
+				{ images.map( ( image, index ) => {
 					let href;
 
 					switch ( linkTo ) {
@@ -186,6 +186,7 @@ export default function save( { attributes } ) {
 							alt={ image.alt }
 							data-id={ image.id }
 							data-aspectRatio={image.aspectRatio}
+							data-position={index}
 							data-full-url={ image.fullUrl }
 							data-link={ image.link }
 							className={ image.id ? `wp-image-${ image.id }` : null }

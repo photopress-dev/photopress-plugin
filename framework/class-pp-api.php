@@ -113,6 +113,12 @@ class pp_api {
 	
 	public static function factory( $class_name, $path = '', $params = '' ) {
 		
+		if ( empty( $path ) ) {
+			
+			return new $class_name( $params );
+		}
+		
+		
 		if ( ! class_exists( $class_name ) ) {
 		
 			require_once( $path );	

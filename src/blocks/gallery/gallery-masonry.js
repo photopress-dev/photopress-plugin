@@ -107,7 +107,7 @@ class MasonryGallery extends Component {
 									index + 1,
 									images.length
 								);
-								
+								//console.log(img);
 								return (
 									
 									<li

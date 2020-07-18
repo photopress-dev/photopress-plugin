@@ -165,7 +165,7 @@ class GalleryEdit extends Component {
 		// newImage.id to a string.
 		const newImageId = toString( newImage.id );
 		const currentImage = find( images, { id: newImageId } );
-
+		
 		const currentImageCaption = currentImage
 			? currentImage.caption
 			: newImage.caption;
@@ -189,6 +189,7 @@ class GalleryEdit extends Component {
 	onSelectImages( newImages ) {
 		const { columns, images, sizeSlug } = this.props.attributes;
 		const { attachmentCaptions } = this.state;
+					
 		this.setState( {
 			attachmentCaptions: newImages.map( ( newImage ) => ( {
 				// Store the attachmentCaption id as a string for consistency
@@ -196,10 +197,12 @@ class GalleryEdit extends Component {
 				id: toString( newImage.id ),
 				caption: newImage.caption,
 			} ) ),
+						
 		} );
-		console.log(newImages);
+	
 		this.setAttributes( {
 			images: newImages.map( ( newImage ) => ( {
+				
 				...pickRelevantMediaFiles( newImage, sizeSlug ),
 				caption: this.selectCaption(
 					newImage,
@@ -215,7 +218,8 @@ class GalleryEdit extends Component {
 			columns: columns ? Math.min( newImages.length, columns ) : columns,
 		} );
 		
-		console.log(this.props.attributes.images);
+		//console.log(this.props.attributes.images);
+		
 	}
 
 	onUploadError( message ) {
@@ -432,7 +436,10 @@ export default compose( [
 						return currentResizedImages;
 					}
 					const image = getMedia( id );
-				
+					
+					
+					
+					
 					const sizes = reduce(
 						imageSizes,
 						( currentSizes, size ) => {
@@ -448,11 +455,11 @@ export default compose( [
 								'source_url',
 							] );
 							
+							
+							
 							const mediaWidth = get( image, [
 								'media_details', 'width'
 							] );
-							
-							
 							
 							return {
 								...currentSizes,
@@ -461,6 +468,7 @@ export default compose( [
 						},
 						{}
 					);
+							
 					return {
 						...currentResizedImages,
 						[ parseInt( id, 10 ) ]: sizes,
@@ -469,7 +477,7 @@ export default compose( [
 				{}
 			);
 		}
-		
+	
 		return {
 			imageSizes,
 			mediaUpload,

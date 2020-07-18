@@ -1,16 +1,15 @@
 <?php
 
-if ( ! class_exists( 'photopress_module' ) ) {
-
-	require_once( PHOTOPRESS_FRAMEWORK_PATH . 'class-module.php' );
-}
+namespace PhotoPress\modules\slideshow;
+use photopress_module;
+use pp_api;
 
 /**
  * Resize Module
  *
  *
  */
-class photopress_core_slideshow_module extends photopress_module {
+class slideshow extends photopress_module {
 
 	public function definePublicHooks() {
 		
@@ -38,6 +37,20 @@ class photopress_core_slideshow_module extends photopress_module {
 			return $block_content;
 		}
 		
+		$args = [
+			
+			'showThumbnails',
+			'showCaptions',
+			'thumbnailHeight'
+		];
+		
+		$args_dom = '';
+		
+		foreach ( $args as $arg ) {
+			
+			$args_dom .= sprintf( ' data-%s="%s"', $arg, pp_api::getOption('core', 'slideshow', $arg ) );
+		}
+		
 		//add_action( 'wp_enqueue_scripts', array( $this, 'public_scripts' ) );
 		
 		// output slideshow html scafolding
@@ -47,19 +60,7 @@ class photopress_core_slideshow_module extends photopress_module {
 		
 		$o[] = '<div class="lightbox" id="lightbox-gallery">';
 		
-			$o[] = '<div class="photopress-slideshow">';
-				
-				$o[] = '<div class="panels">';
-				
-					$o[] ='<div class="nav-control left"><i class="arrow left"></i></div>';
-					$o[] ='<div class="center"><div class="loader-circle"></div></div>';
-					$o[] ='<div class="nav-control right"><i class="arrow right"></i></div>';
-					
-				$o[] = '</div>';
-				
-				$o[] = '<div class="thumbnails"><div class="thumbnail-list owl-carousel"></div></div>';
-					
-			$o[] = '</div>';
+			$o[] = '<div class="photopress-slideshow" '. $args_dom . ' ></div>';
 			
 			$o[] = '<a class="lightbox__close">Close</a>';
 			
@@ -70,7 +71,7 @@ class photopress_core_slideshow_module extends photopress_module {
 	
 	public function public_scripts( $content ) {
 				
-		if ( has_block( 'photopress/gallery' ) ) { 
+		if ( ! is_admin() && has_block( 'photopress/gallery' ) ) { 
 		
 			wp_register_style( 
 				'owl', 
@@ -132,6 +133,35 @@ class photopress_core_slideshow_module extends photopress_module {
 					'error_message'							=> 'You must select On or Off.'		
 				)				
 			),
+			
+			'showThumbnails'				=> array(
+			
+				'default_value'							=> true,
+				'field'									=> array(
+					'type'									=> 'boolean',
+					'title'									=> 'Thumbnail Navigation ',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'Display thumbnail navigation.',
+					'label_for'								=> 'Display thumbnail navigation.',
+					'error_message'							=> 'You must select On or Off.'		
+				)				
+			),
+			
+			'showCaptions'				=> array(
+			
+				'default_value'							=> true,
+				'field'									=> array(
+					'type'									=> 'boolean',
+					'title'									=> 'Captions',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'Display captions in slideshow.',
+					'label_for'								=> 'Display captions in slideshow.',
+					'error_message'							=> 'You must select On or Off.'		
+				)				
+			),
+
 						
 			'detail_position'				=> array(
 			
@@ -166,7 +196,7 @@ class photopress_core_slideshow_module extends photopress_module {
 				)				
 			),
 			
-			'thumbnail_height'				=> array(
+			'thumbnailHeight'				=> array(
 				'default_value'							=> 120,
 				'field'									=> array(
 					'type'									=> 'integer',
