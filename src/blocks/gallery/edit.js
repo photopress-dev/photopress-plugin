@@ -185,11 +185,27 @@ class GalleryEdit extends Component {
 
 		return currentImageCaption;
 	}
+	
+	selectAttachmentMeta( newImage, images, attachmentMeta, key ) {
+		console.log(attachmentMeta);
+		// The image id in both the images and attachmentCaptions arrays is a
+		// string, so ensure comparison works correctly by converting the
+		// newImage.id to a string.
+		const newImageId = toString( newImage.id );
+		const currentImage = find( images, { id: newImageId } );
+		
+		const currentImageMeta = currentImage
+			? currentImage[ key ]
+			: '';
+			
+		return currentImageMeta;
+	}
 
 	onSelectImages( newImages ) {
 		const { columns, images, sizeSlug } = this.props.attributes;
 		const { attachmentCaptions } = this.state;
-					
+		
+		
 		this.setState( {
 			attachmentCaptions: newImages.map( ( newImage ) => ( {
 				// Store the attachmentCaption id as a string for consistency
@@ -199,7 +215,9 @@ class GalleryEdit extends Component {
 			} ) ),
 						
 		} );
-	
+		
+		
+		
 		this.setAttributes( {
 			images: newImages.map( ( newImage ) => ( {
 				
@@ -213,12 +231,13 @@ class GalleryEdit extends Component {
 				// block is parsed it's converted to a string. Converting
 				// to a string here ensures it's type is consistent.
 				id: toString( newImage.id ),
-				aspectRatio: Math.floor( (newImage.sizes.full.width / newImage.sizes.full.height) * 100) /100
+				aspectRatio: Math.floor( (newImage.sizes.full.width / newImage.sizes.full.height) * 100) /100,
+				title: ''
 			} ) ),
 			columns: columns ? Math.min( newImages.length, columns ) : columns,
 		} );
 		
-		//console.log(this.props.attributes.images);
+		console.log(this.props.attributes.images);
 		
 	}
 
@@ -420,15 +439,20 @@ class GalleryEdit extends Component {
 		);
 	}
 }
+
 export default compose( [
+	
 	withSelect( ( select, { attributes: { ids }, isSelected } ) => {
+		
 		const { getMedia } = select( 'core' );
 		const { getSettings } = select( 'core/block-editor' );
 		const { imageSizes, mediaUpload } = getSettings();
 
 		let resizedImages = {};
+		let attachmentMeta = {};
 
 		if ( isSelected ) {
+			
 			resizedImages = reduce(
 				ids,
 				( currentResizedImages, id ) => {
@@ -436,9 +460,6 @@ export default compose( [
 						return currentResizedImages;
 					}
 					const image = getMedia( id );
-					
-					
-					
 					
 					const sizes = reduce(
 						imageSizes,
@@ -477,7 +498,8 @@ export default compose( [
 				{}
 			);
 		}
-	
+		
+
 		return {
 			imageSizes,
 			mediaUpload,
