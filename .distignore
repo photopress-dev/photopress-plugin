@@ -6,8 +6,10 @@
 /src
 
 .DS_Store
+.editorconfig
 .eslintignore
 .eslintrc.js
+.eslintrc.json
 .distignore
 .gitignore
 CHANGELOG.md
