@@ -7,7 +7,7 @@ Description: Image related features for Photographers.
 Author: Peter Adams
 Author URI: http://www.photopressdev.com
 License: GPL v3
-Version: 1.0.8
+Version: 1.1.0
 */
 
 // If this file is called directly, abort.
