@@ -17,6 +17,7 @@ import transforms from './transforms';
 //  Import CSS.
 import './style.scss';
 import './editor.scss';
+
 //import './theme.scss';
 
 const { name, category, attributes } = metadata;

@@ -102,6 +102,11 @@ class photopress_settingsPage {
 			'class' => 'photopress_settings_field_textarea', 
 			'path' 	=> $settings_class
 		);
+	
+		$types['none'] = array(
+			'class' => 'photopress_settings_field_none', 
+			'path' 	=> $settings_class
+		);
 
 		
 		return $types;
@@ -120,9 +125,107 @@ class photopress_settingsPage {
 		return sprintf( '%s-%s-%s-%s', $this->ns, $this->package, $this->module, $this->name );
 	}
 	
-	public function registerSettings() {
+	// generates the schema used by the wordpress rest api
+	public function getSchema() {
+		
+		$schema = [];
+		
+		foreach ( $this->fields as $k => $field ) {
+			//print_r($field);
+			
+			$type = $field->properties['type'];
+			
+			//$r = ['type' => $type];
+			
+			if ( $type === 'text' ) {
+			
+				$r = ['type' => 'string'];
+			}
+			
 
-			register_setting( $this->getOptionGroupName(), $this->getOptionKey(), array( $this, 'validateAndSanitize' ) );
+			if ( $type === 'integer' ) {
+			
+				$r = ['type' => 'integer'];
+			}
+			
+			if ( $type === 'boolean' ) {
+			
+				$r = ['type' => 'boolean'];
+			}
+
+			
+			if ( $type === 'select' ) {
+				
+				$r = ['type' => ''];
+			}
+			
+			if ( $type === 'on_off_array' ) {
+				
+				$r = ['type' => ''];
+			}
+			
+			if ( $type === 'none' ) {
+			
+				$r = ['type' => ''];
+			}
+			
+/*
+			if ( $k === 'custom_taxonomies') {
+				
+				$r = [
+				
+					'type' => 'object',
+					'properties'	=> [
+						'plural'	=> [
+							'type'	=> 'string'
+						],
+						'singular'	=> [
+							'type'	=> 'string'
+						]
+					]
+				
+				];
+			}
+*/
+			
+			$schema[ $k ] = $r;	
+			//$schema[ $k ] = [ 'type' => 'string' ];	
+		}
+		//print_r( $schema );
+		return $schema;
+	}
+	
+	public function getDefaults() {
+		
+		$defaults = [];
+		
+		foreach ( $this->fields as $k => $field ) {
+			
+			$defaults[ $k ] = $field->properties['default_value'];
+		}
+		
+		return $defaults;
+	}
+	
+	public function registerSettings() {
+			
+			$args = [
+				
+				
+				'description'		=> 'Settings for PhotoPress '. $this->getOptionGroupName() . ' ' . $this->getOptionKey(),
+				//'sanitize_callback'	=> [ $this, 'validateAndSanitize' ],
+				'show_in_rest'		=> [
+					
+					'schema'			=> [
+						'type'				=> 'object',
+						'properties'		=> $this->getSchema()
+					]
+				],
+				
+				'default'			=> $this->getDefaults()
+			];
+			
+			register_setting( $this->getOptionGroupName(), $this->getOptionKey(), $args );
 	}
 	
 	public function validateAndSanitize( $options ) {
@@ -194,7 +297,9 @@ class photopress_settingsPage {
 		$this->sections[ $section->get( 'id' ) ] = $section;
 		
 		// register the section with WordPress
-		add_settings_section( $section->get('id'), $section->get('title'), $section->get('callback'), $this->page_slug );
+		if (function_exists('add_settings_section')) {
+			add_settings_section( $section->get('id'), $section->get('title'), $section->get('callback'), $this->page_slug );
+		}
 	}
 	
 	public function echoHtml( $html ) {
@@ -225,15 +330,20 @@ class photopress_settingsPage {
 			if ( $callback ) {
 				photopress_util::addFilter( $field->get( 'id' ) . '_field_value_label', $callback, 10, 1 );
 			}
-			// add setting to wordpress settings api
-			add_settings_field( 
-				$key, 
-				$field->get( 'title' ), 
-				array( $field, 'render'), 
-				$this->page_slug, 
-				$field->get( 'section' ), 
-				$field->getProperties() 
-			); 
+			
+			// might not exist if the rest api is active
+			if (function_exists('add_settings_field')) {
+				// add setting to wordpress settings api
+				add_settings_field( 
+					$key, 
+					$field->get( 'title' ), 
+					array( $field, 'render'), 
+					$this->page_slug, 
+					$field->get( 'section' ), 
+					$field->getProperties() 
+				); 
+			}
+			
 		} else {
 			
 			pp_api::debug("No field of type {$params['type']} registered.");
@@ -594,6 +704,12 @@ class photopress_settings_field_commaseparatedlist extends photopress_settings_f
 	}
 }
 
+class photopress_settings_field_none extends photopress_settings_field {
+
+	public function render ( $attrs ) {
+		
+	}
+}
 class photopress_settings_field_onoffarray extends photopress_settings_field {
 
 	public function render ( $attrs ) {

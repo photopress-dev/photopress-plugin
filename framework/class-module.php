@@ -161,7 +161,7 @@ abstract class photopress_module {
 		$config = $this->registerOptions();
 		
 		if ( $config ) {
-		
+			
 			foreach ( $config as $k => $v ) {
 				
 				// register setting field with module
@@ -172,8 +172,14 @@ abstract class photopress_module {
 						$v['field']['page_name'] = 'default';
 					}
 					
+					if ( ! array_key_exists( 'default_value', $v['field'] ) ) {
+						
+						$v['field']['default_value'] = $v['default_value'];
+					}
+					
 					// add field to settings array
 					$this->settings[ $v['field']['page_name'] ][ $k ] = $v[ 'field' ];
+					
 				}
 				
 				// register default option value with module
@@ -199,6 +205,7 @@ abstract class photopress_module {
 				//$this->initSettingsPage();
 				
 				add_action( 'admin_init', array($this, 'registerSettings'),10,0);
+				add_action( 'rest_api_init', array($this, 'registerSettings'),10,0);
 				// regsiter the settings pages with WordPress
 				add_action( 'admin_menu', array($this, 'addSettingsPages'), 11,0);
 		

@@ -29,13 +29,9 @@ photopress.slideshow = function( selector, options ) {
 	var that = this;
 	dom_options.forEach( function (opt) {
 		let dom_opt = jQuery( that.options.selector ).data( opt.toLowerCase() );
-		console.log(opt);
-		console.log(dom_opt);
-		
+				
 		that.options[ opt ] = dom_opt;
 	});
-	
-	console.log(this.options);
 	
 	// initialize the slideshow
 	this.init();
@@ -144,7 +140,7 @@ photopress.slideshow.prototype = {
 				
 				e.preventDefault();
 				that.showLightbox();
-				console.log( i );
+				
 			});
 			
 		} else {
@@ -394,9 +390,7 @@ photopress.slideshow.prototype = {
 			}
 		
 		} while ( true );
-		
-		
-		
+			
 		jQuery('.thumbnail-list').imagesLoaded().always( function( instance ) {
 			
 			setTimeout(function() {
@@ -408,21 +402,8 @@ photopress.slideshow.prototype = {
 		});
 	},
 	
-	
-	
 	initCarousel: function() {
-		console.log('init carousel');
-		// disable the loop/wrap-around on the carousel if there are too few slides
-		//if ( this.thumbnails.totalWidth < this.thumbnails.containerWidth / 2  ) {
-			//console.log('turning off loop');
-			
-			//jQuery('.thumbnail-list').css('width', that.thumbnails.totalWidth * .66 );
-			//this.options.thumbnailCarousel.loop = false;
-			//this.options.thumbnailCarousel.center = false;
-			//this.options.thumbnailCarousel.rewind = true;
-			//this.options.thumbnailCarousel.items = 7;//this.thumbnails.count;
-		//}
-
+	
 		var that = this;
 		// initialize the thumbnail carousel
 		this.initThumbnailCarousel( this.getOption('thumbnailCarousel'), function() {

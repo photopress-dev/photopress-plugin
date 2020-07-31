@@ -8,7 +8,7 @@
  * All blocks should be included here since this is the file that
  * Webpack is compiling as the input file.
  */
- 
+
 import { registerBlockType, } from '@wordpress/blocks';
 
 //import './block/block.js';
@@ -16,6 +16,8 @@ import { registerBlockType, } from '@wordpress/blocks';
 import * as childpages from './blocks/child_pages/index.js';
 
 import * as gallery from './blocks/gallery/index.js';
+
+
 
 const registerBlock = ( block ) => {
 	

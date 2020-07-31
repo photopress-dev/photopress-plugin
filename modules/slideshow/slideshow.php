@@ -222,7 +222,7 @@ class slideshow extends photopress_module {
 			'title'							=> 'Slideshow Gallery',
 			'menu_title'					=> 'Slideshow',
 			'required_capability'			=> 'manage_options',
-			'menu_slug'						=> 'photopress-pro-gallery-slideshow',
+			'menu_slug'						=> 'photopress-gallery-slideshow',
 			'description'					=> 'Settings that control the slideshow gallery format.',
 			'sections'						=> array(
 				'general'						=> array(

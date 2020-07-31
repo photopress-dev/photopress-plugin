@@ -1,0 +1,290 @@
+$blue: rgb(0, 113, 161);
+$box-shadow: 0 0 0 1px #ccd0d4,0 1px 1px 1px rgba(0,0,0,.04);
+
+.photopress-options-container {
+	
+	.components-placeholder {
+		background: #f6f6f6;
+		margin-top: 25vh;
+		margin-bottom: 25vh;
+	}
+
+	.masthead {
+		background-color: #fff;
+		text-align: center;
+		box-shadow: 0 1px 0 #ccd0d4,0 1px 1px 1px rgba(0,0,0,0.04);
+
+
+		.masthead-container {
+			margin: 0 auto;
+		
+
+			.logo {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+			}
+		}
+	}
+	
+	.row {
+		
+		margin-bottom: 25px;
+	}
+
+
+	.settings {
+		margin-left: auto;
+		margin-right: auto;
+		max-width: 65rem;
+		
+		.tab-navigation {
+			
+			.components-tab-panel__tabs {
+				
+				margin-bottom: 25px;
+				background-color: #fff;
+				box-shadow: $box-shadow;
+			}
+			
+			.active-tab {
+				
+				font-weight: bold;
+				color: $blue;
+				border-bottom: 3px solid black;
+			}
+			
+		}
+		
+		.components-toggle-control {
+			
+			.components-base-control__field {
+				
+				.components-toggle-control__label {
+					display: inline;
+				}
+			}
+			
+		}
+		
+		.taxonomy_control {
+			
+			display: flex;
+			flex-direction: row;
+			margin-bottom:20px;
+			
+			.taxonomy_attr {
+				
+				font-size: 12px;
+				display: flex;
+				flex-direction: column;
+				justify-content: flex-end;
+				
+			}
+			
+			.tax-id {
+				
+				min-width:150px;
+			}
+		}
+		
+		.new-taxonomy-control {
+			
+			display: flex;
+			flex-direction: column;
+			margin-bottom:20px;
+			
+			.taxonomy_attr {
+				
+				display:flex;
+				align-items: center;
+				
+			}
+			
+			.components-base-control__label {
+				
+				display: block;
+			
+			}
+			
+			components-checkbox-control__label {
+				
+				display: inline-block;
+				
+			}
+			
+			.components-select-control__input {
+				
+				height: 40px;
+				line-height: 1.5;
+				border: 1px solid #b7c9d9;
+				border-radius: 3px;
+				font-size: 14px;
+				padding: 9px 15px;
+				width: 250px;
+
+			}
+			
+			.components-external-link {
+				
+				display: inline-block;
+			}
+		}
+		
+		.placeholder-small {
+			
+			width: 120px;
+			
+			.components-base-control__field {
+				
+			
+			}
+			
+			.components-text-control__input {
+				
+				width:100%;
+			}
+			
+		}
+		
+		.components-form-toggle {
+			
+			color: #fff;
+			
+			.components-form-toggle__input {
+				
+				color: blue;
+			}	
+		}
+		
+		.components-panel {
+			
+			margin: 25px 0;
+			background: #fff;
+			border: 1px solid #e2e4e7;
+		}
+		
+		.components-panel__body {
+			margin: 25px 0;
+			background: #fff;
+			border: 1px solid #e2e4e7;
+			
+		
+
+			.components-panel__body-toggle {
+				border-bottom: 1px solid #d6e2ed;
+				font-size: 16px;
+				font-weight: 600;
+			}
+
+			.components-panel__row {
+				padding: 10px;
+				margin: 0;
+				border-bottom: 1px solid #e2e4e7;
+			}
+				
+		}
+				
+		.components-base-control__field {
+		
+			margin-bottom: 10px;
+		}
+
+		.components-base-control__label {
+			
+			display: block;
+			font-weight: 600;
+			margin: 10px 0 10px 0;
+			width:100%;
+		}
+		
+		.length-20 {
+			
+			width:75px;
+		}
+						
+		.components-text-control__input {
+			border: 1px solid #b7c9d9;
+			border-radius: 3px;
+			font-size: 14px;
+			padding: 9px 15px;
+			
+			width: 200px;
+			box-shadow: none;
+			height: 40px;
+			margin: 0 0 0 0;
+			color: #444;
+
+			&:disabled {
+				background: #f6f6f6;
+				border-color: #eeeeee;
+				color: #bbbbbb;
+			}
+
+			&:focus {
+				border-color: #00a0d2;
+				box-shadow: 0 0 0 1px #00a0d2;
+				outline: 2px solid transparent;
+				outline-offset: -2px;
+			}
+		}
+						
+		input[type="checkbox"] {
+			
+			width: 15px;
+			height: 15px;
+			margin: 3px 10px 10px 0;
+		}
+			
+		.left
+		.codeinwp-text-field-button-group {
+			display: flex;
+			align-items: center;
+			margin: 2px 0 15px;
+
+			.is-primary {
+				padding: 2px 20px;
+				height: auto;
+				font-size: 14px;
+				margin-right: 10px;
+			}
+		}
+		
+		
+		
+		.right-pad {
+			
+			margin-right:10px;
+		}
+
+
+		.codeinwp-info {
+			padding: 0 10px 10px;
+
+			h2 {
+				font-weight: 300;
+				margin-bottom: 10px;
+			}
+
+			p {
+				margin: 0 0 1.5em 0;
+			}
+		
+			.codeinwp-info-button-group {
+				display: flex;
+
+				.is-default {
+					padding: 2px 20px;
+					height: auto;
+					font-size: 14px;
+
+					&:first-child {
+						margin-right: 15px;
+					}
+				}
+			}
+		}
+	}
+}
+
+

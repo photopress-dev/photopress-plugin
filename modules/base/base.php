@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\base;
 use photopress_module; 
+use photopress_util;
 
 class base extends photopress_module {
 
@@ -9,6 +10,14 @@ class base extends photopress_module {
 	
 		add_action( 'wp_enqueue_scripts', array( $this, 'photopress_base_js' ) );
 	
+	}
+	
+	public function defineAdminHooks() {
+		$page_hook_suffix = 'photopress-core-base-extensions';
+		//add_action( "admin_print_scripts-{$page_hook_suffix}", [$this, 'options_assets'] );
+		//add_action( "admin_init", [$this, 'options_assets'] );
+		
+		$this->option_assets();
 	}
 	
 	public function photopress_base_js() {
@@ -19,15 +28,30 @@ class base extends photopress_module {
 			array( 'jquery' )
 		);
 	}
+	
+	public function option_assets() {
+		
+		wp_enqueue_script( 
+			'photopress-options-script', 
+			plugins_url( '/', __FILE__ ) . '../../dist/options.build.js', 
+			array( 'wp-api', 'wp-i18n', 'wp-components', 'wp-element' ), '1.0.0', true 
+		);
+		
+		wp_enqueue_style( 
+			'photopress-options-style', 
+			plugins_url( '/', __FILE__ ) . '../../dist/blocks.style.build.css', 
+			array( 'wp-components' ) 
+		);
+	}
 
 	public function registerOptions() {		
 
-		return array(
+		return [
 		
-		'general_enable'						=> array(
+		'general_enable'						=> [
 			
 				'default_value'							=> true,
-				'field'									=> array(
+				'field'									=> [
 					'type'									=> 'boolean',
 					'title'									=> 'Enable PhotoPress',
 					'page_name'								=> 'general',
@@ -35,11 +59,26 @@ class base extends photopress_module {
 					'description'							=> 'Enable or disable all functionality.',
 					'label_for'								=> 'Enable general',
 					'error_message'							=> 'You must select On or Off.'		
-				)				
-			),
+				]	
+			],
 		
+/*
+			'test'									=> [
+			
+				'default_value'							=> true,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Enable PhotoPress',
+					'page_name'								=> 'general',
+					'section'								=> 'general',
+					'description'							=> 'Enable or disable all functionality.',
+					'label_for'								=> 'Enable general',
+					'error_message'							=> 'You must select On or Off.'		
+				]	
+			]
+*/
 		
-		);
+		];
 	}
 	
 	public function registerSettingsPages() {
@@ -66,6 +105,7 @@ class base extends photopress_module {
 			)
 		);
 		
+
 		$pages['extensions'] = array(
 			'parent_slug'				=> 'photopress-core-base',
 			'title'						=> 'PhotoPress Extensions',
@@ -77,134 +117,15 @@ class base extends photopress_module {
 			'render_callback'			=> array( $this, 'renderExtensionsPage')
 			
 		);
+
 		
 		return $pages;
 	}
 	
 	public function renderExtensionsPage() {
-		?>
-		<style>
 		
-			.photopress_admin .extension {
-			    border: 1px solid #ccc;
-			    box-sizing: border-box;
-			    float: left;
-			    height: 230px;
-			    margin: 10px 20px 10px 0;
-			    width: 300px;
-			}
-			
-			.photopress_admin .extensions {
-				display: block;
-				margin-top: 15px;
-			}
-			.photopress_admin .extension a {
-				
-				text-decoration: none;
-			}
-			
-			.photopress_admin .extension h3 {
-			    background: #fff none no-repeat scroll left 10px / 130px;
-			    background-position: 10px;
-			    border-bottom: 1px solid #ccc;
-			    box-sizing: border-box;
-			    height: 110px;
-			    margin: 0;
-			    padding: 20px 10px 0 150px;
-			}
-			
-			.photopress_admin .extension p {
-			    margin: 0;
-			    padding: 10px;
-			}
-			 
-		</style>
-		<?php
-		
-		$extensions = array(
-		
-			'gallery'		=> array(
-				'label'			=> 'Gallery',
-				'description'	=> 'Adds gallery related features to PhotoPress.',
-				'repo_url'		=> photopress_util::getWpPluginInstallUrl( 'photopress-gallery' ),
-				'icons'			=> array (
-					'200w'			=> 'photopress-gallery.200w.jpg'
-				)
-			),
-			'taxonomies'	=> array(
-				'label'			=> 'Image Taxonomies',
-				'description'	=> 'Adds image taxonomies for keywords, camera, lens, people, city, state and country.',
-				'repo_url'		=> photopress_util::getWpPluginInstallUrl( 'photo-tools-image-taxonomies' ),
-				'icons'			=> array (
-					'200w'			=> 'photopress-taxonomies.200w.jpg'
-				)
-			),
-			/*
-
-			'seo'			=> array(
-				'label'			=> 'SEO',
-				'description'	=> 'Test description his there this is a test description of my extension.',
-				'repo_url'		=> '',
-				'icons'			=> array (
-					'200w'			=> 'photopress-cart.200w.jpg'
-				)
-			),
-			
-			*/
-			'cart'			=> array(
-				'label'			=> 'Paypal Shopping Cart',
-				'description'	=> 'Adds shopping cart widgets that allow you to sell prints of your images.',
-				'repo_url'		=> photopress_util::getWpPluginInstallUrl( 'photopress-paypal-shopping-cart' ),
-				'icons'			=> array (
-					'200w'			=> 'photopress-cart.200w.jpg'
-				)
-			),
-			'sideways'		=> array(
-				'label'			=> 'Sideways Gallery',
-				'description'	=> 'Adds a sideways gallery presentation style.',
-				'repo_url'		=> photopress_util::getWpPluginInstallUrl( 'photopress-sideways-gallery' ),
-				'icons'			=> array (
-					'200w'			=> 'photopress-sideways.200w.jpg'
-				)
-			),
-			'masonry'		=> array(
-				'label'			=> 'Masonry Gallery',
-				'description'	=> 'Adds a Masonry gallery presentation style.',
-				'repo_url'		=> photopress_util::getWpPluginInstallUrl( 'photopress-masonry-gallery' ),
-				'icons'			=> array (
-					'200w'			=> 'photopress-masonry.200w.jpg'
-				)
-			),
-			'latest'		=> array(
-				'label'			=> 'Latest Images',
-				'description'	=> 'Allows you to show a gallery of the latest uploded images.',
-				'repo_url'		=> photopress_util::getWpPluginInstallUrl( 'photopress-latest-images' ),
-				'icons'			=> array (
-					'200w'			=> 'photopress-latestimages.200w.jpg'
-				)
-			)
-		);
-		
-		echo '<div class="wrap photopress_admin">';
-			
-		echo '	<div class="icon32" id="icon-options-general"><br></div> ';
-		echo '	<h2>PhotoPress Extensions</h2>';
-			
-		echo ' 	<div class="extensions"> ';
-		
-		foreach ( $extensions as $k => $v ) {
-			$url = "'" . plugins_url( 'photopress' ) . '/static/images/'. $v['icons']['200w'] . "'";
-			echo ' 		<div class="extension">';
-			echo '			<a href="'. $v['repo_url'] .'"> ';
-			echo '				<h3 style="background-image: url(' . $url . ');">' . $v['label'] . '</h3>';
-			echo '			</a>';
-			echo '			<p>' . $v['description'] . '</p>';
-			echo '			<p><a class="button-primary" href="'. $v['repo_url'] .'" target="_blank"> Get this extension </a></p> ';
-			echo '		</div> ';
-		}
-		echo ' 	</div>';
-		echo '</div>';
-		
+		echo '<div id="photopress-core-options"></div>';
 	}
+	
 }
 ?>

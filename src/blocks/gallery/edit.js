@@ -187,7 +187,7 @@ class GalleryEdit extends Component {
 	}
 	
 	selectAttachmentMeta( newImage, images, attachmentMeta, key ) {
-		console.log(attachmentMeta);
+		//console.log(attachmentMeta);
 		// The image id in both the images and attachmentCaptions arrays is a
 		// string, so ensure comparison works correctly by converting the
 		// newImage.id to a string.
@@ -237,7 +237,7 @@ class GalleryEdit extends Component {
 			columns: columns ? Math.min( newImages.length, columns ) : columns,
 		} );
 		
-		console.log(this.props.attributes.images);
+		//console.log(this.props.attributes.images);
 		
 	}
 
