@@ -46,8 +46,6 @@ class MetadataSettings extends Component {
 		
 		this.settingsGroup = this.props.settingsGroup;
 		
-		
-		
 		this.xmpLabels = xmpLabels;
 		
 		this.persistSetting = persistSetting.bind( this );
@@ -77,8 +75,8 @@ class MetadataSettings extends Component {
 				id: '',
 				pluralLabel: '',
 				singularLabel: '',
-				xmpTag: '',
-				parseXmpTag: false
+				tag: '',
+				parseTagValue: false
 			}
 
 			
@@ -234,12 +232,10 @@ class MetadataSettings extends Component {
 		this.saveSettings();
 	}
 	
-	newTaxValueChange( key, val ) {
+	newTaxValueChange( key, value ) {
 		
 		let newTax = this.state.newTaxDefinition;
-		
-		let value = val;
-		let id;
+			
 		let newVal = {};
 		
 		if ( key === 'pluralLabel') {
@@ -250,13 +246,16 @@ class MetadataSettings extends Component {
 		
 		newVal[ key ] = value;
 		
-		this.setState( { 
-			newTaxDefinition: {
-				...this.state.newTaxDefinition,
-				...newVal
-			}
-		},
-		this.setNewTaxPresent
+		this.setState( 
+			
+			{ 
+				newTaxDefinition: {
+					...this.state.newTaxDefinition,
+					...newVal
+				}
+			},
+			
+			this.setNewTaxPresent
 		);
 		
 		
@@ -270,7 +269,7 @@ class MetadataSettings extends Component {
 		let isNewTaxPresent = this.state.isNewTaxPresent;
 		let newTax = this.state.newTaxDefinition;
 		// this is needed to dsiable the button
-		if ( newTax.pluralLabel.length > 1 && newTax.singularLabel.length > 1 && newTax.xmpTag.length > 1 ) {
+		if ( newTax.id.length > 1 && newTax.pluralLabel.length > 1 && newTax.singularLabel.length > 1 && newTax.tag.length > 1 ) {
 			
 			isNewTaxPresent = true;
 			
@@ -312,10 +311,8 @@ class MetadataSettings extends Component {
 	                <Modal
 	                    title="Add Image Taxonomy"
 	                    onRequestClose={ closeModal }>
-	                    <Button isSecondary onClick={ closeModal }>
-	                        My custom close button
-	                    </Button>
-	                    
+	                   
+	                
 	                    <div key={ 'add-new-tax-definition'} className="new-taxonomy-control">
 						
 			                
@@ -346,12 +343,12 @@ class MetadataSettings extends Component {
 							<div className="taxonomy_attr">
 								
 								<SelectControl
-									id={'new-taxonomy-embedded-tag'}	
+									id={'new-taxonomy-tag'}	
 									label="XMP Tag"
 									
 									options={this.getXmpLabels()}
 									className="right-pad"
-									onChange={ e => this.newTaxValueChange( 'xmpTag', e ) }
+									onChange={ e => this.newTaxValueChange( 'tag', e ) }
 									help={'foo bar'}
 								/>
 									<ExternalLink href="#">
@@ -365,7 +362,7 @@ class MetadataSettings extends Component {
 									label="Parse XMP Value for taxonomy"
 									id={'new-taxonomy-parse-xmp-tag'}
 									defaultChecked={false}
-									onChange={ e => this.newTaxValueChange( 'parseXmpTag', e ) }
+									onChange={ e => this.newTaxValueChange( 'parseTagValue', e ) }
 									help={'e.g. "people:Elon Musk"'}
 								/>
 								
@@ -374,13 +371,21 @@ class MetadataSettings extends Component {
 							
 							<div className="taxonomy_attr">
 								<Button
+									className="right-pad"
 									isPrimary
-									//islarge
+									
 									disabled={ this.state.isAPISaving || ! this.state.isNewTaxPresent}
 									onClick={ this.addNewTaxonomy }
 								>
 									{ __( 'Save' ) }
-								</Button>
+								</Button> 
+								 <Button 
+								 	isSecondary 
+								 	onClick={ closeModal }
+								 	
+								 >
+			                        Cancel
+			                    </Button>
 							</div>
 	
 						</div>
@@ -473,18 +478,18 @@ class MetadataSettings extends Component {
 		
 			                	</div>
 			                	
-			                	<div className="taxonomy_attr">
+			                	<div className="taxonomy_attr placeholder-small">
 									
 									<TextControl
 										label={ __('Plural Label') }
 										value={`${val.pluralLabel}`} 
-										className="right-pad"
+										className=" right-pad"
 										readOnly
 									/>
 									
 								</div>
 								
-								<div className="taxonomy_attr">
+								<div className="taxonomy_attr placeholder-small">
 									
 									<TextControl
 										label={ __('Singular Label') }
@@ -499,19 +504,19 @@ class MetadataSettings extends Component {
 									
 									<TextControl
 										label={ __('XMP Tag') }
-										value={`${val.xmpTag}`} 
+										value={`${val.tag}`} 
 										className="right-pad"
 										readOnly
 									/>
 								
 								</div>
 								
-								<div className="taxonomy_attr">
+								<div className="taxonomy_attr placeholder-tiny">
 									
 									<TextControl
 										label={ __('Parse XMP') }
-										value={`${val.parseXmpTag}`} 
-										className="placeholder-small right-pad"
+										value={`${val.parseTagValue}`} 
+										className=" right-pad"
 										readOnly
 									/>
 		

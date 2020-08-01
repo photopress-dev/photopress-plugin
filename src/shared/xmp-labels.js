@@ -1,8 +1,10 @@
 const xmpLabels = {
-
+	
+	"aux:Lens" 							: "Lens",
+	
 	"dc:contributor" 					: "Other Contributor(s)",
 	"dc:coverage" 						: "Coverage (scope)",
-	"dc:creator" 						: "Creator(s) (Authors)",
+	"dc:creator" 						: "Creator/Author",
 	"dc:date" 							: "Date",
 	"dc:description"			 		: "Caption",
 	"dc:format" 						: "MIME Data Format",
@@ -16,17 +18,13 @@ const xmpLabels = {
 	"dc:title" 							: "Title",
 	"dc:type" 							: "Resource Type",
 	
-	"aux:Lens" 							: "Lens",
+	
 	
 	"xmp:Advisory" 						: "Externally Editied Properties",
 	"xmp:BaseURL" 						: "Base URL for relative URL's",
 	"xmp:CreateDate"			 		: "Original Creation Date",
 	"xmp:CreatorTool" 					: "Creator Tool",
 	"xmp:Identifier" 					: "Identifier(s)",
-	"xmp:MetadataDate" 					: "Metadata Last Modify Date",
-	"xmp:ModifyDate" 					: "Resource Last Modify Date",
-	"xmp:Nickname" 						: "Nickname",
-	"xmp:Thumbnails"			 		: "Thumbnails",
 	
 	"xmpidq:Scheme" 					: "Identification Scheme",
 	
@@ -71,10 +69,6 @@ const xmpLabels = {
 	
 	"xmpTPg:MaxPageSize"	 			: "Largest Page Size",
 	"xmpTPg:NPages" 					: "Number of pages",
-	
-	"pdf:Keywords" 						: "Keywords",
-	"pdf:PDFVersion"			 		: "PDF file version",
-	"pdf:Producer" 						: "PDF Creation Tool",
 	
 	"photoshop:AuthorsPosition" 		: "Authors Position",
 	"photoshop:CaptionWriter"			: "Caption Writer",
