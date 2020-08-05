@@ -56,7 +56,6 @@ class MetadataSettings extends Component {
 		this.getError = getError.bind( this );
 		this.setError = setError.bind( this );
 		
-		this.changeCustomTaxonomies = this.changeCustomTaxonomies.bind( this );
 		this.deleteCustomTaxonomy = this.deleteCustomTaxonomy.bind( this );
 		this.addNewTaxonomy = this.addNewTaxonomy.bind( this );
 		this.newTaxValueChange = this.newTaxValueChange.bind( this );
@@ -77,40 +76,12 @@ class MetadataSettings extends Component {
 				singularLabel: '',
 				tag: '',
 				parseTagValue: false
-			}
-
-			
+			}	
 		};
-		
-				
-		console.log('metadata');
 	}
 	
 	componentDidMount() {
 		
-/*
-		console.log('metadata didmount');
-		
-		wp.api.loadPromise.then( () => {
-			
-			this.settings = new wp.api.models.Settings();
-			
-			console.log( this.settings);
-			
-			if ( false === this.state.isAPILoaded ) {
-			
-				this.settings.fetch().then( response => {
-			
-					this.setState({
-						settings: response[ this.settingsGroup ],
-						isAPILoaded: true
-					});
-					
-					console.log(this.state);
-				});
-			}
-		});
-*/
 		
 	}
 	
@@ -186,59 +157,25 @@ class MetadataSettings extends Component {
 		
 			custom_taxonomies.splice( index, 1 );
 		}
-		
-		
-		console.log( custom_taxonomies);
-		
+
 		this.setState(
 			{ 
-			settings: {
-				...this.state.settings,
-				custom_taxonomies
-			}});
-		
-		// persist new state	
-		this.saveSettings();
-	}
-	
-	changeCustomTaxonomies( val ) {
-		
-		let isNewTaxPresent;
-		let value = val.target.value;
-		// this is needed to dsiable the button
-		if ( value.length > 1 ) {
-			
-			isNewTaxPresent = true;
-			
-		} else {
-			
-			isNewTaxPresent = false;
-		}
-		
-		let custom_taxonomies = this.state.settings.custom_taxonomies;
-		console.log(custom_taxonomies);
-		custom_taxonomies[ value ] = { plural: '', singluar: '' };
-		console.log(custom_taxonomies);
-		
-		this.setState( { 
-			settings: {
-				...this.state.settings,
-				custom_taxonomies
+				settings: {
+					...this.state.settings,
+					custom_taxonomies
+				}
 			},
-			isNewTaxPresent: isNewTaxPresent
-		});
-		
-		console.log(this.state);
-		this.saveSettings();
+			this.saveSettings	
+		);
 	}
-	
+		
 	newTaxValueChange( key, value ) {
 		
 		let newTax = this.state.newTaxDefinition;
 			
 		let newVal = {};
 		
-		if ( key === 'pluralLabel') {
+		if ( key === 'singularLabel') {
 			
 			newVal.id = 'pp_' + value;
 			
@@ -257,11 +194,8 @@ class MetadataSettings extends Component {
 			
 			this.setNewTaxPresent
 		);
-		
-		
-		
+
 		console.log(this.state);
-		
 	}
 	
 	setNewTaxPresent() {
@@ -275,8 +209,10 @@ class MetadataSettings extends Component {
 			
 		}
 		
-		this.setState({isNewTaxPresent: isNewTaxPresent});
-		console.log(this.state);
+		this.setState(
+			
+			{ isNewTaxPresent: isNewTaxPresent }
+		);
 	}
 	
 	getXmpLabels() {
@@ -315,7 +251,18 @@ class MetadataSettings extends Component {
 	                
 	                    <div key={ 'add-new-tax-definition'} className="new-taxonomy-control">
 						
-			                
+			                <div className="taxonomy_attr">
+								
+				                <TextControl
+				                  label={ __('Singular Label') }
+				                  id={'new-taxonomy-singular'}
+				                  placeholder={ __('e.g. Car') }
+				                  className="right-pad"
+					              onChange={ e => this.newTaxValueChange( 'singularLabel', e ) }
+					              help={''}
+								/>
+							</div>
+							
 			                <div className="taxonomy_attr">
 								
 				                <TextControl
@@ -324,19 +271,7 @@ class MetadataSettings extends Component {
 				                  className="right-pad"
 				                  placeholder='e.g. Cars'
 					              onChange={ e => this.newTaxValueChange( 'pluralLabel', e ) }
-					              help={'foo bar'}
-								/>
-							</div>
-							
-							<div className="taxonomy_attr">
-								
-				                <TextControl
-				                  label={ __('Singular Label') }
-				                  id={'new-taxonomy-singular'}
-				                  placeholder={ __('e.g. Car') }
-				                  className="right-pad"
-					              onChange={ e => this.newTaxValueChange( 'singularLabel', e ) }
-					              help={'foo bar'}
+					              help={''}
 								/>
 							</div>
 							
@@ -349,7 +284,7 @@ class MetadataSettings extends Component {
 									options={this.getXmpLabels()}
 									className="right-pad"
 									onChange={ e => this.newTaxValueChange( 'tag', e ) }
-									help={'foo bar'}
+									help={'The embedded meta-data tag to extract.'}
 								/>
 									<ExternalLink href="#">
 									{ __( 'Read about XMP Tags' ) }
@@ -359,11 +294,11 @@ class MetadataSettings extends Component {
 							<div className="taxonomy_attr">
 							
 								<CheckboxControl
-									label="Parse XMP Value for taxonomy"
+									label="Child Taxonomy"
 									id={'new-taxonomy-parse-xmp-tag'}
 									defaultChecked={false}
 									onChange={ e => this.newTaxValueChange( 'parseTagValue', e ) }
-									help={'e.g. "people:Elon Musk"'}
+									help={'e.g. "Parse people:Elon Musk from dc:subjects"'}
 								/>
 								
 							
@@ -481,23 +416,23 @@ class MetadataSettings extends Component {
 			                	<div className="taxonomy_attr placeholder-small">
 									
 									<TextControl
-										label={ __('Plural Label') }
-										value={`${val.pluralLabel}`} 
-										className=" right-pad"
-										readOnly
-									/>
-									
-								</div>
-								
-								<div className="taxonomy_attr placeholder-small">
-									
-									<TextControl
 										label={ __('Singular Label') }
 										value={`${val.singularLabel}`} 
 										className="right-pad"
 										readOnly
 									/>
 								
+								</div>
+			                	
+			                	<div className="taxonomy_attr placeholder-small">
+									
+									<TextControl
+										label={ __('Plural Label') }
+										value={`${val.pluralLabel}`} 
+										className=" right-pad"
+										readOnly
+									/>
+									
 								</div>
 								
 								<div className="taxonomy_attr">

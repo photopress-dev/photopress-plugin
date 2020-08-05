@@ -54,7 +54,7 @@
 					"type": "number",
 					"source": "attribute",
 					"selector": "img",
-					"attribute": "data-aspectRatio"
+					"attribute": "data-aspectratio"
 				}
 			}
 		},

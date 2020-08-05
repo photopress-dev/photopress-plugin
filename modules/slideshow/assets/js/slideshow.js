@@ -23,19 +23,24 @@ photopress.slideshow = function( selector, options ) {
 		}
 	}
 	
-	var dom_options = ['thumbnailHeight', 'showThumbnails', 'showCaptions'];
+	var dom_options = ['thumbnailHeight', 'showThumbnails', 'showCaptions', 'detail_position', 'detail_components'];
 	
 	// load overrides from dom data attributes
 	var that = this;
 	dom_options.forEach( function (opt) {
+		
 		let dom_opt = jQuery( that.options.selector ).data( opt.toLowerCase() );
+		
+		if ( that.isValidJson( dom_opt ) ) {
+			
+			dom_opt = JSON.parse(dom_opt);
+		}
 				
 		that.options[ opt ] = dom_opt;
 	});
 	
 	// initialize the slideshow
 	this.init();
-	
 };
 
 /**
@@ -95,12 +100,22 @@ photopress.slideshow.prototype = {
 	/**
 	 * Helper method for getting option values
 	 */
-	getOption: function( key ) {
+	getOption: function ( key ) {
 		
 		if ( this.options.hasOwnProperty( key ) ) {
 		
 			return this.options[key];
 		}
+	},
+	
+	isValidJson: function ( str ) {
+		
+	    try {
+	        JSON.parse(str);
+	    } catch (e) {
+	        return false;
+	    }
+	    return true;
 	},
 
 	init: function() {
@@ -163,34 +178,62 @@ photopress.slideshow.prototype = {
 		// calculate the img tags responsive "sizes" attribute: 
 		// window height - thumbnails container height * aspect ratio of image.
 		let aspectratio = jQuery(img).data('aspectratio');
-		let vh = this.viewportHeight;
+		//let vh = this.viewportHeight;
 		let thumbsHeight = jQuery('.thumbnails').outerHeight(true);
 		
 		var bodyStyles = window.getComputedStyle(document.body);
 		thumbsHeight = bodyStyles.getPropertyValue('--pp-slideshow-thumbnails-total-height'); //get
-		i.sizes = `calc( ( var(--vh) - ${thumbsHeight} ) * ${aspectratio} )`;
-		
+		let vh = bodyStyles.getPropertyValue('--vh');
+		console.log(vh);
+		//i.sizes = `calc( ( var(--vh) - ${thumbsHeight} ) * ${aspectratio} )`;
+		i.sizes = `calc( ( ${vh} - ${thumbsHeight} ) * ${aspectratio} )`;
 		// fade in class
 		jQuery(i).addClass('fade-in');
 		
 		// add data-id from the gallery image, just in case...
 		jQuery(i).attr('data-id', jQuery(img).attr('data-id'));
 		
-		let caption = this.getCaptionFromGalleryItem( jQuery(img).data('id') );
+		
+				
+		// fetch slide info from the gallery item
+		let galleryItemId = jQuery(img).data('id');
+		let caption = this.getCaptionFromGalleryItem( galleryItemId );
+		let title = this.getDataFromGalleryItem( galleryItemId, 'image-title' );
+		let description = this.getDataFromGalleryItem( galleryItemId, 'image-description' );
+		
+		let slideInfoPosition = this.getOption('detail_position'); 
+		let detail_components = this.getOption('detail_components');
+		
 		//load handler that once image is loaded will insert it into the DOM
 		jQuery(i).on('load', function() {
 			//jQuery('.panels .center').html('<div class="main-image"></div>');
 			jQuery('.panels .center').html(i);
 			
-			if (caption) {
-				jQuery('.panels .center').append(`<div class="caption">${caption}</div>`);
+			jQuery('.panels .center').append(`<div class="slide-info"></div>`);
+			
+			if ( slideInfoPosition === 'right' ) {
+			
+				jQuery( '.center' ).addClass('info-right');
 			}
+			
+			if (title && detail_components.title === "1") {
+				jQuery('.slide-info').append(`<div class="title">${title}</div>`);
+			}
+			
+			if (caption && detail_components.caption === "1") {
+				jQuery('.slide-info').append(`<div class="caption">${caption}</div>`);
+			}
+			
+			if ( description && detail_components.description === "1") {
+				jQuery('.slide-info').append(`<div class="description">${description}</div>`);
+			}
+
 		});
 		
 		// load the src of the image.
 		let srcset= jQuery(img).attr('srcset');
 		i.srcset = srcset;
-		i.src = jQuery(img).attr('data-full-url');
+		//i.src = jQuery(img).attr('data-orig-file');
 		
 	},
 	
@@ -230,13 +273,13 @@ photopress.slideshow.prototype = {
 	 * Reveals the lightbox in the DOM
 	 */
 	showLightbox: function() {
-		
+
 		var that = this;
 		
 		jQuery( '.lightbox' ).show('slow', function() {
 			
 			if ( ! that.isLoaded ) {
-				
+					
 				that.render();
 			}
 			
@@ -246,7 +289,6 @@ photopress.slideshow.prototype = {
 			jQuery( 'body' ).css('overflow', 'hidden');
 			// fire reveals event in case anyone is listening
 			jQuery( '.lightbox').trigger('pp-slideshow-opened');
-			
 		});
 		
 	},
@@ -279,8 +321,10 @@ photopress.slideshow.prototype = {
 			// add data position attribute
 			jQuery(ni).attr('data-position', i + 1);
 			
-			let aspectRatio = jQuery(ni).attr('data-aspectRatio');
-			let thumbnailHeight = that.getOption('thumbnailHeight'); 
+			let aspectRatio = jQuery(ni).attr('data-aspectratio');
+			
+			let thumbnailHeight = that.getOption('thumbnailHeight');
+			
 			let thumbnailWidth = Math.round(parseInt(thumbnailHeight, 10) * aspectRatio);
 			
 			// add data sizes attribute
@@ -290,8 +334,8 @@ photopress.slideshow.prototype = {
 			that.thumbnails.count++;
 			
 			// update total width of thumbnails.
-			that.thumbnails.totalWidth += thumbnailWidth;
-
+			that.thumbnails.totalWidth = that.thumbnails.totalWidth + thumbnailWidth;
+			
 			// append it to the thumbnail 
 			jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
 			
@@ -313,7 +357,7 @@ photopress.slideshow.prototype = {
 			return false;
 				
 		}
-
+		
 		// stop generating once we have double the width of the container
 		// Extra duplicate thumbnails are needed becuase the carousel libraries don't 
 		// handle looping well and show gaps etc.
@@ -340,6 +384,23 @@ photopress.slideshow.prototype = {
 		}
 	},
 	
+	getDataFromGalleryItem: function( id, key ) {
+		
+		var that = this;
+		
+		let value = jQuery( that.getOption( 'gallerySelector' ) + ' .photopress-gallery-item[data-id=' + id + ']').find('img').data( key );	
+		
+		if ( typeof value !== 'undefined' && value !== '' && value !== null && value.length > 0 ) {
+			
+			return value;
+		}
+	},
+	
+	getDescriptionFromGalleryItem: function( id ) {
+		
+		
+	},
+	
 	/**
 	 * Renders the Slideshow
 	 */
@@ -348,7 +409,7 @@ photopress.slideshow.prototype = {
 		var that = this;
 		
 		// create inner dom scaffolding
-		let o;
+		let o = '';
 		
 		o += '<div class="panels">';
 				

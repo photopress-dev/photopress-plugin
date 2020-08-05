@@ -10,24 +10,41 @@ use pp_api;
  *
  */
 class metadata extends photopress_module {
-
+	
 	public function definePublicHooks() {
+		
+		add_filter( 'max_srcset_image_width', 3000, 10,1);
+		
+		
+		// add additional meta-data to images
+		add_filter( 'wp_read_image_metadata', [$this, 'storeMoreMetaData'], 10, 5);
+		
+		// add additional attributes to images
+		add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
+		add_filter( 'the_content', array( $this, 'addAttributesToImagesInContent' ) );
+		
+		// stop wordpress from stripping image meta from resized images.
+		add_filter ('image_strip_meta', pp_api::getOption( 'core', 'metadata', 'strip_metadata_from_resized_image' ) );
+		
+		// registers display widgets
+		add_action( 'widgets_init', [ $this, 'registerWidgets' ] );
 		
 		if ( pp_api::getOption( 'core', 'metadata', 'custom_taxonomies_enable' ) ) {
 			
 			// registers the actual taxonomies
 			 $this->registerTaxonomies();
 			
-			// registers widgets
-			//add_action( 'widgets_init', 'papt_load_widgets' );
-			
 			//registers the attachment page sidebar
-			register_sidebar(array(
-			  'name' => 'PhotoPress Image Page Sidebar',
-			  'id' => 'papt-image-sidebar',
-			  'description' => 'Widgets in this area will be shown on image (attachment) page templates.',
-			  'after_widget' => '<BR>'
-			));
+			register_sidebar(
+			
+				[
+				  'name' => 'Image Page',
+				  'id' => 'photopress-image-primary',
+				  'description' => 'Widgets in this area will be shown on single image pages.',
+				  'before_widget' => '',
+				  'after_widget' => ''
+				]
+			);
 			
 			/**
 			 * Action handler for when new images are uploaded
@@ -39,42 +56,174 @@ class metadata extends photopress_module {
 			 * part of the Post's meta data.
 			 */
 			//add_filter('wp_generate_attachment_metadata', 'papt_storeNewMeta',1,2);
-			// is this really needed if all we are doing in pulling the metadata from the file again.
-			//add_filter('wp_update_attachment_metadata', [ $this, 'updateAttachment' ], 1, 2 );
-			add_action('attachment_updated', [ $this, 'updateAttachment' ], 1, 2 );
+			
+			add_action('enable-media-replace-upload-done', [ $this, 'updateAttachment' ], 1, 2 );
 						
 			// needed to show attachments on taxonomy pages
 			//add_filter( 'pre_get_posts', 'papt_makeAttachmentsVisibleInTaxQueries' );
 			
-			// shortcode for showing exif. needed?
-			//add_shortcode('photopress-exif', 'photopress_showExif');
-
 		}
 	}	
 	
 	public function defineAdminHooks() {
 		
-		//wp_enqueue_style(' wp-block-library');
-		
-		
-		//if ( pp_api::getOption( 'core', 'metadata', 'enable' ) ) {
-			
-			/**
-			 * Action handler for when new images are uploaded
-			 */
-			//add_action('add_attachment', 'papt_addAttachment');
-			
-			/**
-			 * Handler for extracting meta data from image file and storing it as
-			 * part of the Post's meta data.
-			 */
-			// no longer used
-			//add_filter('wp_generate_attachment_metadata', 'papt_storeNewMeta',1,2);
-			
-			// is this really needed if all we are doing in pulling the metadata from the file again.
-			//add_filter('wp_update_attachment_metadata', 'papt_storeNewMeta',1,2);
-		//}
 	
+	}
+	
+	/**
+	 * Adds data-* attributes required by img tags in post HTML
+	 * content. To be used by 'the_content' filter.
+	 *
+	 *
+	 * @param string $content HTML content of the post
+	 * @return string Modified HTML content of the post
+	 */
+	function addAttributesToImagesInContent( $content ) {
+	
+		if ( ! preg_match_all( '/<img [^>]+>/', $content, $matches ) ) {
+			
+			return $content;
+		}
+		
+		$selected_images = [];
+		
+		foreach ( $matches[0] as $image_html ) {
+			
+			if ( preg_match( '/(wp-image-|data-id=)\"?([0-9]+)\"?/i', $image_html, $class_id ) ) {
+				
+				$attachment_id = absint( $class_id[2] );
+				
+				/**
+				 * If exactly the same image tag is used more than once, overwrite it.
+				 * All identical tags will be replaced later with 'str_replace()'.
+				 */
+				$selected_images[ $attachment_id  ] = $image_html;
+			}
+		}
+
+		$find = [];
+		$replace = [];
+		
+		if ( empty( $selected_images ) ) {
+			
+			return $content;
+		}
+
+		$attachments = get_posts(
+			
+			[
+				'include'          => array_keys( $selected_images ),
+				'post_type'        => 'any',
+				'post_status'      => 'any',
+				'suppress_filters' => false,
+			]
+		);
+
+		foreach ( $attachments as $attachment ) {
+			
+			$image_html = $selected_images[ $attachment->ID ];
+
+			$attributes      = $this->addAttributesToImages( [], $attachment );
+			
+			$attributes_html = '';
+			
+			foreach ( $attributes as $k => $v ) {
+				
+				$attributes_html .= esc_attr( $k ) . '="' . esc_attr( $v ) . '" ';
+			}
+
+			$find[] = $image_html;
+			
+			$replace[] = str_replace( '<img ', "<img $attributes_html", $image_html );
+		}
+
+		$content = str_replace( $find, $replace, $content );
+		
+		return $content;
+	}
+	
+	function addAttributesToImages( $attr, $attachment = null ) {
+		
+		$attachment_id = intval( $attachment->ID );
+		if ( ! wp_attachment_is_image( $attachment_id ) ) {
+			return $attr;
+		}
+
+		$orig_file       = wp_get_attachment_image_src( $attachment_id, 'full' );
+		$orig_file       = isset( $orig_file[0] ) ? $orig_file[0] : wp_get_attachment_url( $attachment_id );
+		
+		//$attachment       = get_post( $attachment_id );
+		$attachment_title = wptexturize( $attachment->post_title );
+		$attachment_desc  = wpautop( wptexturize( $attachment->post_content ) );
+		//$size = isset( $meta['width'] ) ? intval( $meta['width'] ) . ',' . intval( $meta['height'] ) : '';
+		$attr['data-orig-file']         = esc_attr( $orig_file );
+		//$attr['data-orig-size']         = $size;
+		$attr['data-image-title']       = esc_attr( htmlspecialchars( $attachment_title ) );
+		$attr['data-image-description'] = esc_attr( htmlspecialchars( $attachment_desc ) );	
+		
+		return $attr;
+	}
+	
+	public function storeMoreMetaData( $meta, $file, $image_type, $iptc, $exif ) {
+		
+		//pp_api::debug($meta);
+		//pp_api::debug($image_type);
+		//pp_api::debug($iptc);
+		//pp_api::debug($exif);
+		
+		$meta['camera'] = $exif['Make'] . ' ' . $exif['Model'];
+		
+		if ( array_key_exists( 'LightSource', $exif ) ) {
+		
+			$meta['LightSource'] = $this->lookupLightSource( $exif['LightSource'] ) ;
+		}
+		
+		return $meta;
+	}
+	
+	// Lookup the LightSource value
+	// see: https://exiftool.org/TagNames/EXIF.html#LightSource
+	public function lookupLightSource( $code ) {
+		
+		$values = [
+			
+			0 => 'Unknown',
+			1 => 'Daylight',
+			2 => 'Fluorescent',
+			3 => 'Tungsten (incandescent light)',
+			4 => 'Flash',
+			9 => 'Fine weather',
+			10 => 'Cloudy weather',
+			11 => 'Shade',
+			12 => 'Daylight fluorescent (D 5700 - 7100K)',
+			13 => 'Day white fluorescent (N 4600 - 5400K)',
+			14 => 'Cool white fluorescent (W 3900 - 4500K)',
+			15 => 'White fluorescent (WW 3200 - 3700K)',
+			17 => 'Standard light A',
+			18 => 'Standard light B',
+			19 => 'Standard light C',
+			20 => 'D55',
+			21 => 'D65',
+			22 => 'D75',
+			23 => 'D50',
+			24 => 'ISO studio tungsten',
+			255 => 'Other light source'
+		];
+		
+		if (array_key_exists( $code, $values ) ) {
+		
+			return $values[ $code ]; 
+		
+		} else {
+			
+			return $values[0];
+		}
+	}
+	
+	public function registerWidgets() {
+		
+		register_widget( 'PhotoPress\modules\metadata\XmpDisplayWidget' );
+		register_widget( 'PhotoPress\modules\metadata\ExifDisplayWidget' );
 	}
 		
 	public function registerOptions() {	
@@ -137,7 +286,21 @@ class metadata extends photopress_module {
 					'error_message'							=> ''		
 				]	
 				
-			]
+			],
+			
+			'strip_metadata_from_resized_image'				=> [
+			
+				'default_value'							=> false,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Strip Meta-data From Resized Images',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'Strip the embedded meta-data from resized images generated by WordPress.',
+					'label_for'								=> 'Strip the embedded meta-data from resized images generated by WordPress',
+					'error_message'							=> 'You must select On or Off.'		
+				]	
+			],
 						
 		];
 		
@@ -278,38 +441,41 @@ class metadata extends photopress_module {
 	}
 	
 	public function addAttachment( $id ) {
+		
 		pp_api::debug('add attachment handler');
+		
 		//extract metadata from file	
-		$file = get_attached_file($id);
+		$file = get_attached_file( $id );
 		$md = new XmpReader();
-		$md->loadFromFile($file);
+		$md->loadFromFile( $file );
 		
-		$this->setTaxonomyTerms($id, $md);
+		// set the taxonomy terms
+		$this->setTaxonomyTerms( $id, $md );
 		
-		// set ALT text and caption of image
-		$post = get_post( $id );
-		
-		// make this configurable at some point
+		// set ALT text of image
 		$alt = $md->getXmp( pp_api::getOption('core', 'metadata', 'alt_text_tag') );
 		
-		if ( ! update_post_meta($id, '_wp_attachment_image_alt', $alt) ) {
-			add_post_meta($id, '_wp_attachment_image_alt', $alt);
+		if ( ! update_post_meta( $id, '_wp_attachment_image_alt', $alt ) ) {
+			
+			add_post_meta( $id, '_wp_attachment_image_alt', $alt );
 		}
 	}
 	
-	public function updateAttachment( $id ) {
-		pp_api::debug('update attachment handler');
+	/**
+	 * Handler for updating the image meta when the file is replaced
+	 */
+	public function updateAttachment( $url ) {
+		
+		pp_api::debug( 'enable media replace handler' );
+		
+		$id = attachment_url_to_postid( $url );
 		$md = new XmpReader();
-		$file = get_attached_file($id);
-		$md->loadFromFile($file);
-		$data['papt_meta'] = $md->getAllMetaData();
-		//print_r($data['papt_meta']);
-		$this->setTaxonomyTerms($id, $md);
-	
-		return $data;
+		$file = get_attached_file( $id );
+		$md->loadFromFile( $file );
+		$this->setTaxonomyTerms( $id, $md );
 	}
 	
-	public function setTaxonomyTerms($id, $md) {
+	public function setTaxonomyTerms( $id, $md ) {
 		
 		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');
 	
@@ -355,50 +521,13 @@ class metadata extends photopress_module {
 			}
 		}
 		
-		return pp_api::debug($toInsert);
+		pp_api::debug($toInsert);
 		// loop through all the taxonomies and insert the terms
 		foreach ( $toInsert as $tax_id => $terms ) {
-			
+			wp_defer_term_counting(true);
 			wp_set_object_terms($id, $terms, $tax_id, $append = false);
+			wp_defer_term_counting(false);
 		}
-/*
-		
-		//print_r($md);
-		// add keyword tags
-		$keywords = $md->getKeywords();
-		if (!empty($keywords)) {
-			wp_set_object_terms($id, $keywords, 'photos_keywords', $append = false);
-		}
-		
-		//add geo location tags
-		$city = $md->getCity();
-		if (!empty($city)) {
-			wp_set_object_terms($id, $city, 'photos_city', $append = false);
-		}
-		
-		$state = $md->getState();
-		if (!empty($state)) {
-			wp_set_object_terms($id, $state, 'photos_state', $append = false);
-		}
-		
-		$country = $md->getCountry();
-		if (!empty($country)) {
-			wp_set_object_terms($id, $country, 'photos_country', $append = false);
-		}
-	
-		//add camera tag
-		$camera = $md->getCamera();
-		if (!empty($camera)) {
-			wp_set_object_terms($id, $camera, 'photos_camera', $append = false);
-		}
-		
-		//add lens tag
-		$lens = $md->getLens();
-		if (!empty($lens)) {
-			wp_set_object_terms($id, $lens, 'photos_lens', $append = false);
-		}
-	
-*/
 	}
 	
 	function matchTermToTaxonomy( $value, $family ) {

@@ -1,18 +1,19 @@
 <?php 
 
 namespace PhotoPress\modules\metadata;
+use pp_api;
 	
 class XmpReader {
 	
-	var $plugin_dir = 'plugins/';
+	
 	// raw xmp array
-	var $xmp		= array();
+	var $xmp		= [];
 	// flattened xmp array
 	var $flat_xmp;
-	var $iptc 		= array();
-	var $exif 		= array();
-	var $labels 	= array();
-	var $exif_tags	= array(
+	var $iptc 		= [];
+	var $exif 		= [];
+	var $labels 	= [];
+	var $exif_tags	= [
 		'title',
 		'ImageDescription',
 		'Artist',
@@ -35,13 +36,86 @@ class XmpReader {
 		'Flash',
 		'MeteringMode',
 		'ExposureProgram'
-	);
+	];
 	
-	function __construct() {
-	
-		$this->plugin_dir = dirname(__FILE__).'/plugins';
-		return;
+	public function __construct() {
+		
+		$this->init();
 	}
+	
+	private function init() {
+		
+		add_filter( 'photopress_metadata_tag_value', [ $this, 'registerShortcuts' ], 0, 3 );
+	}
+	
+	public function registerShortcuts( $value = '', $tag, $xmp ) {
+		pp_api::debug('shortcuts');
+		pp_api::debug($tag);
+		switch ( $tag ) {
+			
+			case 'photopress:camera':
+			
+				return $this->getCamera();
+				break;
+		}
+	}
+	
+	function getXmp( $name ) {
+		
+		// allows or tag name aliases
+		$name = apply_filters( 'photopress_metadata_tag_name', $name );
+		
+		$all_xmp = $this->getAllXmp();
+		
+		$nvalue = '';
+		
+		if ( $all_xmp ) {
+			
+			// allows for shortcut tags
+			$nvalue = apply_filters( 'photopress_metadata_tag_value', $nvalue, $name, $all_xmp );
+			
+			// if no shortcut is returned then try to pull the value from the xmp
+			if ( ! $nvalue ) {
+			
+				if ( $all_xmp ) {
+				
+					if (is_array( $name ) ) {
+					
+						$names = array_flip( $name );
+						
+						$somevalues = array_intersect_key($all_xmp, $names );
+						
+						$nvalue = array();
+						
+						foreach ($somevalues as $k => $v) {
+							
+							$val = $this->formatKeyValue($k, $v);
+						}
+						
+						$nvalue[$k] = $val;
+						
+					} else {
+					
+						if (array_key_exists($name, $all_xmp)) {
+							
+							$nvalue = $all_xmp[$name];
+							
+							// just in case the value is a loner value in an array
+							if (is_array($nvalue) && (count($nvalue) < 2)) {
+							
+								$nvalue = $nvalue[0];
+							}			
+							
+							$nvalue = $this->formatKeyValue($name, $nvalue);	
+						}
+					}
+				}
+			}
+			
+			return $nvalue;	
+		}
+	}
+
 	
 	function get ( $keys ) {
 	
@@ -223,45 +297,7 @@ class XmpReader {
 		
 		return $meta;
 	}
-	
-	function getXmp($name) {
 		
-		$nvalue = '';
-		$all_xmp = $this->getAllXmp();
-		
-		if ($all_xmp) {
-		
-			if (is_array($name)) {
-			
-				$names = array_flip($name);
-				$somevalues = array_intersect_key($all_xmp,$names);
-				$nvalue = array();
-				foreach ($somevalues as $k => $v) {
-					$val = $this->formatKeyValue($k, $v);
-				}
-				
-				$nvalue[$k] = $val;
-				
-			} else {
-			
-				if (array_key_exists($name, $all_xmp)) {
-					
-					$nvalue = $all_xmp[$name];
-					
-					// just in case the value is a loner value in an array
-					if (is_array($nvalue) && (count($nvalue) < 2)) {
-					
-						$nvalue = $nvalue[0];
-					}			
-					
-					$nvalue = $this->formatKeyValue($name, $nvalue);	
-				}
-			}
-			
-			return $nvalue;	
-		}
-	}
-	
 	function displayAllXmp() {
 	
 		return $this->makeXmpHtml($this->getAllXmp());
@@ -522,9 +558,6 @@ class XmpReader {
 			unset($xmlarray[$k]);
 		}
 		
-		
-		//$xmlarray = $this->exchangeKeys($xmlarray); 
-		//print_r($xmlarray);
 		return $xmlarray;
 	}
 		
@@ -547,24 +580,7 @@ class XmpReader {
 	
 	function formatKeyValue($key, $value) {
 		
-		if (!empty($value)) {
-			
-			$name = str_replace(":", "_", $key);
-			$file = $this->plugin_dir.'/format/'.$name.'.php';
-			
-			if(file_exists($file)){
-				//print $file;	
-				require_once($file);
-				$class_name = 'pb_'.$name; 
-				//print $class_name;
-				$f = new $class_name;
-				return $f->format($value);
-			} else {
-				return $value;
-			}
-			
-		}		
-		return false;
+		return $value;
 	}
 	
 	static function frac2dec($str) {

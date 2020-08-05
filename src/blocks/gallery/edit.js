@@ -205,7 +205,6 @@ class GalleryEdit extends Component {
 		const { columns, images, sizeSlug } = this.props.attributes;
 		const { attachmentCaptions } = this.state;
 		
-		
 		this.setState( {
 			attachmentCaptions: newImages.map( ( newImage ) => ( {
 				// Store the attachmentCaption id as a string for consistency
@@ -231,7 +230,8 @@ class GalleryEdit extends Component {
 				// block is parsed it's converted to a string. Converting
 				// to a string here ensures it's type is consistent.
 				id: toString( newImage.id ),
-				aspectRatio: Math.floor( (newImage.sizes.full.width / newImage.sizes.full.height) * 100) /100,
+				//aspectRatio: this.calcAspectRatio(newImage),
+				apsectRatio: newImage.aspectRatio,
 				title: ''
 			} ) ),
 			columns: columns ? Math.min( newImages.length, columns ) : columns,
@@ -239,6 +239,18 @@ class GalleryEdit extends Component {
 		
 		//console.log(this.props.attributes.images);
 		
+	}
+	
+	calcAspectRatio( image ) {
+		
+		if ( image.hasOwnProperty('sizes') ) {
+			
+			return Math.floor( (image.sizes.full.width / image.sizes.full.height) * 100) /100;	
+			
+		} else {
+			
+			
+		}
 	}
 
 	onUploadError( message ) {

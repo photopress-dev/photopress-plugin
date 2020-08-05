@@ -171,3 +171,32 @@ $content-width: 700px;
 		height: 200%;
 	}
 }
+
+// tax widgets 
+
+.display-taxonomy-terms-widget {
+	
+	display:flex;
+	flex-flow: column;
+	
+	.container {
+		
+		display: flex;
+		align-items: flex-start;
+		padding: 5px 0 5px 0; 
+		
+		.label {
+			
+			font-weight: 600;
+			width: 100px;
+			padding-right: 20px;
+		}
+		
+		.terms {
+			
+			
+		}
+
+	}
+	
+}

@@ -44,7 +44,7 @@ abstract class photopress_module {
 		}
 	
 		// kick off the init sequence for each module during Wordpress 'init' hook.
-		add_action('init', array( $this, 'init'), 15, 0 );
+		add_action('init', array( $this, 'init'), 0, 0 );
 	}
 	
 	public function init() {

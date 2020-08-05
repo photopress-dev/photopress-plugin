@@ -41,14 +41,23 @@ class slideshow extends photopress_module {
 			
 			'showThumbnails',
 			'showCaptions',
-			'thumbnailHeight'
+			'thumbnailHeight',
+			'detail_position',
+			'detail_components'
 		];
 		
 		$args_dom = '';
 		
 		foreach ( $args as $arg ) {
 			
-			$args_dom .= sprintf( ' data-%s="%s"', $arg, pp_api::getOption('core', 'slideshow', $arg ) );
+			$option = pp_api::getOption('core', 'slideshow', $arg );
+			
+			if (is_array( $option ) ) {
+				
+				$option = esc_attr( json_encode( $option ) );
+			} 
+			
+			$args_dom .= sprintf( ' data-%s="%s"', $arg, $option );
 		}
 		
 		//add_action( 'wp_enqueue_scripts', array( $this, 'public_scripts' ) );

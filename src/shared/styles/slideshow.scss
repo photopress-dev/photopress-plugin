@@ -46,10 +46,43 @@ $thumbnail-bottom-margin: 10px;
 				width: auto;
 			}
 			
-			.caption {
+			.slide-info {
+				
 				
 				font-size: 14px;
-				padding:5px;
+				
+				
+				.caption {
+				
+				
+					
+				}
+				
+				.title {
+					
+					font-weight: 600;
+				}
+				
+				.description {
+					
+					line-height: inherit;
+				}
+				
+			}
+		}
+		
+		.center.info-right {
+			
+			flex-direction: row;
+			flex-wrap:  nowrap;
+			justify-content: center;
+			
+			.slide-info {
+				
+				text-align: left;
+				max-width:400px;
+				margin-left: 100px;
+				//width:auto;
 			}
 		}
 	}
