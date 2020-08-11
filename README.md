@@ -1,6 +1,6 @@
-# PhotoPress: WordPress or Photographers
+# PhotoPress: Making WordPress Work for Photographers
 
-An integrated suite of image management and presentation features for WordPress that photographers can use to build beautiful portfolio, blog and archive websites.
+An integrated suite of image management and presentation features for WordPress that photographers can use to build beautiful photography centric websites.
 
 
 ## The Goal
@@ -27,7 +27,8 @@ Our development motto is "do no harm" -- which means that we leverage the patter
 
 ### Child Pages Block
 
-- Create an gallery of child pages based (useful as an index of gallery pages)
+- Dynamic Gutenberg Block
+- Create an gallery of child pages (useful as an index of gallery pages)
 
 ### Meta-Data
 
@@ -44,7 +45,6 @@ Our development motto is "do no harm" -- which means that we leverage the patter
 - Thumbnail navigation option
 - configurable caption display (can use image title, caption, and/or description)
 - Two caption layouts
-
 
 ## Requirements
 
