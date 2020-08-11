@@ -325,7 +325,8 @@ class metadata extends photopress_module {
 					'title'							=> 'General',
 					'description'					=> 'The following settings control how meta data of images.'
 				]
-			]
+			],
+			'noPhpRender'						=> true
 		];
 		
 		return $pages;
