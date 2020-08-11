@@ -120,6 +120,11 @@ abstract class photopress_module {
 			
 			foreach ( $pages as $k => $page ) {
 				
+				if ( $page->get('noPhpRender') ) {
+					
+					continue;
+				}
+				
 				$menu_slug = '';
 				
 				$menu_slug = $page->get('menu_slug');
