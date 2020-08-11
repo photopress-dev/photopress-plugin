@@ -25,10 +25,11 @@ Our development motto is "do no harm" -- which means that we leverage the patter
 - Dynamic responsive images
 - Link to PhotoPress slideshow
 
-## Child Pages Block
+### Child Pages Block
 
+- Create an gallery of child pages based (useful as an index of gallery pages)
 
-## Meta-Data
+### Meta-Data
 
 - Define unlimited custom image taxonomies
 - Extract embedded image EXIF, IPTC, and XMP meta-data from image files
@@ -37,13 +38,12 @@ Our development motto is "do no harm" -- which means that we leverage the patter
 - Exif Display Widget
 - Image Taxonomy Terms Widget
 
-## Slideshows
+### Slideshows
 
 - Light-boxed full page slideshows
 - Thumbnail navigation option
 - configurable caption display (can use image title, caption, and/or description)
 - Two caption layouts
-
 
 
 ## Requirements
