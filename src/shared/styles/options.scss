@@ -28,6 +28,7 @@ $box-shadow: 0 0 0 1px #ccd0d4,0 1px 1px 1px rgba(0,0,0,.04);
 
 			.logo {
 				
+				text-transform: uppercase;
 			}
 		}
 	}
@@ -174,7 +175,7 @@ $box-shadow: 0 0 0 1px #ccd0d4,0 1px 1px 1px rgba(0,0,0,.04);
 		}
 		
 
-		.codeinwp-info {
+		.photopress-options-info {
 			padding: 0 10px 10px;
 
 			h2 {
@@ -186,7 +187,7 @@ $box-shadow: 0 0 0 1px #ccd0d4,0 1px 1px 1px rgba(0,0,0,.04);
 				margin: 0 0 1.5em 0;
 			}
 		
-			.codeinwp-info-button-group {
+			.photopress-info-button-group {
 				display: flex;
 
 				.is-default {

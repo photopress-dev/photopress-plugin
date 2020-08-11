@@ -27,6 +27,7 @@ const {
  * Internal dependencies
  */
 import MetadataSettings from './options/metadata.js';
+import SlideshowSettings from './options/slideshow.js';
 
 class SettingsPage extends Component {
 	
@@ -69,7 +70,7 @@ class SettingsPage extends Component {
 			
 			this.settings = new wp.api.models.Settings();
 		
-			console.log( this.settings );
+			//console.log( this.settings );
 			
 			if ( false === this.state.isAPILoaded ) {
 			
@@ -82,7 +83,7 @@ class SettingsPage extends Component {
 						isAPILoaded: true
 					});
 					
-					console.log(this.state);
+					//console.log(this.state);
 				});
 			}
 		});
@@ -149,15 +150,29 @@ class SettingsPage extends Component {
 			/>	
 		);
 		
+		const renderSlideshowSettings = () => (
+			
+			<SlideshowSettings
+				key = {"slideshowoptionspage'"}
+				data= {this.state.photopress_core_slideshow}
+				settingsGroup={"photopress_core_slideshow"}
+			/>	
+		);
+		
 		const renderTab = (tab) => { 
 			//console.log(tab);
-			let rf;
+			let rf = function() {};
 			switch(tab.name) {
 				
 				case "photopress_core_metadata":
 				
 					rf = renderMetaDataSettings;
 					break;
+					
+				case "photopress_core_slideshow":
+					console.log('generating slideshow settings');
+					rf = renderSlideshowSettings;
+					break;	
 			}
 			
 			return ( 
@@ -197,12 +212,12 @@ class SettingsPage extends Component {
 						
 							
 						<PanelBody>
-							<div className="codeinwp-info">
+							<div className="photopress-options-info">
 								<h2>{ __( 'Got a question? Found a bug?' ) }</h2>
 	
 								<p>{ __( 'Visit us on Github if you need any help.' ) }</p>
 	
-								<div className="codeinwp-info-button-group">
+								<div className="photopress-info-button-group">
 									<Button
 										isDefault
 										className="right-pad"
@@ -214,9 +229,8 @@ class SettingsPage extends Component {
 	
 									<Button
 										isDefault
-										//islarge
-										target="https://github.com/photopress-dev/photopress-plugin/wiki"
-										href="http://www.photopressdev.com"
+										target="_blank"
+										href="https://github.com/photopress-dev/photopress-plugin/wiki"
 									>
 										{ __( 'Documentation' ) }
 									</Button>

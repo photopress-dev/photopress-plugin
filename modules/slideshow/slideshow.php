@@ -10,7 +10,9 @@ use pp_api;
  *
  */
 class slideshow extends photopress_module {
-
+	
+	var $label = 'Slideshow';
+	
 	public function definePublicHooks() {
 		
 		if ( pp_api::getOption( 'core', 'slideshow', 'enable' ) ) {
@@ -43,7 +45,9 @@ class slideshow extends photopress_module {
 			'showCaptions',
 			'thumbnailHeight',
 			'detail_position',
-			'detail_components'
+			'detail_components',
+			'showTitleInCaption',
+			'showDescriptionInCaption'
 		];
 		
 		$args_dom = '';
@@ -187,24 +191,6 @@ class slideshow extends photopress_module {
 				)				
 			),
 			
-			'detail_components'				=> array(
-			
-				'default_value'							=> array('title' => true, 'caption' => false),
-				'field'									=> array(
-					'type'									=> 'on_off_array',
-					'options'								=> array(
-																	'title'			=> 'Image Title',
-																	'caption'		=> 'Image Caption',
-																	'description'	=> 'Description'
-																),
-					'title'									=> 'Slide Detail Components',
-					'page_name'								=> 'gallery-slideshow',
-					'section'								=> 'general',
-					'description'							=> 'Select the details you wish to display on each slide.',
-					'label_for'								=> 'Slide Detail Components'
-				)				
-			),
-			
 			'thumbnailHeight'				=> array(
 				'default_value'							=> 120,
 				'field'									=> array(
@@ -215,8 +201,36 @@ class slideshow extends photopress_module {
 					'description'							=> 'Height of thumbnails.',
 					'label_for'								=> 'Height of thumbnails.'		
 				)							
+			),
+			
+			'showTitleInCaption'				=> array(
+			
+				'default_value'							=> false,
+				'field'									=> array(
+					'type'									=> 'boolean',
+					'title'									=> 'Show Image Title',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'Display the image title as part of the caption info.',
+					'label_for'								=> 'Display the image title as part of the caption info.',
+					'error_message'							=> 'You must select On or Off.'		
+				)				
+			),
+			
+			'showDescriptionInCaption'				=> array(
+			
+				'default_value'							=> false,
+				'field'									=> array(
+					'type'									=> 'boolean',
+					'title'									=> 'Show Image Description',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'Display the image description as part of the caption info.',
+					'label_for'								=> 'Display the image description as part of the caption info.',
+					'error_message'							=> 'You must select On or Off.'		
+				)				
 			)
-		
+			
 		);
 		
 	}
@@ -239,7 +253,8 @@ class slideshow extends photopress_module {
 					'title'							=> 'General',
 					'description'					=> 'The following settings control how your images displayed in a slideshow gallery.'
 				)
-			)
+			),
+			'noPhpRender'					=> true
 		);
 		
 		return $pages;

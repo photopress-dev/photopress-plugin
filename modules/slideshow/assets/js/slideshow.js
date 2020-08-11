@@ -23,7 +23,14 @@ photopress.slideshow = function( selector, options ) {
 		}
 	}
 	
-	var dom_options = ['thumbnailHeight', 'showThumbnails', 'showCaptions', 'detail_position', 'detail_components'];
+	var dom_options = [
+		'thumbnailHeight', 
+		'showThumbnails', 
+		'showCaptions', 
+		'detail_position',  
+		'showTitleInCaption',
+		'showDescriptionInCaption'
+	];
 	
 	// load overrides from dom data attributes
 	var that = this;
@@ -63,11 +70,9 @@ photopress.slideshow.prototype = {
 	options: {
 		selector: '.photopress-slideshow',
 		showDetails: true,										// show slide details
-		detail_components: {									// detail components to be displayed
-			title: true, 
-			caption: true,
-			description: false
-		},
+		showTitleInCaption: false,
+		showDescriptionInCaption: false,
+		showCaptions: true,
 		gallerySelector: '.photopress-gallery',
 		clickStart: true, 										// delay start of slideshow until something is clicked.
 		clickStartSelector: '.photopress-gallery-item', 		// DOM element to start the slideshow
@@ -208,7 +213,9 @@ photopress.slideshow.prototype = {
 		let description = this.getDataFromGalleryItem( galleryItemId, 'image-description' );
 		
 		let slideInfoPosition = this.getOption('detail_position'); 
-		let detail_components = this.getOption('detail_components');
+		let showTitleInCaption = this.getOption('showTitleInCaption');
+		let showCaptions = this.getOption('showCaptions');
+		let showDescriptionInCaption = this.getOption('showDescriptionInCaption');
 		
 		//load handler that once image is loaded will insert it into the DOM
 		jQuery(i).on('load', function() {
@@ -222,15 +229,15 @@ photopress.slideshow.prototype = {
 				jQuery( '.center' ).addClass('info-right');
 			}
 			
-			if (title && detail_components.title === "1") {
+			if (title && showTitleInCaption ) {
 				jQuery('.slide-info').append(`<div class="info title">${title}</div>`);
 			}
 			
-			if (caption && detail_components.caption === "1") {
+			if (caption && showCaptions) {
 				jQuery('.slide-info').append(`<div class="info caption">${caption}</div>`);
 			}
 			
-			if ( description && detail_components.description === "1") {
+			if ( description && showDescriptionInCaption ) {
 				jQuery('.slide-info').append(`<div class="info description">${description}</div>`);
 			}
 
