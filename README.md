@@ -56,7 +56,7 @@ The plugin is coded to work on PHP 5.6+, but only 7.0+ is officially supported.
 
 ## Purchase or donate
 
-PhotoPress is free.  However, we ask that you purchase a support membership at [PhotoPress](https://photopressdev.com).  Even if you don't need the support, this purchase helps fund the development of this project.
+PhotoPress is free.  However, we ask that you purchase a support membership at [PhotoPress](http://photopressdev.com).  Even if you don't need the support, this purchase helps fund the development of this project.
 
 [Donations to the project](http://paypal.me/padams) are also appreciated.
 
