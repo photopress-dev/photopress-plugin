@@ -78,6 +78,7 @@ class base extends photopress_module {
 			'menu_title'				=> 'General',
 			'required_capability'		=> 'manage_options',
 			'menu_slug'					=> 'photopress-core-base',
+			'menu-icon'					=> 'dashicons-camera-alt',
 			'description'				=> 'These are the general settings for PhotoPress plugin.',
 			'sections'					=> [
 				'general'						=> [

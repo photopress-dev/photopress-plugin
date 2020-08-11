@@ -147,7 +147,7 @@ abstract class photopress_module {
 						$page->get('required_capability'), 
 						$page->get('parent_slug'), 
 						$callback, 
-						'', 
+						$page->get('menu-icon'), 
 						6 
 					);
 					
