@@ -13,9 +13,10 @@ if ( ! class_exists( 'photopress_util') ) {
 class photopress_framework {
 	
 	public $options;
-	public $active_extensions = array();
+	public $active_extensions = [];
 	public $version;
-	public $maps = array();
+	public $maps = [];
+	public $activeModules = [];
 	
 	public function __construct() {
 		
@@ -27,6 +28,7 @@ class photopress_framework {
 		$this->init();
 		
 	}
+	
 	
 	public function init() {
 		
@@ -45,6 +47,20 @@ class photopress_framework {
 		
 		return $obj;
 	}
+	
+	public function setActiveModule( $package, $module_name, $args ) {
+		
+		$this->activeModules[ $package ][ $module_name ] = $args;
+	}
+	
+	public function getActiveModules( $package ) {
+		
+		if ( array_key_exists( $package, $this->activeModules ) ) {
+			
+			return $this->activeModules[ $package ];
+		}
+	}
+
 	
 	public function activateExtension( $extension_name ) {
 		

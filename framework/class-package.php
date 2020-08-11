@@ -201,6 +201,8 @@ abstract class photopress_package {
 					'package_name'	=> $this->package_name
 				) 
 			);	
+			
+			pp_api::registerModuleWithFramework( $this->package_name, $module_name, ['label' => $module->getLabel()] );
 		}
 	}
 	
@@ -375,6 +377,7 @@ abstract class photopress_package {
 			];
 		}
 		
+		//pp_api::registerModuleWithFramework( $this->package_name, $module_name );
 	}
 	
 	/**

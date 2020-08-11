@@ -17,6 +17,7 @@ abstract class photopress_module {
 	public $options;
 	public $settings;
 	public $settings_pages;
+	public $label;
 	
 	public function __construct( $params ) {
 	
@@ -62,6 +63,11 @@ abstract class photopress_module {
 	public function registerSettingsPages() {
 		
 		return array();
+	}
+	
+	public function getLabel() {
+		
+		return $this->label;
 	}
 	
 	/**

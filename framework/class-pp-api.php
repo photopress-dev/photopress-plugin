@@ -16,6 +16,29 @@ class pp_api {
 		return pp_api::factory( 'pp_taxonomy_meta', PHOTOPRESS_FRAMEWORK_PATH . 'class-metadata.php', $params );
 	}
 	
+	public static function getAllModuleNames() {
+		
+		$f = pp_api::getFramework();
+		
+		$o = $f->getOptions();
+		
+		return array_keys( $o->options );
+	}
+	
+	public static function registerModuleWithFramework( $package, $module_name, $args ) {
+		
+		$f = pp_api::getFramework();
+		
+		$f->setActiveModule( $package, $module_name, $args );
+	}
+	
+	public static function getActiveModules( $package ) {
+		
+		$f = pp_api::getFramework();
+		
+		return $f->getActiveModules( $package );
+	}
+	
 	public static function getOption( $package, $module_name, $key ) {
 		
 		$f = pp_api::getFramework();

@@ -11,6 +11,7 @@ use pp_api;
  */
 class metadata extends photopress_module {
 	
+	public $label = 'Meta-data'; 
 	public function definePublicHooks() {
 		
 		add_filter( 'max_srcset_image_width', 3000, 10,1);
@@ -442,8 +443,6 @@ class metadata extends photopress_module {
 	
 	public function addAttachment( $id ) {
 		
-		pp_api::debug('add attachment handler');
-		
 		//extract metadata from file	
 		$file = get_attached_file( $id );
 		$md = new XmpReader();
@@ -465,8 +464,6 @@ class metadata extends photopress_module {
 	 * Handler for updating the image meta when the file is replaced
 	 */
 	public function updateAttachment( $url ) {
-		
-		pp_api::debug( 'enable media replace handler' );
 		
 		$id = attachment_url_to_postid( $url );
 		$md = new XmpReader();
@@ -521,7 +518,6 @@ class metadata extends photopress_module {
 			}
 		}
 		
-		pp_api::debug($toInsert);
 		// loop through all the taxonomies and insert the terms
 		foreach ( $toInsert as $tax_id => $terms ) {
 			wp_defer_term_counting(true);

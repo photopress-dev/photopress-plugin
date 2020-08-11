@@ -49,8 +49,7 @@ class XmpReader {
 	}
 	
 	public function registerShortcuts( $value = '', $tag, $xmp ) {
-		pp_api::debug('shortcuts');
-		pp_api::debug($tag);
+		
 		switch ( $tag ) {
 			
 			case 'photopress:camera':

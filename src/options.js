@@ -34,23 +34,32 @@ class SettingsPage extends Component {
 		
 		super( ...arguments );
 		
-		this.settingsModules = {
+		this.settingsModules = {};
+		
+		// these are the modules that are active. set as a prop on the container
+		let modules = JSON.parse( this.props.modules );
+		
+		// loop through leys to build the settings module control obj
+		let modules_keys = Object.keys( modules );
+		for (var i = 0; i < modules_keys.length; i++) {
 			
-			photopress_core_metadata: {
-				label: 'Image Meta-data'
-			},
-			photopress_core_slideshow: {
-				label: 'Slideshow'
-			},
-			photopress_core_base: {
-				label: 'General'
+			// this is the name format that settings are stored in WP options table
+			let name = 'photopress_core_' + modules_keys[ i ];
+			
+			let label = modules[ modules_keys[ i ] ].label;
+			
+			// if a module has set a label then it is new style and can have its settings page rendered
+			if ( label ) {
+				this.settingsModules[ name ] = {label: label };
 			}
-			
-		};
+		}; 
+
 		this.state = {
 			isAPILoaded: false,
 			isAPISaving: false,
 		};
+		
+		//console.log(this.props);
 	}
 
 	componentDidMount() {
@@ -103,6 +112,11 @@ class SettingsPage extends Component {
 		return tabs;
 	}
 	
+	packageModuleKey( name ) {
+		
+		return 'photopress_core_' + name;
+	}
+	
 	render() {
 		
 		if ( ! this.state.isAPILoaded ) {
@@ -125,7 +139,8 @@ class SettingsPage extends Component {
 			
 		} = this.state.photopress_core_metadata;
 		
-		const renderTab = (tab) => (
+		
+		const renderMetaDataSettings = () => (
 			
 			<MetadataSettings
 				key = {"metadataoptionspage'"}
@@ -133,6 +148,23 @@ class SettingsPage extends Component {
 				settingsGroup={"photopress_core_metadata"}
 			/>	
 		);
+		
+		const renderTab = (tab) => { 
+			//console.log(tab);
+			let rf;
+			switch(tab.name) {
+				
+				case "photopress_core_metadata":
+				
+					rf = renderMetaDataSettings;
+					break;
+			}
+			
+			return ( 
+				
+				rf()
+		
+		)};
 		
 		
 		
@@ -144,7 +176,7 @@ class SettingsPage extends Component {
 					<div className="masthead row">
 						<div className="masthead-container">
 							<div className="logo">
-								<h1>{ __( 'PhotoPress Settings' ) }</h1>
+								<h1>{ __( 'PhotoPress' ) }</h1>
 							</div>
 						</div>
 					</div>
@@ -166,27 +198,27 @@ class SettingsPage extends Component {
 							
 						<PanelBody>
 							<div className="codeinwp-info">
-								<h2>{ __( 'Got a question for us?' ) }</h2>
+								<h2>{ __( 'Got a question? Found a bug?' ) }</h2>
 	
-								<p>{ __( 'We would love to help you out if you need any help.' ) }</p>
+								<p>{ __( 'Visit us on Github if you need any help.' ) }</p>
 	
 								<div className="codeinwp-info-button-group">
 									<Button
 										isDefault
-										//islarge
+										className="right-pad"
 										target="_blank"
-										href="#"
+										href="https://github.com/photopress-dev/photopress-plugin/issues"
 									>
-										{ __( 'Ask a question' ) }
+										{ __( 'Submit a question / bug' ) }
 									</Button>
 	
 									<Button
 										isDefault
 										//islarge
-										target="_blank"
-										href="#"
+										target="https://github.com/photopress-dev/photopress-plugin/wiki"
+										href="http://www.photopressdev.com"
 									>
-										{ __( 'Leave a review' ) }
+										{ __( 'Documentation' ) }
 									</Button>
 								</div>
 							</div>
@@ -199,8 +231,11 @@ class SettingsPage extends Component {
 }
 
 if ( document.getElementById( 'photopress-core-options' ) ) {
+	
 	render(
-			<SettingsPage/>,
+			<SettingsPage
+				modules={ document.querySelector('#photopress-core-options').dataset.modules }
+			/>,
 			document.getElementById( 'photopress-core-options' )
 	);
 }

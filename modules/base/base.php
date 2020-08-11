@@ -3,6 +3,7 @@
 namespace PhotoPress\modules\base;
 use photopress_module; 
 use photopress_util;
+use pp_api;
 
 class base extends photopress_module {
 
@@ -60,24 +61,7 @@ class base extends photopress_module {
 					'label_for'								=> 'Enable general',
 					'error_message'							=> 'You must select On or Off.'		
 				]	
-			],
-		
-/*
-			'test'									=> [
-			
-				'default_value'							=> true,
-				'field'									=> [
-					'type'									=> 'boolean',
-					'title'									=> 'Enable PhotoPress',
-					'page_name'								=> 'general',
-					'section'								=> 'general',
-					'description'							=> 'Enable or disable all functionality.',
-					'label_for'								=> 'Enable general',
-					'error_message'							=> 'You must select On or Off.'		
-				]	
-			]
-*/
-		
+			],		
 		];
 	}
 	
@@ -95,36 +79,29 @@ class base extends photopress_module {
 			'required_capability'		=> 'manage_options',
 			'menu_slug'					=> 'photopress-core-base',
 			'description'				=> 'These are the general settings for PhotoPress plugin.',
-			'sections'					=> array(
-				'general'						=> array(
+			'sections'					=> [
+				'general'						=> [
 					'id'							=> 'general',
 					'title'							=> 'General',
 					'description'					=> 'The following settings control PhotoPress.'
-				),
+				],
 			
-			)
-		);
-		
-
-		$pages['extensions'] = array(
-			'parent_slug'				=> 'photopress-core-base',
-			'title'						=> 'PhotoPress Extensions',
-			'menu_title'				=> 'Extensions',
-			'required_capability'		=> 'manage_options',
-			'menu_slug'					=> 'photopress-core-base-extensions',
-			'description'				=> 'There are many extension plugins that add functionality to PhotoPress. Install extensions from the list below.',
-			'sections'					=> array(),
+			],
 			'render_callback'			=> array( $this, 'renderExtensionsPage')
-			
 		);
-
 		
 		return $pages;
 	}
 	
 	public function renderExtensionsPage() {
 		
-		echo '<div id="photopress-core-options"></div>';
+		// This is not ideal
+		$modules = pp_api::getActiveModules( 'core' );
+		// todo add active module list to this div as a data attribute
+		
+		$modules = esc_attr(  json_encode( $modules ) );
+		
+		echo sprintf('<div id="photopress-core-options" data-modules=%s></div>', $modules);
 	}
 	
 }

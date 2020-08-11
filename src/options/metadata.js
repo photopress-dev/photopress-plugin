@@ -101,7 +101,7 @@ class MetadataSettings extends Component {
 		
 		let custom_taxonomies = this.state.settings.custom_taxonomies ;
 	
-		console.log( custom_taxonomies );
+		
 		
 		//create array of current taxonomies
 		let current_tax = custom_taxonomies.map( function( tax ){
@@ -143,12 +143,10 @@ class MetadataSettings extends Component {
 		
 	deleteCustomTaxonomy ( event ) {
 			
-		console.log(' custom_taxonomies delete');
-		
 		// remove from state
 		let custom_taxonomies = this.state.settings.custom_taxonomies
 		//delete custom_taxonomies[ event.target.id ];
-		console.log(event.target.id);
+		
 		
 		const index = event.target.id;
 		
@@ -195,7 +193,7 @@ class MetadataSettings extends Component {
 			this.setNewTaxPresent
 		);
 
-		console.log(this.state);
+		//console.log(this.state);
 	}
 	
 	setNewTaxPresent() {
@@ -242,7 +240,14 @@ class MetadataSettings extends Component {
 	    return (
 		    
 	        <div>
-	            <Button isSecondary onClick={ openModal }>Add</Button>
+	        
+	            <Button 
+	            	isPrimary 
+	            	onClick={ openModal }
+	            >
+	            Add New
+	            </Button>
+	            
 	            { modalOpen && (
 	                <Modal
 	                    title="Add Image Taxonomy"
@@ -336,8 +341,6 @@ class MetadataSettings extends Component {
 		
 	render() {
 		
-				
-		
 		const MyNotice = () => (
 		    <Notice status="error">
 		        <p>An error occurred: <code>{ '' }</code>.</p>
@@ -381,7 +384,7 @@ class MetadataSettings extends Component {
 			<BaseControl
 				label={ __( 'Taxonomy Definitions' ) }
 				className={"codeinwp-text-field"}
-				help={"The list of taxononomies currently defined. To edit a taxonomy definition you must delete it and then re-add using the form below. "}
+				help={'The list of taxononomies currently defined. To edit a taxonomy definition you must delete it and then re-add using the "Add New" button'}
 			>
 				{ this.MyModal() }	
 				{ this.getSetting('custom_taxonomies') &&
@@ -449,7 +452,7 @@ class MetadataSettings extends Component {
 								<div className="taxonomy_attr placeholder-tiny">
 									
 									<TextControl
-										label={ __('Parse XMP') }
+										label={ __('Child Taxonomy?') }
 										value={`${val.parseTagValue}`} 
 										className=" right-pad"
 										readOnly
@@ -481,7 +484,42 @@ class MetadataSettings extends Component {
 			
 		);
 		
-		rows.push( enable, tax_roster );
+		const child_delimiter = () => (
+			<div>
+			
+			<BaseControl
+				label={ __( 'Child Taxonomy Delimiter' ) }
+				help={'The default delimiter is the ":" (semicolon) character. Only change this if you know what you are doing. This delimiter is used to parse child taxonomies from within other meta-data values. e.g. "person:elon musk" would store the term "Elon Musk" into the "person" taxonomy. Child taxonomies are typically parsed from keyword values contained in dc:subject XMP tag.'}		
+				id="'custom_taxonomies_enable'"
+				className="codeinwp-text-field"
+			>
+			<TextControl
+					id={'custom_taxonomies_tag_delimiter'}
+					label={ __('') }
+					value={ this.getSetting('custom_taxonomies_tag_delimiter') } 
+					className="tiny-input right-pad"
+					length={5}
+					onChange={ ( value ) => this.setSetting( 'custom_taxonomies_tag_delimiter', value.trim() ) }
+					
+				/>
+			</BaseControl>	
+			<Button
+				isPrimary
+				disabled={ this.state.isAPISaving }
+				onClick={ this.saveSettings }
+				className="components-base-control__field"
+			>
+				{ __( 'Save' ) }
+			</Button>
+			</div>
+		);
+		
+		// push render constants into rows array for final rendering. Order matters.
+		rows.push( 
+			enable, 
+			tax_roster,
+			child_delimiter
+		);
 		
 
 		return (

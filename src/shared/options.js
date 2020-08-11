@@ -2,7 +2,7 @@ export function saveSettings( module ) {
 		
 	this.setState({ isAPISaving: true });
 	
-	console.log(this.state);
+	//console.log(this.state);
 	
 	const module_name = this.props.settingsGroup;
 	
@@ -20,8 +20,6 @@ export function saveSettings( module ) {
 }
 		
 export function	getSetting ( key ) {
-
-	console.log('get setting');
 	
 	if ( this.state.hasOwnProperty( 'settings' )  &&  this.state.settings.hasOwnProperty( key ) ) {
 	
@@ -37,7 +35,7 @@ export function	setSetting ( key, value ) {
 		[key]: value
 	};
 	
-	console.log(new_settings);
+	//console.log(new_settings);
 	
 	this.setState( 
 		{ 
@@ -49,8 +47,6 @@ export function	setSetting ( key, value ) {
 }
 
 export function	persistSetting ( key, value ) {
-	console.log(key);
-	console.log(value);
 	
 	let new_settings = {
 		
@@ -58,7 +54,7 @@ export function	persistSetting ( key, value ) {
 		[key]: value
 	};
 	
-	console.log(new_settings);
+	
 	
 	this.setState( 
 		{ 

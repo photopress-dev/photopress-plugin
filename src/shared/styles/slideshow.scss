@@ -51,10 +51,12 @@ $thumbnail-bottom-margin: 10px;
 				
 				font-size: 14px;
 				
+				.info {
+					
+					padding-bottom: 2px;
+				}
 				
 				.caption {
-				
-				
 					
 				}
 				
@@ -80,6 +82,7 @@ $thumbnail-bottom-margin: 10px;
 			.slide-info {
 				
 				text-align: left;
+				width:auto;
 				max-width:400px;
 				margin-left: 100px;
 				//width:auto;
@@ -133,7 +136,25 @@ $thumbnail-bottom-margin: 10px;
 	
 	:root {
 	
-		--pp-slideshow-thumbnail-height: 150px;
+		--pp-slideshow-thumbnail-height: 100px;
+	}
+	
+	.photopress-slideshow {
+	
+		.panels {
+			
+			.center.info-right {
+		
+				flex-direction: column;
+				
+				.slide-info {
+						
+					margin: 10px 0px 10px 0px;
+					max-width: 100%;
+				}
+				
+			}
+		}
 	}
 }
 

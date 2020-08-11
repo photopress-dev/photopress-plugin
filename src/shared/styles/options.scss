@@ -11,18 +11,23 @@ $box-shadow: 0 0 0 1px #ccd0d4,0 1px 1px 1px rgba(0,0,0,.04);
 
 	.masthead {
 		background-color: #fff;
-		text-align: center;
 		box-shadow: 0 1px 0 #ccd0d4,0 1px 1px 1px rgba(0,0,0,0.04);
+		
+		text-align: center;
 
 
 		.masthead-container {
 			margin: 0 auto;
+			display: flex;
+			justify-content: space-between;
+			
+			margin-left: auto;
+			margin-right: auto;
+			max-width: 65rem;
 		
 
 			.logo {
-				display: flex;
-				align-items: center;
-				justify-content: center;
+				
 			}
 		}
 	}
@@ -81,6 +86,11 @@ $box-shadow: 0 0 0 1px #ccd0d4,0 1px 1px 1px rgba(0,0,0,.04);
 		.placeholder-tiny {
 			
 			width: 120px;
+		}
+		
+		.tiny-input input{
+			
+			width:100px;
 		}
 		
 		.placeholder-small {

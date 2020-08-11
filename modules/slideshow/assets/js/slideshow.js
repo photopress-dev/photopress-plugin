@@ -55,6 +55,7 @@ photopress.slideshow.prototype = {
 		totalWidth: 0
 	},
 	viewportHeight: null,
+	viewportWidth: null,
 	slideViewCount: 0,
 	totalGalleryImages: 0,
 	carouselNotWideEnough: false,
@@ -121,7 +122,7 @@ photopress.slideshow.prototype = {
 	init: function() {
 		
 		// set the viewport height
-		this.setViewportHeight();
+		this.setViewportDimensions();
 		
 		this.options.thumbnailHeight = this.getThumbnailHeight();
 		
@@ -134,8 +135,8 @@ photopress.slideshow.prototype = {
 		// responsive to changes in viewport height.This is necessary because the flexbox
 		// height is set explicitly using a css calc and will not shrink on its own unless 
 		// we tell the CSS that the viewport height has changed. 
-		window.onresize = this.setViewportHeight;
-		window.onorientationchange = this.setViewportHeight;
+		window.onresize = this.setViewportDimensions;
+		window.onorientationchange = this.setViewportDimensions;
 		
 		
 		var that = this;
@@ -184,9 +185,14 @@ photopress.slideshow.prototype = {
 		var bodyStyles = window.getComputedStyle(document.body);
 		thumbsHeight = bodyStyles.getPropertyValue('--pp-slideshow-thumbnails-total-height'); //get
 		let vh = bodyStyles.getPropertyValue('--vh');
-		console.log(vh);
-		//i.sizes = `calc( ( var(--vh) - ${thumbsHeight} ) * ${aspectratio} )`;
-		i.sizes = `calc( ( ${vh} - ${thumbsHeight} ) * ${aspectratio} )`;
+		let vw = this.viewportWidth;
+		if ( this.viewportHeight <= this.viewportWidth ) {
+			//i.sizes = `calc( ( var(--vh) - ${thumbsHeight} ) * ${aspectratio} )`;
+			i.sizes = `calc( ( ${vh} - ${thumbsHeight} ) * ${aspectratio} )`;
+		} else {
+			
+			i.sizes = `${vw}px`;
+		}
 		// fade in class
 		jQuery(i).addClass('fade-in');
 		
@@ -217,15 +223,15 @@ photopress.slideshow.prototype = {
 			}
 			
 			if (title && detail_components.title === "1") {
-				jQuery('.slide-info').append(`<div class="title">${title}</div>`);
+				jQuery('.slide-info').append(`<div class="info title">${title}</div>`);
 			}
 			
 			if (caption && detail_components.caption === "1") {
-				jQuery('.slide-info').append(`<div class="caption">${caption}</div>`);
+				jQuery('.slide-info').append(`<div class="info caption">${caption}</div>`);
 			}
 			
 			if ( description && detail_components.description === "1") {
-				jQuery('.slide-info').append(`<div class="description">${description}</div>`);
+				jQuery('.slide-info').append(`<div class="info description">${description}</div>`);
 			}
 
 		});
@@ -233,7 +239,7 @@ photopress.slideshow.prototype = {
 		// load the src of the image.
 		let srcset= jQuery(img).attr('srcset');
 		i.srcset = srcset;
-		//i.src = jQuery(img).attr('data-orig-file');
+		i.src = jQuery(img).attr('data-orig-file');
 		
 	},
 	
@@ -246,10 +252,11 @@ photopress.slideshow.prototype = {
 		return th;
 	},
 	
-	setViewportHeight: function() {
+	setViewportDimensions: function() {
 		
 		// set class variable
 		this.viewportHeight = window.innerHeight;
+		this.viewportWidth = window.innerWidth;
 		// set value as CSS variable for use in calculated styles
 		document.documentElement.style.setProperty('--vh', `${this.viewportHeight}px`);
 		//alert('height: ' + this.viewportHeight + ' ' + document.documentElement.clientHeight );
@@ -266,7 +273,6 @@ photopress.slideshow.prototype = {
 		jQuery( 'body' ).css('overflow', 'auto');
 		// fire hidden event in case anyone is listening
 		jQuery( '.lightbox').trigger('pp-slideshow-closed');
-		
 	},
 	
 	/**
