@@ -65,7 +65,7 @@ To contribute to PhotoPress you need to:
 2. Download and install [Composer](https://getcomposer.org/) for managing PHP dependencies.
 3. Run `composer install`
 4. Download NPM for building the plugin src
-5. Run npm start in the `src/` directory
+5. Run `npm start` in the `src/` directory
 
 ## Purchase or donate
 
