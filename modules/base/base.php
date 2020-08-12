@@ -74,12 +74,12 @@ class base extends photopress_module {
 			'parent_slug'				=> 'photopress-core-base',
 			'is_top_level'				=> true,
 			'top_level_menu_title'		=> 'PhotoPress',
-			'title'						=> 'PhotoPress General Settings',
-			'menu_title'				=> 'General',
+			'title'						=> 'PhotoPress Settings',
+			'menu_title'				=> 'Settings',
 			'required_capability'		=> 'manage_options',
 			'menu_slug'					=> 'photopress-core-base',
 			'menu-icon'					=> 'dashicons-camera-alt',
-			'description'				=> 'These are the general settings for PhotoPress plugin.',
+			'description'				=> 'These are settings for the PhotoPress plugin.',
 			'sections'					=> [
 				'general'						=> [
 					'id'							=> 'general',
