@@ -12,6 +12,7 @@ use pp_api;
 class metadata extends photopress_module {
 	
 	public $label = 'Meta-data'; 
+	
 	public function definePublicHooks() {
 		
 		add_filter( 'max_srcset_image_width', 3000, 10,1);
@@ -61,7 +62,7 @@ class metadata extends photopress_module {
 			add_action('enable-media-replace-upload-done', [ $this, 'updateAttachment' ], 1, 2 );
 						
 			// needed to show attachments on taxonomy pages
-			//add_filter( 'pre_get_posts', 'papt_makeAttachmentsVisibleInTaxQueries' );
+			add_filter( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
 			
 		}
 	}	
@@ -579,7 +580,16 @@ class metadata extends photopress_module {
 		return $toInsert;			
 	}
 
-	
+	public function makeImagesVisibleToTaxQueries( $query ) {
+		
+		if ( is_tax() ) {
+		
+			$query->set( 'post_status', 'all' );
+		}
+		
+		return $query;
+
+	}
 }
 
 ?>
