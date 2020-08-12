@@ -50,9 +50,22 @@ Our development motto is "do no harm" which means that we leverage the patterns 
 
 * WordPress 5.2.0
 * PHP 7.0+
-* [Composer](https://getcomposer.org/) for managing PHP dependencies.
 
 The plugin is coded to work on PHP 5.6+, but only 7.0+ is officially supported.
+
+## Installation
+
+The latest release of PhotoPress can be installed from the [WordPress plugin repository](https://wordpress.org/plugins/photopress/). 
+
+## Development 
+
+To contribute to PhotoPress you need to:
+
+1. Clone the repository
+2. Download and install [Composer](https://getcomposer.org/) for managing PHP dependencies.
+3. Run `composer install`
+4. Download NPM for building the plugin src
+5. Run npm start in the `src/` directory
 
 ## Purchase or donate
 
