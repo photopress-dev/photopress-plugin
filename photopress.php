@@ -36,7 +36,7 @@ if ( ! defined( 'PHOTOPRESS_FRAMEWORK_PATH' ) ) {
 // Hook for plugin package creation
 add_action('plugins_loaded', array( 'photopress_plugin', 'getInstance'), 1 );
 
-require_once plugin_dir_path( __FILE__ ) . 'src/init.php';
+//require_once ( plugin_dir_path( __FILE__ ) . 'src/init.php' );
 
 /**
  * PhotoPress Core Plugin
