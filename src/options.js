@@ -181,7 +181,7 @@ class SettingsPage extends Component {
 		
 		)};
 		
-		
+		const logo_url = photopress_options_conf.plugin_url + '/static/images/logo-200w.png';
 		
 		return (
 			<Fragment>
@@ -191,7 +191,9 @@ class SettingsPage extends Component {
 					<div className="masthead row">
 						<div className="masthead-container">
 							<div className="logo">
-								<h1>{ __( 'PhotoPress' ) }</h1>
+								<h1>
+									<img src={logo_url} alt={__( 'PhotoPress' ) } />
+								</h1>
 							</div>
 						</div>
 					</div>

@@ -24,7 +24,7 @@ class metadata extends photopress_module {
 		// add additional attributes to images
 		add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
 		add_filter( 'the_content', array( $this, 'addAttributesToImagesInContent' ) );
-		
+		//add_filter( 'wp_calculate_image_srcset', [ $this, 'sortImageSrcset'], 10, 5 );
 		// stop wordpress from stripping image meta from resized images.
 		add_filter ('image_strip_meta', pp_api::getOption( 'core', 'metadata', 'strip_metadata_from_resized_image' ) );
 		
@@ -162,6 +162,7 @@ class metadata extends photopress_module {
 		//$attr['data-orig-size']         = $size;
 		$attr['data-image-title']       = esc_attr( htmlspecialchars( $attachment_title ) );
 		$attr['data-image-description'] = esc_attr( htmlspecialchars( $attachment_desc ) );	
+		$attr['srcset']	= wp_get_attachment_image_srcset( $attachment_id );
 		
 		return $attr;
 	}
@@ -589,6 +590,13 @@ class metadata extends photopress_module {
 		
 		return $query;
 
+	}
+	
+	public function sortImageSrcset( $sources, $size_array, $image_src, $image_meta, $attachment_id ) {
+		//print_r($sources);
+		ksort( $sources );
+		
+		return $sources;
 	}
 }
 

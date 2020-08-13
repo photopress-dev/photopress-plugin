@@ -38,6 +38,11 @@ class base extends photopress_module {
 			array( 'wp-api', 'wp-i18n', 'wp-components', 'wp-element' ), '1.0.0', true 
 		);
 		
+		wp_localize_script( 'photopress-options-script', 'photopress_options_conf', [
+			
+			'plugin_url' => plugins_url( '', dirname(dirname(__FILE__)) )
+		] );
+		
 		wp_enqueue_style( 
 			'photopress-options-style', 
 			plugins_url( '/', __FILE__ ) . '../../dist/blocks.style.build.css', 

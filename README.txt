@@ -53,6 +53,12 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 * configurable caption display (can use image title, caption, and/or description)
 * Two caption layouts to choose from 
 
+== Screenshots ==
+
+1. Customizable Gallery Block with multiple styles
+2. Full Screen Slideshows
+3. Store image meta-data in taxonomies
+
 == Development ==
 
 Our development motto is "do no harm" which means that we leverage the patterns outlined in WordPress Core and the Gutenberg editor as opposed to creating proprietary features that impede the overall usability of WordPress.

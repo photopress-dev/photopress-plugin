@@ -157,6 +157,47 @@ export default function save( { attributes } ) {
 		return size;
 	};
 	
+	const getImageDimensions = (aspectRatio) => {
+		
+		let size = {
+			
+			width: 0,
+			height: 0
+		};
+		
+		let cropSizeFactor = calcCropSizeFactor(aspectRatio);
+		
+		switch(galleryStyle) {
+			
+			case "mosaic":
+				// calculate image width and apply crop factor.
+				size.width = rowHeight * aspectRatio * cropSizeFactor;
+				size.height= rowHeight;
+				break;
+				
+			case "rows":
+			// calculate image width
+				size.width = rowHeight * aspectRatio;
+				size.height = rowHeight
+				break;
+				
+			case "masonry":
+				// do nothing as we get an explicit width
+				size.width = columnWidth;
+				size.height = columnWidth / aspectRatio;
+				break;
+				
+			case "columns":
+				// calculate width based on column count and apply possible crop factor 
+				size.width = `( (100vw - ${themeHorizontalMargin} ) / ${columns} ) * ${cropSizeFactor}`;
+				break;
+		}
+		
+		return size;
+	};
+	
+	
+	
 	return (
 		
 		<figure className={ 'photopress-gallery' } >
@@ -189,9 +230,11 @@ export default function save( { attributes } ) {
 							data-position={index}
 							data-full-url={ image.fullUrl }
 							data-link={ image.link }
-							className={ image.id ? `wp-image-${ image.id }` : null }
+							className={ image.id ? `wp-image wp-image-${ image.id }` : null }
 							//sizes={`(max-width: 700px) 100vw, calc( ${sizesAttrCalc} )`}
 							sizes={'(max-width: 700px) 100vw, calc(' + getImageSizeCalc( image.aspectRatio ) +')'}
+							width={ getImageDimensions( image.aspectRatio ).width }
+							height={ getImageDimensions( image.aspectRatio ).height }
 						/>
 					);
 

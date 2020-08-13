@@ -343,6 +343,8 @@ photopress.slideshow.prototype = {
 			// add data sizes attribute
 			jQuery(ni).attr('sizes', `${thumbnailWidth}px`);
 			
+			jQuery(ni).attr('src', '');
+			
 			// update thumbnail count
 			that.thumbnails.count++;
 			
@@ -351,8 +353,7 @@ photopress.slideshow.prototype = {
 			
 			// append it to the thumbnail 
 			jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
-			
-			
+						
 		});
 		
 
