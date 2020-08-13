@@ -35,7 +35,7 @@ class base extends photopress_module {
 		wp_enqueue_script( 
 			'photopress-options-script', 
 			plugins_url( '/', __FILE__ ) . '../../dist/options.build.js', 
-			array( 'wp-api', 'wp-i18n', 'wp-components', 'wp-element' ), '1.0.0', true 
+			array( 'wp-api', 'wp-i18n', 'wp-components', 'wp-element' ), PHOTOPRESS_CORE_VERSION, true 
 		);
 		
 		wp_localize_script( 'photopress-options-script', 'photopress_options_conf', [
@@ -46,7 +46,8 @@ class base extends photopress_module {
 		wp_enqueue_style( 
 			'photopress-options-style', 
 			plugins_url( '/', __FILE__ ) . '../../dist/blocks.style.build.css', 
-			array( 'wp-components' ) 
+			array( 'wp-components' ),
+			PHOTOPRESS_CORE_VERSION 
 		);
 	}
 

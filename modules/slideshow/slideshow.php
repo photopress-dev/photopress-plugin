@@ -89,7 +89,9 @@ class slideshow extends photopress_module {
 			wp_register_style( 
 				'owl', 
 				plugins_url('assets/css/owl.carousel.min.css',
-				__FILE__) 
+				__FILE__),
+				[],
+				PHOTOPRESS_CORE_VERSION 
 			 );
 			 
 		    wp_enqueue_style( 'owl' );
@@ -107,21 +109,24 @@ class slideshow extends photopress_module {
 			wp_enqueue_script(
 				'owl',
 				plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
-				[ 'jquery', ]
+				[ 'jquery', ],
+				PHOTOPRESS_CORE_VERSION
 			);
 			
 /*
 			wp_enqueue_script(
 				'flickity',
 				plugins_url( 'assets/js/flickity.pkgd.min.js' , __FILE__ ),
-				[ 'jquery', ]
+				[ 'jquery', ],
+				PHOTOPRESS_CORE_VERSION
 			);
 */
 			
 			wp_enqueue_script(
 				'photopress-slideshow',
 				plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-				[ 'jquery', 'imagesloaded', 'owl' ]
+				[ 'jquery', 'imagesloaded', 'owl' ],
+				PHOTOPRESS_CORE_VERSION
 			);
 		}
 		

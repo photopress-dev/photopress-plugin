@@ -108,7 +108,7 @@ class photopress_framework {
 			'photopress-frontend', // Handle.
 			plugins_url( 'dist/blocks.style.build.css', dirname( __FILE__ ) ), // Block style CSS.
 			is_admin() ? array( 'wp-editor' ) : null, // Dependency to include the CSS after it.
-			null // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.style.build.css' ) // Version: File modification time.
+			PHOTOPRESS_CORE_VERSION // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.style.build.css' ) // Version: File modification time.
 		);
 	
 		// Register block editor script for backend.
@@ -116,7 +116,7 @@ class photopress_framework {
 			'photopress-editor', // Handle.
 			plugins_url( '/dist/blocks.build.js', dirname( __FILE__ ) ), // Block.build.js: We register the block here. Built with Webpack.
 			array( 'wp-blocks', 'wp-i18n', 'wp-element', 'wp-editor' ), // Dependencies, defined above.
-			null, // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.build.js' ), // Version: filemtime ? Gets file modification time.
+			PHOTOPRESS_CORE_VERSION, // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.build.js' ), // Version: filemtime ? Gets file modification time.
 			true // Enqueue the script in the footer.
 		);
 	
@@ -125,7 +125,7 @@ class photopress_framework {
 			'photopress-editor', // Handle.
 			plugins_url( 'dist/blocks.editor.build.css', dirname( __FILE__ ) ), // Block editor CSS.
 			array( 'wp-edit-blocks' ), // Dependency to include the CSS after it.
-			null // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.editor.build.css' ) // Version: File modification time.
+			PHOTOPRESS_CORE_VERSION // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.editor.build.css' ) // Version: File modification time.
 		);
 	
 		// WP Localized globals. Use dynamic PHP stuff in JavaScript via `cgbGlobal` object.
@@ -146,7 +146,7 @@ class photopress_framework {
 					'photopress-masonry',
 					plugins_url( '/modules/gallery/assets/js/gallery-masonry.js', dirname( __FILE__ ) ),
 					array( 'jquery', 'masonry', 'imagesloaded' ),
-					'1.0.0',
+					PHOTOPRESS_CORE_VERSION,
 					true
 				);
 			}
