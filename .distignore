@@ -4,6 +4,8 @@
 /assets
 /node_modules
 /src
+/config
+/scripts
 
 .DS_Store
 .editorconfig
