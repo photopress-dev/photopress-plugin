@@ -7,10 +7,8 @@ Description: Making WordPress work for photographers with beautiful image galler
 Author: Peter Adams
 Author URI: http://www.photopressdev.com
 License: GPL v3
-Version: 1.2.1
+Version: 1.2.2
 */
-
-//define('PHOTOPRESS_VERSION', '1.2.1');
 
 // If this file is called directly, abort.
 if ( ! defined( 'WPINC' ) ) {
@@ -79,7 +77,7 @@ class photopress_plugin {
 					array(
 						'package_name'			=> 'core',
 						'package_label'			=> 'PhotoPress',
-						'version'				=> '1.2.1',
+						'version'				=> '1.2.2',
 						'modules'				=> ['base', 'childpages', 'gallery', 'slideshow', 'metadata'],
 						'dependencies'			=> []
 					)
