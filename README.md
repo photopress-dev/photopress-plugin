@@ -11,6 +11,8 @@ Our development motto is "do no harm" which means that we leverage the patterns 
 
 ## Features
 
+[![PHOTOPRESS](https://github.com/photopress-dev/photopress-plugin/blob/master/.wordpress-org/screenshot-1.gif)]
+
 ### Gallery Block 
 - Native Gutenberg with live editing
 - Grid style
