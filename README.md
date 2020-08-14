@@ -1,3 +1,5 @@
+[![PHOTOPRESS](https://github.com/photopress-dev/photopress-plugin/blob/master/.wordpress-org/banner-772x250.jpg)](https://wordpress.org/plugins/photopress/)
+
 # PhotoPress: Making WordPress Work for Photographers
 
 An integrated suite of image management and presentation features for WordPress that photographers can use to build beautiful photography centric websites.
