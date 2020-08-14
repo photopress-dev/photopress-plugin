@@ -637,5 +637,8 @@ photopress.slideshow.prototype = {
 
 jQuery(window).load(function() {
 	
-	new photopress.slideshow();	
+	// if slideshow contain is present
+	if ( document.getElementById('lightbox-gallery') ) {
+		new photopress.slideshow();	
+	}
 });
