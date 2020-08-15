@@ -11,7 +11,7 @@ $dark-gray-primary: #f9f9f9;
 .editor-styles-wrapper {
 
 	.photopress-gallery {
-		
+		color:black;
 		ul {
 	
 			padding:0;
@@ -70,13 +70,23 @@ $dark-gray-primary: #f9f9f9;
 		opacity: 0.3;
 	}
 
-	.is-selected .photopress-gallery-item__move-menu,
 	.is-selected .photopress-gallery-item__inline-menu {
 		display: inline-flex;
-
-		&:hover {
+		background: #fff;
 		
-		}
+		.components-button {
+ 			color: black;
+ 			//min-width: 24px;
+ 			//height: 24px;
+ 			border-radius: 5px;
+ 			display:inline-block;
+
+
+ 		}
+
+ 		.components-button:focus {
+ 			color: inherit;
+ 		}
 	}
 }
 
@@ -84,7 +94,7 @@ $dark-gray-primary: #f9f9f9;
 .photopress-gallery-item__inline-menu {
 	margin: 10px;
 	display: inline-flex;
-	z-index: z-index(".photopress-gallery-item__inline-menu");
+	
 
 }
 
@@ -97,17 +107,31 @@ figure.is-selected {
 	display: none;
 	position: absolute;
 	top: -2px;
-	background: white;
+	
 	border: 1px solid black;
 	border-radius: $radius-block-ui;
+	z-index: z-index(".photopress-gallery-item__inline-menu");
 	
+	.components-button {
+ 		color: transparent;
+ 		
+ 	}
+	
+	&:hover {
+		box-shadow: inherit;
+	}
+
 	.components-button.has-icon {
+		
+		min-width:36px;
 		
 		&:not(:focus) {
 			border: none;
 			box-shadow: none;
 		}
 	}
+
+	
 	
 	&.is-left {
 		left: -2px;
@@ -119,11 +143,6 @@ figure.is-selected {
 	
 }
 
-.photopress-gallery-item__move-menu {
-	position: absolute;
-	top: -2px;
-	left: -2px;
-}
 
 .photopress-gallery-item__move-backward.components-button,
 .photopress-gallery-item__move-forward.components-button,
