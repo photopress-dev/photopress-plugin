@@ -8,17 +8,23 @@ import { debounce } from 'lodash';
  * WordPress dependencies
  */
 import { Component, Fragment } from '@wordpress/element';
-import { Button, Spinner } from '@wordpress/components';
+import { Button, Spinner, ButtonGroup } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import { BACKSPACE, DELETE } from '@wordpress/keycodes';
 import { withSelect, withDispatch } from '@wordpress/data';
-import { RichText } from '@wordpress/block-editor';
+import { RichText, MediaPlaceholder } from '@wordpress/block-editor';
 import { isBlobURL } from '@wordpress/blob';
 import { compose } from '@wordpress/compose';
-import { close, chevronLeft, chevronRight } from '@wordpress/icons';
+import { close, chevronLeft, chevronRight, edit, image as imageIcon } from '@wordpress/icons';
+
+import { pickRelevantMediaFiles } from '../../shared/shared.js';
+
+const isTemporaryImage = ( id, url ) => ! id && isBlobURL( url );
 
 class GalleryImage extends Component {
+	
 	constructor() {
+	
 		super( ...arguments );
 
 		this.onBlur = this.onBlur.bind( this );
@@ -27,6 +33,9 @@ class GalleryImage extends Component {
 		this.onSelectCaption = this.onSelectCaption.bind( this );
 		this.onRemoveImage = this.onRemoveImage.bind( this );
 		this.bindContainer = this.bindContainer.bind( this );
+		this.onEdit = this.onEdit.bind( this );
+		this.onSelectImageFromLibrary = this.onSelectImageFromLibrary.bind( this );
+		this.onSelectCustomURL = this.onSelectCustomURL.bind( this );
 
 		// The onDeselect prop is used to signal that the GalleryImage component
 		// has lost focus. We want to call it when focus has been lost
@@ -43,6 +52,7 @@ class GalleryImage extends Component {
 
 		this.state = {
 			captionSelected: false,
+			isEditing: false
 		};
 	}
 
@@ -85,8 +95,15 @@ class GalleryImage extends Component {
 			this.props.onRemove();
 		}
 	}
+	
+	onEdit() {
+		this.setState( {
+			isEditing: true,
+		} );
+	}
 
 	componentDidUpdate( prevProps ) {
+		
 		const {
 			isSelected,
 			image,
@@ -129,6 +146,50 @@ class GalleryImage extends Component {
 	onFocus() {
 		this.debouncedOnDeselect.cancel();
 	}
+	
+	onSelectImageFromLibrary( media ) {
+		
+		const { setAttributes, id, url, alt, caption, sizeSlug } = this.props;
+	
+		if ( ! media || ! media.url ) {
+		
+			return;
+		}
+
+		let mediaAttributes = pickRelevantMediaFiles( media, sizeSlug );
+
+		// If the current image is temporary but an alt text was meanwhile
+		// written by the user, make sure the text is not overwritten.
+		if ( isTemporaryImage( id, url ) ) {
+			if ( alt ) {
+				mediaAttributes = omit( mediaAttributes, [ 'alt' ] );
+			}
+		}
+
+		// If a caption text was meanwhile written by the user,
+		// make sure the text is not overwritten by empty captions.
+		if ( caption && ! get( mediaAttributes, [ 'caption' ] ) ) {
+			mediaAttributes = omit( mediaAttributes, [ 'caption' ] );
+		}
+
+		setAttributes( mediaAttributes );
+		this.setState( {
+			isEditing: false,
+		} );
+	}
+
+	onSelectCustomURL( newURL ) {
+		const { setAttributes, url } = this.props;
+		if ( newURL !== url ) {
+			setAttributes( {
+				url: newURL,
+				id: undefined,
+			} );
+			this.setState( {
+				isEditing: false,
+			} );
+		}
+	}
 
 	render() {
 		
@@ -156,6 +217,8 @@ class GalleryImage extends Component {
 			showCaptions
 			
 		} = attributes;
+		
+		const { isEditing } = this.state;
 		
 		let href;
 
@@ -217,8 +280,21 @@ class GalleryImage extends Component {
 				style={ inlineStyle }
 
 			>
-				{ href ? <a href={ href }>{ img }</a> : img }
-				<div className="photopress-gallery-item__move-menu" >
+				{  ! isEditing && ( href ? <a href={ href }>{ img }</a> : img ) }
+				
+				{ isEditing && (
+					<MediaPlaceholder
+						labels={ { title: __( 'Edit gallery image' ) } }
+						icon={ imageIcon }
+						onSelect={ this.onSelectImageFromLibrary }
+						onSelectURL={ this.onSelectCustomURL }
+						accept="image/*"
+						allowedTypes={ [ 'image' ] }
+						value={ { id, src: url } }
+					/>
+				) }
+				
+				<ButtonGroup className="photopress-gallery-item__inline-menu is-left">
 					<Button
 						icon={ chevronLeft }
 						onClick={ isFirstItem ? undefined : onMoveBackward }
@@ -236,8 +312,18 @@ class GalleryImage extends Component {
 						aria-disabled={ isLastItem }
 						disabled={ ! isSelected }
 					/>
-				</div>
-				<div className="photopress-gallery-item__inline-menu">
+				</ButtonGroup>
+				
+				<ButtonGroup className="photopress-gallery-item__inline-menu is-right">
+					
+					<Button
+						icon={ edit }
+						onClick={ this.onEdit }
+						className="photopress-gallery-item__remove"
+						label={ __( 'Replace image' ) }
+						disabled={ ! isSelected }
+					/>
+					
 					<Button
 						icon={ close }
 						onClick={ onRemove }
@@ -245,7 +331,7 @@ class GalleryImage extends Component {
 						label={ __( 'Remove image' ) }
 						disabled={ ! isSelected }
 					/>
-				</div>
+				</ButtonGroup>
 				{ ( isSelected || showCaptions && caption ) && (
 					<RichText
 						tagName="figcaption"
