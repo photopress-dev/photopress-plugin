@@ -129,7 +129,7 @@ photopress.slideshow.prototype = {
 		// set the viewport height
 		this.setViewportDimensions();
 		
-		this.options.thumbnailHeight = this.getThumbnailHeight();
+		//this.options.thumbnailHeight = this.getThumbnailHeight();
 		
 		// set the total number of images in the gallery/slideshow
 		// needed to tell when images are all loaded.
@@ -343,19 +343,23 @@ photopress.slideshow.prototype = {
 			// add data sizes attribute
 			jQuery(ni).attr('sizes', `${thumbnailWidth}px`);
 			
+			// necessary to avoid causing the lazyload lib to force loading the src.
 			jQuery(ni).attr('src', '');
 			
+			jQuery(ni).attr('width', thumbnailWidth);
+			jQuery(ni).attr('height', thumbnailHeight );
+						
 			// update thumbnail count
 			that.thumbnails.count++;
+			//console.log(that.thumbnails.count);
 			
 			// update total width of thumbnails.
 			that.thumbnails.totalWidth = that.thumbnails.totalWidth + thumbnailWidth;
-			
+			//console.log(that.thumbnails.totalWidth);
 			// append it to the thumbnail 
 			jQuery('.thumbnail-list').append( '<div class="thumbnail-item item">' + ni[0].outerHTML + "</div>" );
 						
 		});
-		
 
 		// if there are so few slides that thy don't even reach half way acrosos the container
 		if (that.thumbnails.count == that.totalGalleryImages && that.thumbnails.totalWidth < that.thumbnails.containerWidth / 2 ) {
@@ -375,6 +379,10 @@ photopress.slideshow.prototype = {
 		// stop generating once we have double the width of the container
 		// Extra duplicate thumbnails are needed becuase the carousel libraries don't 
 		// handle looping well and show gaps etc.
+		
+		//console.log('total width', that.thumbnails.totalWidth);
+		//console.log('container width', that.thumbnails.containerWidth);
+		
 		if (that.thumbnails.totalWidth > that.thumbnails.containerWidth * 2 ) {
 			//console.log('thumb generation complete.');
 			// stops the do loop
@@ -466,7 +474,7 @@ photopress.slideshow.prototype = {
 		
 		} while ( true );
 			
-		jQuery('.thumbnail-list').imagesLoaded().always( function( instance ) {
+		jQuery('.thumbnail-list').imagesLoaded( function( instance ) {
 			
 			setTimeout(function() {
 				
