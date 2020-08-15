@@ -1,12 +1,9 @@
-
-
 ( function( $ ) {
 	'use strict';
 
-	const container = $( '.photopress-gallery-masonry' );
-
-	$( document ).ready( function() {
-		//container.imagesLoaded().done( function() {
+	$(window).load(function(){
+		var container = $( '.photopress-gallery-masonry' );
+		//container.imagesLoaded( function() {
 			container.masonry( {
 				itemSelector: '.photopress-gallery-item',
 				transitionDuration: '0',
@@ -17,6 +14,7 @@
 			} );
 			
 			container.css({opacity: 1});
+			$( document ).trigger('resize');
 		//} );
 	} );
 }( jQuery ) );
