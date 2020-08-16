@@ -396,14 +396,7 @@ photopress.slideshow.prototype = {
 	
 	getCaptionFromGalleryItem: function( id ) {
 		
-		var that = this;
-		
-		let caption = jQuery( that.getOption( 'gallerySelector' ) + ' .photopress-gallery-item[data-id=' + id + ']').find('figcaption').html();	
-		
-		if ( typeof caption !== 'undefined' && caption !== '' && caption !== null && caption.length > 0 ) {
-			
-			return caption;
-		}
+		return this.getDataFromGalleryItem( id, 'caption' );
 	},
 	
 	getDataFromGalleryItem: function( id, key ) {

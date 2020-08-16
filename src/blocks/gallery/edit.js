@@ -165,7 +165,6 @@ class GalleryEdit extends Component {
 		// newImage.id to a string.
 		const newImageId = toString( newImage.id );
 		const currentImage = find( images, { id: newImageId } );
-		
 		const currentImageCaption = currentImage
 			? currentImage.caption
 			: newImage.caption;
@@ -215,8 +214,6 @@ class GalleryEdit extends Component {
 						
 		} );
 		
-		
-		
 		this.setAttributes( {
 			images: newImages.map( ( newImage ) => ( {
 				
@@ -230,9 +227,9 @@ class GalleryEdit extends Component {
 				// block is parsed it's converted to a string. Converting
 				// to a string here ensures it's type is consistent.
 				id: toString( newImage.id ),
-				//aspectRatio: this.calcAspectRatio(newImage),
-				apsectRatio: newImage.aspectRatio,
-				title: ''
+				// adding aspec ratio
+				apsectRatio: newImage.aspectRatio
+				
 			} ) ),
 			columns: columns ? Math.min( newImages.length, columns ) : columns,
 		} );
@@ -339,7 +336,6 @@ class GalleryEdit extends Component {
 			galleryStyle,
 			themeHorizontalMargin
 		} = attributes;
-		
 	
 		const hasImages = !! images.length;
 		

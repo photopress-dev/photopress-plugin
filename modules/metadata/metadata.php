@@ -156,10 +156,13 @@ class metadata extends photopress_module {
 		
 		//$attachment       = get_post( $attachment_id );
 		$attachment_title = wptexturize( $attachment->post_title );
+		$attachment_caption = wptexturize( $attachment->post_excerpt );
 		$attachment_desc  = wpautop( wptexturize( $attachment->post_content ) );
 		//$size = isset( $meta['width'] ) ? intval( $meta['width'] ) . ',' . intval( $meta['height'] ) : '';
 		$attr['data-orig-file']         = esc_attr( $orig_file );
 		//$attr['data-orig-size']         = $size;
+		// no longer needed as Gallery block sets this
+		//$attr['data-image-caption']       = esc_attr( htmlspecialchars( $attachment_caption ) );
 		$attr['data-image-title']       = esc_attr( htmlspecialchars( $attachment_title ) );
 		$attr['data-image-description'] = esc_attr( htmlspecialchars( $attachment_desc ) );	
 		$attr['srcset']	= wp_get_attachment_image_srcset( $attachment_id );

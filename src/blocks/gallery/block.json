@@ -41,8 +41,9 @@
 				},
 				"caption": {
 					"type": "string",
-					"source": "html",
-					"selector": ".photopress-gallery-item__caption"
+					"source": "attribute",
+					"selector": "img",
+					"attribute": "data-caption"
 				},
 				"title": {
 					"type": "string",

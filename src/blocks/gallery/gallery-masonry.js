@@ -58,8 +58,7 @@ class MasonryGallery extends Component {
 			gutter,
 			gutterMobile
 		} = attributes;
-		
-				
+			
 		const masonryOptions = {
 			
 			columnWidth: '.grid-sizer',
@@ -100,14 +99,14 @@ class MasonryGallery extends Component {
 					></li>
 					
 					{ images.map( ( img, index ) => {
-						
+								
 								const ariaLabel = sprintf(
 									/* translators: 1: the order number of the image. 2: the total number of images. */
 									__( 'image %1$d of %2$d in gallery' ),
 									index + 1,
 									images.length
 								);
-								//console.log(img);
+								
 								return (
 									
 									<li

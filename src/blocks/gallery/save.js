@@ -225,19 +225,19 @@ export default function save( { attributes } ) {
 						<img
 							src={ image.url }
 							alt={ image.alt }
+							data-caption={image.caption}
 							data-id={ image.id }
 							data-aspectRatio={image.aspectRatio}
 							data-position={index}
 							data-full-url={ image.fullUrl }
 							data-link={ image.link }
 							className={ image.id ? `wp-image wp-image-${ image.id }` : null }
-							//sizes={`(max-width: 700px) 100vw, calc( ${sizesAttrCalc} )`}
 							sizes={'(max-width: 700px) 100vw, calc(' + getImageSizeCalc( image.aspectRatio ) +')'}
 							width={ getImageDimensions( image.aspectRatio ).width }
 							height={ getImageDimensions( image.aspectRatio ).height }
 						/>
 					);
-
+					
 					return (
 						<li
 							key={ image.id || image.url }
