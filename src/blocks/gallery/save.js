@@ -161,8 +161,8 @@ export default function save( { attributes } ) {
 		
 		let size = {
 			
-			width: 0,
-			height: 0
+			width: null,
+			height: null
 		};
 		
 		let cropSizeFactor = calcCropSizeFactor(aspectRatio);
@@ -171,25 +171,26 @@ export default function save( { attributes } ) {
 			
 			case "mosaic":
 				// calculate image width and apply crop factor.
-				size.width = rowHeight * aspectRatio * cropSizeFactor;
+				size.width = Math.floor( rowHeight * aspectRatio * cropSizeFactor );
 				size.height= rowHeight;
 				break;
 				
 			case "rows":
 			// calculate image width
-				size.width = rowHeight * aspectRatio;
+				size.width = Math.floor( rowHeight * aspectRatio );
 				size.height = rowHeight
 				break;
 				
 			case "masonry":
 				// do nothing as we get an explicit width
 				size.width = columnWidth;
-				size.height = columnWidth / aspectRatio;
+				size.height = Math.floor( columnWidth / aspectRatio );
 				break;
 				
 			case "columns":
-				// calculate width based on column count and apply possible crop factor 
-				size.width = `( (100vw - ${themeHorizontalMargin} ) / ${columns} ) * ${cropSizeFactor}`;
+				// we can't determin these here as we do not know how wide each column will be.
+				// Core will fill in some defaults for us before it renders the block.
+				
 				break;
 		}
 		
