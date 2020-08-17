@@ -161,8 +161,9 @@ class metadata extends photopress_module {
 		//$size = isset( $meta['width'] ) ? intval( $meta['width'] ) . ',' . intval( $meta['height'] ) : '';
 		$attr['data-orig-file']         = esc_attr( $orig_file );
 		//$attr['data-orig-size']         = $size;
-		// no longer needed as Gallery block sets this
-		//$attr['data-image-caption']       = esc_attr( htmlspecialchars( $attachment_caption ) );
+		
+		// failsafe needed by slideshow in case the guttenebrg does not not set the caption for a gallery
+		$attr['data-caption']     	    = esc_attr( htmlspecialchars( $attachment_caption ) );
 		$attr['data-image-title']       = esc_attr( htmlspecialchars( $attachment_title ) );
 		$attr['data-image-description'] = esc_attr( htmlspecialchars( $attachment_desc ) );	
 		$attr['srcset']	= wp_get_attachment_image_srcset( $attachment_id );
