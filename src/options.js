@@ -162,18 +162,24 @@ class SettingsPage extends Component {
 		const renderTab = (tab) => { 
 			//console.log(tab);
 			let rf = function() {};
-			switch(tab.name) {
+			let anchor = window.location.hash ? window.location.hash.substring(1) : tab.name;
+			console.log( 'anchor', anchor);
+			switch( anchor ) {
 				
 				case "photopress_core_metadata":
 				
 					rf = renderMetaDataSettings;
+					
 					break;
 					
 				case "photopress_core_slideshow":
-					console.log('generating slideshow settings');
+					
 					rf = renderSlideshowSettings;
+				
 					break;	
 			}
+			
+			
 			
 			return ( 
 				
@@ -204,11 +210,13 @@ class SettingsPage extends Component {
 						<TabPanel className="tab-navigation row"
 					        activeClass="active-tab"
 					        
-					        onSelect={ (tabName) => { console.log( 'Selecting tab', tabName ) } }
-					        tabs={ this.generateNavTabs() }>
+					        onSelect={ (tabName) => { window.location.hash = tabName } }
+					        tabs={ this.generateNavTabs() }
+					    >
 					        {
 					            ( tab ) => renderTab(tab)
 					        }
+					        
 					    </TabPanel>
 						
 						
