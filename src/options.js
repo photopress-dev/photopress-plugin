@@ -209,7 +209,7 @@ class SettingsPage extends Component {
 					
 						<TabPanel className="tab-navigation row"
 					        activeClass="active-tab"
-					        
+					        initialTabName={window.location.hash.substring(1) || null} 
 					        onSelect={ (tabName) => { window.location.hash = tabName } }
 					        tabs={ this.generateNavTabs() }
 					    >
