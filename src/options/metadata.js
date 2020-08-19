@@ -3,7 +3,6 @@
  */
 const { __ } = wp.i18n;
 import { Component, Fragment, useState } from '@wordpress/element';
-
 import xmpLabels from '../shared/xmp-labels.js';
 
 import {
@@ -76,8 +75,31 @@ class MetadataSettings extends Component {
 				singularLabel: '',
 				tag: '',
 				parseTagValue: false
-			}	
+			},
+			dirtyFields: []	
 		};
+		
+		this.settingsSchema = {
+			
+			web_statement_of_rights: {
+				
+				type: 'url',
+				validations: [
+					
+					{ type: 'url', errorSection: 'licensor', errorMsg: 'Web Statement of Rights URL is not a valid url. Be sure the URL begins with http:// or https:// .'}
+				]
+			},
+			
+			licensor_url: {
+				
+				type: 'url',
+				validations: [
+					
+					{ type: 'url', errorSection: 'licensor', errorMsg: 'Licensor URL is not a valid url. Be sure the URL begins with http:// or https:// .'}
+				]
+			}
+			
+		}
 	}
 	
 	componentDidMount() {
@@ -194,6 +216,26 @@ class MetadataSettings extends Component {
 		);
 
 		//console.log(this.state);
+	}
+	
+	setUrlSetting( key, value) {
+		
+		var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
+	    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
+	    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
+	    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
+	    '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
+	    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+		
+		let ret = pattern.test( value );
+		
+		if (ret) {
+			
+			this.setSetting( key, value );
+		} else {
+			
+			this.setError( 'licensor', `${key} is not a valid url.` );
+		}
 	}
 	
 	setNewTaxPresent() {
@@ -368,7 +410,7 @@ class MetadataSettings extends Component {
 				
 			
 				<ToggleControl
-					id={'custom_taxonomies_eneable'}
+					id={'custom_taxonomies_enable'}
 					label={ __( 'Extract embedded image meta data.' ) }
 					help={ 'Stores embedded image meta-data into custom taxonomies that you define.' }
 					checked={ this.getSetting('custom_taxonomies_enable') || false }
@@ -523,7 +565,7 @@ class MetadataSettings extends Component {
 		
 
 		return (
-			
+			<Fragment>
 			<PanelBody title={ __( 'Custom Taxonomies' ) }>
 						
 					{ rows.map( ( val, idx ) => {
@@ -536,10 +578,118 @@ class MetadataSettings extends Component {
 						 );
 						
 					})}
-					
-					
 								
 			</PanelBody>	
+			
+			<PanelBody title={ __( 'Alt Text' ) }>
+			
+				<BaseControl
+					label={ __( '' ) }
+					
+				>
+					<ToggleControl
+						id={'alt_text_enable'}
+						label={ __( 'Use Meta-data for alt text of images.' ) }
+						help={ 'Populate the alternate text attribute with the value of a meta-data field.' }
+						checked={ this.getSetting('alt_text_enable')  }
+						onChange={ ( value ) => this.persistSetting( 'alt_text_enable', value ) }
+					/>
+				
+					<TextControl
+						id={'alt_text_template'}
+						label={ __('') }
+						value={ this.getSetting('alt_text_template') } 
+						className="small-input right-pad"
+						
+						help={"The XMP tag to use for populating alt text."}
+						onChange={ ( value ) => this.setSetting( 'alt_text_template', value.trim() ) }
+					/>
+					
+					<Button
+						isPrimary
+						disabled={ this.state.isAPISaving }
+						onClick={ this.saveSettings }
+						className="components-base-control__field"
+					>
+						{ __( 'Save' ) }
+					</Button>
+					
+				</BaseControl>
+				
+			</PanelBody>
+			
+			<PanelBody title={ __( 'Licensing' ) }>
+			
+				<BaseControl
+					label={ __( '' ) }
+					
+				>
+				
+					{ this.getError('licensor') &&
+						
+						<Notice 
+							status="error"
+							isDismissible={false}
+						>
+					        <p><b>An error occured:</b> <code>{ this.getError('licensor') }</code></p>
+					    </Notice>	
+										
+					}
+					
+					<TextControl
+						id={'licensor_name'}
+						label={ __('Licensor Name') }
+						value={ this.getSetting('licensor_name') } 
+						className=" right-pad"
+						help={"The name of the person or organization that licenses your images."}
+						onChange={ ( value ) => this.setSetting( 'licensor_name', value.trim() ) }
+					/>
+				
+					
+					<TextControl
+						id={'web_statement_of_rights'}
+						label={ __('Web Statement or Rights URL') }
+						value={ this.getSetting('web_statement_of_rights') } 
+						className=" right-pad"
+						help={"Used by search engines to display a link to the license statement of your images."}
+						onChange={ ( value ) => this.setSetting( 'web_statement_of_rights', value.trim() ) }
+					/>
+					
+					<TextControl
+						id={'licensor_url'}
+						label={ __('Licensing URL') }
+						value={ this.getSetting('licensor_url') } 
+						className=" right-pad"
+						help={"The URL where people can obtain a license your images."}
+						onChange={ ( value ) => this.setSetting( 'licensor_url', value.trim() ) }
+					/>
+
+					<Button
+						isPrimary
+						disabled={ this.state.isAPISaving }
+						onClick={ this.saveSettings }
+						className="components-base-control__field"
+					>
+						{ __( 'Save' ) }
+					</Button>
+					
+					<hr/>
+					
+					<ToggleControl
+						id={'embed_licensor_enable'}
+						label={ __( 'Embed licensing meta-data in images ' ) }
+						help={ 'Embeds licensing related meta-data (Licensor Name, Licensor URL, Web Statement of Rights, etc.) in image file during upload if they do not already exist. Requires exiftool to be installed on your server.' }
+						checked={ this.getSetting('embed_licensor_enable')  }
+						onChange={ ( value ) => this.persistSetting( 'embed_licensor_enable', value ) }
+					/>
+					
+					
+				
+				</BaseControl>
+				
+			</PanelBody>
+			
+			</Fragment>
 		
 		);
 	}

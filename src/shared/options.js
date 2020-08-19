@@ -1,22 +1,76 @@
 export function saveSettings( module ) {
 		
-	this.setState({ isAPISaving: true });
+	
 	
 	//console.log(this.state);
 	
-	const module_name = this.props.settingsGroup;
+	let validated = true;
 	
-	const model = new wp.api.models.Settings({
-		// eslint-disable-next-line camelcase
-		[module_name]: this.state.settings
-	});
+	if ( this.state.dirtyFields.length > 0 ) {
+		
+		console.log('dirty fields', this.dirtyFields);
+		
+		this.state.dirtyFields.map( ( name, index ) => {
+			
+			console.log('validating field:', name);
+			
+			if ( this.settingsSchema.hasOwnProperty( name ) && this.settingsSchema[ name ].validations.length > 0 ) {
+				
+				this.settingsSchema[ name ].validations.map( ( validation ) => {
+					
+					validated = validateInput( this.getSetting( name ), validation.type );
+			
+					if ( ! validated ) {
+						
+						this.setError( validation.errorSection, validation.errorMsg );
+						
+					} else {
+						
+						this.setError(validation.errorSection, null);
+					}
 
-	model.save().then( response => {
-		this.setState({
-			settings: response[module_name],
-			isAPISaving: false
+				});
+			}
 		});
-	});
+	}
+	
+	if ( validated ) {
+		
+		this.setState({ isAPISaving: true });
+		
+		const module_name = this.props.settingsGroup;
+		
+		const model = new wp.api.models.Settings({
+			// eslint-disable-next-line camelcase
+			[module_name]: this.state.settings
+		});
+	
+		model.save().then( response => {
+			this.setState({
+				settings: response[module_name],
+				isAPISaving: false
+			});
+		});
+	}
+}
+
+export function validateInput( input, type ) {
+	
+	if ( type === 'url' ) {
+		console.log('validating url', input);
+		
+		var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
+	    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
+	    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
+	    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
+	    '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
+	    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
+		
+		let ret = pattern.test( input );
+		console.log('validation result', ret);
+		return ret;
+
+	}
 }
 		
 export function	getSetting ( key ) {
@@ -29,17 +83,21 @@ export function	getSetting ( key ) {
 	
 export function	setSetting ( key, value ) {
 	
+	let df = this.state.dirtyFields;
+	df.push(key);
+	
 	let new_settings = {
 		
 		...this.state.settings,
 		[key]: value
 	};
 	
-	//console.log(new_settings);
+	
 	
 	this.setState( 
 		{ 
-			settings: new_settings
+			settings: new_settings,
+			dirtyFields: df
 		}
 	);
 	
@@ -54,17 +112,12 @@ export function	persistSetting ( key, value ) {
 		[key]: value
 	};
 	
-	
-	
 	this.setState( 
 		{ 
 			settings: new_settings
 		},
 		() => this.saveSettings()
 	);
-
-
-	//this.saveSettings();
 }
 	
 export function	deleteSetting ( pack, module, key, subKey ) {

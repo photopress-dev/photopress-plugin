@@ -107,6 +107,11 @@ class photopress_settingsPage {
 			'class' => 'photopress_settings_field_none', 
 			'path' 	=> $settings_class
 		);
+		
+		$types['url'] = array(
+			'class' => 'photopress_settings_field_url', 
+			'path' 	=> $settings_class
+		);
 
 		
 		return $types;
@@ -167,6 +172,11 @@ class photopress_settingsPage {
 			if ( $type === 'none' ) {
 			
 				$r = ['type' => ''];
+			}
+			
+			if ( $type === 'url' ) {
+			
+				$r = ['type' => 'text'];
 			}
 			
 /*
@@ -874,6 +884,34 @@ class photopress_settings_field_integer extends photopress_settings_field_text {
 		}
 	}
 }
+
+class photopress_settings_field_url extends photopress_settings_field {
+	
+	public function sanitize( $value ) {
+		
+		return filter_var( trim( $value ), FILTER_SANITIZE_URL );
+	}
+	
+	public function isValid( $value ) {
+		
+		if ( filter_var( $value, FILTER_VALIDATE_URL ) ) {
+			
+			return true;
+			
+		} else {
+		
+			$this->addError( 
+				$this->get('dom_id'), 
+				sprintf(
+					'%s %s',
+					$this->get('label_for'),
+					photopress_util::localize('Must be a valid url.')
+				)
+			);
+		}
+	}
+}
+
 
 class photopress_settings_field_select extends photopress_settings_field {
 	
