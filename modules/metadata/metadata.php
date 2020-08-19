@@ -17,7 +17,6 @@ class metadata extends photopress_module {
 		
 		add_filter( 'max_srcset_image_width', 3000, 10,1);
 		
-		
 		// add additional meta-data to images
 		add_filter( 'wp_read_image_metadata', [$this, 'storeMoreMetaData'], 10, 5);
 		
@@ -25,8 +24,12 @@ class metadata extends photopress_module {
 		add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
 		add_filter( 'the_content', array( $this, 'addAttributesToImagesInContent' ) );
 		//add_filter( 'wp_calculate_image_srcset', [ $this, 'sortImageSrcset'], 10, 5 );
+		
 		// stop wordpress from stripping image meta from resized images.
-		add_filter ('image_strip_meta', pp_api::getOption( 'core', 'metadata', 'strip_metadata_from_resized_image' ) );
+		add_filter ('image_strip_meta', function() {
+			
+			return pp_api::getOption( 'core', 'metadata', 'strip_metadata_from_resized_image');
+		});
 		
 		// registers display widgets
 		add_action( 'widgets_init', [ $this, 'registerWidgets' ] );
@@ -155,18 +158,21 @@ class metadata extends photopress_module {
 		$orig_file       = isset( $orig_file[0] ) ? $orig_file[0] : wp_get_attachment_url( $attachment_id );
 		
 		//$attachment       = get_post( $attachment_id );
-		$attachment_title = wptexturize( $attachment->post_title );
+		$attachment_title 	= wptexturize( $attachment->post_title );
 		$attachment_caption = wptexturize( $attachment->post_excerpt );
-		$attachment_desc  = wpautop( wptexturize( $attachment->post_content ) );
-		//$size = isset( $meta['width'] ) ? intval( $meta['width'] ) . ',' . intval( $meta['height'] ) : '';
-		$attr['data-orig-file']         = esc_attr( $orig_file );
-		//$attr['data-orig-size']         = $size;
+		$attachment_desc  	= wpautop( wptexturize( $attachment->post_content ) );
+		$attachment_url		= wp_get_attachment_url( $attachment_id );
 		
-		// failsafe needed by slideshow in case the guttenebrg does not not set the caption for a gallery
-		$attr['data-caption']     	    = esc_attr( htmlspecialchars( $attachment_caption ) );
-		$attr['data-image-title']       = esc_attr( htmlspecialchars( $attachment_title ) );
-		$attr['data-image-description'] = esc_attr( htmlspecialchars( $attachment_desc ) );	
-		$attr['srcset']	= wp_get_attachment_image_srcset( $attachment_id );
+		//$size = isset( $meta['width'] ) ? intval( $meta['width'] ) . ',' . intval( $meta['height'] ) : '';
+		$attr[ 'data-orig-file' ]         	= esc_attr( $orig_file );
+		$attr[ 'data-attachment-url' ]		= esc_attr( $attachment_url );
+		
+		// failsafe needed by slideshow in case
+		// guttenebrg does not set the caption for a gallery
+		$attr[ 'data-caption' ]     	    = esc_attr( htmlspecialchars( $attachment_caption ) );
+		$attr[ 'data-image-title' ]       	= esc_attr( htmlspecialchars( $attachment_title ) );
+		$attr[ 'data-image-description' ] 	= esc_attr( htmlspecialchars( $attachment_desc ) );	
+		$attr[ 'srcset']					= wp_get_attachment_image_srcset( $attachment_id );
 		
 		return $attr;
 	}
@@ -250,6 +256,62 @@ class metadata extends photopress_module {
 					'error_message'							=> 'You must select On or Off.'		
 				]	
 			],
+			
+			'embed_licensor_enable' => [
+				
+				'default_value'							=> false,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Embed License in image file.',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'Custom image taxonomies.',
+					'label_for'								=> 'Custom image taxonomies.',
+					'error_message'							=> ''		
+				]	
+			],
+			
+			'web_statement_of_rights'	=> [
+				
+				'default_value'							=> '',
+				'field'									=> [
+					'type'									=> 'url',
+					'title'									=> 'Web Statement of Rights',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'The URL of the image license on the web.',
+					'label_for'								=> 'The URL of the image license on the web.',
+					'error_message'							=> ''		
+				]	
+			],
+			
+			'licensor_name'	=> [
+				
+				'default_value'							=> '',
+				'field'									=> [
+					'type'									=> 'text',
+					'title'									=> 'Licensor Name',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'The legal name of the licensor of your images.',
+					'label_for'								=> 'The legal name of the licensor of your images.',
+					'error_message'							=> ''		
+				]	
+			],
+			
+			'licensor_url'	=> [
+				
+				'default_value'							=> '',
+				'field'									=> [
+					'type'									=> 'url',
+					'title'									=> 'Licensor Url',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'The url where someone may obtain a license for your images.',
+					'label_for'								=> 'The url where someone may obtain a license for your images.',
+					'error_message'							=> ''		
+				]	
+			],
 						
 			'custom_taxonomies' => [
 				
@@ -276,23 +338,50 @@ class metadata extends photopress_module {
 					'description'							=> 'Delimiter used to parse sub taxonomies from XMP values.',
 					'label_for'								=> 'Delimiter used to parse sub taxonomies from XMP values',
 					'error_message'							=> ''		
-				]	
-				
+				]
 			],
 			
+			'alt_text_enable'				=> [
+			
+				'default_value'							=> true,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Populate Alt Text With Meta-data ',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'Enable meta-data driven alt text.',
+					'label_for'								=> 'Enable meta-data driven alt text.',
+					'error_message'							=> 'You must select On or Off.'		
+				]	
+			],
+			
+			'alt_text_template'	=> [
+				
+				'default_value'							=> '[photoshop:Headline]. [photopress:stringOfKeywords].',
+				'field'									=> [
+					'type'									=> 'text',
+					'title'									=> 'XMP template for Alt Text',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'The XMP tag template used to populate image alt text.',
+					'label_for'								=> 'The XMP tag template used to populate image alt text.',
+					'error_message'							=> ''		
+				]
+			],
+			
+			// depricated
 			'alt_text_tag'	=> [
 				
 				'default_value'							=> 'photoshop:Headline',
 				'field'									=> [
 					'type'									=> 'text',
-					'title'									=> 'XMP Tag for Alt Text',
+					'title'									=> 'XMP Template for Alt Text',
 					'page_name'								=> 'metadata',
 					'section'								=> 'general',
-					'description'							=> 'The XMP tag used to populate image alt text.',
-					'label_for'								=> 'The XMP tag used to populate image alt text.',
+					'description'							=> 'The XMP template used to populate image alt text.',
+					'label_for'								=> 'The XMP template used to populate image alt text.',
 					'error_message'							=> ''		
-				]	
-				
+				]
 			],
 			
 			'strip_metadata_from_resized_image'				=> [
@@ -459,11 +548,20 @@ class metadata extends photopress_module {
 		$this->setTaxonomyTerms( $id, $md );
 		
 		// set ALT text of image
-		$alt = $md->getXmp( pp_api::getOption('core', 'metadata', 'alt_text_tag') );
 		
-		if ( ! update_post_meta( $id, '_wp_attachment_image_alt', $alt ) ) {
+		if ( pp_api::getOption('core', 'metadata', 'alt_text_enable') ) {
+		
+			$alt = $this->generateAltText( $md );
 			
-			add_post_meta( $id, '_wp_attachment_image_alt', $alt );
+			if ( ! update_post_meta( $id, '_wp_attachment_image_alt', $alt ) ) {
+				
+				add_post_meta( $id, '_wp_attachment_image_alt', $alt );
+			}
+		}
+		
+		if ( pp_api::getOption('core', 'metadata', 'embed_licensor_enable') ) {
+			
+			$this->embedLicense( $md, $file );
 		}
 	}
 	
@@ -473,10 +571,64 @@ class metadata extends photopress_module {
 	public function updateAttachment( $url ) {
 		
 		$id = attachment_url_to_postid( $url );
-		$md = new XmpReader();
-		$file = get_attached_file( $id );
-		$md->loadFromFile( $file );
-		$this->setTaxonomyTerms( $id, $md );
+		$this->addAttachment( $id );
+	}
+	
+	/**
+	 * Generates the Alt Text of an image based on meta-data template.
+	 *
+	 * $md	object	XmpReader Meta-data object
+	 */
+	public function generateAltText( $md ) {
+		
+		$template =  pp_api::getOption('core', 'metadata', 'alt_text_template');
+		
+		$matches = [];
+		
+		// get the tokens
+		preg_match_all("/(?<=\[).+?(?=\])/", $template, $matches );
+		//error_log(print_r($matches, true));
+		
+		//replace the tokens
+		foreach($matches[0] as $key){
+			
+			$value = $md->getXmp( $key );
+			
+			if ( $value ) {
+			    $template = str_replace('['.$key.']', $value, $template);
+			}
+		}
+
+		return $template;
+	}
+	
+	public function embedLicense( $md, $file ) {
+		
+		$wsr = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
+		$licensor_name = pp_api::getOption('core', 'metadata', 'licensor_name');
+		$licensor_url = pp_api::getOption('core', 'metadata', 'licensor_url');		
+		
+		// get statement
+		$cmd = 'exiftool ';
+		
+		if ( ! $md->getXmp( 'xmp-plus:licensor' ) && $licensor_name && $licensor_url ) {
+			
+			$cmd .= sprintf('-xmp-plus:licensor="{LicensorName=|%s,LicensorURL=|%s}" ', $licensor_name, $licensor_url);
+		}
+		
+		if (! $md->getXmp( 'xmp-xmpRights:WebStatement' ) && $wsr ) {
+		
+			$statement = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
+			$statement = "Hello world";
+			$cmd .= sprintf('-xmp-xmpRights:WebStatement="%s" ', $statement);
+		}
+		
+		// embedd in file
+		
+		exec( $cmd . " $file");
+		
+		//exiftool -xmp-plus:licensor="{LicensorName=|YourLicensorName,LicensorURL=|YourLicensorURL}" -xmp-xmpRights:WebStatement="YourWebStatement"
+		
 	}
 	
 	public function setTaxonomyTerms( $id, $md ) {
