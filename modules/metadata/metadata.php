@@ -3,6 +3,7 @@
 namespace PhotoPress\modules\metadata;
 use photopress_module;
 use pp_api;
+use photopress_util;
 
 /**
  * Registers the Core Image Taxonomies
@@ -607,16 +608,23 @@ class metadata extends photopress_module {
 		$wsr = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
 		$licensor_name = pp_api::getOption('core', 'metadata', 'licensor_name');
 		$licensor_url = pp_api::getOption('core', 'metadata', 'licensor_url');		
+		$exiftool_path = PHOTOPRESS_CORE_PATH . 'vendor/philharvey/exiftool/exiftool ';
+		
+		$out = photopress_util::shell( $exiftool_path . '-ver');
+		//$out = photopress_util::shell( 'cd ' . plugin_dir_path( __FILE__ ) );
+		//$out = photopress_util::shell( 'pwd');
+		photopress_util::debug($out);
+		
 		
 		// get statement
-		$cmd = 'exiftool ';
+		$cmd = $exiftool_path;
 		
-		if ( ! $md->getXmp( 'xmp-plus:licensor' ) && $licensor_name && $licensor_url ) {
+		if ( ! $md->getXmp( 'plus:licensor' ) && $licensor_name && $licensor_url ) {
 			
 			$cmd .= sprintf('-xmp-plus:licensor="{LicensorName=|%s,LicensorURL=|%s}" ', $licensor_name, $licensor_url);
 		}
 		
-		if (! $md->getXmp( 'xmp-xmpRights:WebStatement' ) && $wsr ) {
+		if (! $md->getXmp( 'xmpRights:WebStatement' ) && $wsr ) {
 		
 			$statement = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
 			$statement = "Hello world";
@@ -625,8 +633,8 @@ class metadata extends photopress_module {
 		
 		// embedd in file
 		
-		exec( $cmd . " $file");
-		
+		$out2 = photopress_util::shell( $cmd . " $file");
+		photopress_util::debug($out2);
 		//exiftool -xmp-plus:licensor="{LicensorName=|YourLicensorName,LicensorURL=|YourLicensorURL}" -xmp-xmpRights:WebStatement="YourWebStatement"
 		
 	}

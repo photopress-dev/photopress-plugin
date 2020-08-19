@@ -597,11 +597,11 @@ class MetadataSettings extends Component {
 				
 					<TextControl
 						id={'alt_text_template'}
-						label={ __('') }
+						label={ __('Alt Text Template') }
 						value={ this.getSetting('alt_text_template') } 
 						className="small-input right-pad"
 						
-						help={"The XMP tag to use for populating alt text."}
+						help={"The template to use for populating alt text. Meta-data placeholders should be surounded by square brackets (i.e. [photoshop:Headline]"}
 						onChange={ ( value ) => this.setSetting( 'alt_text_template', value.trim() ) }
 					/>
 					

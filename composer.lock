@@ -1,0 +1,28 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "7cc7423ac8a963997a8126e2365afd2d",
+    "packages": [
+        {
+            "name": "philharvey/exiftool",
+            "version": "12.04",
+            "dist": {
+                "type": "tar",
+                "url": "https://exiftool.org/Image-ExifTool-12.04.tar.gz"
+            },
+            "type": "library"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "1.1.0"
+}

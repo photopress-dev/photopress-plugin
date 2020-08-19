@@ -15,9 +15,25 @@
         "sort-packages": true
     },
     
+    "repositories": [
+                
+        {
+            "type": "package",
+            "package": {
+                "name": "philharvey/exiftool",
+                "version": "12.04",
+                "dist": {
+                    "url": "https://exiftool.org/Image-ExifTool-12.04.tar.gz",
+                    "type": "tar"
+                }
+            }
+        }
+    ],
+    
     
     "require": {
     	
+    	"philharvey/exiftool": "12.*"
     },
     
     "autoload": {
