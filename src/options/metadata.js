@@ -648,7 +648,7 @@ class MetadataSettings extends Component {
 					
 					<TextControl
 						id={'web_statement_of_rights'}
-						label={ __('Web Statement or Rights URL') }
+						label={ __('Web Statement of Rights URL') }
 						value={ this.getSetting('web_statement_of_rights') } 
 						className=" right-pad"
 						help={"Used by search engines to display a link to the license statement of your images."}
