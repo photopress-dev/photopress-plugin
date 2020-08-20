@@ -38,11 +38,12 @@ Our development motto is "do no harm" which means that we leverage the patterns 
 ### Meta-Data
 
 - Define unlimited custom image taxonomies
-- Extract embedded image EXIF, IPTC, and XMP meta-data from image files
-- Store extracted meta-data into image taxonomies
-- Create and extract child taxonomies from embedded meta-data fields
-- Exif Display Widget
-- Image Taxonomy Terms Widget
+- Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonommies
+- Create and extract "child taxonomies" from embedded meta-data fields
+- Display Exif Widget
+- Display Image Taxonomy Terms Widget
+- Generate custom image ALT text using meta-data templates
+- Embed Licensing info (Licensor, Licensor URL, Web Statement of Rights) when image files are uploaded
 
 ### Slideshows
 
