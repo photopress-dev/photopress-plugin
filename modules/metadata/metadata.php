@@ -30,7 +30,7 @@ class metadata extends photopress_module {
 		// embed license meta-data in all uploaded images even if it already exists.
 		if ( pp_api::getOption('core', 'metadata', 'embed_licensor_enable') ) {
 			
-			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense2' ], 1,4 );
+			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1,4 );
 		}
 		
 		// stop wordpress from stripping image meta from resized images.
