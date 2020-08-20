@@ -24,15 +24,21 @@ class metadata extends photopress_module {
 		// add additional attributes to images
 		add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
 		add_filter( 'the_content', array( $this, 'addAttributesToImagesInContent' ) );
+		
 		//add_filter( 'wp_calculate_image_srcset', [ $this, 'sortImageSrcset'], 10, 5 );
 		
+		// embed license meta-data in all uploaded images even if it already exists.
+		if ( pp_api::getOption('core', 'metadata', 'embed_licensor_enable') ) {
+			
+			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense2' ], 1,4 );
+		}
+		
 		// stop wordpress from stripping image meta from resized images.
-/*
 		add_filter ('image_strip_meta', function() {
 			
 			return pp_api::getOption( 'core', 'metadata', 'strip_metadata_from_resized_image');
 		});
-*/
+
 		
 		// registers display widgets
 		add_action( 'widgets_init', [ $this, 'registerWidgets' ] );
@@ -55,7 +61,7 @@ class metadata extends photopress_module {
 			);
 			
 			/**
-			 * Action handler for when new images are uploaded
+			 * Taxonomy handler for when new images are uploaded
 			 */
 			add_action('add_attachment', [ $this, 'addAttachment' ] );
 			
@@ -561,11 +567,6 @@ class metadata extends photopress_module {
 				add_post_meta( $id, '_wp_attachment_image_alt', $alt );
 			}
 		}
-		
-		if ( pp_api::getOption('core', 'metadata', 'embed_licensor_enable') ) {
-			
-			$this->embedLicense( $md, $file );
-		}
 	}
 	
 	/**
@@ -605,7 +606,12 @@ class metadata extends photopress_module {
 		return $template;
 	}
 	
-	public function embedLicense( $md, $file ) {
+	public function embedLicense( $move = null, $file, $newfile, $type ) {
+		
+		photopress_util::debug('hello from embed2');
+		photopress_util::debug( $file );
+		
+		$file = $file['tmp_name'];
 		
 		$wsr = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
 		$licensor_name = pp_api::getOption('core', 'metadata', 'licensor_name');
@@ -617,16 +623,15 @@ class metadata extends photopress_module {
 		//$out = photopress_util::shell( 'pwd');
 		photopress_util::debug($out);
 		
-		
 		// get statement
 		$cmd = $exiftool_path;
 		
-		if ( ! $md->getXmp( 'plus:licensor' ) && $licensor_name && $licensor_url ) {
+		if ( $licensor_name && $licensor_url ) {
 			
 			$cmd .= sprintf('-xmp-plus:licensor="{LicensorName=|%s,LicensorURL=|%s}" ', $licensor_name, $licensor_url);
 		}
 		
-		if (! $md->getXmp( 'xmpRights:WebStatement' ) && $wsr ) {
+		if ( $wsr ) {
 		
 			$statement = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
 			$statement = "Hello world";
@@ -639,6 +644,7 @@ class metadata extends photopress_module {
 		photopress_util::debug($out2);
 		//exiftool -xmp-plus:licensor="{LicensorName=|YourLicensorName,LicensorURL=|YourLicensorURL}" -xmp-xmpRights:WebStatement="YourWebStatement"
 		
+		return null;
 	}
 	
 	public function setTaxonomyTerms( $id, $md ) {
