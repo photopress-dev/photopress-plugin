@@ -27,10 +27,12 @@ class metadata extends photopress_module {
 		//add_filter( 'wp_calculate_image_srcset', [ $this, 'sortImageSrcset'], 10, 5 );
 		
 		// stop wordpress from stripping image meta from resized images.
+/*
 		add_filter ('image_strip_meta', function() {
 			
 			return pp_api::getOption( 'core', 'metadata', 'strip_metadata_from_resized_image');
 		});
+*/
 		
 		// registers display widgets
 		add_action( 'widgets_init', [ $this, 'registerWidgets' ] );

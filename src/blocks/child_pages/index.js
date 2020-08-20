@@ -5,7 +5,7 @@
 import edit from './edit.js';
 import icon from './icon.js';
 import metadata from './block.json';
-import transforms from './transforms';
+
  
 /**
  * WordPress dependencies
@@ -38,7 +38,6 @@ const settings = {
 		html: false,
 	},
 	attributes,
-	transforms,
 	edit,
 	save() {
 		return null;
