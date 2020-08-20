@@ -27,12 +27,20 @@ class childpages extends photopress_module {
                     'type' 					=> 'integer',
                     'default'				=> 10
                 ],
+                'columns' 				=> [
+                    'type' 					=> 'integer',
+                    'default'				=> 2
+                ],
                 'imageSize'				=> [
 	              		'type'				=> 'string',
 	              		'default'			=> 'medium'  
                 ],
                 'className' 			=> [
                     'type' 					=> 'string',
+                ],
+                'imageCrop' 				=> [
+                    'type' 					=> 'boolean',
+                    'default'				=> true
                 ]
             ]
 		]);
@@ -75,30 +83,55 @@ class childpages extends photopress_module {
 		// get child pages
 		$children = get_children( $id );
 		
+		$align = $attrs['align'];
+		$columns = $attrs['columns'];
+		$padding= $attrs['padding'];
+		$imageCrop = '';
+		//print_r($attrs);
+		if ( array_key_exists('imageCrop', $attrs) && $attrs['imageCrop'] ) {
+			
+			$imageCrop = 'is-cropped';	
+		}
+		
 		// loop
 		$content = "";
-		$content .= "<div class=\"wp-block-photopress-childpages__inner\">";
+		$content .= '<figure class="photopress-gallery photopress-childpages">';
+		$content .= '<ul class="photopress-gallery-columns align'. $align . ' columns-' . $columns . ' ' . $imageCrop .'" style="--pp-gallery-gutter: '. $padding. 'px">';
+					
+			
 		
 		foreach ($children as $k => $child ) {
 			
-			$content .= "<div class=\"wp-block-photopress-childpages__item\" style=\"padding: {$attrs['padding']} ; \">";
-			$content .= "	<div id= \"item_$k\" class=\"wp-block-photopress-childpages__image\">";
 			$link = get_permalink($k);
-			$content .=	"		<a href=\"$link\" target=\"_blank\" rel=\"noreferrer noopener\" alt=\"\">";
 			$fi_link = get_the_post_thumbnail_url( $k, $attrs['imageSize'] );
-			$content .= "			<img src=\"$fi_link\" style= \"width: $width; height: $height \" />";
+			$fi_id = get_post_thumbnail_id( $k );
+			
+			$content .= '<li class="photopress-gallery-item">';
+			
+			$content .= '	<figure class="photopress-gallery-item__figure">';
+			
+			$content .=	"		<a href=\"$link\">";
+			
+			$content .= "			<img class=\"wp-image wp-image-$fi_id\" src=\"$fi_link\" sizes=\"( (100vw - 0 ) / $columns ) * 1)\" />";
+			
 			$content .= "		</a>";
-			$content .= "	</div>";										
-																	
-			$content .= "	<div class=\"wp-block-photopress-childpages__content\">";							
-			$content .=	"		<a href=\"$link\" target=\"_blank\" rel=\"noreferrer noopener\" alt=\"\">";
-			$content .= 			$child->post_title;
-			$content .= "		</a>";										
-			$content .= "	</div>";	
-			$content .= "</div>";	
+															
+			$content .= "	</figure>";	
+			
+			$content .= "		<div class=\"wp-block-photopress-childpages__content\">";							
+			
+			$content .=	"			<a href=\"$link\" target=\"_blank\" rel=\"noreferrer noopener\" alt=\"\">";
+			
+			$content .= 				$child->post_title;
+			
+			$content .= "			</a>";										
+			
+			$content .= "		</div>";
+			
+			$content .= "</li>";	
 		}
 		
-		$content .= "</div>";	
+		$content .= "</figure>";	
 												
 		return $content;
 		

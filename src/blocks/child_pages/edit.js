@@ -171,7 +171,7 @@ class PostsEdit extends Component {
 									
 									{ featuredImageUrl &&
 										
-										<figure className="photopress-gallery-item__figure flex-column">
+										<figure className="photopress-gallery-item__figure">
 										
 											<Disabled>
 											
@@ -180,34 +180,35 @@ class PostsEdit extends Component {
 													<img 
 														className={ 'wp-image' }
 														src={featuredImageUrl} 
-														style= { {minHeight: constrain_dim, minWidth: constrain_dim, maxHeight: constrain_dim, maxWidth: constrain_dim } } 
+														//style= { {minHeight: constrain_dim, minWidth: constrain_dim, maxHeight: constrain_dim, maxWidth: constrain_dim } } 
 													/>
 													
 												</a>
 												
 											</Disabled>
 											
-											<div className={ contentClasses }>
-											
-												<Disabled>									
-												
-													<a href={ post.link } target="_blank" rel="noreferrer noopener" alt={ titleTrimmed }>
-														{ titleTrimmed ? (
-															<RawHTML>
-																{ titleTrimmed }
-															</RawHTML>
-														) :
-															/* translators: placeholder when a post has no title */
-															__( '(no title)', 'photopress' )
-														}
-													</a>
-												
-												</Disabled>
-												
-											</div>
 											
 										</figure>
 									}
+									
+									<div className={ contentClasses }>
+											
+										<Disabled>									
+										
+											<a href={ post.link } target="_blank" rel="noreferrer noopener" alt={ titleTrimmed }>
+												{ titleTrimmed ? (
+													<RawHTML>
+														{ titleTrimmed }
+													</RawHTML>
+												) :
+													/* translators: placeholder when a post has no title */
+													__( '(no title)', 'photopress' )
+												}
+											</a>
+										
+										</Disabled>
+										
+									</div>
 									
 								</li>
 							);

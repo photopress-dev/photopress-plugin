@@ -42,6 +42,7 @@ const Inspector = ( props ) => {
 		columns,
 		padding,
 		imageSize,
+		imageCrop,
 		order,
 		orderBy,
 		postsToShow,
@@ -96,14 +97,19 @@ const Inspector = ( props ) => {
 					required
 				/>
 				
+				<ToggleControl
+					label={ __( 'Crop images' ) }
+					checked={ !! imageCrop }
+					onChange={ (value) => setAttributes( { imageCrop: value } ) }
+					help={ "Crop images to create a uniform display." }
+				/>
 				
-				
-					<QueryControls
-						order={ order }
-						orderBy={ orderBy }
-						onOrderChange={ ( value ) => setAttributes( { order: value } ) }
-						onOrderByChange={ ( value ) => setAttributes( { orderBy: value } ) }
-					/>
+				<QueryControls
+					order={ order }
+					orderBy={ orderBy }
+					onOrderChange={ ( value ) => setAttributes( { order: value } ) }
+					onOrderByChange={ ( value ) => setAttributes( { orderBy: value } ) }
+				/>
 				
 				<RangeControl
 					label={ __( 'Max Number of Child Pages', 'photopress' ) }

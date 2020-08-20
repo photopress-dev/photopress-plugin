@@ -29,7 +29,7 @@
 
 .wp-block-photopress-childpages__content {
 	
-	
+	text-align: center;
 }
 
 .photopress-childpages {
@@ -37,11 +37,12 @@
 	.photopress-gallery-columns {
 		
 		.photopress-gallery-item {
-			
+			line-height: 2em;
 			.photopress-gallery-item__figure {
 	
-				line-height: 1.5;
-				align-items: center;
+				
+				//align-items: center;
+				
 			}			
 			
 		}
