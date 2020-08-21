@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2.0
 Tested up to: 5.5
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -40,12 +40,12 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 = IMAGE META-DATA MANAGEMENT =
 
 * Define unlimited custom image taxonomies
-* Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonommies
+* Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonomies
 * Create and extract "child taxonomies" from embedded meta-data fields
 * Display Exif Widget
 * Display Image Taxonomy Terms Widget
 * Generate custom image ALT text using meta-data templates
-* Embed Licensing info (Licensor, Licensor URL, Web Statement of Rights) when image files are uploaded
+* Embed Licensing info (Licensor, Licensor URL, Web Statement of Rights) into images files during upload
 
 = SLIDESHOWS =
 
