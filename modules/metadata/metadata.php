@@ -159,7 +159,9 @@ class metadata extends photopress_module {
 	function addAttributesToImages( $attr, $attachment = null ) {
 		
 		$attachment_id = intval( $attachment->ID );
+		
 		if ( ! wp_attachment_is_image( $attachment_id ) ) {
+		
 			return $attr;
 		}
 
@@ -172,15 +174,33 @@ class metadata extends photopress_module {
 		$attachment_desc  	= wpautop( wptexturize( $attachment->post_content ) );
 		$attachment_url		= wp_get_attachment_url( $attachment_id );
 		
-		//$size = isset( $meta['width'] ) ? intval( $meta['width'] ) . ',' . intval( $meta['height'] ) : '';
 		$attr[ 'data-orig-file' ]         	= esc_attr( $orig_file );
 		$attr[ 'data-attachment-url' ]		= esc_attr( $attachment_url );
 		
 		// failsafe needed by slideshow in case
 		// guttenebrg does not set the caption for a gallery
-		$attr[ 'data-caption' ]     	    = esc_attr( htmlspecialchars( $attachment_caption ) );
-		$attr[ 'data-image-title' ]       	= esc_attr( htmlspecialchars( $attachment_title ) );
-		$attr[ 'data-image-description' ] 	= esc_attr( htmlspecialchars( $attachment_desc ) );	
+		
+		if ( ! array_key_exists('data-aspectratio', $attr) ) {
+			
+			$meta = wp_get_attachment_metadata( $attachment_id );
+			$attr['data-aspectratio']  = isset( $meta['width'] ) ? round( intval( $meta['width'] ) / intval( $meta['height'] ), 2 ) : '';
+		}
+		
+		if ( ! array_key_exists('data-caption', $attr) ) {
+			
+			$attr[ 'data-caption' ]     	    = esc_attr( htmlspecialchars( $attachment_caption ) );
+		}
+		
+		if ( ! array_key_exists('data-image-title', $attr) ) {
+		
+			$attr[ 'data-image-title' ]       	= esc_attr( htmlspecialchars( $attachment_title ) );
+		}
+		
+		if ( ! array_key_exists('data-image-description', $attr) ) {
+			
+			$attr[ 'data-image-description' ] 	= esc_attr( htmlspecialchars( $attachment_desc ) );	
+		}
+		
 		$attr[ 'srcset']					= wp_get_attachment_image_srcset( $attachment_id );
 		
 		return $attr;
