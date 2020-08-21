@@ -42,7 +42,7 @@
     },
     
     "scripts": {
-		"post-update-cmd": [
+		"post-install-cmd": [
 			"php -r \"chmod( __DIR__ . '/vendor/philharvey/exiftool/exiftool', 0755);\""
 		]
 	}
