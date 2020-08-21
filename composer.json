@@ -39,5 +39,11 @@
     "autoload": {
         "psr-4": {"PhotoPress\\": ["./"]},
         "classmap": ["framework/"]
-    }
+    },
+    
+    "scripts": {
+		"post-update-cmd": [
+			"php -r \"chmod( __DIR__ . '/vendor/philharvey/exiftool/exiftool', 0755);\""
+		]
+	}
 }
