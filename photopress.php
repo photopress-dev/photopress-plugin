@@ -7,7 +7,7 @@ Description: Making WordPress work for photographers with beautiful image galler
 Author: Peter Adams
 Author URI: http://www.photopressdev.com
 License: GPL v3
-Version: 1.3.4
+Version: 1.3.5
 */
 
 // If this file is called directly, abort.
@@ -30,13 +30,11 @@ if ( ! defined( 'PHOTOPRESS_FRAMEWORK_PATH' ) ) {
 	define('PHOTOPRESS_FRAMEWORK_PATH', PHOTOPRESS_CORE_PATH . 'framework/' );
 }
 
-// Include the Photopress API which can be used by other plugins
-//require_once PHOTOPRESS_FRAMEWORK_PATH . 'class-pp-api.php';
-
 // Hook for plugin package creation
-add_action('plugins_loaded', array( 'photopress_plugin', 'getInstance'), 1 );
+add_action('plugins_loaded', [ 'photopress_plugin', 'getInstance' ], 1 );
 
-//require_once ( plugin_dir_path( __FILE__ ) . 'src/init.php' );
+register_activation_hook(__FILE__, [ 'photopress_plugin', 'activate' ] );
+
 
 /**
  * PhotoPress Core Plugin
@@ -77,7 +75,7 @@ class photopress_plugin {
 					array(
 						'package_name'			=> 'core',
 						'package_label'			=> 'PhotoPress',
-						'version'				=> '1.3.4',
+						'version'				=> '1.3.5',
 						'modules'				=> ['base', 'childpages', 'gallery', 'slideshow', 'metadata'],
 						'dependencies'			=> []
 					)
@@ -145,6 +143,19 @@ class photopress_plugin {
 		// always return something so downstream plugins can operate.
 		return $attachments;
 	}	
+	
+	public static function activate() {
+		
+		$exiftool_path = PHOTOPRESS_CORE_PATH . 'vendor/philharvey/exiftool/exiftool ';	
+		if ( function_exists( 'chmod' ) ) {
+			photopress_util::debug( $exiftool_path );
+			$ret = chmod( trim($exiftool_path), 0755 );
+			photopress_util::debug( $ret );
+		} else {
+			
+			photopress_util::debug('cannot set executable permission on exiftool. please manually change to 755.');
+		}
+	}
 }
 
 ?>
