@@ -628,7 +628,7 @@ class metadata extends photopress_module {
 	
 	public function embedLicense( $move = null, $file, $newfile, $type ) {
 		
-		photopress_util::debug('hello from embed2');
+		photopress_util::debug('Embdeding license meta-data...');
 		photopress_util::debug( $file );
 		
 		$file = $file['tmp_name'];
@@ -637,12 +637,7 @@ class metadata extends photopress_module {
 		$licensor_name = pp_api::getOption('core', 'metadata', 'licensor_name');
 		$licensor_url = pp_api::getOption('core', 'metadata', 'licensor_url');		
 		$exiftool_path = PHOTOPRESS_CORE_PATH . 'vendor/philharvey/exiftool/exiftool ';
-		
-		$out = photopress_util::shell( $exiftool_path . '-ver');
-		//$out = photopress_util::shell( 'cd ' . plugin_dir_path( __FILE__ ) );
-		//$out = photopress_util::shell( 'pwd');
-		photopress_util::debug($out);
-		
+				
 		// get statement
 		$cmd = $exiftool_path;
 		
@@ -660,9 +655,30 @@ class metadata extends photopress_module {
 		
 		// embedd in file
 		
-		$out2 = photopress_util::shell( $cmd . " $file");
-		photopress_util::debug($out2);
-		//exiftool -xmp-plus:licensor="{LicensorName=|YourLicensorName,LicensorURL=|YourLicensorURL}" -xmp-xmpRights:WebStatement="YourWebStatement"
+		$out = photopress_util::shell( $cmd . " $file");
+		photopress_util::debug($out);
+		
+		// check status msgand attempt to set executable permission on exiftool binary 
+		if ( $out['status'] === 126 ) {
+			
+			if ( function_exists( 'chmod' ) ) {
+				
+				photopress_util::debug('Attempting to set executable permission on exiftool binary.');	
+				
+				photopress_util::debug( $exiftool_path );
+				
+				$ret = chmod( trim($exiftool_path), 0755 );
+				
+				if ( ! $ret ) {
+					
+					photopress_util::debug('Could not set executable permission on exiftool binary.');	
+				}
+				
+			} else {
+				
+				photopress_util::debug('Manually set executable permission on exiftool binary.');
+			}
+		}
 		
 		return null;
 	}
