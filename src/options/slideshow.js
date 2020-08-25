@@ -57,7 +57,8 @@ class SlideshowSettings extends Component {
 			isAPILoaded: false,
 			isAPISaving: false,
 			errors: {},
-			settings: this.props.data
+			settings: this.props.data,
+			dirtyFields: []
 		};
 	}
 	
@@ -155,6 +156,14 @@ class SlideshowSettings extends Component {
 		            help=""
 		            checked={ this.getSetting('showDescriptionInCaption') }
 		            onChange={ ( value ) => this.persistSetting( 'showDescriptionInCaption', value ) }
+		        />
+		        
+		        <CheckboxControl
+		            heading=""
+		            label="Display link to attachment page"
+		            help=""
+		            checked={ this.getSetting('showAttachmentLink') }
+		            onChange={ ( value ) => this.persistSetting( 'showAttachmentLink', value ) }
 		        />
 
 				

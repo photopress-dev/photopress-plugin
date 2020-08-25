@@ -47,7 +47,9 @@ class slideshow extends photopress_module {
 			'detail_position',
 			'detail_components',
 			'showTitleInCaption',
-			'showDescriptionInCaption'
+			'showDescriptionInCaption',
+			'showAttachmentLink',
+			'attachmentLinkText'
 		];
 		
 		$args_dom = '';
@@ -234,7 +236,36 @@ class slideshow extends photopress_module {
 					'label_for'								=> 'Display the image description as part of the caption info.',
 					'error_message'							=> 'You must select On or Off.'		
 				)				
-			)
+			),
+			
+			'showAttachmentLink'				=> array(
+			
+				'default_value'							=> false,
+				'field'									=> array(
+					'type'									=> 'boolean',
+					'title'									=> 'Show link to attachment page',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'Display link to attachment page for the image.',
+					'label_for'								=> 'Display link to attachment page for the image.',
+					'error_message'							=> 'You must select On or Off.'		
+				)				
+			),
+			
+			'attachmentLinkText'				=> array(
+			
+				'default_value'							=> 'Read More...',
+				'field'									=> array(
+					'type'									=> 'string',
+					'title'									=> 'text for Show link to attachment page',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'text for link to attachment page for the image.',
+					'label_for'								=> 'Text for link to attachment page for the image.',
+					'error_message'							=> 'You must select On or Off.'		
+				)				
+			),
+			
 			
 		);
 		

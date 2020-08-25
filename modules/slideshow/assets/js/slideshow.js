@@ -29,7 +29,9 @@ photopress.slideshow = function( selector, options ) {
 		'showCaptions', 
 		'detail_position',  
 		'showTitleInCaption',
-		'showDescriptionInCaption'
+		'showDescriptionInCaption',
+		'showAttachmentLink',
+		'attachmentLinkText'
 	];
 	
 	// load overrides from dom data attributes
@@ -73,6 +75,8 @@ photopress.slideshow.prototype = {
 		showTitleInCaption: false,
 		showDescriptionInCaption: false,
 		showCaptions: true,
+		showAttachmentLink: false,
+		attachmentLinkText: 'Read More...',
 		gallerySelector: '.photopress-gallery',
 		clickStart: true, 										// delay start of slideshow until something is clicked.
 		clickStartSelector: '.photopress-gallery-item', 		// DOM element to start the slideshow
@@ -211,11 +215,14 @@ photopress.slideshow.prototype = {
 		let caption = this.getCaptionFromGalleryItem( galleryItemId );
 		let title = this.getDataFromGalleryItem( galleryItemId, 'image-title' );
 		let description = this.getDataFromGalleryItem( galleryItemId, 'image-description' );
+		let attachmentLink = this.getDataFromGalleryItem( galleryItemId, 'attachment-url' );
 		
 		let slideInfoPosition = this.getOption('detail_position'); 
 		let showTitleInCaption = this.getOption('showTitleInCaption');
 		let showCaptions = this.getOption('showCaptions');
 		let showDescriptionInCaption = this.getOption('showDescriptionInCaption');
+		let showAttachmentLink = this.getOption('showAttachmentLink');
+		let attachmentLinkText = this.getOption('attachmentLinkText');
 		
 		//load handler that once image is loaded will insert it into the DOM
 		jQuery(i).on('load', function() {
@@ -239,6 +246,12 @@ photopress.slideshow.prototype = {
 			
 			if ( description && showDescriptionInCaption ) {
 				jQuery('.slide-info').append(`<div class="info description">${description}</div>`);
+			}
+			
+			if ( showAttachmentLink ) {
+				
+				 
+				jQuery('.slide-info').append(`<div class="info attachment-link"><a href="${attachmentLink}">${attachmentLinkText}</a></div>`);
 			}
 
 		});
