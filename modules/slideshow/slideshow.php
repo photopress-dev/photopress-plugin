@@ -256,7 +256,7 @@ class slideshow extends photopress_module {
 			
 				'default_value'							=> 'Read More...',
 				'field'									=> array(
-					'type'									=> 'string',
+					'type'									=> 'text',
 					'title'									=> 'text for Show link to attachment page',
 					'page_name'								=> 'gallery-slideshow',
 					'section'								=> 'general',

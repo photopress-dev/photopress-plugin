@@ -57,9 +57,37 @@ class SlideshowSettings extends Component {
 			isAPILoaded: false,
 			isAPISaving: false,
 			errors: {},
-			settings: this.props.data,
+			settings: {
+				enable: true,
+				showThumbnails: true,
+				showCaptions: true,
+				detail_position: 'bottom',
+				thumbnailHeight: 120,
+				showTitleInCaption: false,
+				showDescriptionInCaption: false,
+				showAttachmentLink: false,
+				attachmentLinkText: "Read Me..."
+			},
+			
 			dirtyFields: []
 		};
+		
+		// override settigns with data passed in from the settings API
+		this.state.settings = { ...this.state.settings, ...this.props.data };
+		
+		this.settingsSchema = {
+			
+			attachmentLinkText: {
+				
+				type: 'string',
+				validations: [
+					
+					{ type: 'notEmpty', errorSection: 'slideshow', errorMsg: 'Cannot be empty.'}
+				]
+			}
+			
+		}
+			
 	}
 	
 	componentDidMount() {
@@ -89,7 +117,7 @@ class SlideshowSettings extends Component {
 				{ this.getError('slideshow') &&
 					
 					<Notice status="error">
-				        <p>An error occurred: <code>{ this.getError('slideshow') }</code>.</p>
+				        <p>An error occurred: <code>{ this.getError('slideshow') }</code></p>
 				    </Notice>	
 									
 				}
@@ -167,7 +195,24 @@ class SlideshowSettings extends Component {
 		        />
 
 				
-				<hr/>		
+				<TextControl
+					id={'attachment_link_text'}
+					label={ __('Attachment Link Text') }
+					value={ this.getSetting('attachmentLinkText') } 
+					className=" right-pad"
+					help={"The text to display in the attachment link."}
+					onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value.trim() ) }
+				/>
+
+				<Button
+					isPrimary
+					disabled={ this.state.isAPISaving }
+					onClick={ this.saveSettings }
+					className="components-base-control__field"
+				>
+					{ __( 'Save' ) }
+				</Button>
+		
 				
 				
 				

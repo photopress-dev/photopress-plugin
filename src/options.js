@@ -163,7 +163,7 @@ class SettingsPage extends Component {
 			//console.log(tab);
 			let rf = function() {};
 			let anchor = window.location.hash ? window.location.hash.substring(1) : tab.name;
-			console.log( 'anchor', anchor);
+			
 			switch( anchor ) {
 				
 				case "photopress_core_metadata":
@@ -229,7 +229,7 @@ class SettingsPage extends Component {
 	
 								<div className="photopress-info-button-group">
 									<Button
-										isDefault
+										isSecondary
 										className="right-pad"
 										target="_blank"
 										href="https://github.com/photopress-dev/photopress-plugin/issues"
@@ -238,7 +238,7 @@ class SettingsPage extends Component {
 									</Button>
 	
 									<Button
-										isDefault
+										isSecondary
 										target="_blank"
 										href="https://github.com/photopress-dev/photopress-plugin/wiki"
 									>

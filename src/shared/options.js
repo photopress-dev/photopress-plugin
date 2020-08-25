@@ -1,27 +1,28 @@
+/**
+ * Option helper methods
+ */
+
 export function saveSettings( module ) {
 		
-	
-	
 	//console.log(this.state);
 	
-	let validated = true;
+	let ever_validated = true;
 	
 	if ( this.state.dirtyFields.length > 0 ) {
 		
-		console.log('dirty fields', this.dirtyFields);
-		
 		this.state.dirtyFields.map( ( name, index ) => {
 			
-			console.log('validating field:', name);
+			let validated;
 			
 			if ( this.settingsSchema.hasOwnProperty( name ) && this.settingsSchema[ name ].validations.length > 0 ) {
 				
 				this.settingsSchema[ name ].validations.map( ( validation ) => {
 					
 					validated = validateInput( this.getSetting( name ), validation.type );
-			
+					
 					if ( ! validated ) {
-						
+					
+						ever_validated = false;
 						this.setError( validation.errorSection, validation.errorMsg );
 						
 					} else {
@@ -32,25 +33,29 @@ export function saveSettings( module ) {
 				});
 			}
 		});
-	}
-	
-	if ( validated ) {
 		
-		this.setState({ isAPISaving: true });
-		
-		const module_name = this.props.settingsGroup;
-		
-		const model = new wp.api.models.Settings({
-			// eslint-disable-next-line camelcase
-			[module_name]: this.state.settings
-		});
-	
-		model.save().then( response => {
-			this.setState({
-				settings: response[module_name],
-				isAPISaving: false
+		if ( ever_validated ) {
+			
+			this.setState({ isAPISaving: true });
+			
+			const module_name = this.props.settingsGroup;
+			
+			const model = new wp.api.models.Settings({
+				// eslint-disable-next-line camelcase
+				[module_name]: this.state.settings
 			});
-		});
+		
+			model.save().then( response => {
+				
+				// merge response with any other defaults
+				let new_settings = { ...this.state.settings, ...response[module_name] };
+				this.setState({
+					settings: new_settings,
+					isAPISaving: false,
+					dirtyFields: []
+				});
+			});
+		}
 	}
 }
 
@@ -67,9 +72,25 @@ export function validateInput( input, type ) {
 	    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
 		
 		let ret = pattern.test( input );
-		console.log('validation result', ret);
+		//console.log('validation result', ret);
 		return ret;
-
+	}
+	
+	
+	if ( type === 'notEmpty' ) {
+		
+		input = input.trim();
+		
+		let len = input.length;
+		
+		if ( len > 0 ) {
+			
+			return true;
+		} else {
+			
+			return false;
+			
+		}
 	}
 }
 		

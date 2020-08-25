@@ -66,7 +66,19 @@ class MetadataSettings extends Component {
 			isAPILoaded: false,
 			isAPISaving: false,
 			errors: {},
-			settings: this.props.data,
+			settings: {
+				
+				custom_taxonomies_enable: true,
+				embed_licensor_enable: false,
+				web_statement_of_rights: '',
+				licensor_name: '',
+				licensor_url: '',
+				custom_taxonomies: [],
+				custom_taxonomies_tag_delimiter: ':',
+				alt_text_enable: true,
+				alt_text_template: '[photoshop:Headline]. [photopress:stringOfKeywords].',
+				strip_metadata_from_resized_image: false
+			},
 			isNewTaxPresent: false,
 			modalOpen: false,
 			newTaxDefinition: {
@@ -79,6 +91,11 @@ class MetadataSettings extends Component {
 			dirtyFields: []	
 		};
 		
+		
+		// override default settings with data passed in from the site settings API
+		this.state.settings = { ...this.state.settings, ...this.props.data };
+		
+		// settings schema used for sanitize and validations.
 		this.settingsSchema = {
 			
 			web_statement_of_rights: {
