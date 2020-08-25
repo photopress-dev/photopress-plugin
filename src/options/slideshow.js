@@ -31,7 +31,8 @@ import {
 	saveSettings,
 	getError,
 	setError,
-	persistSetting
+	persistSetting,
+	sanitize
 	
 } from '../shared/options.js';
 /**
@@ -198,10 +199,11 @@ class SlideshowSettings extends Component {
 				<TextControl
 					id={'attachment_link_text'}
 					label={ __('Attachment Link Text') }
-					value={ this.getSetting('attachmentLinkText') } 
+					value={ this.getSetting( 'attachmentLinkText' ) } 
 					className=" right-pad"
 					help={"The text to display in the attachment link."}
-					onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value.trim() ) }
+					onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value ) }
+					onBlur={ ( event ) => this.setSetting( 'attachmentLinkText', sanitize( event.target.value, 'string' ) ) }
 				/>
 
 				<Button

@@ -11,7 +11,7 @@ export function saveSettings( module ) {
 	if ( this.state.dirtyFields.length > 0 ) {
 		
 		this.state.dirtyFields.map( ( name, index ) => {
-			
+						
 			let validated;
 			
 			if ( this.settingsSchema.hasOwnProperty( name ) && this.settingsSchema[ name ].validations.length > 0 ) {
@@ -59,6 +59,17 @@ export function saveSettings( module ) {
 	}
 }
 
+export function sanitize( value, type ) {
+	
+	if (type ===  'string') {
+			
+			let nv = value.trim() + '';
+			return nv;
+	}
+	
+	return value;
+}
+
 export function validateInput( input, type ) {
 	
 	if ( type === 'url' ) {
@@ -102,8 +113,8 @@ export function	getSetting ( key ) {
 	}
 }
 	
-export function	setSetting ( key, value ) {
-	
+export function	setSetting ( key, value, persist ) {
+
 	let df = this.state.dirtyFields;
 	df.push(key);
 	
@@ -113,32 +124,33 @@ export function	setSetting ( key, value ) {
 		[key]: value
 	};
 	
-	
-	
-	this.setState( 
-		{ 
-			settings: new_settings,
-			dirtyFields: df
-		}
-	);
-	
-	
+	if (persist) {
+		
+		this.setState( 
+			{ 
+				settings: new_settings,
+				dirtyFields: df
+				
+			},
+			() => this.saveSettings()
+		);
+		
+	} else {
+		
+		this.setState( 
+			{ 
+				settings: new_settings,
+				dirtyFields: df
+			}
+		);	
+		
+	}	
 }
 
 export function	persistSetting ( key, value ) {
 	
-	let new_settings = {
-		
-		...this.state.settings,
-		[key]: value
-	};
+	this.setSetting( key, value, true );
 	
-	this.setState( 
-		{ 
-			settings: new_settings
-		},
-		() => this.saveSettings()
-	);
 }
 	
 export function	deleteSetting ( pack, module, key, subKey ) {

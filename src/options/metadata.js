@@ -31,7 +31,8 @@ import {
 	saveSettings,
 	getError,
 	setError,
-	persistSetting
+	persistSetting,
+	sanitize
 	
 } from '../shared/options.js';
 /**
@@ -214,7 +215,8 @@ class MetadataSettings extends Component {
 		
 		if ( key === 'singularLabel') {
 			
-			newVal.id = 'pp_' + value;
+			// dont allow any spaces in the id value, replace with underscore.
+			newVal.id = 'pp_' + value.replace(/\s+/g, "_");
 			
 		}
 		
@@ -234,27 +236,7 @@ class MetadataSettings extends Component {
 
 		//console.log(this.state);
 	}
-	
-	setUrlSetting( key, value) {
 		
-		var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-	    '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-	    '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-	    '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-	    '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
-	    '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
-		
-		let ret = pattern.test( value );
-		
-		if (ret) {
-			
-			this.setSetting( key, value );
-		} else {
-			
-			this.setError( 'licensor', `${key} is not a valid url.` );
-		}
-	}
-	
 	setNewTaxPresent() {
 		
 		let isNewTaxPresent = this.state.isNewTaxPresent;
@@ -335,6 +317,7 @@ class MetadataSettings extends Component {
 				                  className="right-pad"
 				                  placeholder='e.g. Cars'
 					              onChange={ e => this.newTaxValueChange( 'pluralLabel', e ) }
+					              
 					              help={''}
 								/>
 							</div>
@@ -558,7 +541,8 @@ class MetadataSettings extends Component {
 					value={ this.getSetting('custom_taxonomies_tag_delimiter') } 
 					className="tiny-input right-pad"
 					length={5}
-					onChange={ ( value ) => this.setSetting( 'custom_taxonomies_tag_delimiter', value.trim() ) }
+					onChange={ ( value ) => this.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
+					onBlur={ ( event ) => this.setSetting( 'custom_taxonomies_tag_delimiter', sanitize( event.target.value, 'string' ) ) }
 					
 				/>
 			</BaseControl>	
@@ -619,7 +603,8 @@ class MetadataSettings extends Component {
 						className="small-input right-pad"
 						
 						help={"The template to use for populating alt text. Meta-data placeholders should be surounded by square brackets (i.e. [photoshop:Headline]"}
-						onChange={ ( value ) => this.setSetting( 'alt_text_template', value.trim() ) }
+						onChange={ ( value ) => this.setSetting( 'alt_text_template', value ) }
+						onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
 					/>
 					
 					<Button
@@ -659,7 +644,8 @@ class MetadataSettings extends Component {
 						value={ this.getSetting('licensor_name') } 
 						className=" right-pad"
 						help={"The name of the person or organization that licenses your images."}
-						onChange={ ( value ) => this.setSetting( 'licensor_name', value.trim() ) }
+						onChange={ ( value ) => this.setSetting( 'licensor_name', value ) }
+						onBlur={ ( event ) => this.setSetting( 'licensor_name', sanitize( event.target.value, 'string' ) ) }
 					/>
 				
 					
