@@ -16,21 +16,19 @@ class metadata extends photopress_module {
 	
 	public function definePublicHooks() {
 		
-		add_filter( 'max_srcset_image_width', 3000, 10,1);
+		add_filter( 'max_srcset_image_width', [$this, 'setMaxSrcsetSize'], 10,2);
 		
 		// add additional meta-data to images
 		add_filter( 'wp_read_image_metadata', [$this, 'storeMoreMetaData'], 10, 5);
 		
 		// add additional attributes to images
-		add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
-		add_filter( 'the_content', array( $this, 'addAttributesToImagesInContent' ) );
-		
-		//add_filter( 'wp_calculate_image_srcset', [ $this, 'sortImageSrcset'], 10, 5 );
+		//add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
+		add_filter( 'render_block', [ $this, 'addAttributesToImagesInContent' ], 11, 3 );
 		
 		// embed license meta-data in all uploaded images even if it already exists.
 		if ( pp_api::getOption('core', 'metadata', 'embed_licensor_enable') ) {
 			
-			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1,4 );
+			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1, 4 );
 		}
 		
 		// stop wordpress from stripping image meta from resized images.
@@ -92,8 +90,18 @@ class metadata extends photopress_module {
 	 * @param string $content HTML content of the post
 	 * @return string Modified HTML content of the post
 	 */
-	function addAttributesToImagesInContent( $content ) {
-	
+	public function addAttributesToImagesInContent( $content, $block ) {
+		
+		photopress_util::debug('hello from attrincontent');
+		
+		$allowedBlocks = ['photopress/gallery', 'core/image'];
+		
+		if( ! in_array( $block['blockName'], $allowedBlocks ) ) {
+			
+			return $content;
+  		}
+		
+		
 		if ( ! preg_match_all( '/<img [^>]+>/', $content, $matches ) ) {
 			
 			return $content;
@@ -102,6 +110,7 @@ class metadata extends photopress_module {
 		$selected_images = [];
 		
 		foreach ( $matches[0] as $image_html ) {
+			
 			
 			if ( preg_match( '/(wp-image-|data-id=)\"?([0-9]+)\"?/i', $image_html, $class_id ) ) {
 				
@@ -122,7 +131,7 @@ class metadata extends photopress_module {
 			
 			return $content;
 		}
-
+		
 		$attachments = get_posts(
 			
 			[
@@ -172,7 +181,7 @@ class metadata extends photopress_module {
 		$attachment_title 	= wptexturize( $attachment->post_title );
 		$attachment_caption = wptexturize( $attachment->post_excerpt );
 		$attachment_desc  	= wpautop( wptexturize( $attachment->post_content ) );
-		$attachment_url		= wp_get_attachment_url( $attachment_id );
+		$attachment_url		= get_attachment_link( $attachment_id );
 		
 		$attr[ 'data-orig-file' ]         	= esc_attr( $orig_file );
 		$attr[ 'data-attachment-url' ]		= esc_attr( $attachment_url );
@@ -202,6 +211,8 @@ class metadata extends photopress_module {
 		}
 		
 		$attr[ 'srcset']					= wp_get_attachment_image_srcset( $attachment_id );
+		
+		
 		
 		return $attr;
 	}
@@ -805,6 +816,11 @@ class metadata extends photopress_module {
 		ksort( $sources );
 		
 		return $sources;
+	}
+	
+	public function setMaxSrcsetSize( $max_width, $size_array ) {
+		
+		return 3000;
 	}
 }
 
