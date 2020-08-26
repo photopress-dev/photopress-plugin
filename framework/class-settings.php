@@ -140,7 +140,7 @@ class photopress_settingsPage {
 			
 			$type = $field->properties['type'];
 			
-			//$r = ['type' => $type];
+			$r = ['type' => ''];
 			
 			if ( $type === 'text' ) {
 			
@@ -176,7 +176,7 @@ class photopress_settingsPage {
 			
 			if ( $type === 'url' ) {
 			
-				$r = ['type' => 'text'];
+				$r = ['type' => 'string'];
 			}
 			
 /*
