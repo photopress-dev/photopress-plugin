@@ -74,6 +74,7 @@ $dark-gray-primary: #f9f9f9;
 		display: inline-flex;
 		background: #fff;
 		
+		// should this be here?
 		.components-button {
  			color: black;
  			//min-width: 24px;
@@ -83,10 +84,20 @@ $dark-gray-primary: #f9f9f9;
 
 
  		}
-
+ 		
+ 		// should this be here?
  		.components-button:focus {
  			color: inherit;
  		}
+ 		
+ 		.block-editor-media-placeholder {
+			margin: 0;
+			height: 100%;
+	
+			.components-placeholder__label {
+				display: flex;
+			}
+		}
 	}
 }
 
@@ -98,9 +109,11 @@ $dark-gray-primary: #f9f9f9;
 
 }
 
+/*
 figure.is-selected {
     outline: 4px solid #0085ba;
 }
+*/
 
 
 .photopress-gallery-item__inline-menu {
@@ -108,18 +121,23 @@ figure.is-selected {
 	position: absolute;
 	top: -2px;
 	
-	border: 1px solid black;
-	border-radius: $radius-block-ui;
 	z-index: z-index(".photopress-gallery-item__inline-menu");
+	transition: box-shadow 0.2s ease-out;
+	border: 1px solid black;
+	background: white;
+	border-radius: $radius-block-ui;
 	
+	&:hover {
+		box-shadow: none;
+	}
+	
+		
+/*
 	.components-button {
  		color: transparent;
  		
  	}
-	
-	&:hover {
-		box-shadow: inherit;
-	}
+*/
 
 	.components-button.has-icon {
 		

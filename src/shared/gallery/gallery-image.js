@@ -2,7 +2,6 @@
  * External dependencies
  */
 import classnames from 'classnames';
-import { debounce } from 'lodash';
 
 /**
  * WordPress dependencies
@@ -27,8 +26,8 @@ class GalleryImage extends Component {
 	
 		super( ...arguments );
 
-		this.onBlur = this.onBlur.bind( this );
-		this.onFocus = this.onFocus.bind( this );
+		//this.onBlur = this.onBlur.bind( this );
+		//this.onFocus = this.onFocus.bind( this );
 		this.onSelectImage = this.onSelectImage.bind( this );
 		this.onSelectCaption = this.onSelectCaption.bind( this );
 		this.onRemoveImage = this.onRemoveImage.bind( this );
@@ -36,19 +35,6 @@ class GalleryImage extends Component {
 		this.onEdit = this.onEdit.bind( this );
 		this.onSelectImageFromLibrary = this.onSelectImageFromLibrary.bind( this );
 		this.onSelectCustomURL = this.onSelectCustomURL.bind( this );
-
-		// The onDeselect prop is used to signal that the GalleryImage component
-		// has lost focus. We want to call it when focus has been lost
-		// by the figure element or any of its children but only if
-		// the element that gained focus isn't any of them.
-		//
-		// debouncedOnSelect is scheduled every time a figure's children
-		// is blurred and cancelled when any is focused. If none gain focus,
-		// the call to onDeselect will be executed.
-		//
-		// onBlur / onFocus events are quick operations (<5ms apart in my testing),
-		// so 50ms accounts for 10x lagging while feels responsive to the user.
-		this.debouncedOnDeselect = debounce( this.props.onDeselect, 50 );
 
 		this.state = {
 			captionSelected: false,
@@ -130,22 +116,11 @@ class GalleryImage extends Component {
 			} );
 		}
 	}
-
-	/**
-	 * Note that, unlike the DOM, all React events bubble,
-	 * so this will be called after the onBlur event of any figure's children.
-	 */
-	onBlur() {
-		this.debouncedOnDeselect();
-	}
-
-	/**
-	 * Note that, unlike the DOM, all React events bubble,
-	 * so this will be called after the onBlur event of any figure's children.
-	 */
-	onFocus() {
-		this.debouncedOnDeselect.cancel();
-	}
+	
+	deselectOnBlur() {
+ 		this.props.onDeselect();
+ 	}
+ 	
 	
 	onSelectImageFromLibrary( media ) {
 		
@@ -275,8 +250,6 @@ class GalleryImage extends Component {
 		return (
 			<figure
 				className={ className }
-				onBlur={ this.onBlur }
-				onFocus={ this.onFocus }
 				style={ inlineStyle }
 
 			>
