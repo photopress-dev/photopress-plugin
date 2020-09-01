@@ -285,9 +285,15 @@ class XmpReader {
 	
 	function getCamera() {
 		
-		$camera = $this->getExif('Make') . ' ' . $this->getExif('Model');
+		$camera = '';
+		
+		if ( $this->getExif('Make') && $this->getExif('Model') ) {
+		
+			$camera = $this->getExif('Make') . ' ' . $this->getExif('Model');
+		}
 		
 		if (! $camera ) {
+			
 			$this->getXmp('tiff:Model');
 		}
 		

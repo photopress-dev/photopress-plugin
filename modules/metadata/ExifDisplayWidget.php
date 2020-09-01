@@ -50,7 +50,10 @@ class ExifDisplayWidget extends WP_Widget {
 		
 			foreach ( $values as $key => $value ) {
 					
-					$html .= '<div class="container"><div class="label">'. $key .': </div><div class="terms">' . $value . '</div></div>';		
+					if ( $value ) {
+					
+						$html .= '<div class="container"><div class="label">'. $key .': </div><div class="terms">' . $value . '</div></div>';	
+					}	
 			}
 		
 			$html .= '<div>';

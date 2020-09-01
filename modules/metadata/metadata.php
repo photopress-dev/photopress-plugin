@@ -284,7 +284,10 @@ class metadata extends photopress_module {
 		//pp_api::debug($iptc);
 		//pp_api::debug($exif);
 		
-		$meta['camera'] = $exif['Make'] . ' ' . $exif['Model'];
+		if ( $exif['Make'] && $exif['Model'] ) {
+		
+			$meta['camera'] = $exif['Make'] . ' ' . $exif['Model'];
+		}
 		
 		if ( array_key_exists( 'LightSource', $exif ) ) {
 		
