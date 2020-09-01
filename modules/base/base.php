@@ -9,8 +9,7 @@ class base extends photopress_module {
 
 	public function definePublicHooks() {
 	
-		add_action( 'wp_enqueue_scripts', array( $this, 'photopress_base_js' ) );
-	
+		add_action( 'wp_enqueue_scripts', [ $this, 'photopress_base_js' ] );
 	}
 	
 	public function defineAdminHooks() {

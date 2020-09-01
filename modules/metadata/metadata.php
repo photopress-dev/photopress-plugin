@@ -31,6 +31,8 @@ class metadata extends photopress_module {
 			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1, 4 );
 		}
 		
+		add_filter( 'frame/attachment/image_markup', [ $this, 'addLicenseToImageMarkup'], 10, 2 );
+		
 		// stop wordpress from stripping image meta from resized images.
 		add_filter ('image_strip_meta', function() {
 			
@@ -92,8 +94,6 @@ class metadata extends photopress_module {
 	 */
 	public function addAttributesToImagesInContent( $content, $block ) {
 		
-		photopress_util::debug('hello from attrincontent');
-		
 		$allowedBlocks = ['photopress/gallery', 'core/image'];
 		
 		if( ! in_array( $block['blockName'], $allowedBlocks ) ) {
@@ -141,7 +141,9 @@ class metadata extends photopress_module {
 				'suppress_filters' => false,
 			]
 		);
-
+		
+		$licensable_images = [];
+		
 		foreach ( $attachments as $attachment ) {
 			
 			$image_html = $selected_images[ $attachment->ID ];
@@ -158,14 +160,20 @@ class metadata extends photopress_module {
 			$find[] = $image_html;
 			
 			$replace[] = str_replace( '<img ', "<img $attributes_html", $image_html );
+			
+			// add licensable image
+			$licensable_images[] = $attachment->ID;
 		}
 
 		$content = str_replace( $find, $replace, $content );
 		
+		// add licensable images
+		$content .= $this->renderLicensingSchema( $licensable_images );
+	
 		return $content;
 	}
 	
-	function addAttributesToImages( $attr, $attachment = null ) {
+	public function addAttributesToImages( $attr, $attachment = null ) {
 		
 		$attachment_id = intval( $attachment->ID );
 		
@@ -215,6 +223,58 @@ class metadata extends photopress_module {
 		
 		
 		return $attr;
+	}
+	
+	public function addLicenseToImageMarkup( $markup, $attachment_id ) {
+		
+		$markup .= $this->renderLicensingSchema( $attachment_id );
+		
+		return $markup;
+	}
+	
+	public function renderLicensingSchema( $attachment_ids ) {
+		
+		$licensing_schema = $this->generateLicensingSchema( $attachment_ids );
+		
+		$content = "\n";
+		$content .= sprintf('<script type="application/ld+json">%s</script>', json_encode( $licensing_schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+		
+		return $content;
+	}
+	
+	// can take an array of Ids or a single id
+	public function generateLicensingSchema( $attachment_ids = [] ) {
+		
+		$schema_block = [];
+		
+		if ( is_array( $attachment_ids ) ) {
+			
+			foreach ( $attachment_ids as $id ) {
+				
+				$schema_block[] = $this->generateImageLicenseSchema( $id );
+			}
+			
+		} else {
+			
+			$schema_block = $this->generateImageLicenseSchema( $attachment_ids );
+		}
+		
+		return $schema_block;
+	}
+	
+	public function generateImageLicenseSchema( $attachment_id ) {
+		
+		$schema = [
+			
+			"@context"				=> "https://schema.org/",
+			"@type"					=> "ImageObject",
+			"contentUrl" 			=> wp_get_attachment_url( $attachment_id ),
+			"license" 				=> pp_api::getOption( 'core', 'metadata', 'web_statement_of_rights'),
+			"acquireLicensePage" 	=> pp_api::getOption( 'core', 'metadata', 'licensor_url')
+			
+		];
+		
+		return $schema;
 	}
 	
 	public function storeMoreMetaData( $meta, $file, $image_type, $iptc, $exif ) {
