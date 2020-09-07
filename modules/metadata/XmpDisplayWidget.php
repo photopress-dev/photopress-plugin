@@ -61,7 +61,7 @@ class XmpDisplayWidget extends WP_Widget {
 			}
 		}
 		
-		echo '<div>';
+		echo '</div>';
 		/* After widget (defined by themes). */
 		echo $after_widget;
 	}
