@@ -8,13 +8,18 @@ class ExifDisplayWidget extends WP_Widget {
 	function __construct() {
 	
 		/* Widget settings. */
-		$widget_ops = array( 'classname' => 'ExifDisplayWidget', 'description' => "Display's the EXIF info of an image. Can only be used on single image or attachment pages." );
+		$widget_ops = [ 
+		
+			'classname' => 'ExifDisplayWidget', 
+			'description' => __("Display's the EXIF info of an image. Can only be used on single image or attachment pages.", 'photopress'),
+			'customize_selective_refresh' => true 
+		];
 
 		/* Widget control settings. */
 		$control_ops = array('width' => 300);
 		
 		/* Create the widget. */
-		parent::__construct('ExifDisplayWidget', 'Display Image Exif (PhotoPress)', $widget_ops, $control_ops);
+		parent::__construct('ExifDisplayWidget', __('Display Image Exif (PhotoPress)', 'photopress'), $widget_ops, $control_ops);
 	}
 	
 	function widget( $args, $instance ) {
@@ -46,9 +51,11 @@ class ExifDisplayWidget extends WP_Widget {
 		
 		if ( $values ) {
 		
-			echo '<div class="display-taxonomy-terms-widget">';	
+			$html .= '<div class="display-exif-widget">';	
 		
 			foreach ( $values as $key => $value ) {
+					
+					$value = trim( $value );
 					
 					if ( $value ) {
 					

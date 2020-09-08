@@ -11,15 +11,16 @@ class XmpDisplayWidget extends WP_Widget {
 				
 		/* Widget settings. */
 		$widget_ops = [ 
-			'name' => 'Display Taxonomy Terms (PhotoPress)',
+			
 			'classname' => 'XmpDisplayWidget', 
-			'description' => "Display's the taxonomy terms of an image. Can only be used on single image or attachment pages." 
+			'description' => "Display's the taxonomy terms of an image. Can only be used on single image or attachment pages.",
+			'customize_selective_refresh' => true 
 		];
 
 		/* Widget control settings. */
 		$control_ops = array();
 		
-		parent::__construct( 'XmpDisplayWidget', 'Display Taxonomies (PhotoPress)', $widget_ops, $control_ops);
+		parent::__construct( 'XmpDisplayWidget', __('Display Taxonomies (PhotoPress)', 'photopress'), $widget_ops, $control_ops);
 	}
 	
 	function widget( $args, $instance ) {
@@ -34,10 +35,10 @@ class XmpDisplayWidget extends WP_Widget {
 		if ( ! array_key_exists('taxonomies', $instance ) || empty( $instance['taxonomies'] ) ) {
 			
 			$taxonomies = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people';
+			
 		} else {
 			
 			$taxonomies = $instance['taxonomies'];
-			
 		}
 		
 		$taxonomies = explode( ',', str_replace( ' ', '', $taxonomies ) );

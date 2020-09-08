@@ -55,8 +55,8 @@ class metadata extends photopress_module {
 				  'name' => 'Image Page',
 				  'id' => 'photopress-image-primary',
 				  'description' => 'Widgets in this area will be shown on single image pages.',
-				  'before_widget' => '',
-				  'after_widget' => ''
+				  'before_widget' => '<section id="%1$s" class="widget %2$s">',
+				  'after_widget' => '</section>'
 				]
 			);
 			
