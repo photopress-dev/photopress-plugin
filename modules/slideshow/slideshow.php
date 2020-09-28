@@ -127,7 +127,7 @@ class slideshow extends photopress_module {
 			wp_enqueue_script(
 				'photopress-slideshow',
 				plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-				[ 'jquery', 'imagesloaded', 'owl' ],
+				[ 'jquery', 'imagesloaded', 'owl', 'photopress' ],
 				PHOTOPRESS_CORE_VERSION
 			);
 		}
