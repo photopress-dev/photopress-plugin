@@ -81,7 +81,7 @@ class slideshow extends photopress_module {
 			
 		$o[] = '</div>';
 		
-		return implode( $o, " \n " );
+		return implode( " \n ", $o );
 	}
 	
 	public function public_scripts( $content ) {
