@@ -64,15 +64,19 @@ class XmpReader {
 				$child_taxonomy_delimiter = pp_api::getOption('core', 'metadata', 'custom_taxonomies_tag_delimiter') ?: ':';
 				
 				// drop keywords uses as child taxonomies.
-				foreach ( $keywords as $k => $v ) {
-					
-					if ( ! strpos($v, $child_taxonomy_delimiter ) ) {
-						
-						$nkeywords[] = $v;
-					}
-				}
 				
-				return implode( ', ', $nkeywords); 
+				if ( $keywords ) {
+					
+					foreach ( $keywords as $k => $v ) {
+						
+						if ( ! strpos($v, $child_taxonomy_delimiter ) ) {
+							
+							$nkeywords[] = $v;
+						}
+					}
+					
+					return implode( ', ', $nkeywords); 
+				}
 		}
 	}
 	
