@@ -284,7 +284,7 @@ class metadata extends photopress_module {
 		//pp_api::debug($iptc);
 		//pp_api::debug($exif);
 		
-		if ( $exif['Make'] && $exif['Model'] ) {
+		if ( array_key_exists('Make', $exif) && $exif['Make'] && array_key_exists('Model', $exif) && $exif['Model'] ) {
 		
 			$meta['camera'] = $exif['Make'] . ' ' . $exif['Model'];
 		}
