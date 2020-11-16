@@ -147,7 +147,6 @@ photopress.slideshow.prototype = {
 		window.onresize = this.setViewportDimensions;
 		window.onorientationchange = this.setViewportDimensions;
 		
-		
 		var that = this;
 		
 		// render if the click start is disabled.
@@ -158,19 +157,21 @@ photopress.slideshow.prototype = {
 			
 			jQuery(document).on('click', selector, function(e) {
 				
+				// get the index of the slide clciked on.
 				let i = jQuery(e.target).data( 'position' );
 				
-				
-				that.setStartPosition( i );
-				
+				// intercept the click event
 				e.preventDefault();
-				that.showLightbox();
+				
+				// display the lightbox and show the slide that was clicked on
+				that.showLightbox( i );
 				
 			});
 			
 		} else {
 			
-			this.render();
+			// show the lightbox and display the first slide.
+			this.showLightbox( this.getStartPosition() );
 		}		
 	},
 	
@@ -297,16 +298,27 @@ photopress.slideshow.prototype = {
 	
 	/**
 	 * Reveals the lightbox in the DOM
+	 *
+	 * @var i int the index of the slide to show.
 	 */
-	showLightbox: function() {
+	showLightbox: function( i ) {
 
 		var that = this;
 		
 		jQuery( '.lightbox' ).show('slow', function() {
 			
+			// render the slideshow for the first time.
 			if ( ! that.isLoaded ) {
+				
+				// render the slideshow
+				that.render( i );
+				
+			} else {
+				
+				// position the carousel and then show slide that was clicked on
 					
-				that.render();
+				that.scrollToSlide( i );
+				that.showSlide( that.getCurrentSlide() );
 			}
 			
 			jQuery( '.lightbox' ).css('opacity', '1');
@@ -432,7 +444,7 @@ photopress.slideshow.prototype = {
 	/**
 	 * Renders the Slideshow
 	 */
-	render: function () {
+	render: function ( i ) {
 		
 		var that = this;
 		
@@ -479,38 +491,46 @@ photopress.slideshow.prototype = {
 			}
 		
 		} while ( true );
-			
+		
+		// try to wait for thumbnails to load...
 		jQuery('.thumbnail-list').imagesLoaded( function( instance ) {
 			
 			setTimeout(function() {
 				
-				that.initCarousel();	
+				// initialize the carousel once all the thumbnails have loaded
+				that.initCarousel( i );	
 				
 			}, 700)
 			
 		});
 	},
 	
-	initCarousel: function() {
+	/**
+	 * Initialize the carousel
+	 *
+	 * @var i int the starting slide postion
+	 */
+	initCarousel: function( i ) {
 	
 		var that = this;
 		// initialize the thumbnail carousel
+		
+		// set the start position of the carousel
+		that.setStartPosition( i );
+		
 		this.initThumbnailCarousel( this.getOption('thumbnailCarousel'), function() {
 			
 			// show first slide
 			var img = that.getCurrentSlide();
-			
-			// set right caption class
-			
+			// show the start slide
 			that.showSlide( img );
-			
+			// register slideshow UI click handlers 
 			that.registerHandlers();
 					
 			// set the loaded flag so that we do not render again if lightbox is 
 			// closed and then re-opened.
 			that.isLoaded = true;
 
-			
 		});
 	},
 	
@@ -643,6 +663,12 @@ photopress.slideshow.prototype = {
 	setStartPosition: function( index ) {
 		
 		this.options.thumbnailCarousel.startPosition = index;
+	},
+	
+	getStartPosition: function() {
+		
+		var thumbnailCarousel = this.getOption('thumbnailCarousel');
+		return thumbnailCarousel.startPosition;
 	}
 		
 };
