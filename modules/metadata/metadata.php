@@ -694,6 +694,8 @@ class metadata extends photopress_module {
 			
 			if ( $value ) {
 			    $template = str_replace('['.$key.']', $value, $template);
+			} else {
+				$template = str_replace('['.$key.']', '', $template);
 			}
 		}
 
