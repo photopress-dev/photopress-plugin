@@ -23,7 +23,7 @@ import { Component, Platform, Fragment } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { getBlobByURL, isBlobURL, revokeBlobURL } from '@wordpress/blob';
 import { withSelect } from '@wordpress/data';
-import { withViewportMatch } from '@wordpress/viewport';
+//import { withViewportMatch } from '@wordpress/viewport';
 import { withNotices} from '@wordpress/components';
 
 /**
@@ -515,5 +515,5 @@ export default compose( [
 		};
 	} ),
 	withNotices,
-	withViewportMatch( { isNarrow: '< small' } ),
+	//withViewportMatch( { isNarrow: '< small' } ),
 ] )( GalleryEdit );
