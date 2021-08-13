@@ -26,7 +26,7 @@ class slideshow extends photopress_module {
 	}
 	
 	public function render_slideshow( $block_content, $block ) {
-    	
+
     	// check to make sure we are dealing with a gallery block
 		if( "photopress/gallery" !== $block['blockName'] ) {
 		

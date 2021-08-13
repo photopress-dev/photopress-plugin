@@ -128,6 +128,7 @@ class MetadataSettings extends Component {
 	addNewTaxonomy( event ) {
 			
 		let value = this.state.newTaxDefinition.pluralLabel;
+		let df = this.state.dirtyFields;
 		
 		if ( ! value ) {
 			
@@ -152,7 +153,11 @@ class MetadataSettings extends Component {
 		// check for duplicates
 		if ( ! current_tax.includes( value ) ) {
 			custom_taxonomies.push( this.state.newTaxDefinition );
+			
+			
+			df.push('custom_taxonomies');
 		}
+		
 		
 		
 		// set state
@@ -161,6 +166,7 @@ class MetadataSettings extends Component {
 				...this.state.settings,
 				custom_taxonomies: custom_taxonomies
 			},
+			dirtyFields: df,
 			newTaxDefinition: {
 				
 				id: '',
@@ -177,8 +183,6 @@ class MetadataSettings extends Component {
 		);
 		
 		//console.log(this.state.settings);
-		;
-			
 	}
 		
 	deleteCustomTaxonomy ( event ) {
@@ -195,16 +199,8 @@ class MetadataSettings extends Component {
 		
 			custom_taxonomies.splice( index, 1 );
 		}
-
-		this.setState(
-			{ 
-				settings: {
-					...this.state.settings,
-					custom_taxonomies
-				}
-			},
-			this.saveSettings	
-		);
+		
+		this.setSetting ( 'custom_taxonomies', custom_taxonomies, true );
 	}
 		
 	newTaxValueChange( key, value ) {

@@ -44,7 +44,7 @@ export function saveSettings( module ) {
 				// eslint-disable-next-line camelcase
 				[module_name]: this.state.settings
 			});
-		
+			
 			model.save().then( response => {
 				
 				// merge response with any other defaults

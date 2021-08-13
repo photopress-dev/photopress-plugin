@@ -31,7 +31,8 @@ photopress.slideshow = function( selector, options ) {
 		'showTitleInCaption',
 		'showDescriptionInCaption',
 		'showAttachmentLink',
-		'attachmentLinkText'
+		'attachmentLinkText',
+		'linkTo'
 	];
 	
 	// load overrides from dom data attributes
@@ -83,6 +84,7 @@ photopress.slideshow.prototype = {
 		detail_position: 'bottom',
 		thumbnailHeight: 120,
 		showThumbnails: true,
+		linkTo: 'attachment',
 		thumbnailCarousel: {
 			
 
