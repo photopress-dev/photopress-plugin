@@ -21,9 +21,9 @@
             "type": "package",
             "package": {
                 "name": "philharvey/exiftool",
-                "version": "12.04",
+                "version": "12.30",
                 "dist": {
-                    "url": "https://exiftool.org/Image-ExifTool-12.04.tar.gz",
+                    "url": "https://exiftool.org/Image-ExifTool-12.30.tar.gz",
                     "type": "tar"
                 }
             }
