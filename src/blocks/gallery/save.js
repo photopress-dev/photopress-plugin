@@ -76,7 +76,7 @@ export default function save( { attributes } ) {
 	}
 	
 	// set classes and variables for Row and Mosaic styles.
-	if ( galleryStyle === 'rows' || galleryStyle === 'mosaic' ) {
+	if ( galleryStyle === 'rows' || galleryStyle === 'mosaic' || galleryStyle === 'masonry' ) {
 		
 		galleryInlineCss = {
 			//padding: '0', 

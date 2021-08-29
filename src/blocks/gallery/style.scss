@@ -54,6 +54,21 @@ figure.photopress-gallery {
 	
 }
 
+.photopress-gallery-masonry {
+	
+	.photopress-gallery-item {
+		
+		.photopress-gallery-item__figure {
+		
+			img {
+				
+				max-width: calc(100vw - ( var(--pp-gallery-gutter) *2 ) );
+				display:inline-block;
+			}
+		}
+	}
+}
+
 .photopress-gallery-mosaic {
 	
 	.photopress-gallery-item {
