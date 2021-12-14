@@ -135,6 +135,7 @@ class MasonryGallery extends Component {
 											}
 											caption={ img.caption }
 											aria-label={ ariaLabel }
+											style={ {width: attributes.columnWidth + "px" } }
 										/>
 				                </li>
 							);

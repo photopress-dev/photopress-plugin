@@ -185,6 +185,7 @@ class GalleryImage extends Component {
 			attributes,
 			setAttributes,
 			'aria-label': ariaLabel,
+			style
 		} = this.props;
 		
 		const {
@@ -221,6 +222,7 @@ class GalleryImage extends Component {
 					tabIndex="0"
 					aria-label={ ariaLabel }
 					ref={ this.bindContainer }
+					style={ style }
 				/>
 				{ isBlobURL( url ) && <Spinner /> }
 			</Fragment>
@@ -312,6 +314,7 @@ class GalleryImage extends Component {
 							isSelected ? __( 'Write caption…' ) : null
 						}
 						value={ caption }
+						className= {'photopress-gallery-item__caption'}
 						isSelected={ this.state.captionSelected }
 						onChange={ ( newCaption ) =>
 							setAttributes( { caption: newCaption } )

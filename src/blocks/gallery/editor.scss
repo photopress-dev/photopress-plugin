@@ -43,6 +43,19 @@ $dark-gray-primary: #f9f9f9;
 			
 			
 		}
+		
+		.photopress-gallery-item {
+			
+			figcaption {
+		
+				color:white;
+				margin-bottom:0px;
+				width: auto;
+			}
+			
+		}
+		
+		
 	}
 }
 
@@ -107,6 +120,12 @@ $dark-gray-primary: #f9f9f9;
 	display: inline-flex;
 	
 
+}
+
+.photopress-gallery-item__caption {
+	
+	color: white;
+	margin-bottom: 0px;
 }
 
 /*
