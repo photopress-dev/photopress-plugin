@@ -12,6 +12,9 @@ jobs:
     - name: Composer (php-actions)
       uses: php-actions/composer@v1
     - name: Build
+      uses: actions/setup-node@v2
+      with:
+            node-version: '12'
       run: |
         npm install
         npm run build
