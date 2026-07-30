@@ -16,7 +16,12 @@ if ( ! defined( 'WPINC' ) ) {
 }
 
 // require the composer autoloader
-require_once('vendor/autoload.php');
+// __DIR__ is required here: a bare relative path is resolved against
+// include_path, which begins with '.', so it picks up whatever vendor/
+// happens to sit in the current working directory. Under WP-CLI (or cron,
+// or any CLI entry point) that silently loads a DIFFERENT project's
+// autoloader and every class in this plugin fails to resolve.
+require_once( __DIR__ . '/vendor/autoload.php' );
 
 // Define the path to this plugin
 if ( ! defined( 'PHOTOPRESS_CORE_PATH' ) ) {
