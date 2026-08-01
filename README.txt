@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2.0
 Tested up to: 5.8
-Stable tag: 1.5.0
+Stable tag: 1.5.1
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -61,6 +61,24 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 3. Store embedded image meta-data into custom image taxonomies
 4. Generate image ALT text with meta-data templates
 5. Embed Licensing meta-data into uploaded images
+
+== Changelog ==
+
+= 1.5.1 =
+
+* Licence embedding no longer requires the ExifTool binary. It now uses Imagick,
+  which WordPress already relies on for image handling. This removes about 26MB
+  from the plugin and means licence embedding works on hosts that disable exec().
+* Existing metadata is preserved when licence information is written. Titles,
+  captions, keywords, ratings and any other XMP a photographer had embedded are
+  kept intact; previously the licence fields were the only thing that could be
+  written without risking the rest.
+* Fixed: the Web Statement of Rights setting was ignored and a placeholder value
+  was embedded instead. If you have that setting configured, re-upload affected
+  images to correct them.
+* Fixed: a settings field using the "none" control registered without a valid
+  type.
+* Fixed: a PHP 8 deprecation notice raised when embedding licence metadata.
 
 == Development ==
 
