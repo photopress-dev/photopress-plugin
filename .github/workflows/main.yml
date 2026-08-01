@@ -2,6 +2,9 @@ name: Deploy to WordPress.org
 on:
   release:
     types: [published]
+permissions:
+  contents: write
+
 jobs:
   tag:
     name: New release
@@ -35,12 +38,13 @@ jobs:
         SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
         SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
         SLUG: photopress
+    # actions/upload-release-asset was archived by GitHub in 2021.
+    #
+    # Takes the path from the deploy step's own output rather than guessing the
+    # filename. The old version hardcoded "<repository.name>.zip", i.e.
+    # photopress-plugin.zip, but the zip is named after SLUG -- photopress.zip --
+    # so the asset upload was pointing at a file that never existed.
     - name: Upload release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: softprops/action-gh-release@v2
       with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ${{github.workspace}}/${{ github.event.repository.name }}.zip
-        asset_name: ${{ github.event.repository.name }}.zip
-        asset_content_type: application/zip
+        files: ${{ steps.deploy.outputs.zip-path }}
