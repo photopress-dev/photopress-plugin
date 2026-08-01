@@ -703,62 +703,166 @@ class metadata extends photopress_module {
 	}
 	
 	public function embedLicense( $move, $file, $newfile, $type ) {
-		
-		photopress_util::debug('Embdeding license meta-data...');
-		photopress_util::debug( $file );
-		
-		$file = $file['tmp_name'];
-		
-		$wsr = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
-		$licensor_name = pp_api::getOption('core', 'metadata', 'licensor_name');
-		$licensor_url = pp_api::getOption('core', 'metadata', 'licensor_url');		
-		$exiftool_path = PHOTOPRESS_CORE_PATH . 'vendor/philharvey/exiftool/exiftool ';
-				
-		// get statement
-		$cmd = $exiftool_path;
-		
-		if ( $licensor_name && $licensor_url ) {
-			
-			$cmd .= sprintf('-xmp-plus:licensor="{LicensorName=|%s,LicensorURL=|%s}" ', $licensor_name, $licensor_url);
+
+		$path = isset( $file['tmp_name'] ) ? $file['tmp_name'] : null;
+
+		$wsr           = pp_api::getOption( 'core', 'metadata', 'web_statement_of_rights' );
+		$licensor_name = pp_api::getOption( 'core', 'metadata', 'licensor_name' );
+		$licensor_url  = pp_api::getOption( 'core', 'metadata', 'licensor_url' );
+
+		$has_licensor = ( $licensor_name && $licensor_url );
+
+		// Nothing configured, nothing to do.
+		if ( ! $path || ! is_readable( $path ) || ( ! $wsr && ! $has_licensor ) ) {
+
+			return $move;
 		}
-		
-		if ( $wsr ) {
-		
-			$statement = pp_api::getOption('core', 'metadata', 'web_statement_of_rights');
-			$statement = "Hello world";
-			$cmd .= sprintf('-xmp-xmpRights:WebStatement="%s" ', $statement);
+
+		/*
+		 * Previously this shelled out to a vendored exiftool binary. That meant a
+		 * ~12MB dependency fetched from exiftool.org (which stopped serving the
+		 * pinned 12.30 tarball, breaking every build), a chmod at runtime to make
+		 * the binary executable, and a hard requirement on exec() -- which plenty
+		 * of managed hosts disable. Imagick is already WordPress's preferred image
+		 * library and needs none of that.
+		 */
+		if ( ! class_exists( 'Imagick' ) ) {
+
+			photopress_util::debug( 'Imagick unavailable; skipping licence embedding.' );
+
+			return $move;
 		}
-		
-		// embedd in file
-		
-		$out = photopress_util::shell( $cmd . " $file");
-		photopress_util::debug($out);
-		
-		// check status msgand attempt to set executable permission on exiftool binary 
-		if ( $out['status'] === 126 ) {
-			
-			if ( function_exists( 'chmod' ) ) {
-				
-				photopress_util::debug('Attempting to set executable permission on exiftool binary.');	
-				
-				photopress_util::debug( $exiftool_path );
-				
-				$ret = chmod( trim($exiftool_path), 0755 );
-				
-				if ( ! $ret ) {
-					
-					photopress_util::debug('Could not set executable permission on exiftool binary.');	
-				}
-				
-			} else {
-				
-				photopress_util::debug('Manually set executable permission on exiftool binary.');
-			}
+
+		try {
+
+			$im = new Imagick( $path );
+
+			$profiles = $im->getImageProfiles( '*', false );
+			$existing = in_array( 'xmp', $profiles, true ) ? $im->getImageProfile( 'xmp' ) : '';
+
+			$im->setImageProfile( 'xmp', self::mergeLicenceIntoXmp( $existing, $wsr, $licensor_name, $licensor_url ) );
+			$im->writeImage( $path );
+			$im->clear();
+
+		} catch ( Exception $e ) {
+
+			// Never let a metadata problem block the upload itself.
+			photopress_util::debug( 'Could not embed licence meta-data: ' . $e->getMessage() );
 		}
-		
-		return null;
+
+		/*
+		 * Pass through whatever we were given. This filter's return value decides
+		 * whether WordPress performs the move; returning null unconditionally (as
+		 * this did) would discard another plugin's decision and move the file a
+		 * second time. Normally $move is null and the two are identical.
+		 */
+		return $move;
 	}
-	
+
+	/**
+	 * Splice the licence fields into an existing XMP packet.
+	 *
+	 * Imagick's setImageProfile() REPLACES the packet rather than merging, so
+	 * writing one that contains only the licence would discard dc:title,
+	 * dc:subject keywords, xmp:Rating, creator and any Lightroom settings the
+	 * photographer had embedded. exiftool merged; this has to as well.
+	 *
+	 * Verified against a real upload: EXIF/IPTC/ICC profiles untouched, every
+	 * XMP element preserved with the same multiplicity, no text content lost,
+	 * idempotent on re-upload, and safe on a malformed or absent packet.
+	 */
+	protected static function mergeLicenceIntoXmp( $existing, $web_statement, $licensor_name, $licensor_url ) {
+
+	    $doc = new DOMDocument();
+	    $doc->preserveWhiteSpace = false;
+	    $doc->formatOutput       = false;
+
+	    /*
+	     * The packet is wrapped in <?xpacket …?> processing instructions and may
+	     * carry a UTF-8 BOM. Strip both before parsing; they are re-added on write.
+	     *
+	     * NOTE: this is a block comment on purpose. A `//` comment containing the
+	     * sequence ?> terminates PHP mode right there -- the parser leaves code mode
+	     * mid-function and reports a bogus 'unclosed {' at end of file.
+	     */
+	    $body = trim( (string) $existing );
+	    $body = preg_replace( '/^\xEF\xBB\xBF/', '', $body );
+	    $body = preg_replace( '/<\?xpacket[^>]*\?>/', '', $body );
+	    $body = trim( $body );
+
+	    $loaded = false;
+	    if ( $body !== '' ) {
+	        $loaded = @$doc->loadXML( $body, LIBXML_NONET );
+	    }
+
+	    if ( ! $loaded ) {
+	        // No usable XMP: start a minimal well-formed packet.
+	        $doc = new DOMDocument( '1.0', 'UTF-8' );
+	        $meta = $doc->createElementNS( 'adobe:ns:meta/', 'x:xmpmeta' );
+	        $doc->appendChild( $meta );
+	        $rdf = $doc->createElementNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:RDF' );
+	        $meta->appendChild( $rdf );
+	    }
+
+	    $xp = new DOMXPath( $doc );
+	    $xp->registerNamespace( 'x', 'adobe:ns:meta/' );
+	    $xp->registerNamespace( 'rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' );
+
+	    $rdf = $xp->query( '//rdf:RDF' )->item( 0 );
+	    if ( ! $rdf ) {
+	        $root = $doc->documentElement;
+	        $rdf  = $doc->createElementNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:RDF' );
+	        $root->appendChild( $rdf );
+	    }
+
+	    // Reuse an existing rdf:Description if there is one; XMP allows several,
+	    // and creating another is legal but noisier.
+	    $desc = $xp->query( './rdf:Description', $rdf )->item( 0 );
+	    if ( ! $desc ) {
+	        $desc = $doc->createElementNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:Description' );
+	        $desc->setAttributeNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:about', '' );
+	        $rdf->appendChild( $desc );
+	    }
+
+	    // Drop any prior copies of just the two properties we own, wherever they
+	    // sit, so this is idempotent and re-uploading does not stack duplicates.
+	    $xp->registerNamespace( 'xmpRights', 'http://ns.adobe.com/xap/1.0/rights/' );
+	    $xp->registerNamespace( 'plus', 'http://ns.useplus.org/ldf/xmp/1.0/' );
+	    foreach ( [ '//xmpRights:WebStatement', '//plus:Licensor' ] as $q ) {
+	        foreach ( iterator_to_array( $xp->query( $q ) ) as $n ) {
+	            $n->parentNode->removeChild( $n );
+	        }
+	    }
+
+	    if ( $web_statement ) {
+	        $el = $doc->createElementNS( 'http://ns.adobe.com/xap/1.0/rights/', 'xmpRights:WebStatement' );
+	        $el->appendChild( $doc->createTextNode( $web_statement ) );
+	        $desc->appendChild( $el );
+	    }
+
+	    if ( $licensor_name && $licensor_url ) {
+	        $lic = $doc->createElementNS( 'http://ns.useplus.org/ldf/xmp/1.0/', 'plus:Licensor' );
+	        $seq = $doc->createElementNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:Seq' );
+	        $li  = $doc->createElementNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:li' );
+	        $li->setAttributeNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:parseType', 'Resource' );
+	        $n = $doc->createElementNS( 'http://ns.useplus.org/ldf/xmp/1.0/', 'plus:LicensorName' );
+	        $n->appendChild( $doc->createTextNode( $licensor_name ) );
+	        $u = $doc->createElementNS( 'http://ns.useplus.org/ldf/xmp/1.0/', 'plus:LicensorURL' );
+	        $u->appendChild( $doc->createTextNode( $licensor_url ) );
+	        $li->appendChild( $n );
+	        $li->appendChild( $u );
+	        $seq->appendChild( $li );
+	        $lic->appendChild( $seq );
+	        $desc->appendChild( $lic );
+	    }
+
+	    $xml = $doc->saveXML( $doc->documentElement );
+
+	    return "<?xpacket begin=\"\xEF\xBB\xBF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n"
+	         . $xml
+	         . "\n<?xpacket end=\"w\"?>";
+	}
+
 	public function setTaxonomyTerms( $id, $md ) {
 		
 		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');

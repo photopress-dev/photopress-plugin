@@ -23,8 +23,12 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    # v1 dates from 2021. Composer is still needed even though there are no
+    # runtime dependencies left: composer.json's autoload block (psr-4 plus a
+    # classmap over framework/) is what makes pp_api and the rest of the
+    # framework loadable at all.
     - name: Composer (php-actions)
-      uses: php-actions/composer@v1
+      uses: php-actions/composer@v6
     
     # Node 12 is PINNED DELIBERATELY -- do not "modernise" it.
     # Two hard blockers, both reproduced 2026-08-01:

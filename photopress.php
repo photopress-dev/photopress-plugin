@@ -151,15 +151,8 @@ class photopress_plugin {
 	
 	public static function activate() {
 		
-		$exiftool_path = PHOTOPRESS_CORE_PATH . 'vendor/philharvey/exiftool/exiftool ';	
-		if ( function_exists( 'chmod' ) ) {
-			photopress_util::debug( $exiftool_path );
-			$ret = chmod( trim($exiftool_path), 0755 );
-			photopress_util::debug( $ret );
-		} else {
-			
-			photopress_util::debug('cannot set executable permission on exiftool. please manually change to 755.');
-		}
+		// The vendored exiftool binary is gone -- licence embedding now uses
+		// Imagick (see metadata module), so there is nothing to make executable.
 	}
 }
 

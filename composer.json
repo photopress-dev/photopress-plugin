@@ -1,7 +1,12 @@
 {
     "name": "photopress/core",
     "description": "WordPress for Photographers",
-    "keywords": ["WordPress","photpress","photo","photography"],
+    "keywords": [
+        "WordPress",
+        "photpress",
+        "photo",
+        "photography"
+    ],
     "homepage": "https://www.photopressdev.com",
     "license": "GPL-3.0",
     "authors": [
@@ -10,40 +15,18 @@
             "email": "hello@photopressdev.com"
         }
     ],
-    
     "config": {
         "sort-packages": true
     },
-    
-    "repositories": [
-                
-        {
-            "type": "package",
-            "package": {
-                "name": "philharvey/exiftool",
-                "version": "12.30",
-                "dist": {
-                    "url": "https://exiftool.org/Image-ExifTool-12.30.tar.gz",
-                    "type": "tar"
-                }
-            }
-        }
-    ],
-    
-    
-    "require": {
-    	
-    	"philharvey/exiftool": "12.*"
-    },
-    
+    "require": {},
     "autoload": {
-        "psr-4": {"PhotoPress\\": ["./"]},
-        "classmap": ["framework/"]
-    },
-    
-    "scripts": {
-		"post-install-cmd": [
-			"php -r \"chmod( __DIR__ . '/vendor/philharvey/exiftool/exiftool', 0755);\""
-		]
-	}
+        "psr-4": {
+            "PhotoPress\\": [
+                "./"
+            ]
+        },
+        "classmap": [
+            "framework/"
+        ]
+    }
 }
