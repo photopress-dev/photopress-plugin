@@ -702,7 +702,7 @@ class metadata extends photopress_module {
 		return $template;
 	}
 	
-	public function embedLicense( $move = null, $file, $newfile, $type ) {
+	public function embedLicense( $move, $file, $newfile, $type ) {
 		
 		photopress_util::debug('Embdeding license meta-data...');
 		photopress_util::debug( $file );
