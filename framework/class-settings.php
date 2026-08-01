@@ -171,7 +171,7 @@ class photopress_settingsPage {
 			
 			if ( $type === 'none' ) {
 			
-				$r = ['type' => ''];
+				$r = ['type' => 'array'];
 			}
 			
 			if ( $type === 'url' ) {
