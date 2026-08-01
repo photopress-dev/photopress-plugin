@@ -2,6 +2,17 @@ name: Deploy to WordPress.org
 on:
   release:
     types: [published]
+  # Manual trigger for validating the release pipeline without shipping.
+  # This workflow only fires on `release: published`, so before this existed the
+  # first test of any change to it WAS a live deploy to WordPress.org. With
+  # dry-run the 10up action performs every step except the final Subversion
+  # commit, and does not require the SVN secrets.
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Skip the WordPress.org SVN commit (leave true to test safely)'
+        type: boolean
+        default: true
 permissions:
   contents: write
 
@@ -34,6 +45,9 @@ jobs:
       uses: 10up/action-wordpress-plugin-deploy@stable
       with:
         generate-zip: true
+        # Only ever true for a manual dispatch. On `release: published` the input
+        # is unset, so this renders empty -> false, and the deploy is real.
+        dry-run: ${{ inputs.dry-run || false }}
       env:
         SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
         SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
@@ -44,7 +58,9 @@ jobs:
     # filename. The old version hardcoded "<repository.name>.zip", i.e.
     # photopress-plugin.zip, but the zip is named after SLUG -- photopress.zip --
     # so the asset upload was pointing at a file that never existed.
+    # Skipped on workflow_dispatch: there is no release to attach an asset to.
     - name: Upload release asset
+      if: github.event_name == 'release'
       uses: softprops/action-gh-release@v2
       with:
         files: ${{ steps.deploy.outputs.zip-path }}
