@@ -56,6 +56,13 @@ jobs:
         SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
         SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
         SLUG: photopress
+        # The action derives VERSION from the tag: `VERSION="${GITHUB_REF#refs/tags/}"`,
+        # but only when VERSION is empty. A manual dispatch has no tag -- GITHUB_REF is
+        # refs/heads/master -- so it tried to create an SVN tag called "refs/heads" and
+        # died with `svn: E155010 ... is not a directory`. Supplying a placeholder only
+        # for dispatch keeps the dry run self-contained; on a real release this is empty
+        # and the tag is used as before.
+        VERSION: ${{ github.event_name == 'workflow_dispatch' && '0.0.0-dryrun' || '' }}
     # actions/upload-release-asset was archived by GitHub in 2021.
     #
     # Takes the path from the deploy step's own output rather than guessing the
