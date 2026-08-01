@@ -8,13 +8,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
     - name: Composer (php-actions)
       uses: php-actions/composer@v1
     
-    - uses: actions/setup-node@v2
+    # Node 12 is PINNED DELIBERATELY -- do not "modernise" it.
+    # Two hard blockers, both reproduced 2026-08-01:
+    #   webpack 3.12    -> ERR_OSSL_EVP_UNSUPPORTED on Node >= 17 (OpenSSL 3)
+    #   node-sass 4.14.1 -> ships no binary above ABI 83 (Node 14); the vendored
+    #                       one here is linux-x64-72, i.e. Node 12
+    # Moving off 12 requires replacing node-sass with dart-sass and upgrading
+    # webpack first.
+    - uses: actions/setup-node@v4
       with:
-            node-version: '12'
+        node-version: '12'
     - name: Build
       run: |
         npm install
