@@ -150,6 +150,74 @@ class GallerySlideshow {
 	}
 
 	/**
+	 * render_block_core/gallery: hides a gallery that a Gallery Slideshow
+	 * block on the same post shows with "Hide the gallery" on. Done here,
+	 * rather than by the slideshow, so it does not matter which of the two
+	 * comes first; and in the markup, so the gallery never shows while the
+	 * page loads.
+	 */
+	public static function hideSourceGallery( $content, $block ) {
+
+		$anchor = self::anchorOf( $block );
+		$post_id = (int) get_the_ID();
+
+		if ( '' === $anchor || ! $post_id || ! in_array( $anchor, self::hiddenGalleries( $post_id ), true ) ) {
+			return $content;
+		}
+
+		$p = new WP_HTML_Tag_Processor( $content );
+
+		if ( ! $p->next_tag() ) {
+			return $content;
+		}
+
+		// core/gallery sets display: flex, which overrides the hidden
+		// attribute; the class carries a display: none.
+		$p->set_attribute( 'hidden', true );
+		$p->add_class( 'photopress-hidden-gallery' );
+
+		return $p->get_updated_html();
+	}
+
+	/**
+	 * Anchors of the galleries that the post's Gallery Slideshow blocks hide.
+	 *
+	 * @return string[]
+	 */
+	public static function hiddenGalleries( $post_id ) {
+
+		static $cache = [];
+
+		if ( ! isset( $cache[ $post_id ] ) ) {
+
+			$post = get_post( $post_id );
+			$cache[ $post_id ] = ( $post && has_block( 'photopress/gallery-slideshow', $post ) )
+				? self::collectHidden( parse_blocks( $post->post_content ) )
+				: [];
+		}
+
+		return $cache[ $post_id ];
+	}
+
+	private static function collectHidden( array $blocks ) {
+
+		$anchors = [];
+
+		foreach ( $blocks as $block ) {
+
+			if ( 'photopress/gallery-slideshow' === ( $block['blockName'] ?? '' ) && ! empty( $block['attrs']['hideGallery'] ) && ! empty( $block['attrs']['galleryAnchor'] ) ) {
+				$anchors[] = (string) $block['attrs']['galleryAnchor'];
+			}
+
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$anchors = array_merge( $anchors, self::collectHidden( $block['innerBlocks'] ) );
+			}
+		}
+
+		return $anchors;
+	}
+
+	/**
 	 * The core/gallery whose anchor is $anchor, at any depth.
 	 *
 	 * The anchor is not in the block comment: WordPress keeps it as the id

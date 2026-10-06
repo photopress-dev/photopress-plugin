@@ -234,3 +234,8 @@ $speed: 0.3s;
 	color: #fff;
 	font-size: 12px;
 }
+
+// A source gallery hidden by the Gallery Slideshow block's "Hide the gallery".
+.photopress-hidden-gallery {
+	display: none !important;
+}

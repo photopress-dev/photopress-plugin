@@ -75,7 +75,8 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 * New: Gallery Slideshow block, an inline slideshow of a gallery on the same
   page. Clicking an image in the gallery shows it in the slideshow, with a
   button to return to the gallery. Captions can go below, left or right of
-  the image, with adjustable padding.
+  the image, with adjustable padding. "Hide the gallery" shows visitors only
+  the slideshow.
 * New: Image Taxonomies block, the block version of the "Display Taxonomies"
   widget, for block themes. Choose which taxonomies to show and whether terms
   link to their archives.

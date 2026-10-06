@@ -112,6 +112,36 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertStringContainsString( '--pp-slideshow-caption-padding:0px', $p->get_attribute( 'style' ) );
 	}
 
+	public function test_hide_the_gallery_hides_only_the_galleries_it_names(): void {
+
+		// Post 6: the slideshow after the gallery it hides, in a column, and
+		// a second slideshow, with the option off, on another gallery.
+		$content = self::CONTENT
+			. '<!-- wp:gallery --><figure class="wp-block-gallery" id="other"></figure><!-- /wp:gallery -->'
+			. '<!-- wp:columns --><div class="wp-block-columns"><!-- wp:column --><div class="wp-block-column">'
+			. '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"main-gallery","hideGallery":true} /-->'
+			. '</div><!-- /wp:column --></div><!-- /wp:columns -->'
+			. '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"other"} /-->';
+
+		Functions\when( 'get_the_ID' )->justReturn( 6 );
+		Functions\when( 'get_post' )->alias( static fn( $id ) => (object) [ 'ID' => $id, 'post_content' => 6 === $id ? $content : '' ] );
+		Functions\when( 'has_block' )->alias( static fn( $name, $post ) => str_contains( $post->post_content, 'wp:' . $name ) );
+
+		$main = '<figure class="wp-block-gallery has-nested-images" id="main-gallery"><figure class="wp-block-image"></figure></figure>';
+		$out = GallerySlideshow::hideSourceGallery( $main, [ 'blockName' => 'core/gallery', 'attrs' => [], 'innerHTML' => $main ] );
+
+		$p = new \WP_HTML_Tag_Processor( $out );
+		$p->next_tag();
+		$this->assertTrue( $p->get_attribute( 'hidden' ) );
+		$this->assertTrue( $p->has_class( 'photopress-hidden-gallery' ) );
+
+		$other = '<figure class="wp-block-gallery" id="other"></figure>';
+		$this->assertSame( $other, GallerySlideshow::hideSourceGallery( $other, [ 'blockName' => 'core/gallery', 'attrs' => [], 'innerHTML' => $other ] ), 'its slideshow does not hide it' );
+
+		$plain = '<figure class="wp-block-gallery"></figure>';
+		$this->assertSame( $plain, GallerySlideshow::hideSourceGallery( $plain, [ 'blockName' => 'core/gallery', 'attrs' => [], 'innerHTML' => $plain ] ), 'no anchor' );
+	}
+
 	public function test_nothing_without_a_matching_gallery(): void {
 
 		$this->assertSame( '', $this->render( [ 'galleryAnchor' => 'other' ] ) );

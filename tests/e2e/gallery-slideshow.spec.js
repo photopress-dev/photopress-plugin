@@ -181,3 +181,16 @@ test.describe( 'caption position', () => {
 		expect( ( await layout( page ) ).map( ( l ) => l.side ) ).toEqual( [ 'below', 'below' ] );
 	} );
 } );
+
+test( 'Hide the gallery: visitors see only the slideshow, which still has every image', async ( { page, made } ) => {
+	await page.goto( `/?page_id=${ made.pages.hidden }&preview=true` );
+
+	await expect( page.locator( '#hidden-gallery' ) ).toBeHidden();
+	await expect( page.locator( '#hidden-gallery' ) ).toHaveAttribute( 'hidden', '' );
+	await expect( page.locator( ROOT ) ).toBeVisible();
+	await expect( page.locator( `${ ROOT } .photopress-gallery-slideshow__slide` ) ).toHaveCount( made.images.length );
+
+	// The other pages' galleries are not hidden.
+	await page.goto( `/?page_id=${ made.pages.slideshow }&preview=true` );
+	await expect( page.locator( '#main-gallery' ) ).toBeVisible();
+} );

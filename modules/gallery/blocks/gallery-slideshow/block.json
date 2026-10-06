@@ -9,6 +9,7 @@
 	"textdomain": "photopress",
 	"attributes": {
 		"galleryAnchor": { "type": "string", "default": "" },
+		"hideGallery": { "type": "boolean", "default": false },
 		"sizeSlug": { "type": "string", "default": "large" },
 		"autoplay": { "type": "boolean", "default": false },
 		"delay": { "type": "number", "default": 3 },

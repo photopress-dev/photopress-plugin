@@ -46,7 +46,7 @@ export function uniqueAnchor( galleries ) {
 }
 
 export default function Edit( { attributes, setAttributes } ) {
-	const { galleryAnchor, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, galleryNavigation, scrollBehavior } = attributes;
+	const { galleryAnchor, hideGallery, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, galleryNavigation, scrollBehavior } = attributes;
 	const blockProps = useBlockProps( {
 		className: `is-effect-${ effect } has-captions-${ captionPosition }`,
 		style: { '--pp-slideshow-caption-padding': `${ captionPadding }px` },
@@ -137,6 +137,15 @@ export default function Edit( { attributes, setAttributes } ) {
 							{ sprintf( __( 'There is no gallery with the anchor "%s" on this page.' ), galleryAnchor ) }
 						</Notice>
 					) }
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Hide the gallery' ) }
+						help={ hideGallery
+							? __( 'Visitors see only the slideshow. The gallery stays in the editor, where you choose its images.' )
+							: __( 'Show only the slideshow to visitors.' ) }
+						checked={ hideGallery }
+						onChange={ ( value ) => setAttributes( { hideGallery: value } ) }
+					/>
 				</PanelBody>
 				<PanelBody title={ __( 'Slideshow' ) }>
 					<SelectControl
@@ -210,7 +219,7 @@ export default function Edit( { attributes, setAttributes } ) {
 						</>
 					) }
 				</PanelBody>
-				<PanelBody title={ __( 'Gallery link' ) }>
+				{ ! hideGallery && <PanelBody title={ __( 'Gallery link' ) }>
 					<ToggleControl
 						__nextHasNoMarginBottom
 						label={ __( 'Show clicked gallery images here' ) }
@@ -227,7 +236,7 @@ export default function Edit( { attributes, setAttributes } ) {
 							onChange={ ( value ) => setAttributes( { scrollBehavior: value } ) }
 						/>
 					) }
-				</PanelBody>
+				</PanelBody> }
 			</InspectorControls>
 			<div { ...blockProps }>{ preview }</div>
 		</>
