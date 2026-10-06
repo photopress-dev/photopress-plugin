@@ -19,7 +19,11 @@ permissions:
 jobs:
   tag:
     name: New release
-    runs-on: ubuntu-latest
+    # PINNED, not ubuntu-latest, which moves to Ubuntu 26 from 2026-10-19. The
+    # Node 12 / webpack 3 / node-sass 4 toolchain below is only known to build on
+    # 24.04 (the image 1.5.2 shipped from). Same rule as the Node pin: replace
+    # node-sass and upgrade webpack before moving this.
+    runs-on: ubuntu-24.04
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
