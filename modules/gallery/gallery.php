@@ -26,8 +26,23 @@ class gallery extends photopress_module {
 			'editor_style'  		=> 'photopress-editor'
 		]);
 
+		// The Gallery Slideshow block. Its script is the block's viewScript, so it
+		// loads only on pages where the block renders.
+		$asset = \photopress_util::getBuildAsset( 'gallery-slideshow.build' );
+		wp_register_script(
+			'photopress-gallery-slideshow',
+			plugins_url( 'dist/gallery-slideshow.build.js', dirname( dirname( __FILE__ ) ) ),
+			$asset['dependencies'],
+			$asset['version'],
+			[ 'in_footer' => true, 'strategy' => 'defer' ]
+		);
+		register_block_type( __DIR__ . '/blocks/gallery-slideshow', [
+			'render_callback' => [ GallerySlideshow::class, 'render' ],
+		] );
+
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
+		add_filter( 'render_block_core/gallery', [ GallerySlideshow::class, 'hideSourceGallery' ], 10, 2 );
 	}
 
 	/**

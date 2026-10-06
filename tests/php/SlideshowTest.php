@@ -80,4 +80,21 @@ final class SlideshowTest extends TestCase {
 		$this->assertStringContainsString( 'data-attachmentlinktext="&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"', $html );
 		$this->assertSame( 1, substr_count( $html, 'id="lightbox-gallery"' ) );
 	}
+
+	public function test_caption_padding_is_a_whole_number_of_pixels(): void {
+
+		$lightbox = function () {
+			ob_start();
+			$this->slideshow->printLightbox();
+			return ob_get_clean();
+		};
+
+		$this->assertStringContainsString( 'style="--pp-slideshow-caption-padding:0px"', $lightbox(), 'unset' );
+
+		\pp_api::$options['core/slideshow/captionPadding'] = '24';
+		$this->assertStringContainsString( 'style="--pp-slideshow-caption-padding:24px"', $lightbox() );
+
+		\pp_api::$options['core/slideshow/captionPadding'] = '-5"><b>';
+		$this->assertStringContainsString( 'style="--pp-slideshow-caption-padding:0px"', $lightbox() );
+	}
 }

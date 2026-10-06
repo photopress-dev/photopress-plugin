@@ -40,6 +40,9 @@ require_once ABSPATH . WPINC . '/rest-api/class-wp-rest-response.php';
 require_once ABSPATH . WPINC . '/rest-api/class-wp-rest-request.php';
 require_once ABSPATH . WPINC . '/rest-api/endpoints/class-wp-rest-controller.php';
 require_once ABSPATH . WPINC . '/rest-api/endpoints/class-wp-rest-terms-controller.php';
+require_once ABSPATH . WPINC . '/class-wp-block-parser-block.php';
+require_once ABSPATH . WPINC . '/class-wp-block-parser-frame.php';
+require_once ABSPATH . WPINC . '/class-wp-block-parser.php';
 
 foreach ( [
 	'class-wp-html-attribute-token.php',

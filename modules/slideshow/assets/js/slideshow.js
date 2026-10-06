@@ -222,25 +222,23 @@ photopress.slideshow.prototype = {
 	},
 	
 	showSlide: function ( img ) {
-		
-		this.displaySlideLoader();
 	
 		var that = this;
 		var request = ++this.slideRequest;
 		var i = new Image;
+		var center = jQuery('.panels .center');
+		
+		this.currentId = String( jQuery(img).attr('data-id') );
 			
 		// calculate the img tags responsive "sizes" attribute: 
 		// window height - thumbnails container height * aspect ratio of image.
 		let aspectratio = jQuery(img).data('aspectratio');
-		//let vh = this.viewportHeight;
-		let thumbsHeight = jQuery('.thumbnails').outerHeight(true);
 		
 		var bodyStyles = window.getComputedStyle(document.body);
-		thumbsHeight = bodyStyles.getPropertyValue('--pp-slideshow-thumbnails-total-height'); //get
+		let thumbsHeight = bodyStyles.getPropertyValue('--pp-slideshow-thumbnails-total-height');
 		let vh = bodyStyles.getPropertyValue('--vh');
 		let vw = this.viewportWidth;
 		if ( this.viewportHeight <= this.viewportWidth ) {
-			//i.sizes = `calc( ( var(--vh) - ${thumbsHeight} ) * ${aspectratio} )`;
 			i.sizes = `calc( ( ${vh} - ${thumbsHeight} ) * ${aspectratio} )`;
 		} else {
 			
@@ -252,23 +250,28 @@ photopress.slideshow.prototype = {
 		// add data-id from the gallery image, just in case...
 		jQuery(i).attr('data-id', jQuery(img).attr('data-id'));
 		
+		// The slide's details, shown with the preview and kept for the full image.
+		let info = this.renderSlideInfo( jQuery(img).data('id') );
 		
-				
-		// fetch slide info from the gallery item
-		let galleryItemId = jQuery(img).data('id');
-		let caption = this.getCaptionFromGalleryItem( galleryItemId );
-		let title = this.getDataFromGalleryItem( galleryItemId, 'image-title' );
-		let description = this.getDataFromGalleryItem( galleryItemId, 'image-description' );
-		let attachmentLink = this.getDataFromGalleryItem( galleryItemId, 'attachment-url' );
+		if ( this.getOption('detail_position') === 'right' ) {
+			center.addClass('info-right');
+		}
 		
-		let slideInfoPosition = this.getOption('detail_position'); 
-		let showTitleInCaption = this.getOption('showTitleInCaption');
-		let showCaptions = this.getOption('showCaptions');
-		let showDescriptionInCaption = this.getOption('showDescriptionInCaption');
-		let showAttachmentLink = this.getOption('showAttachmentLink');
-		let attachmentLinkText = this.getOption('attachmentLinkText');
+		// Until the full image arrives, show the copy the page has already
+		// loaded, at the size the full image will have; a spinner if there
+		// is none.
+		let preview = this.previewOf( jQuery(img).data('id') );
 		
-		//load handler that once image is loaded will insert it into the DOM
+		if ( preview ) {
+			
+			center.empty().append( preview ).append( info );
+			this.sizePreview( preview, aspectratio, this.fullWidthOf( jQuery(img).data('id') ) );
+			
+		} else {
+			
+			this.displaySlideLoader();
+		}
+		
 		jQuery(i).on('error', function() {
 			
 			if ( request === that.slideRequest ) {
@@ -283,36 +286,16 @@ photopress.slideshow.prototype = {
 				return;
 			}
 			
-			//jQuery('.panels .center').html('<div class="main-image"></div>');
-			jQuery('.panels .center').html(i);
-			
-			jQuery('.panels .center').append(`<div class="slide-info"></div>`);
-			
-			if ( slideInfoPosition === 'right' ) {
-			
-				jQuery( '.center' ).addClass('info-right');
-			}
-			
-			if (title && showTitleInCaption ) {
-				jQuery('.slide-info').append(`<div class="info title">${title}</div>`);
-			}
-			
-			if (caption && showCaptions) {
-				jQuery('.slide-info').append(`<div class="info caption">${caption}</div>`);
-			}
-			
-			if ( description && showDescriptionInCaption ) {
-				jQuery('.slide-info').append(`<div class="info description">${description}</div>`);
-			}
-			
-			if ( showAttachmentLink ) {
+			if ( preview && jQuery.contains( document, preview ) ) {
 				
-				 
-				jQuery('<div class="info attachment-link"></div>')
-					.append( jQuery('<a></a>').attr( 'href', attachmentLink ).text( attachmentLinkText ) )
-					.appendTo('.slide-info');
+				// The same picture, sharper: no fade.
+				jQuery( i ).removeClass( 'fade-in' );
+				jQuery( preview ).replaceWith( i );
+				
+			} else {
+				
+				center.empty().append( i ).append( info );
 			}
-
 		});
 		
 		// load the src of the image.
@@ -320,6 +303,95 @@ photopress.slideshow.prototype = {
 		i.srcset = srcset;
 		i.src = jQuery(img).attr('data-orig-file');
 		
+	},
+	
+	/**
+	 * The title, caption, description and link shown with a slide.
+	 */
+	renderSlideInfo: function( galleryItemId ) {
+		
+		let info = jQuery('<div class="slide-info"></div>');
+		let caption = this.getCaptionFromGalleryItem( galleryItemId );
+		let title = this.getDataFromGalleryItem( galleryItemId, 'image-title' );
+		let description = this.getDataFromGalleryItem( galleryItemId, 'image-description' );
+		let attachmentLink = this.getDataFromGalleryItem( galleryItemId, 'attachment-url' );
+		
+		if ( title && this.getOption('showTitleInCaption') ) {
+			info.append(`<div class="info title">${title}</div>`);
+		}
+		
+		if ( caption && this.getOption('showCaptions') ) {
+			info.append(`<div class="info caption">${caption}</div>`);
+		}
+		
+		if ( description && this.getOption('showDescriptionInCaption') ) {
+			info.append(`<div class="info description">${description}</div>`);
+		}
+		
+		if ( this.getOption('showAttachmentLink') ) {
+			
+			jQuery('<div class="info attachment-link"></div>')
+				.append( jQuery('<a></a>').attr( 'href', attachmentLink ).text( this.getOption('attachmentLinkText') ) )
+				.appendTo( info );
+		}
+		
+		return info;
+	},
+	
+	/**
+	 * A copy of the gallery's image of the slide, if the page has loaded it.
+	 */
+	previewOf: function( galleryItemId ) {
+		
+		let source = this.gallery.find( '.photopress-gallery-item[data-id="' + galleryItemId + '"] img' ).get( 0 );
+		
+		if ( ! source || ! source.complete || ! source.naturalWidth ) {
+			return null;
+		}
+		
+		let preview = new Image;
+		preview.src = source.currentSrc || source.src;
+		preview.className = 'slide-preview';
+		preview.alt = source.alt;
+		
+		return preview;
+	},
+	
+	/**
+	 * Gives the preview the size the full image will be shown at, which is
+	 * usually larger than the preview: as large as fits the slide, keeping
+	 * its shape and no larger than the image itself.
+	 */
+	sizePreview: function( preview, aspectratio, fullWidth ) {
+		
+		let ratio = parseFloat( aspectratio ) || ( preview.naturalWidth / preview.naturalHeight );
+		let center = jQuery('.panels .center');
+		// The full image takes the whole width even with the details on the
+		// right, which then wrap beside it.
+		let width = center.width();
+		let height = center.height();
+		
+		if ( width <= 0 || height <= 0 || ! ratio ) {
+			return;
+		}
+		
+		width = Math.min( width, height * ratio, fullWidth || Infinity );
+		
+		// Not shrunk to make room for the details: the full image is not.
+		jQuery(preview).css( { width: Math.round( width ) + 'px', height: Math.round( width / ratio ) + 'px', 'flex-shrink': 0 } );
+	},
+	
+	/**
+	 * The width of the full image: the largest width in the gallery image's
+	 * srcset, which lists the image's sizes up to the original. An image
+	 * without a srcset has one size, the one the gallery shows.
+	 */
+	fullWidthOf: function( galleryItemId ) {
+		
+		let source = this.gallery.find( '.photopress-gallery-item[data-id="' + galleryItemId + '"] img' );
+		let widths = ( ( source.attr( 'srcset' ) || '' ).match( /\s(\d+)w/g ) || [] ).map( ( w ) => parseInt( w, 10 ) );
+		
+		return widths.length ? Math.max.apply( null, widths ) : ( source.get( 0 ) || {} ).naturalWidth || 0;
 	},
 	
 	getThumbnailHeight: function() {
@@ -365,37 +437,31 @@ photopress.slideshow.prototype = {
 	 */
 	showLightbox: function( i ) {
 
-		var that = this;
-		
 		this.isOpen = true;
 		
-		jQuery( '.lightbox' ).show('slow', function() {
+		// At once: the slideshow is built while it shows.
+		jQuery( '.lightbox' ).show();
+		jQuery( '.lightbox' ).css( { 'opacity': '1', 'z-index': '99999' } );
+		// remove scroll bar for body of document
+		jQuery( 'body' ).css('overflow', 'hidden');
+		
+		if ( ! this.isLoaded ) {
 			
-			// render the slideshow for the first time.
-			if ( ! that.isLoaded ) {
-				
-				// A second click while the first render is still loading
-				// thumbnails must not render again.
-				if ( ! that.isRendering ) {
-					that.render( i );
-				}
-				
-			} else {
-				
-				// position the carousel and then show slide that was clicked on
-					
-				that.scrollToSlide( i );
-				that.showSlide( that.getCurrentSlide() );
+			// A second click while the first render is still in progress
+			// must not render again.
+			if ( ! this.isRendering ) {
+				this.render( i );
 			}
 			
-			jQuery( '.lightbox' ).css('opacity', '1');
-			jQuery( '.lightbox' ).css('z-index', '99999');
-			// remove scroll bar for body of document
-			jQuery( 'body' ).css('overflow', 'hidden');
-			// fire reveals event in case anyone is listening
-			jQuery( '.lightbox').trigger('pp-slideshow-opened');
-		});
+		} else {
+			
+			// position the carousel and show the slide that was clicked on
+			this.scrollToSlide( i );
+			this.showSlide( this.gallery.find( '.photopress-gallery-item img' ).eq( i ) );
+		}
 		
+		// fire reveals event in case anyone is listening
+		jQuery( '.lightbox').trigger('pp-slideshow-opened');
 	},
 	
 	/**
@@ -439,10 +505,16 @@ photopress.slideshow.prototype = {
 			jQuery(ni).attr('sizes', `${thumbnailWidth}px`);
 			
 			// necessary to avoid causing the lazyload lib to force loading the src.
-			jQuery(ni).attr('src', '');
+			// An image with one size has no srcset, and needs its src.
+			if ( jQuery(ni).attr('srcset') ) {
+				jQuery(ni).attr('src', '');
+			}
 			
 			jQuery(ni).attr('width', thumbnailWidth);
 			jQuery(ni).attr('height', thumbnailHeight );
+			
+			// Its width before it loads, from the thumbnail height in the CSS.
+			jQuery(ni).css( { 'aspect-ratio': `${thumbnailWidth} / ${thumbnailHeight}`, 'height': 'var(--pp-slideshow-thumbnail-height)', 'width': 'auto' } );
 						
 			// update thumbnail count
 			that.thumbnails.count++;
@@ -536,6 +608,17 @@ photopress.slideshow.prototype = {
 				
 		jQuery( that.options.selector ).append( o );
 		
+		// A press on the left or right half of the slide goes back or forward,
+		// as in the Gallery Slideshow block (src/shared/press-navigation.js).
+		if ( photopress.pressNavigation ) {
+			
+			photopress.pressNavigation( jQuery( that.options.selector ).find( '.panels' )[0], {
+				prev: that.previous.bind( that ),
+				next: that.next.bind( that ),
+				ignore: 'a'
+			} );
+		}
+		
 		if (! this.getOption( 'showThumbnails' ) ) {
 			
 			//center the flex container items as thumbs no longer need ot be pined to the bottom.
@@ -548,6 +631,25 @@ photopress.slideshow.prototype = {
 			// reset css variable to 0
 			document.documentElement.style.setProperty('--pp-slideshow-thumbnails-total-height', '0px');
 		}
+		
+		// The slide that was clicked, before the thumbnails are built.
+		this.showSlide( this.gallery.find( '.photopress-gallery-item img' ).eq( i ) );
+		
+		// The thumbnails and carousel take a moment to build; after the
+		// slide has been drawn.
+		requestAnimationFrame( function() {
+			setTimeout( function() {
+				that.renderThumbnails( i );
+			}, 0 );
+		});
+	},
+	
+	/**
+	 * Builds the thumbnail strip and starts the carousel on slide i.
+	 */
+	renderThumbnails: function( i ) {
+		
+		var that = this;
 		
 		this.thumbnails.containerWidth = jQuery('.thumbnails').outerWidth();
 			
@@ -563,16 +665,23 @@ photopress.slideshow.prototype = {
 			}
 		}
 		
-		// try to wait for thumbnails to load...
-		jQuery('.thumbnail-list').imagesLoaded( function( instance ) {
+		// The thumbnails are sized from their shape (generateThumbnailImages),
+		// so the carousel need not wait for them to load. It measures them
+		// again as they load, in case a theme sized them differently.
+		// (imagesLoaded is not used: it re-requests an image's src, and the
+		// src of a thumbnail with a srcset is empty, which is the page's URL.)
+		this.initCarousel( i );
+		
+		let refresh = null;
+		
+		jQuery('.thumbnail-list img').one( 'load', function() {
 			
-			setTimeout(function() {
-				
-				// initialize the carousel once all the thumbnails have loaded
-				that.initCarousel( i );	
-				
-			}, 700)
-			
+			clearTimeout( refresh );
+			refresh = setTimeout( function() {
+				if ( that.thumbnails.carousel ) {
+					that.thumbnails.carousel.trigger( 'refresh.owl.carousel' );
+				}
+			}, 100 );
 		});
 	},
 	
@@ -591,10 +700,13 @@ photopress.slideshow.prototype = {
 		
 		this.initThumbnailCarousel( this.getOption('thumbnailCarousel'), function() {
 			
-			// show first slide
+			// render() has shown the start slide already, unless the carousel
+			// settled on another one.
 			var img = that.getCurrentSlide();
-			// show the start slide
-			that.showSlide( img );
+			
+			if ( img.length && String( img.attr( 'data-id' ) ) !== that.currentId ) {
+				that.showSlide( img );
+			}
 					
 			// set the loaded flag so that we do not render again if lightbox is 
 			// closed and then re-opened.
@@ -614,27 +726,13 @@ photopress.slideshow.prototype = {
 		// left arrow icon handler	
 		jQuery( document ).on( 'click', '.nav-control.left', function(e) {
 		
-			if ( ! that.isLoaded ) {
-				return;
-			}
-			
-			that.scrollToPreviousSlide();
-			
-			that.showSlide( that.getCurrentSlide() );
-			
+			that.previous();
 		});
 		
 		// right arrow icon handler
 		jQuery( document ).on( 'click', '.nav-control.right', function(e) {
 					
-			if ( ! that.isLoaded ) {
-				return;
-			}
-			
-			that.scrollToNextSlide();
-			
-			that.showSlide( that.getCurrentSlide() );
-		
+			that.next();
 		});
 		
 		// handler for clicking on image directly.
@@ -688,6 +786,26 @@ photopress.slideshow.prototype = {
 			that.hideLightbox();
 		});
 
+	},
+	
+	previous: function() {
+		
+		if ( ! this.isLoaded ) {
+			return;
+		}
+		
+		this.scrollToPreviousSlide();
+		this.showSlide( this.getCurrentSlide() );
+	},
+	
+	next: function() {
+		
+		if ( ! this.isLoaded ) {
+			return;
+		}
+		
+		this.scrollToNextSlide();
+		this.showSlide( this.getCurrentSlide() );
 	},
 	
 	getSlideImgById: function( id ) {

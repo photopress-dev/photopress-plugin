@@ -6,8 +6,8 @@ Tags: photos, images, gallery, gallery block, masonry, meta-data, photopress, im
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
-Tested up to: 5.8
-Stable tag: 1.6.0
+Tested up to: 7.0
+Stable tag: 1.7.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -63,6 +63,44 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 5. Embed Licensing meta-data into uploaded images
 
 == Changelog ==
+
+= 1.7.0 =
+
+* New: Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as
+  block variations. They look the same in the editor as on the site. Existing
+  PhotoPress galleries keep working, and can be converted from the block's
+  Transform menu.
+* New: the full-screen slideshow can be turned on for any Gallery block, and
+  image captions can be hidden.
+* New: Gallery Slideshow block, an inline slideshow of a gallery on the same
+  page. Clicking an image in the gallery shows it in the slideshow, with a
+  button to return to the gallery. Captions can go below, left or right of
+  the image, with adjustable padding. "Hide the gallery" shows visitors only
+  the slideshow.
+* New: Image Taxonomies block, the block version of the "Display Taxonomies"
+  widget, for block themes. Choose which taxonomies to show and whether terms
+  link to their archives.
+* Full-screen slideshow: opens at once on the image that was clicked, rather
+  than after about two seconds. With a mouse, clicking anywhere on the left or
+  right half goes back or forward, with a large arrow showing which. A new
+  Caption Padding setting. Wide images no longer run under the arrows.
+* Full-screen slideshow fixes: several slideshow galleries on one page now
+  work independently; clicking an image in a second gallery opens that image;
+  galleries without the slideshow are no longer taken over; arrow keys only
+  act while the slideshow is open; closing no longer leaves an invisible layer
+  over the page; images with a single size no longer show as broken
+  thumbnails.
+* Metadata: a rewritten XMP reader that keeps values it used to lose (some
+  locations, credits, licensing and contact details) and reads Extended XMP.
+* Alt text on upload no longer produces ". ." when a template's fields are
+  empty, and hierarchical keywords such as "person:Name" contribute their
+  value.
+* Settings are validated by type when saved, and a failed save shows why.
+* Security: slideshow settings are escaped in the page. The image taxonomies
+  are available to the block editor for users who can edit posts, and remain
+  hidden from the public REST API.
+* Fixed: a fatal error when the plugin was installed from source without
+  building its scripts.
 
 = 1.6.0 =
 
