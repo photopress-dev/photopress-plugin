@@ -16,6 +16,7 @@ import { registerBlockType, } from '@wordpress/blocks';
 import * as childpages from './blocks/child_pages/index.js';
 
 import * as gallery from './blocks/gallery/index.js';
+import './variations/gallery-layouts.js';
 
 
 

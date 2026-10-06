@@ -1,0 +1,96 @@
+// PhotoPress layouts on core/gallery. Applied in the editor and on the front end
+// through the photopress-layout-* classes and --pp-* variables, which are added
+// at render time and never saved in the post. See src/variations/gallery-layouts.js.
+//
+// Selectors repeat core's `figure.wp-block-image:not(#individual-image)` so they
+// outrank its item width and margin rules by one class.
+
+$item: "figure.wp-block-image:not(#individual-image)";
+$gap: var(--wp--style--unstable-gallery-gap, 16px);
+
+// Masonry: fixed-width columns positioned by Masonry
+// (src/shared/gallery-layout/masonry.js). Until it runs, the images stack.
+.wp-block-gallery.has-nested-images.photopress-layout-masonry {
+	display: block;
+	position: relative;
+
+	#{$item} {
+		width: var(--pp-column-width, 300px);
+		max-width: 100%;
+		margin: 0 0 $gap;
+		// Centres the columns; set by src/shared/gallery-layout/masonry.js.
+		translate: var(--pp-masonry-offset, 0) 0;
+	}
+
+	// Natural image height, even when "Crop images to fit" is on.
+	#{$item} img {
+		width: 100%;
+		height: auto;
+		flex: none;
+		object-fit: initial;
+	}
+}
+
+// Rows and mosaic: rows of a fixed height. Rows keep each image's own width;
+// mosaic lets the images in a row grow to fill it, cropping to fit.
+.wp-block-gallery.has-nested-images.photopress-layout-rows,
+.wp-block-gallery.has-nested-images.photopress-layout-mosaic {
+	flex-wrap: wrap;
+
+	#{$item} {
+		width: auto;
+		height: var(--pp-row-height, 300px);
+		max-width: 100%;
+		flex-grow: 0;
+	}
+
+	#{$item} img {
+		width: auto;
+		height: 100%;
+		flex: none;
+	}
+}
+
+// Rows: an image too wide for the gallery at the row height is scaled down to
+// the gallery width, keeping its proportions, rather than cropped.
+.wp-block-gallery.has-nested-images.photopress-layout-rows {
+
+	#{$item} {
+		height: auto;
+	}
+
+	#{$item} img {
+		height: auto;
+		max-width: 100%;
+		max-height: var(--pp-row-height, 300px);
+		object-fit: initial;
+	}
+}
+
+.wp-block-gallery.has-nested-images.photopress-layout-mosaic {
+
+	// Justified rows: each image starts at its width at the row height and
+	// grows in proportion to its aspect ratio (--pp-ar, set per image by
+	// modules/gallery/gallery.php and, in the editor, MosaicPreview), so a
+	// filled row crops each image only slightly.
+	#{$item} {
+		flex: var(--pp-ar, 1) 1 calc(var(--pp-ar, 1) * var(--pp-row-height, 300px));
+	}
+
+	#{$item} img {
+		width: 100%;
+		object-fit: cover;
+	}
+
+	// Takes up the slack in the last row so its images are not stretched
+	// across the full width. Sits before the gallery caption.
+	&::after {
+		content: "";
+		flex-grow: 10;
+		order: 1;
+	}
+
+	> .blocks-gallery-caption {
+		order: 2;
+	}
+}

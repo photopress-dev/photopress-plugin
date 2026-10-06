@@ -47,6 +47,9 @@ export const settings = {
 	supports: {
 		align: [ 'wide', 'full' ],
 		html: false,
+		// Superseded by the PhotoPress layouts on core/gallery; kept so that
+		// existing galleries still load. Convert with the block's Transform menu.
+		inserter: false,
 	},
 	attributes,
 	transforms,
