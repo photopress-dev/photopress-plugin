@@ -14,7 +14,7 @@ import { withSelect, withDispatch } from '@wordpress/data';
 import { RichText, MediaPlaceholder } from '@wordpress/block-editor';
 import { isBlobURL } from '@wordpress/blob';
 import { compose } from '@wordpress/compose';
-import { close, chevronLeft, chevronRight, edit, image as imageIcon } from '@wordpress/icons';
+import { close, chevronLeft, chevronRight, pencil as edit, image as imageIcon } from '@wordpress/icons';
 
 import { pickRelevantMediaFiles } from '../../shared/shared.js';
 

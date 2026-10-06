@@ -31,10 +31,14 @@ class base extends photopress_module {
 	
 	public function option_assets() {
 		
-		wp_enqueue_script( 
-			'photopress-options-script', 
-			plugins_url( '/', __FILE__ ) . '../../dist/options.build.js', 
-			array( 'wp-api', 'wp-i18n', 'wp-components', 'wp-element' ), PHOTOPRESS_CORE_VERSION, true 
+		// wp-api and wp-i18n are used through the wp global rather than imported,
+		// so the build cannot list them in the .asset.php.
+		$asset = require dirname( dirname( __DIR__ ) ) . '/dist/options.build.asset.php';
+
+		wp_enqueue_script(
+			'photopress-options-script',
+			plugins_url( '/', __FILE__ ) . '../../dist/options.build.js',
+			array_unique( array_merge( array( 'wp-api', 'wp-i18n' ), $asset['dependencies'] ) ), $asset['version'], true
 		);
 		
 		wp_localize_script( 'photopress-options-script', 'photopress_options_conf', [

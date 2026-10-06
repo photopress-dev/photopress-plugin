@@ -111,12 +111,14 @@ class photopress_framework {
 			PHOTOPRESS_CORE_VERSION // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.style.build.css' ) // Version: File modification time.
 		);
 	
+		$asset = require plugin_dir_path( __DIR__ ) . 'dist/blocks.build.asset.php';
+
 		// Register block editor script for backend.
 		wp_register_script(
 			'photopress-editor', // Handle.
 			plugins_url( '/dist/blocks.build.js', dirname( __FILE__ ) ), // Block.build.js: We register the block here. Built with Webpack.
-			array( 'wp-blocks', 'wp-i18n', 'wp-element', 'wp-editor' ), // Dependencies, defined above.
-			PHOTOPRESS_CORE_VERSION, // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.build.js' ), // Version: filemtime ? Gets file modification time.
+			$asset['dependencies'], // From the .asset.php the build writes alongside the script.
+			$asset['version'],
 			true // Enqueue the script in the footer.
 		);
 	

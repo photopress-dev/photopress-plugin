@@ -5,7 +5,7 @@ Donate link: http://www.photopressdev.com
 Tags: photos, images, gallery, gallery block, masonry, meta-data, photopress, image taxonomies, EXIF, XMP, IPTC, gutenberg
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
-Requires at least: 5.2.0
+Requires at least: 6.6
 Tested up to: 5.8
 Stable tag: 1.5.2
 
