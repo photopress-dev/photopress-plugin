@@ -1,0 +1,179 @@
+// Gallery Slideshow block. Markup: modules/gallery/GallerySlideshow.php;
+// behaviour: src/frontend/gallery-slideshow.js.
+
+$return: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M20 26 L32 40 L44 26' fill='none' stroke='black' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
+$speed: 0.3s;
+
+// The chevron drawn at the pointer (src/shared/press-navigation.js), also
+// used by the lightbox.
+.photopress-press-cursor {
+	display: none;
+	position: fixed;
+	z-index: 2147483647;
+	width: 68px;
+	height: 68px;
+	pointer-events: none;
+	transform: translate(-50%, -50%);
+
+	svg {
+		display: block;
+		width: 100%;
+		height: 100%;
+	}
+}
+
+.photopress-press-cursor-active,
+.photopress-press-cursor-active * {
+	cursor: none !important;
+}
+
+.wp-block-photopress-gallery-slideshow {
+	--pp-slideshow-offset: 0px;
+	position: relative;
+	outline-offset: 4px;
+
+	// Every slide in one grid cell: the slideshow keeps the height of its
+	// tallest slide, so the page does not jump between slides.
+	.photopress-gallery-slideshow__track {
+		display: grid;
+		overflow: hidden;
+	}
+
+	.photopress-gallery-slideshow__slide {
+		grid-area: 1 / 1;
+		margin: 0;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: flex-start;
+		opacity: 0;
+		visibility: hidden;
+		transition: opacity $speed ease, transform $speed ease, visibility 0s linear $speed;
+	}
+
+	.photopress-gallery-slideshow__slide.is-current {
+		opacity: 1;
+		visibility: visible;
+		z-index: 1;
+		transition: opacity $speed ease, transform $speed ease, visibility 0s;
+	}
+
+	// Each image fits the width and is never taller than the window less the
+	// offset; its shape comes from the inline aspect-ratio, so slides size
+	// themselves before their images load.
+	.photopress-gallery-slideshow__image {
+		display: block;
+		width: auto;
+		max-width: 100%;
+		height: auto;
+		max-height: calc(100vh - var(--pp-slideshow-offset));
+		object-fit: contain;
+	}
+
+	.photopress-gallery-slideshow__caption {
+		width: 100%;
+		margin-top: 12px;
+		margin-bottom: 0;
+		font-size: 14px;
+		line-height: 1.4;
+		color: #111;
+		text-align: center;
+	}
+
+	// Wrap-around and gallery jumps change slides at once.
+	&.is-instant .photopress-gallery-slideshow__slide {
+		transition: none !important;
+	}
+
+	// Slide effect: the outgoing slide moves off as the next comes in.
+	&.is-effect-slide {
+
+		.photopress-gallery-slideshow__slide.is-leaving {
+			opacity: 1;
+			visibility: visible;
+		}
+
+		.is-leaving.to-left { transform: translateX(-100%); }
+		.is-leaving.to-right { transform: translateX(100%); }
+
+		.is-entering {
+			transition: none;
+			opacity: 1;
+		}
+
+		.is-entering.from-right { transform: translateX(100%); }
+		.is-entering.from-left { transform: translateX(-100%); }
+	}
+
+	// The two halves are the previous and next buttons.
+	.photopress-gallery-slideshow__prev,
+	.photopress-gallery-slideshow__next {
+		position: absolute;
+		z-index: 2;
+		top: 0;
+		bottom: 0;
+		width: 50%;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: transparent;
+		cursor: pointer;
+		-webkit-tap-highlight-color: transparent;
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: -4px;
+		}
+	}
+
+	.photopress-gallery-slideshow__prev { left: 0; }
+	.photopress-gallery-slideshow__next { right: 0; }
+
+	// Back to the gallery image that was clicked.
+	.photopress-gallery-slideshow__return {
+		position: absolute;
+		z-index: 4;
+		top: 10px;
+		right: 10px;
+		width: 42px;
+		height: 42px;
+		padding: 0;
+		border: 0;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.92) url($return) center / 22px no-repeat;
+		box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+		cursor: pointer;
+
+		&[hidden] { display: none; }
+	}
+
+	.photopress-gallery-slideshow__status {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+
+		.photopress-gallery-slideshow__slide,
+		.photopress-gallery-slideshow__slide.is-current {
+			transition: none;
+		}
+	}
+}
+
+// Editor preview: the slide count over the first image.
+.wp-block-photopress-gallery-slideshow .photopress-gallery-slideshow__count {
+	position: absolute;
+	z-index: 2;
+	right: 8px;
+	bottom: 8px;
+	padding: 2px 8px;
+	border-radius: 2px;
+	background: rgba(0, 0, 0, 0.6);
+	color: #fff;
+	font-size: 12px;
+}

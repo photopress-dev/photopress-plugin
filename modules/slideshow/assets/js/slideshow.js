@@ -536,6 +536,17 @@ photopress.slideshow.prototype = {
 				
 		jQuery( that.options.selector ).append( o );
 		
+		// A press on the left or right half of the slide goes back or forward,
+		// as in the Gallery Slideshow block (src/shared/press-navigation.js).
+		if ( photopress.pressNavigation ) {
+			
+			photopress.pressNavigation( jQuery( that.options.selector ).find( '.panels' )[0], {
+				prev: that.previous.bind( that ),
+				next: that.next.bind( that ),
+				ignore: 'a'
+			} );
+		}
+		
 		if (! this.getOption( 'showThumbnails' ) ) {
 			
 			//center the flex container items as thumbs no longer need ot be pined to the bottom.
@@ -614,27 +625,13 @@ photopress.slideshow.prototype = {
 		// left arrow icon handler	
 		jQuery( document ).on( 'click', '.nav-control.left', function(e) {
 		
-			if ( ! that.isLoaded ) {
-				return;
-			}
-			
-			that.scrollToPreviousSlide();
-			
-			that.showSlide( that.getCurrentSlide() );
-			
+			that.previous();
 		});
 		
 		// right arrow icon handler
 		jQuery( document ).on( 'click', '.nav-control.right', function(e) {
 					
-			if ( ! that.isLoaded ) {
-				return;
-			}
-			
-			that.scrollToNextSlide();
-			
-			that.showSlide( that.getCurrentSlide() );
-		
+			that.next();
 		});
 		
 		// handler for clicking on image directly.
@@ -688,6 +685,26 @@ photopress.slideshow.prototype = {
 			that.hideLightbox();
 		});
 
+	},
+	
+	previous: function() {
+		
+		if ( ! this.isLoaded ) {
+			return;
+		}
+		
+		this.scrollToPreviousSlide();
+		this.showSlide( this.getCurrentSlide() );
+	},
+	
+	next: function() {
+		
+		if ( ! this.isLoaded ) {
+			return;
+		}
+		
+		this.scrollToNextSlide();
+		this.showSlide( this.getCurrentSlide() );
 	},
 	
 	getSlideImgById: function( id ) {

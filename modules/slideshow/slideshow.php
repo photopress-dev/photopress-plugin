@@ -132,10 +132,20 @@ class slideshow extends photopress_module {
 			true
 		);
 		
+		$asset = \photopress_util::getBuildAsset( 'press-navigation.build' );
+		
+		wp_enqueue_script(
+			'photopress-press-navigation',
+			plugins_url( 'dist/press-navigation.build.js', dirname( dirname( __FILE__ ) ) ),
+			array_merge( $asset['dependencies'], [ 'photopress' ] ),
+			$asset['version'],
+			true
+		);
+		
 		wp_enqueue_script(
 			'photopress-slideshow',
 			plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-			[ 'jquery', 'imagesloaded', 'owl', 'photopress' ],
+			[ 'jquery', 'imagesloaded', 'owl', 'photopress', 'photopress-press-navigation' ],
 			PHOTOPRESS_CORE_VERSION,
 			true
 		);

@@ -7,6 +7,8 @@
  *   blocks.style.build.css    front end + editor   (style.scss files; also the options page)
  *   options.build.js          settings page script (modules/base/base.php)
  *   gallery-layouts.build.js  front-end masonry for core/gallery (modules/gallery/gallery.php)
+ *   gallery-slideshow.build.js  front end of the Gallery Slideshow block
+ *   press-navigation.build.js   click-anywhere navigation for the lightbox (modules/slideshow/slideshow.php)
  *
  * Each JS file is accompanied by a .asset.php listing its script dependencies,
  * which the PHP reads instead of hardcoding them.
@@ -55,6 +57,8 @@ module.exports = {
 		'blocks.build': './src/blocks.js',
 		'options.build': './src/options.js',
 		'gallery-layouts.build': './src/frontend/gallery-layouts.js',
+		'gallery-slideshow.build': './src/frontend/gallery-slideshow.js',
+		'press-navigation.build': './src/frontend/press-navigation.js',
 	},
 	output: {
 		...defaultConfig.output,
