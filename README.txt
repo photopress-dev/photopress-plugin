@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 5.8
-Stable tag: 1.5.2
+Stable tag: 1.6.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -63,6 +63,20 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 5. Embed Licensing meta-data into uploaded images
 
 == Changelog ==
+
+= 1.6.0 =
+
+* Requires WordPress 6.6 or later.
+* Uploads use far less memory and time reading image metadata. Only the part
+  of the file that holds the metadata is read, rather than the whole image.
+* The block editor scripts are rebuilt with the current WordPress tooling. The
+  editor script is about 25 times smaller, and it now uses the copies of React
+  and the WordPress libraries already loaded by WordPress.
+* Fixed: the camera name was left blank when it was recorded only in XMP
+  metadata and not in EXIF.
+* Fixed: metadata was ignored in files that begin with an XMP packet, such as
+  .xmp sidecar files.
+* Fixed: a PHP 8 deprecation notice raised on every upload.
 
 = 1.5.2 =
 
