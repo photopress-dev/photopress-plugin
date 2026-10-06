@@ -23,7 +23,7 @@ function click( el, init = {} ) {
 
 const SLIDES = [ 10, 11, 12, 13 ];
 
-let root, gallery, slideshow;
+let root, gallery, slideshow, addedScrollIntoView;
 
 beforeEach( () => {
 	document.body.innerHTML = `
@@ -43,12 +43,25 @@ beforeEach( () => {
 	root = document.querySelector( '.wp-block-photopress-gallery-slideshow' );
 	gallery = document.getElementById( 'main-gallery' );
 	root.getBoundingClientRect = () => ( { left: 0, top: 500, width: 800, height: 600 } );
-	window.scrollTo = vi.fn();
-	Element.prototype.scrollIntoView = vi.fn();
+	// jsdom has no scrolling; restored after each test (restoreMocks).
+	vi.spyOn( window, 'scrollTo' ).mockImplementation( () => {} );
+	addedScrollIntoView = ! Element.prototype.scrollIntoView;
+	if ( addedScrollIntoView ) {
+		Element.prototype.scrollIntoView = () => {};
+	}
+	vi.spyOn( Element.prototype, 'scrollIntoView' ).mockImplementation( () => {} );
 	slideshow = createSlideshow( root );
 } );
 
-afterEach( () => slideshow.destroy() );
+afterEach( () => {
+	slideshow.destroy();
+	document.body.innerHTML = '';
+	document.documentElement.removeAttribute( 'style' );
+	vi.restoreAllMocks();
+	if ( addedScrollIntoView ) {
+		delete Element.prototype.scrollIntoView;
+	}
+} );
 
 const cursor = () => document.querySelector( '.photopress-press-cursor' );
 
