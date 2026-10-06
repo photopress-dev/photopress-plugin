@@ -13,32 +13,71 @@ class slideshow extends photopress_module {
 	
 	var $label = 'Slideshow';
 	
+	/**
+	 * Whether the lightbox has been queued for the footer on this request.
+	 */
+	private $lightboxQueued = false;
+
 	public function definePublicHooks() {
 		
 		if ( pp_api::getOption( 'core', 'slideshow', 'enable' ) ) {
 		
-			//add_action( 'wp_enqueue_scripts', [ $this, 'public_scripts' ] );
-			add_filter( 'the_content', [ $this, 'public_scripts' ] );
-			// configure gallery HTML
-			
-			add_filter( 'render_block', [$this, 'render_slideshow'], 10, 3);
+			add_filter( 'render_block', [$this, 'render_slideshow'], 10, 2 );
 		}
 	}
 	
+	/**
+	 * Marks a gallery that has the slideshow turned on, and queues the
+	 * lightbox and its assets. Applies to the legacy photopress/gallery block
+	 * (linkToSlideshow) and to core/gallery with a PhotoPress layout
+	 * (photopressSlideshow; its items are prepared by modules/gallery).
+	 */
 	public function render_slideshow( $block_content, $block ) {
 
-    	// check to make sure we are dealing with a gallery block
-		if( "photopress/gallery" !== $block['blockName'] ) {
-		
+		$attrs = $block['attrs'] ?? [];
+
+		if ( 'photopress/gallery' === $block['blockName'] ) {
+
+			// The attribute is saved as false once the toggle is switched off.
+			$enabled = ! empty( $attrs['linkToSlideshow'] );
+			$gallery = [ 'class_name' => 'photopress-gallery' ];
+
+		} elseif ( 'core/gallery' === $block['blockName'] ) {
+
+			$enabled = ! empty( $attrs['photopressSlideshow'] ) && ! empty( $attrs['photopressLayout'] );
+			$gallery = [ 'tag_name' => 'figure', 'class_name' => 'wp-block-gallery' ];
+
+		} else {
+
 			return $block_content;
 		}
-		
-		// check to see if the showSlideshow attr is set on the block
-		if (! isset( $block['attrs']['linkToSlideshow'] ) ) {
-			
+
+		if ( ! $enabled ) {
 			return $block_content;
 		}
-		
+
+		// Only galleries with this class open the slideshow when clicked.
+		$p = new \WP_HTML_Tag_Processor( $block_content );
+
+		if ( ! $p->next_tag( $gallery ) ) {
+			return $block_content;
+		}
+
+		$p->add_class( 'photopress-has-slideshow' );
+
+		// One lightbox per page, shared by every slideshow gallery on it.
+		if ( ! $this->lightboxQueued ) {
+
+			$this->lightboxQueued = true;
+			$this->enqueueAssets();
+			add_action( 'wp_footer', [ $this, 'printLightbox' ] );
+		}
+
+		return $p->get_updated_html();
+	}
+
+	public function printLightbox() {
+
 		$args = [
 			
 			'showThumbnails',
@@ -58,81 +97,47 @@ class slideshow extends photopress_module {
 			
 			$option = pp_api::getOption('core', 'slideshow', $arg );
 			
-			if (is_array( $option ) ) {
+			if ( is_array( $option ) ) {
 				
-				$option = esc_attr( json_encode( $option ) );
+				$option = wp_json_encode( $option );
 			} 
 			
-			$args_dom .= sprintf( ' data-%s="%s"', $arg, $option );
+			$args_dom .= sprintf( ' data-%s="%s"', esc_attr( strtolower( $arg ) ), esc_attr( (string) $option ) );
 		}
 		
-		//add_action( 'wp_enqueue_scripts', array( $this, 'public_scripts' ) );
-		
-		// output slideshow html scafolding
-		$o = [];
-		
-		$o[] = $block_content;
-		
-		$o[] = '<div class="lightbox" id="lightbox-gallery">';
-		
-			$o[] = '<div class="photopress-slideshow" '. $args_dom . ' ></div>';
-			
-			$o[] = '<a class="lightbox__close">Close</a>';
-			
-		$o[] = '</div>';
-		
-		return implode( " \n ", $o );
+		echo '<div class="lightbox" id="lightbox-gallery">';
+		echo '<div class="photopress-slideshow"' . $args_dom . '></div>';
+		echo '<a class="lightbox__close" href="#" role="button">' . esc_html__( 'Close', 'photopress' ) . '</a>';
+		echo '</div>';
 	}
 	
-	public function public_scripts( $content ) {
+	private function enqueueAssets() {
 				
-		if ( ! is_admin() && has_block( 'photopress/gallery' ) ) { 
+		wp_register_style( 
+			'owl', 
+			plugins_url('assets/css/owl.carousel.min.css',
+			__FILE__),
+			[],
+			PHOTOPRESS_CORE_VERSION 
+		 );
+		 
+		wp_enqueue_style( 'owl' );
 		
-			wp_register_style( 
-				'owl', 
-				plugins_url('assets/css/owl.carousel.min.css',
-				__FILE__),
-				[],
-				PHOTOPRESS_CORE_VERSION 
-			 );
-			 
-		    wp_enqueue_style( 'owl' );
-			
-/*
-			wp_register_style( 
-				'flickity', 
-				plugins_url('assets/css/flickity.css',
-				__FILE__) 
-			 );
-			 
-		    wp_enqueue_style( 'flickity' );		
-*/
-			
-			wp_enqueue_script(
-				'owl',
-				plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
-				[ 'jquery', ],
-				PHOTOPRESS_CORE_VERSION
-			);
-			
-/*
-			wp_enqueue_script(
-				'flickity',
-				plugins_url( 'assets/js/flickity.pkgd.min.js' , __FILE__ ),
-				[ 'jquery', ],
-				PHOTOPRESS_CORE_VERSION
-			);
-*/
-			
-			wp_enqueue_script(
-				'photopress-slideshow',
-				plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-				[ 'jquery', 'imagesloaded', 'owl', 'photopress' ],
-				PHOTOPRESS_CORE_VERSION
-			);
-		}
+		wp_enqueue_script(
+			'owl',
+			plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
+			[ 'jquery', ],
+			PHOTOPRESS_CORE_VERSION,
+			true
+		);
 		
-		return $content;
+		wp_enqueue_script(
+			'photopress-slideshow',
+			plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
+			[ 'jquery', 'imagesloaded', 'owl', 'photopress' ],
+			PHOTOPRESS_CORE_VERSION,
+			true
+		);
 	}
 	
 		

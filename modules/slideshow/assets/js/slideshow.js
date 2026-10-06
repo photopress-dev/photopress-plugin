@@ -9,6 +9,10 @@
  */
 photopress.slideshow = function( selector, options ) {
 	
+	// Per-instance copies; the prototype's objects would be shared and mutated.
+	this.options = jQuery.extend( true, {}, this.options );
+	this.thumbnails = jQuery.extend( {}, this.thumbnails );
+	
 	this.options.selector = selector ? selector : this.options.selector;
 	// apply instance specific options
 	if ( options ) {
@@ -41,6 +45,11 @@ photopress.slideshow = function( selector, options ) {
 		
 		let dom_opt = jQuery( that.options.selector ).data( opt.toLowerCase() );
 		
+		// Options the markup does not set keep their defaults.
+		if ( typeof dom_opt === 'undefined' ) {
+			return;
+		}
+		
 		if ( that.isValidJson( dom_opt ) ) {
 			
 			dom_opt = JSON.parse(dom_opt);
@@ -70,6 +79,10 @@ photopress.slideshow.prototype = {
 	totalGalleryImages: 0,
 	carouselNotWideEnough: false,
 	isLoaded: false,
+	isRendering: false,
+	isOpen: false,
+	gallery: null,			// the gallery the slideshow was built from
+	slideRequest: 0,		// incremented per showSlide, so stale image loads are ignored
 	options: {
 		selector: '.photopress-slideshow',
 		showDetails: true,										// show slide details
@@ -78,9 +91,9 @@ photopress.slideshow.prototype = {
 		showCaptions: true,
 		showAttachmentLink: false,
 		attachmentLinkText: 'Read More...',
-		gallerySelector: '.photopress-gallery',
+		gallerySelector: '.photopress-has-slideshow',				// galleries with the slideshow turned on
 		clickStart: true, 										// delay start of slideshow until something is clicked.
-		clickStartSelector: '.photopress-gallery-item', 		// DOM element to start the slideshow
+		clickStartSelector: '.photopress-has-slideshow .photopress-gallery-item', 		// DOM element to start the slideshow
 		detail_position: 'bottom',
 		thumbnailHeight: 120,
 		showThumbnails: true,
@@ -135,19 +148,13 @@ photopress.slideshow.prototype = {
 		// set the viewport height
 		this.setViewportDimensions();
 		
-		//this.options.thumbnailHeight = this.getThumbnailHeight();
-		
-		// set the total number of images in the gallery/slideshow
-		// needed to tell when images are all loaded.
-		let cs = this.getOption('clickStartSelector');
-		this.totalGalleryImages = jQuery( cs ).length;
-		
 		// add window resize handler so that we can make the main slide image 
 		// responsive to changes in viewport height.This is necessary because the flexbox
 		// height is set explicitly using a css calc and will not shrink on its own unless 
 		// we tell the CSS that the viewport height has changed. 
-		window.onresize = this.setViewportDimensions;
-		window.onorientationchange = this.setViewportDimensions;
+		jQuery( window ).on( 'resize orientationchange', this.setViewportDimensions.bind( this ) );
+		
+		this.registerHandlers();
 		
 		var that = this;
 		
@@ -159,11 +166,24 @@ photopress.slideshow.prototype = {
 			
 			jQuery(document).on('click', selector, function(e) {
 				
-				// get the index of the slide clciked on.
-				let i = jQuery(e.target).data( 'position' );
-				
 				// intercept the click event
 				e.preventDefault();
+				
+				let item = jQuery( this );
+				let gallery = item.closest( that.getOption( 'gallerySelector' ) );
+				
+				// The position of the clicked item within its own gallery. The
+				// click may land on a caption or a link rather than the image.
+				let i = parseInt( item.find( 'img' ).first().data( 'position' ), 10 );
+				
+				if ( isNaN( i ) ) {
+					i = gallery.find( '.photopress-gallery-item' ).index( item );
+				}
+				
+				// A different gallery than last time: rebuild from that one.
+				if ( ! that.gallery || that.gallery[0] !== gallery[0] ) {
+					that.useGallery( gallery );
+				}
 				
 				// display the lightbox and show the slide that was clicked on
 				that.showLightbox( i );
@@ -172,9 +192,28 @@ photopress.slideshow.prototype = {
 			
 		} else {
 			
+			this.useGallery( jQuery( this.getOption( 'gallerySelector' ) ).first() );
 			// show the lightbox and display the first slide.
 			this.showLightbox( this.getStartPosition() );
 		}		
+	},
+	
+	/**
+	 * Points the slideshow at a gallery, discarding slides and thumbnails
+	 * built from another one.
+	 */
+	useGallery: function( gallery ) {
+		
+		if ( this.thumbnails.carousel ) {
+			this.thumbnails.carousel.trigger( 'destroy.owl.carousel' );
+		}
+		
+		jQuery( this.options.selector ).empty();
+		
+		this.gallery = gallery;
+		this.isLoaded = false;
+		this.thumbnails = { containerWidth: 0, count: 0, carousel: null, totalWidth: 0 };
+		this.totalGalleryImages = gallery.find( '.photopress-gallery-item img' ).length;
 	},
 	
 	displaySlideLoader: function() {
@@ -186,6 +225,8 @@ photopress.slideshow.prototype = {
 		
 		this.displaySlideLoader();
 	
+		var that = this;
+		var request = ++this.slideRequest;
 		var i = new Image;
 			
 		// calculate the img tags responsive "sizes" attribute: 
@@ -228,7 +269,20 @@ photopress.slideshow.prototype = {
 		let attachmentLinkText = this.getOption('attachmentLinkText');
 		
 		//load handler that once image is loaded will insert it into the DOM
+		jQuery(i).on('error', function() {
+			
+			if ( request === that.slideRequest ) {
+				jQuery('.panels .center').html('<div class="slide-error">This image could not be loaded.</div>');
+			}
+		});
+		
 		jQuery(i).on('load', function() {
+			
+			// A later slide was requested while this one was loading.
+			if ( request !== that.slideRequest ) {
+				return;
+			}
+			
 			//jQuery('.panels .center').html('<div class="main-image"></div>');
 			jQuery('.panels .center').html(i);
 			
@@ -254,7 +308,9 @@ photopress.slideshow.prototype = {
 			if ( showAttachmentLink ) {
 				
 				 
-				jQuery('.slide-info').append(`<div class="info attachment-link"><a href="${attachmentLink}">${attachmentLinkText}</a></div>`);
+				jQuery('<div class="info attachment-link"></div>')
+					.append( jQuery('<a></a>').attr( 'href', attachmentLink ).text( attachmentLinkText ) )
+					.appendTo('.slide-info');
 			}
 
 		});
@@ -290,10 +346,14 @@ photopress.slideshow.prototype = {
 	 */
 	hideLightbox: function () {
 		
+		this.isOpen = false;
 		jQuery( '.lightbox' ).css('opacity','0');
 		jQuery( '.lightbox' ).css({'z-index': '-100'});
+		// display:none, or the hidden full-screen lightbox still paints over
+		// the page background.
+		jQuery( '.lightbox' ).hide();
 		// re-enable scrolling of the body content
-		jQuery( 'body' ).css('overflow', 'auto');
+		jQuery( 'body' ).css('overflow', '');
 		// fire hidden event in case anyone is listening
 		jQuery( '.lightbox').trigger('pp-slideshow-closed');
 	},
@@ -307,13 +367,18 @@ photopress.slideshow.prototype = {
 
 		var that = this;
 		
+		this.isOpen = true;
+		
 		jQuery( '.lightbox' ).show('slow', function() {
 			
 			// render the slideshow for the first time.
 			if ( ! that.isLoaded ) {
 				
-				// render the slideshow
-				that.render( i );
+				// A second click while the first render is still loading
+				// thumbnails must not render again.
+				if ( ! that.isRendering ) {
+					that.render( i );
+				}
 				
 			} else {
 				
@@ -350,7 +415,7 @@ photopress.slideshow.prototype = {
 		
 		var that = this;
 		
-		jQuery( that.getOption( 'gallerySelector' ) ).find('img').each( function( i ) {
+		that.gallery.find( '.photopress-gallery-item img' ).each( function( i ) {
 			
 			// clone the image
 			var ni = jQuery(this).clone();
@@ -361,11 +426,14 @@ photopress.slideshow.prototype = {
 			// add data position attribute
 			jQuery(ni).attr('data-position', i + 1);
 			
-			let aspectRatio = jQuery(ni).attr('data-aspectratio');
+			// Missing values would make the width NaN, and the loop in render()
+			// that adds thumbnails until they are wide enough would never end.
+			let aspectRatio = parseFloat( jQuery(ni).attr('data-aspectratio') )
+				|| ( this.naturalWidth && this.naturalHeight ? this.naturalWidth / this.naturalHeight : 1 );
 			
-			let thumbnailHeight = that.getOption('thumbnailHeight');
+			let thumbnailHeight = parseInt( that.getOption('thumbnailHeight'), 10 ) || 120;
 			
-			let thumbnailWidth = Math.round(parseInt(thumbnailHeight, 10) * aspectRatio);
+			let thumbnailWidth = Math.round( thumbnailHeight * aspectRatio );
 			
 			// add data sizes attribute
 			jQuery(ni).attr('sizes', `${thumbnailWidth}px`);
@@ -430,11 +498,12 @@ photopress.slideshow.prototype = {
 		
 		var that = this;
 		
-		let value = jQuery( that.getOption( 'gallerySelector' ) + ' .photopress-gallery-item[data-id=' + id + ']').find('img').data( key );	
+		let value = that.gallery.find( '.photopress-gallery-item[data-id="' + id + '"]' ).find('img').data( key );	
 		
-		if ( typeof value !== 'undefined' && value !== '' && value !== null && value.length > 0 ) {
+		// .data() turns a caption such as "2024" into a number.
+		if ( typeof value !== 'undefined' && value !== null && String( value ).length > 0 ) {
 			
-			return value;
+			return String( value );
 		}
 	},
 	
@@ -449,6 +518,8 @@ photopress.slideshow.prototype = {
 	render: function ( i ) {
 		
 		var that = this;
+		
+		this.isRendering = true;
 		
 		// create inner dom scaffolding
 		let o = '';
@@ -483,16 +554,14 @@ photopress.slideshow.prototype = {
 		// clone a second set of thumbnails if there aren't enough to fill the entire container.
 		// the carousel library should handle this but it does not, so better safe than sorry.		
 		
-		do {
+		// Capped in case the widths never reach the target.
+		for ( let pass = 0; pass < 20; pass++ ) {
 			
-			var ret = this.generateThumbnailImages();
-			
-			if ( ! ret ) {
+			if ( ! this.generateThumbnailImages() ) {
 				
 				break;
 			}
-		
-		} while ( true );
+		}
 		
 		// try to wait for thumbnails to load...
 		jQuery('.thumbnail-list').imagesLoaded( function( instance ) {
@@ -526,12 +595,11 @@ photopress.slideshow.prototype = {
 			var img = that.getCurrentSlide();
 			// show the start slide
 			that.showSlide( img );
-			// register slideshow UI click handlers 
-			that.registerHandlers();
 					
 			// set the loaded flag so that we do not render again if lightbox is 
 			// closed and then re-opened.
 			that.isLoaded = true;
+			that.isRendering = false;
 
 		});
 	},
@@ -546,6 +614,10 @@ photopress.slideshow.prototype = {
 		// left arrow icon handler	
 		jQuery( document ).on( 'click', '.nav-control.left', function(e) {
 		
+			if ( ! that.isLoaded ) {
+				return;
+			}
+			
 			that.scrollToPreviousSlide();
 			
 			that.showSlide( that.getCurrentSlide() );
@@ -555,6 +627,10 @@ photopress.slideshow.prototype = {
 		// right arrow icon handler
 		jQuery( document ).on( 'click', '.nav-control.right', function(e) {
 					
+			if ( ! that.isLoaded ) {
+				return;
+			}
+			
 			that.scrollToNextSlide();
 			
 			that.showSlide( that.getCurrentSlide() );
@@ -575,7 +651,12 @@ photopress.slideshow.prototype = {
 		
 		// Keypress event handlers
 		// these just fire the click event on the prev/next elements.
-		jQuery(document).keydown( function( e ) {
+		jQuery(document).on( 'keydown', function( e ) {
+			
+			// Leave the keys alone while the lightbox is closed, and in fields.
+			if ( ! that.isOpen || jQuery( e.target ).is( 'input, textarea, select, [contenteditable]' ) ) {
+				return;
+			}
 			
 			switch( e.which ) {
 		        
@@ -601,8 +682,9 @@ photopress.slideshow.prototype = {
 		});
 		
 		// close lightbox control
-		jQuery(document).on('click', '.lightbox .lightbox__close', function(){
+		jQuery(document).on('click', '.lightbox .lightbox__close', function( e ){
     	
+			e.preventDefault();
 			that.hideLightbox();
 		});
 
@@ -677,7 +759,7 @@ photopress.slideshow.prototype = {
 
 
 
-jQuery(window).load(function() {
+jQuery( function() {
 	
 	// if slideshow contain is present
 	if ( document.getElementById('lightbox-gallery') ) {
