@@ -102,32 +102,20 @@ class metadata extends photopress_module {
   		}
 		
 		
-		if ( ! preg_match_all( '/<img [^>]+>/', $content, $matches ) ) {
-			
-			return $content;
-		}
-		
-		$selected_images = [];
-		
-		foreach ( $matches[0] as $image_html ) {
-			
-			
-			if ( preg_match( '/(wp-image-|data-id=)\"?([0-9]+)\"?/i', $image_html, $class_id ) ) {
-				
-				$attachment_id = absint( $class_id[2] );
-				
-				/**
-				 * If exactly the same image tag is used more than once, overwrite it.
-				 * All identical tags will be replaced later with 'str_replace()'.
-				 */
-				$selected_images[ $attachment_id  ] = $image_html;
+		// Attachment ids from wp-image-N classes or data-id attributes.
+		$p   = new \WP_HTML_Tag_Processor( $content );
+		$ids = [];
+
+		while ( $p->next_tag( 'img' ) ) {
+
+			$id = $this->attachmentIdOf( $p );
+
+			if ( $id ) {
+				$ids[ $id ] = true;
 			}
 		}
 
-		$find = [];
-		$replace = [];
-		
-		if ( empty( $selected_images ) ) {
+		if ( empty( $ids ) ) {
 			
 			return $content;
 		}
@@ -135,37 +123,51 @@ class metadata extends photopress_module {
 		$attachments = get_posts(
 			
 			[
-				'include'          => array_keys( $selected_images ),
+				'include'          => array_keys( $ids ),
 				'post_type'        => 'any',
 				'post_status'      => 'any',
 				'suppress_filters' => false,
 			]
 		);
 		
+		$attributes_by_id  = [];
 		$licensable_images = [];
 		
 		foreach ( $attachments as $attachment ) {
 			
-			$image_html = $selected_images[ $attachment->ID ];
-
-			$attributes      = $this->addAttributesToImages( [], $attachment );
-			
-			$attributes_html = '';
-			
-			foreach ( $attributes as $k => $v ) {
-				
-				$attributes_html .= esc_attr( $k ) . '="' . esc_attr( $v ) . '" ';
-			}
-
-			$find[] = $image_html;
-			
-			$replace[] = str_replace( '<img ', "<img $attributes_html", $image_html );
+			$attributes_by_id[ $attachment->ID ] = $this->addAttributesToImages( [], $attachment );
 			
 			// add licensable image
 			$licensable_images[] = $attachment->ID;
 		}
 
-		$content = str_replace( $find, $replace, $content );
+		/*
+		 * Add each attribute only where the tag does not already have it, so
+		 * values the block itself saved (a gallery image's data-caption, for
+		 * one) win over the media library's. Splicing the attributes in front
+		 * of the existing ones made the media library's win, as the first of
+		 * two duplicate attributes is the one browsers keep.
+		 */
+		$p = new \WP_HTML_Tag_Processor( $content );
+
+		while ( $p->next_tag( 'img' ) ) {
+
+			$id = $this->attachmentIdOf( $p );
+
+			if ( ! $id || empty( $attributes_by_id[ $id ] ) ) {
+				continue;
+			}
+
+			foreach ( $attributes_by_id[ $id ] as $name => $value ) {
+
+				if ( null === $p->get_attribute( $name ) ) {
+					// The builder escapes its values; the processor escapes again.
+					$p->set_attribute( $name, html_entity_decode( (string) $value, ENT_QUOTES | ENT_HTML5 ) );
+				}
+			}
+		}
+
+		$content = $p->get_updated_html();
 		
 		// add licensable images
 		$content .= $this->renderLicensingSchema( $licensable_images );
@@ -173,6 +175,19 @@ class metadata extends photopress_module {
 		return $content;
 	}
 	
+	/**
+	 * The attachment id of the img the processor is on, from its wp-image-N
+	 * class or data-id attribute.
+	 */
+	private function attachmentIdOf( \WP_HTML_Tag_Processor $p ) {
+
+		if ( preg_match( '/\bwp-image-(\d+)\b/', (string) $p->get_attribute( 'class' ), $m ) ) {
+			return absint( $m[1] );
+		}
+
+		return absint( $p->get_attribute( 'data-id' ) );
+	}
+
 	public function addAttributesToImages( $attr, $attachment = null ) {
 		
 		$attachment_id = intval( $attachment->ID );
@@ -656,10 +671,15 @@ class metadata extends photopress_module {
 		
 			$alt = $this->generateAltText( $md );
 			
-			if ( ! update_post_meta( $id, '_wp_attachment_image_alt', $alt ) ) {
-				
-				add_post_meta( $id, '_wp_attachment_image_alt', $alt );
+			// Nothing to say; leave any alt text that was supplied alone.
+			if ( '' === $alt ) {
+				return;
 			}
+			
+			// Adds the row if there is none. It returns false when the value is
+			// unchanged, which the add_post_meta() fallback here used to treat
+			// as missing and add a duplicate row.
+			update_post_meta( $id, '_wp_attachment_image_alt', $alt );
 		}
 	}
 	
@@ -679,27 +699,71 @@ class metadata extends photopress_module {
 	 */
 	public function generateAltText( $md ) {
 		
-		$template =  pp_api::getOption('core', 'metadata', 'alt_text_template');
+		$template = (string) pp_api::getOption('core', 'metadata', 'alt_text_template');
 		
-		$matches = [];
+		$alt = self::fillAltTemplate( $template, function ( $tag ) use ( $md ) {
+			return $md->getXmp( $tag );
+		} );
 		
-		// get the tokens
-		preg_match_all("/(?<=\[).+?(?=\])/", $template, $matches );
-		//error_log(print_r($matches, true));
-		
-		//replace the tokens
-		foreach($matches[0] as $key){
+		// The template's tags are all missing from this image.
+		if ( '' === $alt ) {
 			
-			$value = $md->getXmp( $key );
-			
-			if ( $value ) {
-			    $template = str_replace('['.$key.']', $value, $template);
-			} else {
-				$template = str_replace('['.$key.']', '', $template);
+			foreach ( [ 'dc:description', 'dc:title' ] as $tag ) {
+				
+				$alt = self::altTextValue( $md->getXmp( $tag ) );
+				
+				if ( '' !== $alt ) {
+					break;
+				}
 			}
 		}
 
-		return $template;
+		return $alt;
+	}
+	
+	/**
+	 * Replaces each [tag] in the template with the image's value, then removes
+	 * the separators that empty tags leave behind, so that
+	 * "[photoshop:Headline]. [dc:title]." gives "Bob." rather than
+	 * ". Bob.", and nothing at all when every tag is empty.
+	 *
+	 * @param string   $template The alt text template.
+	 * @param callable $lookup   Returns the value of a tag.
+	 */
+	public static function fillAltTemplate( $template, $lookup ) {
+		
+		$found = false;
+		
+		$alt = preg_replace_callback( '/\[([^\]]+)\]/', function ( $m ) use ( $lookup, &$found ) {
+			
+			$value = self::altTextValue( $lookup( $m[1] ) );
+			$found = $found || '' !== $value;
+			
+			return $value;
+		}, $template );
+		
+		if ( ! $found ) {
+			return '';
+		}
+		
+		$sep = '[.,;:|\x{2013}\x{2014}-]';
+		$alt = preg_replace( "/($sep)(\s*$sep)+/u", '$1', $alt );   // ". ." -> "."
+		$alt = preg_replace( "/^[\s.,;:|\x{2013}\x{2014}-]+/u", '', $alt ); // leading ". "
+		$alt = preg_replace( '/\s+/u', ' ', $alt );
+		
+		return trim( $alt );
+	}
+	
+	/**
+	 * A tag value as plain text: lists are joined, markup is removed.
+	 */
+	private static function altTextValue( $value ) {
+		
+		if ( is_array( $value ) ) {
+			$value = implode( ', ', array_filter( array_map( 'strval', $value ), 'strlen' ) );
+		}
+		
+		return trim( wp_strip_all_tags( (string) $value ) );
 	}
 	
 	public function embedLicense( $move, $file, $newfile, $type ) {
@@ -889,6 +953,12 @@ class metadata extends photopress_module {
 			
 			$value = $md->getXmp( $tag );
 			
+			// The image does not carry this tag (getXmp() returns null when
+			// the image has no XMP at all). Nothing to assign.
+			if ( null === $value || '' === $value || [] === $value ) {
+				continue;
+			}
+			
 				// maybe parse the value
 				
 			if ( is_array( $value ) ) {
@@ -924,10 +994,10 @@ class metadata extends photopress_module {
 		$term_inserted = false;
 		
 		// if children and delimiter
-		if ( array_key_exists('children', $family ) && ! empty( $family['children'] ) && strpos( $value, $delim ) ) {
+		if ( array_key_exists('children', $family ) && ! empty( $family['children'] ) && $delim && is_string( $value ) && strpos( $value, $delim ) ) {
 	
 			// check to see that there is a matching child tax
-			$pair = explode( $delim, $value); 
+			$pair = explode( $delim, $value, 2 ); 
 			
 			// trim
 			$child_label = trim( $pair[0] );
