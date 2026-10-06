@@ -28,6 +28,15 @@ $thumbnail-bottom-margin: 10px;
 		.nav-control {
 			
 			width: 100px;
+			
+			// With a mouse, the chevron drawn at the pointer shows the way
+			// (src/shared/press-navigation.js); the arrows stay for touch.
+			@media (hover: hover) and (pointer: fine) {
+				
+				.arrow {
+					visibility: hidden;
+				}
+			}
 		}
 		
 		.center {
@@ -43,12 +52,15 @@ $thumbnail-bottom-margin: 10px;
 			img {
 				
 				max-height:100%;
+				// Wide images overflowed under the arrow columns.
+				max-width: 100%;
 				width: auto;
 			}
 			
 			.slide-info {
 				
-				
+				// The Caption Padding setting.
+				padding: var(--pp-slideshow-caption-padding, 0);
 				font-size: 14px;
 				
 				.info {

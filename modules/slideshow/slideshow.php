@@ -107,6 +107,8 @@ class slideshow extends photopress_module {
 		}
 		
 		echo '<div class="lightbox" id="lightbox-gallery">';
+		$args_dom .= sprintf( ' style="--pp-slideshow-caption-padding:%dpx"', max( 0, (int) pp_api::getOption( 'core', 'slideshow', 'captionPadding' ) ) );
+		
 		echo '<div class="photopress-slideshow"' . $args_dom . '></div>';
 		echo '<a class="lightbox__close" href="#" role="button">' . esc_html__( 'Close', 'photopress' ) . '</a>';
 		echo '</div>';
@@ -224,6 +226,18 @@ class slideshow extends photopress_module {
 					'description'							=> 'Height of thumbnails.',
 					'label_for'								=> 'Height of thumbnails.'		
 				)							
+			),
+			
+			'captionPadding'				=> array(
+				'default_value'							=> 0,
+				'field'									=> array(
+					'type'									=> 'integer',
+					'title'									=> 'Caption Padding',
+					'page_name'								=> 'gallery-slideshow',
+					'section'								=> 'general',
+					'description'							=> 'Space around the caption area, in pixels.',
+					'label_for'								=> 'Space around the caption area, in pixels.'
+				)
 			),
 			
 			'showTitleInCaption'				=> array(

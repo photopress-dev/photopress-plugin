@@ -126,6 +126,8 @@ foreach ( glob( dirname( __DIR__ ) . '/fixtures/images/*.jpg' ) as $file ) {
 	}
 
 	update_post_meta( $id, PP_FIXTURE_META, 1 );
+	// WordPress takes captions from IPTC, which the images do not have.
+	wp_update_post( [ 'ID' => $id, 'post_excerpt' => 'Caption of ' . basename( $file, '.jpg' ) ] );
 	$images[ basename( $file, '.jpg' ) ] = $id;
 }
 
