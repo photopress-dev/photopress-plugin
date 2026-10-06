@@ -563,6 +563,11 @@ class MetadataSettings extends Component {
 
 		return (
 			<Fragment>
+			{ this.getError( 'save' ) &&
+				<Notice status="error" isDismissible={ false }>
+					<p>{ __( 'The settings were not saved:' ) } { this.getError( 'save' ) }</p>
+				</Notice>
+			}
 			<PanelBody title={ __( 'Custom Taxonomies' ) }>
 						
 					{ rows.map( ( val, idx ) => {

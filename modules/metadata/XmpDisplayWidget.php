@@ -7,6 +7,11 @@ use pp_api;
 
 class XmpDisplayWidget extends WP_Widget {
 	
+	/**
+	 * Default taxonomies of a widget saved without a list.
+	 */
+	const DEFAULT_TAXONOMIES = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people';
+
 	function __construct() {
 				
 		/* Widget settings. */
@@ -14,7 +19,10 @@ class XmpDisplayWidget extends WP_Widget {
 			
 			'classname' => 'XmpDisplayWidget', 
 			'description' => "Display's the taxonomy terms of an image. Can only be used on single image or attachment pages.",
-			'customize_selective_refresh' => true 
+			'customize_selective_refresh' => true,
+			// Exposes the settings to the widgets block editor, so a placed
+			// widget can be transformed into the Image Taxonomies block.
+			'show_instance_in_rest' => true,
 		];
 
 		/* Widget control settings. */
@@ -23,48 +31,32 @@ class XmpDisplayWidget extends WP_Widget {
 		parent::__construct( 'XmpDisplayWidget', __('Display Taxonomies (PhotoPress)', 'photopress'), $widget_ops, $control_ops);
 	}
 	
+	/**
+	 * Same markup as before, now from ImageTaxonomies, which the Image
+	 * Taxonomies block uses too.
+	 */
 	function widget( $args, $instance ) {
 		
-		global $post;
+		$post_id = get_the_ID();
 		
-		extract( $args );
-		
-		/* User-selected settings. */
-		//$title = apply_filters('widget_title', $instance['title'] );
-		
-		if ( ! array_key_exists('taxonomies', $instance ) || empty( $instance['taxonomies'] ) ) {
-			
-			$taxonomies = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people';
-			
-		} else {
-			
-			$taxonomies = $instance['taxonomies'];
+		if ( ! $post_id ) {
+			return;
 		}
 		
-		$taxonomies = explode( ',', str_replace( ' ', '', $taxonomies ) );
-		/* Before widget (defined by themes). */
-		echo $before_widget;
+		$taxonomies = ! empty( $instance['taxonomies'] ) ? $instance['taxonomies'] : self::DEFAULT_TAXONOMIES;
+		
+		echo $args['before_widget'];
 		
 		if ( ! empty( $instance['title'] ) ) {
 			
-			echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ). $args['after_title'];
+			echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ) . $args['after_title'];
 		}
 		
-		echo '<div class="display-taxonomy-terms-widget">';	
-		
-		foreach ( $taxonomies as $tax_name ) {
-					
-			if ( taxonomy_exists( $tax_name ) ) {
-				
-				$t = get_taxonomy($tax_name);
-				
-				echo get_the_term_list( $post->ID, $tax_name, '<div class="container"><div class="label">'. $t->label .': </div><div class="terms">', ', ', '</div></div>' );	
-			}
-		}
-		
+		echo '<div class="display-taxonomy-terms-widget">';
+		echo ImageTaxonomies::renderRows( $post_id, ImageTaxonomies::parseList( $taxonomies ), true, true );
 		echo '</div>';
-		/* After widget (defined by themes). */
-		echo $after_widget;
+		
+		echo $args['after_widget'];
 	}
 	
 	function update( $new_instance, $old_instance ) {
@@ -83,19 +75,19 @@ class XmpDisplayWidget extends WP_Widget {
 		/* Set up some default widget settings. */
 		$defaults = array(  
 						'title' => '',
-						'taxonomies' => 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people'
+						'taxonomies' => self::DEFAULT_TAXONOMIES
 					);
 					
 		$instance = wp_parse_args( (array) $instance, $defaults ); ?>
 		
 		<p>
 			<label for="<?php echo $this->get_field_id( 'title' ); ?>">Title:</label>
-			<input id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" value="<?php echo $instance['title']; ?>" placeholder="foo" style="width:100%;" />
+			<input id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" value="<?php echo esc_attr( $instance['title'] ); ?>" style="width:100%;" />
 		</p>
 		
 		<p>
 			<label for="<?php echo $this->get_field_id( 'taxonomies' ); ?>">Image Taxonomies:</label>
-			<input id="<?php echo $this->get_field_id( 'taxonomies' ); ?>" name="<?php echo $this->get_field_name( 'taxonomies' ); ?>" value="<?php echo $instance['taxonomies']; ?>" style="width:100%;" />
+			<input id="<?php echo $this->get_field_id( 'taxonomies' ); ?>" name="<?php echo $this->get_field_name( 'taxonomies' ); ?>" value="<?php echo esc_attr( $instance['taxonomies'] ); ?>" style="width:100%;" />
 		</p>
 
 		<?php

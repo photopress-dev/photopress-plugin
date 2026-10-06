@@ -1,11 +1,12 @@
 /**
- * Build config: @wordpress/scripts defaults, adjusted to emit the same four
- * files the PHP has always enqueued from dist/:
+ * Build config: @wordpress/scripts defaults, adjusted to emit the files the PHP
+ * enqueues from dist/:
  *
  *   blocks.build.js           editor script        (framework/class-pp-framework.php)
  *   blocks.editor.build.css   editor styles        (editor.scss files)
  *   blocks.style.build.css    front end + editor   (style.scss files; also the options page)
  *   options.build.js          settings page script (modules/base/base.php)
+ *   gallery-layouts.build.js  front-end masonry for core/gallery (modules/gallery/gallery.php)
  *
  * Each JS file is accompanied by a .asset.php listing its script dependencies,
  * which the PHP reads instead of hardcoding them.
@@ -53,6 +54,7 @@ module.exports = {
 	entry: {
 		'blocks.build': './src/blocks.js',
 		'options.build': './src/options.js',
+		'gallery-layouts.build': './src/frontend/gallery-layouts.js',
 	},
 	output: {
 		...defaultConfig.output,

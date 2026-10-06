@@ -1,0 +1,35 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "photopress/image-taxonomies",
+	"title": "Image Taxonomies",
+	"category": "media",
+	"description": "The taxonomy terms of the current image: keywords, people, places, camera and so on.",
+	"keywords": [ "photopress", "taxonomy", "terms", "metadata", "keywords" ],
+	"textdomain": "photopress",
+	"attributes": {
+		"taxonomies": {
+			"type": "array",
+			"items": { "type": "string" },
+			"default": []
+		},
+		"linkTerms": {
+			"type": "boolean",
+			"default": true
+		},
+		"showLabels": {
+			"type": "boolean",
+			"default": true
+		}
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"spacing": { "margin": true, "padding": true },
+		"typography": { "fontSize": true, "lineHeight": true },
+		"color": { "text": true, "background": true, "link": true }
+	},
+	"editorScript": "photopress-editor",
+	"style": "photopress-frontend"
+}

@@ -16,6 +16,8 @@ import { registerBlockType, } from '@wordpress/blocks';
 import * as childpages from './blocks/child_pages/index.js';
 
 import * as gallery from './blocks/gallery/index.js';
+import * as imageTaxonomies from './blocks/image-taxonomies/index.js';
+import './variations/gallery-layouts.js';
 
 
 
@@ -45,8 +47,8 @@ const registerBlock = ( block ) => {
 export const registerPhotoPressBlocks = () => {
 	[
 		childpages,
-		gallery
-		
+		gallery,
+		imageTaxonomies,
 	].forEach( registerBlock );
 };
 

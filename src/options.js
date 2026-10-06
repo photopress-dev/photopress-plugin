@@ -16,9 +16,10 @@ const {
 } = wp.components;
 
 import { TabPanel } from '@wordpress/components';
+import apiFetch from '@wordpress/api-fetch';
 
 const {
-	render,
+	createRoot,
 	Component,
 	Fragment
 } = wp.element;
@@ -65,27 +66,15 @@ class SettingsPage extends Component {
 
 	componentDidMount() {
 			
-			// load site settings
-			wp.api.loadPromise.then( () => {
+		// load site settings
+		apiFetch( { path: '/wp/v2/settings' } ).then( response => {
 			
-			this.settings = new wp.api.models.Settings();
-		
-			//console.log( this.settings );
-			
-			if ( false === this.state.isAPILoaded ) {
-			
-				this.settings.fetch().then( response => {
-			
-					this.setState({
-						photopress_core_metadata: response.photopress_core_metadata ,
-						photopress_core_slideshow: response.photopress_core_slideshow ,
-						photopress_core_base: response.photopress_core_base,
-						isAPILoaded: true
-					});
-					
-					//console.log(this.state);
-				});
-			}
+			this.setState({
+				photopress_core_metadata: response.photopress_core_metadata ,
+				photopress_core_slideshow: response.photopress_core_slideshow ,
+				photopress_core_base: response.photopress_core_base,
+				isAPILoaded: true
+			});
 		});
 	}
 	
@@ -256,10 +245,10 @@ class SettingsPage extends Component {
 
 if ( document.getElementById( 'photopress-core-options' ) ) {
 	
-	render(
+	// createRoot: ReactDOM.render is deprecated in React 18 and removed in 19.
+	createRoot( document.getElementById( 'photopress-core-options' ) ).render(
 			<SettingsPage
 				modules={ document.querySelector('#photopress-core-options').dataset.modules }
-			/>,
-			document.getElementById( 'photopress-core-options' )
+			/>
 	);
 }

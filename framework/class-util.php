@@ -17,6 +17,29 @@ class photopress_util {
 		return wp_remote_get ( urlencode ( $url ) );
 	}
 	
+	/**
+	 * The dependencies and version of a built script, from the .asset.php the
+	 * build writes next to it in dist/. A copy installed from git without
+	 * running the build has no dist/; requiring the file directly was a fatal
+	 * error on every request.
+	 *
+	 * @param string $name Script name without extension, e.g. 'blocks.build'.
+	 * @return array { dependencies: string[], version: string }
+	 */
+	public static function getBuildAsset( $name ) {
+		
+		$file = dirname( __DIR__ ) . '/dist/' . $name . '.asset.php';
+		
+		if ( is_readable( $file ) ) {
+			return require $file;
+		}
+		
+		return [
+			'dependencies' => [],
+			'version'      => defined( 'PHOTOPRESS_CORE_VERSION' ) ? PHOTOPRESS_CORE_VERSION : false,
+		];
+	}
+	
 	public static function getModuleOptionKey( $package_name, $module_name ) {
 		
 		return sprintf( '%s_%s_%s', 'photopress', $package_name, $module_name );

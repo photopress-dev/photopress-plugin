@@ -1,0 +1,13 @@
+<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:about="" xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/" photoshop:City="Los Angeles" photoshop:Headline="Fields Medalist"/>
+<rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Model="IQ4 150MP"/>
+<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ps2="http://ns.adobe.com/photoshop/1.0/" xmlns:Iptc4xmpExt="http://iptc.org/std/Iptc4xmpExt/2008-02-29/" xmlns:plus="http://ns.useplus.org/ldf/xmp/1.0/">
+ <dc:title><rdf:Alt><rdf:li xml:lang="x-default">Bob</rdf:li><rdf:li xml:lang="fr">Bob (fr)</rdf:li></rdf:Alt></dc:title>
+ <dc:subject><rdf:Bag><rdf:li>one</rdf:li></rdf:Bag></dc:subject>
+ <ps2:State>California</ps2:State>
+ <Iptc4xmpExt:PersonInImage><rdf:Bag><rdf:li>Bob</rdf:li><rdf:li>Alice</rdf:li></rdf:Bag></Iptc4xmpExt:PersonInImage>
+ <Iptc4xmpExt:LocationShown><rdf:Bag><rdf:li rdf:parseType="Resource"><Iptc4xmpExt:City>Los Angeles</Iptc4xmpExt:City><Iptc4xmpExt:Sublocation>UCLA</Iptc4xmpExt:Sublocation></rdf:li></rdf:Bag></Iptc4xmpExt:LocationShown>
+ <plus:Licensor><rdf:Seq><rdf:li rdf:parseType="Resource"><plus:LicensorName>Alice Photography</plus:LicensorName></rdf:li></rdf:Seq></plus:Licensor>
+ <dc:description>Plain text &amp; entity</dc:description>
+</rdf:Description>
+</rdf:RDF></x:xmpmeta>
