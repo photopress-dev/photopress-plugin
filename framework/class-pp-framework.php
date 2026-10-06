@@ -111,7 +111,7 @@ class photopress_framework {
 			PHOTOPRESS_CORE_VERSION // filemtime( plugin_dir_path( __DIR__ ) . 'dist/blocks.style.build.css' ) // Version: File modification time.
 		);
 	
-		$asset = require plugin_dir_path( __DIR__ ) . 'dist/blocks.build.asset.php';
+		$asset = photopress_util::getBuildAsset( 'blocks.build' );
 
 		// Register block editor script for backend.
 		wp_register_script(
