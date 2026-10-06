@@ -265,7 +265,7 @@ photopress.slideshow.prototype = {
 		if ( preview ) {
 			
 			center.empty().append( preview ).append( info );
-			this.sizePreview( preview, info, aspectratio, this.fullWidthOf( jQuery(img).data('id') ) );
+			this.sizePreview( preview, aspectratio, this.fullWidthOf( jQuery(img).data('id') ) );
 			
 		} else {
 			
@@ -359,15 +359,16 @@ photopress.slideshow.prototype = {
 	
 	/**
 	 * Gives the preview the size the full image will be shown at, which is
-	 * usually larger than the preview: as large as fits the slide (beside
-	 * the details, when they are on the right), keeping its shape and no
-	 * larger than the image itself.
+	 * usually larger than the preview: as large as fits the slide, keeping
+	 * its shape and no larger than the image itself.
 	 */
-	sizePreview: function( preview, info, aspectratio, fullWidth ) {
+	sizePreview: function( preview, aspectratio, fullWidth ) {
 		
 		let ratio = parseFloat( aspectratio ) || ( preview.naturalWidth / preview.naturalHeight );
 		let center = jQuery('.panels .center');
-		let width = center.width() - ( center.hasClass('info-right') ? jQuery(info).outerWidth(true) : 0 );
+		// The full image takes the whole width even with the details on the
+		// right, which then wrap beside it.
+		let width = center.width();
 		let height = center.height();
 		
 		if ( width <= 0 || height <= 0 || ! ratio ) {
@@ -504,7 +505,10 @@ photopress.slideshow.prototype = {
 			jQuery(ni).attr('sizes', `${thumbnailWidth}px`);
 			
 			// necessary to avoid causing the lazyload lib to force loading the src.
-			jQuery(ni).attr('src', '');
+			// An image with one size has no srcset, and needs its src.
+			if ( jQuery(ni).attr('srcset') ) {
+				jQuery(ni).attr('src', '');
+			}
 			
 			jQuery(ni).attr('width', thumbnailWidth);
 			jQuery(ni).attr('height', thumbnailHeight );
@@ -663,14 +667,21 @@ photopress.slideshow.prototype = {
 		
 		// The thumbnails are sized from their shape (generateThumbnailImages),
 		// so the carousel need not wait for them to load. It measures them
-		// again once they have, in case a theme sized them differently.
+		// again as they load, in case a theme sized them differently.
+		// (imagesLoaded is not used: it re-requests an image's src, and the
+		// src of a thumbnail with a srcset is empty, which is the page's URL.)
 		this.initCarousel( i );
 		
-		jQuery('.thumbnail-list').imagesLoaded( function() {
+		let refresh = null;
+		
+		jQuery('.thumbnail-list img').one( 'load', function() {
 			
-			if ( that.thumbnails.carousel ) {
-				that.thumbnails.carousel.trigger( 'refresh.owl.carousel' );
-			}
+			clearTimeout( refresh );
+			refresh = setTimeout( function() {
+				if ( that.thumbnails.carousel ) {
+					that.thumbnails.carousel.trigger( 'refresh.owl.carousel' );
+				}
+			}, 100 );
 		});
 	},
 	

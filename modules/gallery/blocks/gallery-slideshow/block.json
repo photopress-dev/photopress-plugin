@@ -15,6 +15,8 @@
 		"effect": { "type": "string", "enum": [ "slide", "fade" ], "default": "slide" },
 		"maxHeightOffset": { "type": "number", "default": 0 },
 		"showCaptions": { "type": "boolean", "default": true },
+		"captionPosition": { "type": "string", "enum": [ "below", "left", "right" ], "default": "below" },
+		"captionPadding": { "type": "number", "default": 0 },
 		"galleryNavigation": { "type": "boolean", "default": true },
 		"scrollBehavior": { "type": "string", "enum": [ "instant", "smooth" ], "default": "instant" }
 	},

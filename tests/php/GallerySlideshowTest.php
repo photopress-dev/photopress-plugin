@@ -62,7 +62,8 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertSame( 'main-gallery', $p->get_attribute( 'data-gallery' ) );
 		$this->assertSame( '1', $p->get_attribute( 'data-gallery-navigation' ) );
 		$this->assertSame( 'smooth', $p->get_attribute( 'data-scroll-behavior' ) );
-		$this->assertSame( '--pp-slideshow-offset:150px', $p->get_attribute( 'style' ) );
+		$this->assertSame( '--pp-slideshow-offset:150px;--pp-slideshow-caption-padding:0px', $p->get_attribute( 'style' ) );
+		$this->assertTrue( $p->has_class( 'has-captions-below' ) );
 
 		$ids = [];
 		while ( $p->next_tag( [ 'class_name' => 'photopress-gallery-slideshow__slide' ] ) ) {
@@ -96,6 +97,19 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertStringContainsString( 'class="photopress-gallery-slideshow__return" aria-label="Return to gallery image" hidden', $html );
 
 		$this->assertStringNotContainsString( '<figcaption', $this->render( [ 'showCaptions' => false ] ) );
+	}
+
+	public function test_caption_position_and_padding(): void {
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'captionPosition' => 'left', 'captionPadding' => 20 ] ) );
+		$p->next_tag();
+		$this->assertTrue( $p->has_class( 'has-captions-left' ) );
+		$this->assertStringContainsString( '--pp-slideshow-caption-padding:20px', $p->get_attribute( 'style' ) );
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'captionPosition' => 'top" onclick="x', 'captionPadding' => -4 ] ) );
+		$p->next_tag();
+		$this->assertTrue( $p->has_class( 'has-captions-below' ), 'an unknown position is below' );
+		$this->assertStringContainsString( '--pp-slideshow-caption-padding:0px', $p->get_attribute( 'style' ) );
 	}
 
 	public function test_nothing_without_a_matching_gallery(): void {

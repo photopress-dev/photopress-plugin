@@ -46,8 +46,11 @@ export function uniqueAnchor( galleries ) {
 }
 
 export default function Edit( { attributes, setAttributes } ) {
-	const { galleryAnchor, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, galleryNavigation, scrollBehavior } = attributes;
-	const blockProps = useBlockProps( { className: `is-effect-${ effect }` } );
+	const { galleryAnchor, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, galleryNavigation, scrollBehavior } = attributes;
+	const blockProps = useBlockProps( {
+		className: `is-effect-${ effect } has-captions-${ captionPosition }`,
+		style: { '--pp-slideshow-caption-padding': `${ captionPadding }px` },
+	} );
 	const { updateBlockAttributes } = useDispatch( blockEditorStore );
 
 	const { blocks, imageSizes } = useSelect( ( select ) => ( {
@@ -182,6 +185,30 @@ export default function Edit( { attributes, setAttributes } ) {
 						checked={ showCaptions }
 						onChange={ ( value ) => setAttributes( { showCaptions: value } ) }
 					/>
+					{ showCaptions && (
+						<>
+							<SelectControl
+								__nextHasNoMarginBottom
+								label={ __( 'Caption position' ) }
+								help={ __( 'On phones, captions are always below the image.' ) }
+								value={ captionPosition }
+								options={ [
+									{ value: 'below', label: __( 'Below' ) },
+									{ value: 'left', label: __( 'Left' ) },
+									{ value: 'right', label: __( 'Right' ) },
+								] }
+								onChange={ ( value ) => setAttributes( { captionPosition: value } ) }
+							/>
+							<RangeControl
+								__nextHasNoMarginBottom
+								label={ __( 'Caption padding (px)' ) }
+								value={ captionPadding }
+								min={ 0 }
+								max={ 100 }
+								onChange={ ( value ) => setAttributes( { captionPadding: value ?? 0 } ) }
+							/>
+						</>
+					) }
 				</PanelBody>
 				<PanelBody title={ __( 'Gallery link' ) }>
 					<ToggleControl

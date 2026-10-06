@@ -71,13 +71,70 @@ $speed: 0.3s;
 	}
 
 	.photopress-gallery-slideshow__caption {
+		box-sizing: border-box;
 		width: 100%;
 		margin-top: 12px;
 		margin-bottom: 0;
+		padding: var(--pp-slideshow-caption-padding, 0);
 		font-size: 14px;
 		line-height: 1.4;
 		color: #111;
 		text-align: center;
+	}
+
+	// Captions beside the image, level with its bottom edge, which keeps
+	// them clear of the return button in the top corner.
+	&.has-captions-left,
+	&.has-captions-right {
+
+		.photopress-gallery-slideshow__slide {
+			flex-direction: row;
+			align-items: flex-end;
+			justify-content: center;
+		}
+
+		.photopress-gallery-slideshow__image {
+			flex: 0 1 auto;
+			min-width: 0;
+		}
+
+		.photopress-gallery-slideshow__caption {
+			flex: 0 0 clamp(8em, 25%, 18em);
+			width: auto;
+			margin: 0;
+		}
+	}
+
+	&.has-captions-right .photopress-gallery-slideshow__caption {
+		margin-left: 16px;
+		text-align: left;
+	}
+
+	&.has-captions-left .photopress-gallery-slideshow__caption {
+		order: -1;
+		margin-right: 16px;
+		text-align: right;
+	}
+
+	// No room beside the image on a phone: below, as by default.
+	@media (max-width: 600px) {
+
+		&.has-captions-left,
+		&.has-captions-right {
+
+			.photopress-gallery-slideshow__slide {
+				flex-direction: column;
+				align-items: center;
+			}
+
+			.photopress-gallery-slideshow__caption {
+				flex: none;
+				order: 0;
+				width: 100%;
+				margin: 12px 0 0;
+				text-align: center;
+			}
+		}
 	}
 
 	// Wrap-around and gallery jumps change slides at once.

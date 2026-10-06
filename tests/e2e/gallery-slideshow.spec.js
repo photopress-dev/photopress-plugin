@@ -150,3 +150,34 @@ test( 'images keep their shape, and a small one is not enlarged', async ( { page
 test( 'alt text comes from the image metadata', async ( { page } ) => {
 	await expect( page.locator( `${ ROOT } .photopress-gallery-slideshow__image` ).first() ).toHaveAttribute( 'alt', /Alice/ );
 } );
+
+test.describe( 'caption position', () => {
+	const layout = ( page ) => page.locator( ROOT ).evaluateAll( ( roots ) => roots.map( ( root ) => {
+		const slide = root.querySelector( '.photopress-gallery-slideshow__slide.is-current' );
+		const img = slide.querySelector( 'img' ).getBoundingClientRect();
+		const caption = slide.querySelector( 'figcaption' );
+		const box = caption.getBoundingClientRect();
+		return {
+			side: box.left >= img.right - 1 ? 'right' : box.right <= img.left + 1 ? 'left' : box.top >= img.bottom - 1 ? 'below' : 'overlap',
+			bottomAligned: Math.abs( box.bottom - img.bottom ) <= 1,
+			padding: getComputedStyle( caption ).paddingLeft,
+		};
+	} ) );
+
+	test( 'left and right, level with the bottom of the image, with their padding', async ( { page, made } ) => {
+		await page.goto( `/?page_id=${ made.pages.captions }&preview=true` );
+		await page.locator( ROOT ).first().scrollIntoViewIfNeeded();
+
+		expect( await layout( page ) ).toEqual( [
+			{ side: 'left', bottomAligned: true, padding: '10px' },
+			{ side: 'right', bottomAligned: true, padding: '0px' },
+		] );
+	} );
+
+	test( 'below the image on a phone', async ( { page, made } ) => {
+		await page.setViewportSize( { width: 390, height: 844 } );
+		await page.goto( `/?page_id=${ made.pages.captions }&preview=true` );
+
+		expect( ( await layout( page ) ).map( ( l ) => l.side ) ).toEqual( [ 'below', 'below' ] );
+	} );
+} );

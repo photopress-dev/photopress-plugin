@@ -173,5 +173,8 @@ echo wp_json_encode( [
 	'pages'  => [
 		'slideshow' => $page( 'E2E: gallery slideshow', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"main-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'main-gallery' ) ),
 		'lightbox'  => $page( 'E2E: lightbox', $gallery( [ 'photopressSlideshow' => true ] ) ),
+		'captions'  => $page( 'E2E: slideshow captions', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"left","captionPadding":10,"galleryNavigation":false} /-->'
+			. '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"right","galleryNavigation":false} /-->'
+			. $gallery( [], 'left-gallery' ) ),
 	],
 ] );

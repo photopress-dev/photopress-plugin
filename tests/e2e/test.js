@@ -31,6 +31,10 @@ const test = base.test.extend( {
 
 		await use( page );
 
+		// Requests still in flight when a test ends are not its concern.
+		await page.unrouteAll( { behavior: 'ignoreErrors' } );
+		await page.context().unrouteAll( { behavior: 'ignoreErrors' } );
+
 		base.expect( errors, 'errors on the page' ).toEqual( [] );
 	},
 } );
