@@ -1,0 +1,52 @@
+name: Tests
+on:
+  push:
+  pull_request:
+
+jobs:
+  php:
+    name: PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # PHPUnit 11 needs PHP 8.2; older versions get the syntax check below.
+        php: [ '8.2', '8.3', '8.4' ]
+    steps:
+    - uses: actions/checkout@v6
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php }}
+        extensions: dom, exif
+        coverage: none
+    - name: Composer
+      run: composer install --no-interaction --no-progress
+    - name: PHPUnit
+      run: vendor/bin/phpunit
+
+  php-syntax:
+    name: PHP 7.4 syntax
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '7.4'
+        coverage: none
+    - name: Lint the plugin's PHP
+      run: find photopress.php framework modules includes -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  js:
+    name: JS unit tests and build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        cache: npm
+    - run: npm ci
+    - name: Vitest
+      run: npm run test:unit
+    - name: Build
+      run: npm run build

@@ -1,0 +1,22 @@
+<x:xapmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+ <rdf:Description rdf:about=""
+   xmlns:xap="http://ns.adobe.com/xap/1.0/"
+   xmlns:xapMM="http://ns.adobe.com/xap/1.0/mm/"
+   xmlns:stEvt="http://ns.adobe.com/xap/1.0/sType/ResourceEvent#"
+   xmlns:xapRights="http://ns.adobe.com/xap/1.0/rights/"
+   xmlns:exif="http://ns.adobe.com/exif/1.0/"
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:xmpNote="http://ns.adobe.com/xmp/note/"
+   xmlns:lightroom="http://ns.adobe.com/lightroom/1.0/"
+   xap:CreatorTool="Adobe Photoshop 7.0">
+  <xapRights:WebStatement rdf:resource="https://example.test/rights"/>
+  <xapMM:History><rdf:Seq>
+   <rdf:li stEvt:action="saved" stEvt:when="2026-06-12"/>
+   <rdf:li stEvt:action="derived"/>
+  </rdf:Seq></xapMM:History>
+  <exif:Flash><rdf:Description exif:Fired="False" exif:Mode="2"/></exif:Flash>
+  <dc:rights><rdf:value>Copyright Alice</rdf:value><xmpNote:qualifier>ignored</xmpNote:qualifier></dc:rights>
+  <dc:creator>   </dc:creator>
+  <lightroom:hierarchicalSubject><rdf:Bag><rdf:li>place|Los Angeles</rdf:li></rdf:Bag></lightroom:hierarchicalSubject>
+ </rdf:Description>
+</rdf:RDF></x:xapmeta>

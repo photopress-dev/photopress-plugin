@@ -29,6 +29,9 @@ jobs:
     # framework loadable at all.
     - name: Composer (php-actions)
       uses: php-actions/composer@v6
+      with:
+        # PHPUnit, Brain Monkey and WordPress core are for tests only.
+        dev: no
     
     # Matches the engines field in package.json; @wordpress/scripts needs 22 or 24.
     - uses: actions/setup-node@v6

@@ -18,7 +18,6 @@
     "config": {
         "sort-packages": true
     },
-    "require": {},
     "autoload": {
         "psr-4": {
             "PhotoPress\\": [
@@ -28,5 +27,13 @@
         "classmap": [
             "framework/"
         ]
+    },
+    "require-dev": {
+        "brain/monkey": "^2.6",
+        "johnpbloch/wordpress-core": "^7.0",
+        "phpunit/phpunit": "^11.5"
+    },
+    "scripts": {
+        "test": "phpunit"
     }
 }
