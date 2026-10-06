@@ -155,3 +155,26 @@ test( 'details on the right: the preview matches the full image, and no thumbnai
 	await page.waitForTimeout( 1500 );
 	expect( await page.locator( '.thumbnail-list img' ).evaluateAll( ( imgs ) => imgs.filter( ( img ) => img.complete && ! img.naturalWidth ).map( ( img ) => img.dataset.id ) ) ).toEqual( [] );
 } );
+
+test( 'a page rendered by 1.6 and served from a page cache still opens the lightbox', async ( { page, made } ) => {
+	// What such a page lacks: the class marking slideshow galleries, and the
+	// press navigation script.
+	await page.addInitScript( () => document.addEventListener( 'DOMContentLoaded', () => {
+		document.querySelectorAll( '.photopress-has-slideshow' ).forEach( ( g ) => g.classList.remove( 'photopress-has-slideshow' ) );
+		document.querySelectorAll( '.wp-block-gallery' ).forEach( ( g ) => g.classList.add( 'photopress-gallery' ) );
+	} ) );
+	await page.route( /press-navigation\.build\.js/, ( route ) => route.abort() );
+
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+
+	const item = page.locator( '.photopress-gallery-item' ).nth( 1 );
+	await item.scrollIntoViewIfNeeded();
+	await item.click( { force: true } );
+	await expect( page.locator( '.panels .center img' ) ).toHaveAttribute( 'data-id', String( made.images[ 1 ] ), { timeout: 15000 } );
+
+	// No press navigation, so the arrows stay, and the arrow columns work.
+	await expect( page.locator( '.nav-control .arrow' ).first() ).toBeVisible();
+	const panels = await page.locator( '.photopress-slideshow .panels' ).boundingBox();
+	await page.mouse.click( panels.x + panels.width - 30, panels.y + panels.height / 2 );
+	await expect( page.locator( '.panels .center img' ) ).toHaveAttribute( 'data-id', String( made.images[ 2 ] ), { timeout: 15000 } );
+} );

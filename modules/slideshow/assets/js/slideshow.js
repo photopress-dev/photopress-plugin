@@ -158,6 +158,14 @@ photopress.slideshow.prototype = {
 		
 		var that = this;
 		
+		// A page rendered by PhotoPress 1.6 or earlier, served from a page
+		// cache after an update: its galleries do not carry the class that
+		// marks a slideshow gallery. 1.6 opened the lightbox from every
+		// PhotoPress gallery on the page, so do that.
+		if ( ! document.querySelector( this.getOption( 'gallerySelector' ) ) ) {
+			jQuery( '.photopress-gallery' ).addClass( 'photopress-has-slideshow' );
+		}
+		
 		// render if the click start is disabled.
 		if ( this.getOption( 'clickStart' ) ) {
 			

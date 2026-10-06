@@ -28,14 +28,15 @@ $thumbnail-bottom-margin: 10px;
 		.nav-control {
 			
 			width: 100px;
+		}
+		
+		// With a mouse, the chevron drawn at the pointer shows the way
+		// (src/shared/press-navigation.js); the arrows stay for touch, and
+		// where the press navigation is not loaded.
+		&.has-press-navigation .nav-control .arrow {
 			
-			// With a mouse, the chevron drawn at the pointer shows the way
-			// (src/shared/press-navigation.js); the arrows stay for touch.
 			@media (hover: hover) and (pointer: fine) {
-				
-				.arrow {
-					visibility: hidden;
-				}
+				visibility: hidden;
 			}
 		}
 		

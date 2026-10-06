@@ -35,6 +35,10 @@ export function pressNavigation( area, { prev, next, ignore = '' } ) {
 		cleanup.push( () => target.removeEventListener( type, handler, opts ) );
 	};
 
+	// Lets styles tell that the halves navigate (the lightbox hides its
+	// arrows then).
+	area.classList.add( 'has-press-navigation' );
+
 	const ignored = ( event ) => ignore && event.target.closest && event.target.closest( ignore );
 	const sideOf = ( event ) => {
 		const box = area.getBoundingClientRect();
@@ -138,6 +142,6 @@ export function pressNavigation( area, { prev, next, ignore = '' } ) {
 	return () => {
 		cleanup.forEach( ( fn ) => fn() );
 		cursor.remove();
-		area.classList.remove( ACTIVE_CLASS );
+		area.classList.remove( ACTIVE_CLASS, 'has-press-navigation' );
 	};
 }
