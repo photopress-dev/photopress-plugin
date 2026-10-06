@@ -48,7 +48,7 @@ class XmpReader {
 		add_filter( 'photopress_metadata_tag_value', [ $this, 'registerShortcuts' ], 0, 3 );
 	}
 	
-	public function registerShortcuts( $value = '', $tag, $xmp ) {
+	public function registerShortcuts( $value, $tag, $xmp ) {
 		
 		switch ( $tag ) {
 			
@@ -109,10 +109,8 @@ class XmpReader {
 						
 						foreach ($somevalues as $k => $v) {
 							
-							$val = $this->formatKeyValue($k, $v);
+							$nvalue[$k] = $this->formatKeyValue($k, $v);
 						}
-						
-						$nvalue[$k] = $val;
 						
 					} else {
 					
@@ -298,7 +296,7 @@ class XmpReader {
 		
 		if (! $camera ) {
 			
-			$this->getXmp('tiff:Model');
+			$camera = $this->getXmp('tiff:Model');
 		}
 		
 		return $camera;
@@ -477,27 +475,66 @@ class XmpReader {
 		return $nxmp;
 	}
 	
-	function extractXmp($file) {
+	/**
+	 * Reads the file in 64KB chunks and stops at the end of the XMP packet,
+	 * rather than loading the whole image. In a JPEG the packet sits in the
+	 * APP1 segment near the start, so this is usually a single read.
+	 */
+	function extractXmp( $file ) {
 
-		$xml_array = array();
-		//TODO:Require a lot of memory, could be better
-		ob_start();
-		@readfile($file);
-		$source = ob_get_contents();
-		ob_end_clean();
-		$source;
-		$start = strpos( $source, "<x:xmpmeta"   );
-		$end   = strpos( $source, "</x:xmpmeta>" );
-		if ((!$start === false) && (!$end === false)) {
-			$lenght = $end - $start;
-			$xmp_data = substr($source, $start, $lenght+12 );
-			unset($source);
-			//print_r($xmp_data);
-			$xml_array = $this->XMP2Array($xmp_data);
-		} 
-		
-		unset($source);
-		return $xml_array;
+		$open  = '<x:xmpmeta';
+		$close = '</x:xmpmeta>';
+
+		$fh = @fopen( $file, 'rb' );
+
+		if ( ! $fh ) {
+			return array();
+		}
+
+		$buf    = '';
+		$offset = 0;     // file offset of $buf[0]
+		$start  = false; // file offset of the opening tag once found
+		$keep   = strlen( $open ) - 1;
+
+		while ( ! feof( $fh ) ) {
+
+			$chunk = fread( $fh, 65536 );
+
+			if ( $chunk === false || $chunk === '' ) {
+				break;
+			}
+
+			$buf .= $chunk;
+
+			if ( $start === false ) {
+
+				$p = strpos( $buf, $open );
+
+				if ( $p === false ) {
+					// Keep a tail in case the tag straddles two chunks.
+					$offset += max( 0, strlen( $buf ) - $keep );
+					$buf     = substr( $buf, -$keep );
+					continue;
+				}
+
+				$start  = $offset + $p;
+				$buf    = substr( $buf, $p );
+				$offset = $start;
+			}
+
+			$end = strpos( $buf, $close );
+
+			if ( $end !== false ) {
+
+				fclose( $fh );
+
+				return $this->XMP2Array( substr( $buf, 0, $end + strlen( $close ) ) );
+			}
+		}
+
+		fclose( $fh );
+
+		return array();
 	}
 	
 	function XMP2array($data) {
