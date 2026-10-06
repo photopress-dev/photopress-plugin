@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 5.2.0
 Tested up to: 5.8
-Stable tag: 1.5.1
+Stable tag: 1.5.2
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -63,6 +63,12 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 5. Embed Licensing meta-data into uploaded images
 
 == Changelog ==
+
+= 1.5.2 =
+
+* Fixed: uploads failed with "The server cannot process the image" whenever
+  licence information was configured. This was a 1.5.1 regression; images that
+  failed to upload can simply be uploaded again.
 
 = 1.5.1 =
 
