@@ -31,6 +31,15 @@ class pp_api {
 }
 
 require_once ABSPATH . WPINC . '/class-wp-token-map.php';
+require_once ABSPATH . WPINC . '/class-wp-widget.php';
+require_once ABSPATH . WPINC . '/class-wp-error.php';
+require_once ABSPATH . WPINC . '/class-wp-list-util.php';
+require_once ABSPATH . WPINC . '/class-wp-term.php';
+require_once ABSPATH . WPINC . '/class-wp-http-response.php';
+require_once ABSPATH . WPINC . '/rest-api/class-wp-rest-response.php';
+require_once ABSPATH . WPINC . '/rest-api/class-wp-rest-request.php';
+require_once ABSPATH . WPINC . '/rest-api/endpoints/class-wp-rest-controller.php';
+require_once ABSPATH . WPINC . '/rest-api/endpoints/class-wp-rest-terms-controller.php';
 
 foreach ( [
 	'class-wp-html-attribute-token.php',

@@ -43,6 +43,13 @@ class metadata extends photopress_module {
 		// registers display widgets
 		add_action( 'widgets_init', [ $this, 'registerWidgets' ] );
 		
+		// The block counterpart of the taxonomy widget, for block themes, which
+		// have no widget areas.
+		register_block_type( __DIR__ . '/blocks/image-taxonomies', [
+			'render_callback' => [ ImageTaxonomies::class, 'renderBlock' ],
+		] );
+		ImageTaxonomyRest::addHooks();
+		
 		if ( pp_api::getOption( 'core', 'metadata', 'custom_taxonomies_enable' ) ) {
 			
 			// registers the actual taxonomies
@@ -645,6 +652,10 @@ class metadata extends photopress_module {
 					),
 					
 					'query_var' => $id, 
+					// In REST for the editor and core blocks, but only for users
+					// who can edit posts; see ImageTaxonomyRest.
+					'show_in_rest'          => true,
+					'rest_controller_class' => TermsController::class,
 					'rewrite' => array('slug' => strtolower( $tax[ 'singularLabel' ] ), 'ep_mask' => EP_PERMALINK  ),
 					'update_count_callback'	=> '_update_generic_term_count',
 					'show_admin_column' => true,
