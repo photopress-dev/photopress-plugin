@@ -45,15 +45,17 @@ class gallery extends photopress_module {
 			'photopressColumnWidth' => [ 'type' => 'number', 'default' => 300 ],
 			'photopressRowHeight'   => [ 'type' => 'number', 'default' => 300 ],
 			'photopressSlideshow'   => [ 'type' => 'boolean', 'default' => false ],
+			'photopressHideCaptions' => [ 'type' => 'boolean', 'default' => false ],
 		] );
 
 		return $args;
 	}
 
 	/**
-	 * Adds the layout classes and variables to a core/gallery that has a
-	 * PhotoPress layout, and the per-image hooks the slideshow uses. Nothing
-	 * here is saved in the post.
+	 * Applies the PhotoPress options of a core/gallery: the layout classes and
+	 * variables, the per-image hooks the slideshow and mosaic use, and hidden
+	 * captions. The slideshow and hidden captions also work on a gallery
+	 * without a PhotoPress layout. Nothing here is saved in the post.
 	 *
 	 * @param string    $content  The rendered gallery.
 	 * @param array     $block    The parsed block.
@@ -61,10 +63,12 @@ class gallery extends photopress_module {
 	 */
 	public function renderGalleryLayout( $content, $block, $instance = null ) {
 
-		$attrs  = $instance ? $instance->attributes : ( $block['attrs'] ?? [] );
-		$layout = $attrs['photopressLayout'] ?? '';
+		$attrs         = $instance ? $instance->attributes : ( $block['attrs'] ?? [] );
+		$layout        = in_array( $attrs['photopressLayout'] ?? '', self::LAYOUTS, true ) ? $attrs['photopressLayout'] : '';
+		$slideshow     = ! empty( $attrs['photopressSlideshow'] );
+		$hide_captions = ! empty( $attrs['photopressHideCaptions'] );
 
-		if ( ! in_array( $layout, self::LAYOUTS, true ) ) {
+		if ( ! $layout && ! $slideshow && ! $hide_captions ) {
 			return $content;
 		}
 
@@ -77,20 +81,27 @@ class gallery extends photopress_module {
 			return $content;
 		}
 
-		$p->add_class( 'photopress-layout' );
-		$p->add_class( 'photopress-layout-' . $layout );
-		$p->set_attribute( 'data-pp-column-width', (string) $column_width );
-		$p->set_attribute( 'data-pp-row-height', (string) $row_height );
+		if ( $hide_captions ) {
+			$p->add_class( 'photopress-hide-captions' );
+		}
 
-		$style = rtrim( trim( (string) $p->get_attribute( 'style' ) ), ';' );
-		$vars  = sprintf( '--pp-column-width:%dpx;--pp-row-height:%dpx', $column_width, $row_height );
-		$p->set_attribute( 'style', $style ? $style . ';' . $vars : $vars );
+		if ( $layout ) {
+
+			$p->add_class( 'photopress-layout' );
+			$p->add_class( 'photopress-layout-' . $layout );
+			$p->set_attribute( 'data-pp-column-width', (string) $column_width );
+			$p->set_attribute( 'data-pp-row-height', (string) $row_height );
+
+			$style = rtrim( trim( (string) $p->get_attribute( 'style' ) ), ';' );
+			$vars  = sprintf( '--pp-column-width:%dpx;--pp-row-height:%dpx', $column_width, $row_height );
+			$p->set_attribute( 'style', $style ? $style . ';' . $vars : $vars );
+		}
 
 		// The slideshow opens on a click on .photopress-gallery-item, reads the
 		// slide position from the clicked image, and finds items by data-id.
 		$position = 0;
 
-		while ( $p->next_tag( [ 'tag_name' => 'figure', 'class_name' => 'wp-block-image' ] ) ) {
+		while ( ( $layout || $slideshow ) && $p->next_tag( [ 'tag_name' => 'figure', 'class_name' => 'wp-block-image' ] ) ) {
 
 			$p->set_bookmark( 'item' );
 			$p->add_class( 'photopress-gallery-item' );
@@ -122,7 +133,7 @@ class gallery extends photopress_module {
 
 		wp_enqueue_style( 'photopress-frontend' );
 
-		if ( 'rows' !== $layout ) {
+		if ( $layout && 'rows' !== $layout ) {
 			$this->enqueueLayoutScript();
 		}
 

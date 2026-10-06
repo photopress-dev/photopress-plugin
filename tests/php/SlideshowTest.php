@@ -46,13 +46,12 @@ final class SlideshowTest extends TestCase {
 		$this->assertSame( self::LEGACY, $this->render( 'photopress/gallery', [], self::LEGACY ) );
 	}
 
-	public function test_core_gallery_needs_a_layout_and_the_slideshow_on(): void {
+	public function test_core_gallery_with_the_slideshow_on_is_marked_with_or_without_a_layout(): void {
 
-		$this->assertSame( self::CORE, $this->render( 'core/gallery', [ 'photopressSlideshow' => true ], self::CORE ) );
 		$this->assertSame( self::CORE, $this->render( 'core/gallery', [ 'photopressLayout' => 'rows' ], self::CORE ) );
 
-		$out = $this->render( 'core/gallery', [ 'photopressLayout' => 'rows', 'photopressSlideshow' => true ], self::CORE );
-		$this->assertStringContainsString( 'photopress-has-slideshow', $out );
+		$this->assertStringContainsString( 'photopress-has-slideshow', $this->render( 'core/gallery', [ 'photopressSlideshow' => true ], self::CORE ) );
+		$this->assertStringContainsString( 'photopress-has-slideshow', $this->render( 'core/gallery', [ 'photopressLayout' => 'rows', 'photopressSlideshow' => true ], self::CORE ) );
 	}
 
 	public function test_other_blocks_are_untouched(): void {

@@ -52,12 +52,23 @@ describe( 'toCoreGallery', () => {
 		expect( innerBlocks.map( ( b ) => b.attributes.href ) ).toEqual( [ 'https://example.test/a.jpg', 'https://example.test/b.jpg' ] );
 	} );
 
-	test( 'the columns style becomes core columns, without a PhotoPress layout or slideshow', () => {
+	test( 'the columns style becomes core columns and keeps its slideshow', () => {
 		const { attributes } = toCoreGallery( { images, galleryStyle: 'columns', columns: 3, linkToSlideshow: true } );
 
 		expect( attributes.photopressLayout ).toBeUndefined();
-		expect( attributes.photopressSlideshow ).toBeUndefined();
+		expect( attributes.photopressSlideshow ).toBe( true );
 		expect( attributes.columns ).toBe( 3 );
+	} );
+
+	test( 'hidden captions stay hidden, and the captions are kept', () => {
+		const gallery = toCoreGallery( { images, galleryStyle: 'columns', columns: 3, showCaptions: false } );
+
+		expect( gallery.attributes.photopressHideCaptions ).toBe( true );
+		expect( gallery.innerBlocks[ 0 ].attributes.caption ).toBe( 'A caption' );
+	} );
+
+	test( 'captions are shown by default', () => {
+		expect( toCoreGallery( { images } ).attributes.photopressHideCaptions ).toBe( false );
 	} );
 
 	test( 'no gutter leaves the block spacing to core', () => {

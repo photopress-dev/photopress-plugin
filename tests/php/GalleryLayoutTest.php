@@ -35,7 +35,7 @@ final class GalleryLayoutTest extends TestCase {
 		] );
 	}
 
-	public function test_a_gallery_without_a_photopress_layout_is_untouched(): void {
+	public function test_a_gallery_without_photopress_options_is_untouched(): void {
 
 		Functions\expect( 'wp_enqueue_style' )->never();
 
@@ -72,6 +72,38 @@ final class GalleryLayoutTest extends TestCase {
 		$this->assertStringContainsString( 'Gallery caption', $out );
 	}
 
+	public function test_slideshow_without_a_layout_prepares_the_images_only(): void {
+
+		Functions\expect( 'wp_enqueue_style' )->once()->with( 'photopress-frontend' );
+		Functions\expect( 'wp_enqueue_script' )->never();
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'photopressSlideshow' => true ] ) );
+
+		$p->next_tag( 'figure' );
+		$this->assertFalse( $p->has_class( 'photopress-layout' ) );
+		$this->assertNull( $p->get_attribute( 'data-pp-column-width' ) );
+
+		$p->next_tag( 'figure' );
+		$this->assertTrue( $p->has_class( 'photopress-gallery-item' ) );
+		$this->assertSame( '10', $p->get_attribute( 'data-id' ) );
+		$p->next_tag( 'img' );
+		$this->assertSame( '0', $p->get_attribute( 'data-position' ) );
+	}
+
+	public function test_hide_captions_marks_the_gallery_and_keeps_the_captions(): void {
+
+		Functions\when( 'wp_enqueue_style' )->justReturn();
+
+		$out = $this->render( [ 'photopressHideCaptions' => true ] );
+		$p = new \WP_HTML_Tag_Processor( $out );
+
+		$p->next_tag( 'figure' );
+		$this->assertTrue( $p->has_class( 'photopress-hide-captions' ) );
+		$p->next_tag( 'figure' );
+		$this->assertFalse( $p->has_class( 'photopress-gallery-item' ), 'no slideshow, no item hooks' );
+		$this->assertStringContainsString( '<figcaption class="wp-element-caption">One</figcaption>', $out );
+	}
+
 	public function test_existing_inline_style_is_kept(): void {
 
 		Functions\when( 'wp_enqueue_style' )->justReturn();
@@ -98,7 +130,7 @@ final class GalleryLayoutTest extends TestCase {
 		$module = ( new \ReflectionClass( gallery::class ) )->newInstanceWithoutConstructor();
 
 		$args = $module->addGalleryAttributes( [ 'attributes' => [ 'columns' => [ 'type' => 'number' ] ] ], 'core/gallery' );
-		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow' ], array_keys( $args['attributes'] ) );
+		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions' ], array_keys( $args['attributes'] ) );
 
 		$this->assertSame( [ 'x' => 1 ], $module->addGalleryAttributes( [ 'x' => 1 ], 'core/image' ) );
 	}

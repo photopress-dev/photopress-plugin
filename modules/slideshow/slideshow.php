@@ -29,8 +29,7 @@ class slideshow extends photopress_module {
 	/**
 	 * Marks a gallery that has the slideshow turned on, and queues the
 	 * lightbox and its assets. Applies to the legacy photopress/gallery block
-	 * (linkToSlideshow) and to core/gallery with a PhotoPress layout
-	 * (photopressSlideshow; its items are prepared by modules/gallery).
+	 * (linkToSlideshow) and to core/gallery (photopressSlideshow).
 	 */
 	public function render_slideshow( $block_content, $block ) {
 
@@ -44,7 +43,9 @@ class slideshow extends photopress_module {
 
 		} elseif ( 'core/gallery' === $block['blockName'] ) {
 
-			$enabled = ! empty( $attrs['photopressSlideshow'] ) && ! empty( $attrs['photopressLayout'] );
+			// Any core gallery, with or without a PhotoPress layout; its items
+			// are prepared by modules/gallery.
+			$enabled = ! empty( $attrs['photopressSlideshow'] );
 			$gallery = [ 'tag_name' => 'figure', 'class_name' => 'wp-block-gallery' ];
 
 		} else {

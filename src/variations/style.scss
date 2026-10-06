@@ -8,6 +8,12 @@
 $item: "figure.wp-block-image:not(#individual-image)";
 $gap: var(--wp--style--unstable-gallery-gap, 16px);
 
+// Hide captions: the image captions stay in the content but are not shown.
+// The gallery's own caption (.blocks-gallery-caption) is not affected.
+.wp-block-gallery.photopress-hide-captions figure.wp-block-image figcaption {
+	display: none;
+}
+
 // Masonry: fixed-width columns positioned by Masonry
 // (src/shared/gallery-layout/masonry.js). Until it runs, the images stack.
 .wp-block-gallery.has-nested-images.photopress-layout-masonry {

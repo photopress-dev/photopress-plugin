@@ -22,6 +22,7 @@ export function toCoreGallery( attributes ) {
 		columnWidth,
 		rowHeight,
 		linkToSlideshow,
+		showCaptions = true,
 	} = attributes;
 
 	const layout = [ 'masonry', 'rows', 'mosaic' ].includes( galleryStyle ) ? galleryStyle : undefined;
@@ -47,7 +48,9 @@ export function toCoreGallery( attributes ) {
 		photopressLayout: layout,
 		photopressColumnWidth: columnWidth,
 		photopressRowHeight: rowHeight,
-		photopressSlideshow: layout ? !! linkToSlideshow : undefined,
+		photopressSlideshow: !! linkToSlideshow,
+		// The captions are still copied, so they come back if this is switched off.
+		photopressHideCaptions: ! showCaptions,
 	}, innerBlocks );
 }
 

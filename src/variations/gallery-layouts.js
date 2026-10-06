@@ -41,6 +41,7 @@ const ATTRIBUTES = {
 	photopressColumnWidth: { type: 'number', default: 300 },
 	photopressRowHeight: { type: 'number', default: 300 },
 	photopressSlideshow: { type: 'boolean', default: false },
+	photopressHideCaptions: { type: 'boolean', default: false },
 };
 
 const isGallery = ( name ) => name === 'core/gallery';
@@ -254,15 +255,21 @@ const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props 
 							max={ 800 }
 						/>
 					) }
-					{ layout && (
-						<ToggleControl
-							__nextHasNoMarginBottom
-							label={ __( 'Slideshow' ) }
-							help={ __( 'Open a slideshow when an image is clicked.' ) }
-							checked={ !! attributes.photopressSlideshow }
-							onChange={ ( value ) => setAttributes( { photopressSlideshow: value } ) }
-						/>
-					) }
+					{ /* Both work with any layout, including core's own columns. */ }
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Slideshow' ) }
+						help={ __( 'Open a slideshow when an image is clicked.' ) }
+						checked={ !! attributes.photopressSlideshow }
+						onChange={ ( value ) => setAttributes( { photopressSlideshow: value } ) }
+					/>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Hide captions' ) }
+						help={ __( 'Image captions are kept, but not shown in the gallery.' ) }
+						checked={ !! attributes.photopressHideCaptions }
+						onChange={ ( value ) => setAttributes( { photopressHideCaptions: value } ) }
+					/>
 				</PanelBody>
 			</InspectorControls>
 			{ layout === 'masonry' && imageCount > 0 && (
@@ -295,17 +302,28 @@ const withLayoutClasses = createHigherOrderComponent( ( BlockListBlock ) => ( pr
 	}
 
 	const layout = layoutOf( props.attributes );
+	const hideCaptions = !! props.attributes.photopressHideCaptions;
 
-	if ( ! layout ) {
+	if ( ! layout && ! hideCaptions ) {
 		return <BlockListBlock { ...props } />;
 	}
 
 	const wrapperProps = props.wrapperProps || {};
+	const className = [
+		props.className,
+		layout && 'photopress-layout',
+		layout && `photopress-layout-${ layout }`,
+		hideCaptions && 'photopress-hide-captions',
+	].filter( Boolean ).join( ' ' );
+
+	if ( ! layout ) {
+		return <BlockListBlock { ...props } className={ className } />;
+	}
 
 	return (
 		<BlockListBlock
 			{ ...props }
-			className={ [ props.className, 'photopress-layout', `photopress-layout-${ layout }` ].filter( Boolean ).join( ' ' ) }
+			className={ className }
 			wrapperProps={ {
 				...wrapperProps,
 				style: {
