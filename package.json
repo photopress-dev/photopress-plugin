@@ -8,21 +8,15 @@
   },
   "dependencies": {
     "@wordpress/icons": "^17.0.0",
-    "classnames": "^2.5.1",
-    "react-masonry-component": "^6.3.0"
+    "classnames": "^2.5.1"
   },
   "devDependencies": {
-    "@wordpress/scripts": "^36.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@wordpress/scripts": "^36.0.0"
   },
   "engines": {
     "node": ">=22"
   },
   "overrides": {
-    "react-masonry-component": {
-      "react": "$react"
-    },
     "postcss-selector-parser": "^7.1.6",
     "serialize-javascript": "^7.1.2",
     "uuid": "^11.1.1",

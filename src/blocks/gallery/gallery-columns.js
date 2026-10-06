@@ -2,7 +2,6 @@
  * External dependencies
  */
 import classnames from 'classnames';
-import Masonry from 'react-masonry-component';
 
 /**
  * WordPress dependencies

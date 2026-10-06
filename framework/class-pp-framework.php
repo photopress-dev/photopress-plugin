@@ -142,6 +142,17 @@ class photopress_framework {
 		);
 		
 		add_action( 'enqueue_block_assets', function() {
+
+			// In the editor this hook loads assets into the editor iframe. The
+			// masonry gallery's editor preview uses WordPress's Masonry from the
+			// iframe's window; see src/blocks/gallery/gallery-masonry.js. The
+			// front-end script below is left out, as it would start a second
+			// Masonry on the editor's list.
+			if ( is_admin() ) {
+				wp_enqueue_script( 'masonry' );
+				return;
+			}
+
 			// Masonry block
 			if ( has_block( 'photopress/gallery') ) {
 				wp_enqueue_script(

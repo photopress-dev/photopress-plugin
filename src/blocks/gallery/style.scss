@@ -197,6 +197,9 @@ figure.photopress-gallery {
     position: absolute;
     bottom: 0;
     width: 100%;
+    // Keep the side padding inside the 100% width. Themes that leave the
+    // default content-box made the caption 20px wider than its image.
+    box-sizing: border-box;
     max-height: 100%;
     overflow: auto;
     padding: 40px 10px 9px;
