@@ -735,7 +735,7 @@ class metadata extends photopress_module {
 
 		try {
 
-			$im = new Imagick( $path );
+			$im = new \Imagick( $path );
 
 			$profiles = $im->getImageProfiles( '*', false );
 			$existing = in_array( 'xmp', $profiles, true ) ? $im->getImageProfile( 'xmp' ) : '';
@@ -744,7 +744,7 @@ class metadata extends photopress_module {
 			$im->writeImage( $path );
 			$im->clear();
 
-		} catch ( Exception $e ) {
+		} catch ( \Exception $e ) {
 
 			// Never let a metadata problem block the upload itself.
 			photopress_util::debug( 'Could not embed licence meta-data: ' . $e->getMessage() );
@@ -773,7 +773,7 @@ class metadata extends photopress_module {
 	 */
 	protected static function mergeLicenceIntoXmp( $existing, $web_statement, $licensor_name, $licensor_url ) {
 
-	    $doc = new DOMDocument();
+	    $doc = new \DOMDocument();
 	    $doc->preserveWhiteSpace = false;
 	    $doc->formatOutput       = false;
 
@@ -797,14 +797,14 @@ class metadata extends photopress_module {
 
 	    if ( ! $loaded ) {
 	        // No usable XMP: start a minimal well-formed packet.
-	        $doc = new DOMDocument( '1.0', 'UTF-8' );
+	        $doc = new \DOMDocument( '1.0', 'UTF-8' );
 	        $meta = $doc->createElementNS( 'adobe:ns:meta/', 'x:xmpmeta' );
 	        $doc->appendChild( $meta );
 	        $rdf = $doc->createElementNS( 'http://www.w3.org/1999/02/22-rdf-syntax-ns#', 'rdf:RDF' );
 	        $meta->appendChild( $rdf );
 	    }
 
-	    $xp = new DOMXPath( $doc );
+	    $xp = new \DOMXPath( $doc );
 	    $xp->registerNamespace( 'x', 'adobe:ns:meta/' );
 	    $xp->registerNamespace( 'rdf', 'http://www.w3.org/1999/02/22-rdf-syntax-ns#' );
 
