@@ -2,6 +2,11 @@
  * Option helper methods
  */
 
+/**
+ * WordPress dependencies
+ */
+import apiFetch from '@wordpress/api-fetch';
+
 export function saveSettings( module ) {
 		
 	//console.log(this.state);
@@ -40,12 +45,11 @@ export function saveSettings( module ) {
 			
 			const module_name = this.props.settingsGroup;
 			
-			const model = new wp.api.models.Settings({
-				// eslint-disable-next-line camelcase
-				[module_name]: this.state.settings
-			});
-			
-			model.save().then( response => {
+			apiFetch( {
+				path: '/wp/v2/settings',
+				method: 'POST',
+				data: { [ module_name ]: this.state.settings },
+			} ).then( response => {
 				
 				// merge response with any other defaults
 				let new_settings = { ...this.state.settings, ...response[module_name] };
@@ -54,7 +58,16 @@ export function saveSettings( module ) {
 					isAPISaving: false,
 					dirtyFields: []
 				});
-			});
+				this.setError( 'save', null );
+				
+			} ).catch( error => {
+				
+				// Without this the Save button stayed disabled and nothing
+				// said why. The REST API rejects values its schema does not
+				// allow, such as a select value that is not one of its options.
+				this.setState({ isAPISaving: false });
+				this.setError( 'save', error.message || 'The settings could not be saved.' );
+			} );
 		}
 	}
 }
@@ -115,8 +128,8 @@ export function	getSetting ( key ) {
 	
 export function	setSetting ( key, value, persist ) {
 
-	let df = this.state.dirtyFields;
-	df.push(key);
+	// A new array: pushing onto the one in state would mutate it.
+	let df = [ ...this.state.dirtyFields, key ];
 	
 	let new_settings = {
 		
@@ -153,28 +166,38 @@ export function	persistSetting ( key, value ) {
 	
 }
 	
-export function	deleteSetting ( pack, module, key, subKey ) {
+/**
+ * Removes a setting, or one entry of an object-valued setting.
+ */
+export function	deleteSetting ( key, subKey ) {
 	
-	if ( this.state.hasOwnProperty( 'settings' )  &&  this.state.settings.hasOwnProperty( key ) ) {
+	if ( ! this.state.settings || ! this.state.settings.hasOwnProperty( key ) ) {
+		return;
+	}
+	
+	let settings = { ...this.state.settings };
+	
+	if ( typeof subKey !== 'undefined' ) {
 		
-		let setting = this.state[ group ][ key ];
+		let value = Array.isArray( settings[ key ] ) ? [ ...settings[ key ] ] : { ...settings[ key ] };
 		
-		if ( subkey  && this.state[ group ][ key ].hasOwnProperty( subKey ) ) {
-			
-			delete setting[ key ][ subkey ];
-			
+		if ( Array.isArray( value ) ) {
+			value.splice( subKey, 1 );
 		} else {
-			
-			delete setting[ key ];	
+			delete value[ subKey ];
 		}
 		
-		this.setState( { 
-			settings: {
-				...this.state.settings,
-				[`${key}`]: setting
-			}
-		});
+		settings[ key ] = value;
+		
+	} else {
+		
+		delete settings[ key ];
 	}
+	
+	this.setState( {
+		settings,
+		dirtyFields: [ ...this.state.dirtyFields, key ]
+	} );
 }
 
 export function getError( key ) {

@@ -18,6 +18,10 @@ class photopress_settingsPage {
 	
 	public $properties;
 	
+	public $default_options;
+	
+	public $sections = array();
+	
 	public function __construct( $params ) {
 		
 
@@ -130,79 +134,123 @@ class photopress_settingsPage {
 		return sprintf( '%s-%s-%s-%s', $this->ns, $this->package, $this->module, $this->name );
 	}
 	
-	// generates the schema used by the wordpress rest api
+	/**
+	 * JSON schema for each field, used by the REST API to validate settings
+	 * before they are saved. Every field type has a definite type; free text
+	 * is cleaned afterwards by sanitizeOptions().
+	 */
 	public function getSchema() {
 		
 		$schema = [];
 		
 		foreach ( $this->fields as $k => $field ) {
-			//print_r($field);
 			
-			$type = $field->properties['type'];
-			
-			$r = ['type' => ''];
-			
-			if ( $type === 'text' ) {
-			
-				$r = ['type' => 'string'];
-			}
-			
-
-			if ( $type === 'integer' ) {
-			
-				$r = ['type' => 'integer'];
-			}
-			
-			if ( $type === 'boolean' ) {
-			
-				$r = ['type' => 'boolean'];
-			}
-
-			
-			if ( $type === 'select' ) {
-				
-				$r = ['type' => ''];
-			}
-			
-			if ( $type === 'on_off_array' ) {
-				
-				$r = ['type' => ''];
-			}
-			
-			if ( $type === 'none' ) {
-			
-				$r = ['type' => 'array'];
-			}
-			
-			if ( $type === 'url' ) {
-			
-				$r = ['type' => 'string'];
-			}
-			
-/*
-			if ( $k === 'custom_taxonomies') {
-				
-				$r = [
-				
-					'type' => 'object',
-					'properties'	=> [
-						'plural'	=> [
-							'type'	=> 'string'
-						],
-						'singular'	=> [
-							'type'	=> 'string'
-						]
-					]
-				
-				];
-			}
-*/
-			
-			$schema[ $k ] = $r;	
-			//$schema[ $k ] = [ 'type' => 'string' ];	
+			$schema[ $k ] = self::schemaFor( $field->properties );
 		}
-		//print_r( $schema );
+		
 		return $schema;
+	}
+	
+	private static function schemaFor( $props ) {
+		
+		switch ( $props['type'] ) {
+			
+			case 'boolean':
+				return [ 'type' => 'boolean' ];
+			
+			case 'integer':
+				return [ 'type' => 'integer', 'minimum' => 0 ];
+			
+			case 'select':
+				return [ 'type' => 'string', 'enum' => array_values( array_map( 'strval', (array) ( $props['options'] ?? [] ) ) ) ];
+			
+			// The custom taxonomies list; see the metadata module's default.
+			case 'none':
+				return [
+					'type'  => 'array',
+					'items' => [
+						'type'                 => 'object',
+						'additionalProperties' => false,
+						'properties'           => [
+							'id'            => [ 'type' => 'string' ],
+							'pluralLabel'   => [ 'type' => 'string' ],
+							'singularLabel' => [ 'type' => 'string' ],
+							'tag'           => [ 'type' => 'string' ],
+							'parseTagValue' => [ 'type' => 'boolean' ],
+						],
+					],
+				];
+			
+			// text, url and anything else: a string, cleaned by type on save.
+			default:
+				return [ 'type' => 'string' ];
+		}
+	}
+	
+	/**
+	 * sanitize_callback for the option. Cleans every value by its field type,
+	 * drops keys that are not fields, and keeps the stored value for a field
+	 * whose new value is not acceptable (a select value not in its options).
+	 */
+	public function sanitizeOptions( $options ) {
+		
+		if ( ! is_array( $options ) ) {
+			return get_option( $this->getOptionKey(), $this->getDefaults() );
+		}
+		
+		$current   = (array) get_option( $this->getOptionKey(), [] ) + $this->getDefaults();
+		$sanitized = [];
+		
+		foreach ( $this->fields as $k => $field ) {
+			
+			if ( ! array_key_exists( $k, $options ) ) {
+				
+				if ( array_key_exists( $k, $current ) ) {
+					$sanitized[ $k ] = $current[ $k ];
+				}
+				continue;
+			}
+			
+			$sanitized[ $k ] = self::sanitizeValue( $field->properties, $options[ $k ], $current[ $k ] ?? null );
+		}
+		
+		return $sanitized;
+	}
+	
+	private static function sanitizeValue( $props, $value, $previous ) {
+		
+		switch ( $props['type'] ) {
+			
+			case 'boolean':
+				return (bool) $value;
+			
+			case 'integer':
+				return max( 0, (int) $value );
+			
+			case 'select':
+				$allowed = array_map( 'strval', (array) ( $props['options'] ?? [] ) );
+				return in_array( (string) $value, $allowed, true ) ? (string) $value : $previous;
+			
+			case 'url':
+				return esc_url_raw( trim( (string) $value ) );
+			
+			case 'none':
+				$list = [];
+				foreach ( (array) $value as $item ) {
+					$item = (array) $item;
+					$list[] = [
+						'id'            => sanitize_key( $item['id'] ?? '' ),
+						'pluralLabel'   => sanitize_text_field( $item['pluralLabel'] ?? '' ),
+						'singularLabel' => sanitize_text_field( $item['singularLabel'] ?? '' ),
+						'tag'           => sanitize_text_field( $item['tag'] ?? '' ),
+						'parseTagValue' => ! empty( $item['parseTagValue'] ),
+					];
+				}
+				return $list;
+			
+			default:
+				return sanitize_text_field( (string) $value );
+		}
 	}
 	
 	public function getDefaults() {
@@ -223,12 +271,13 @@ class photopress_settingsPage {
 				
 				
 				'description'		=> 'Settings for PhotoPress '. $this->getOptionGroupName() . ' ' . $this->getOptionKey(),
-				//'sanitize_callback'	=> [ $this, 'validateAndSanitize' ],
+				'sanitize_callback'	=> [ $this, 'sanitizeOptions' ],
 				'show_in_rest'		=> [
 					
 					'schema'			=> [
-						'type'				=> 'object',
-						'properties'		=> $this->getSchema()
+						'type'					=> 'object',
+						'properties'			=> $this->getSchema(),
+						'additionalProperties'	=> false,
 					]
 				],
 				

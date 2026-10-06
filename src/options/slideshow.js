@@ -232,6 +232,12 @@ class SlideshowSettings extends Component {
 		return (
 			
 			<PanelBody title={ __( 'Slideshows' ) }>
+					
+					{ this.getError( 'save' ) &&
+						<Notice status="error" isDismissible={ false }>
+							<p>{ __( 'The settings were not saved:' ) } { this.getError( 'save' ) }</p>
+						</Notice>
+					}
 						
 					{ rows.map( ( val, idx ) => {
 					
