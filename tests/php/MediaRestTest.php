@@ -232,20 +232,20 @@ final class MediaRestTest extends TestCase {
 	}
 
 	#[DataProvider( 'cacheControls' )]
-	public function test_cache_control_setting( string $setting, string $expected ): void {
+	public function test_cache_control_from_the_two_durations( $cache, $stale, string $expected ): void {
 
-		$this->assertSame( $expected, \PhotoPress\modules\media\media::cacheControl( $setting ) );
+		$this->assertSame( $expected, \PhotoPress\modules\media\media::cacheControl( $cache, $stale ) );
 	}
 
 	public static function cacheControls(): array {
 
-		$default = \PhotoPress\modules\media\media::DEFAULT_CACHE_CONTROL;
-
 		return [
-			'empty: the default'            => [ '', $default ],
-			'a value'                       => [ 'max-age=3600', 'max-age=3600' ],
-			'several directives'            => [ 'public, max-age=600, stale-while-revalidate=60', 'public, max-age=600, stale-while-revalidate=60' ],
-			'not a header value: default'   => [ "max-age=1\r\nX-Evil: 1", $default ],
+			'not set: a day, then an hour' => [ null, null, 'max-age=86400, stale-while-revalidate=3600' ],
+			'two days, then six hours'     => [ 172800, 21600, 'max-age=172800, stale-while-revalidate=21600' ],
+			'as strings, as saved'         => [ '3600', '600', 'max-age=3600, stale-while-revalidate=600' ],
+			'no stale period'              => [ 3600, 0, 'max-age=3600' ],
+			'invalid: the defaults'        => [ 'a year', -5, 'max-age=86400, stale-while-revalidate=3600' ],
+			'zero lifetime: the default'   => [ 0, 60, 'max-age=86400, stale-while-revalidate=60' ],
 		];
 	}
 

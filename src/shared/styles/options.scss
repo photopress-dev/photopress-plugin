@@ -305,3 +305,88 @@ input[type="checkbox"] {
 	margin: 3px 10px 10px 0;
 }
 
+
+// The Offload Media tab (src/options/media.js): space between its sections,
+// tables and settings.
+.photopress-offload-status,
+.photopress-offload-settings {
+
+	> * + * {
+		margin-top: 20px;
+	}
+
+	h3 {
+		margin: 36px 0 12px;
+	}
+
+	.form-table {
+		margin-top: 0;
+
+		th,
+		td {
+			padding: 8px 12px 8px 0;
+			vertical-align: top;
+		}
+
+		th {
+			width: 240px;
+			font-weight: 600;
+		}
+	}
+
+	.components-button + .components-button {
+		margin-left: 8px;
+	}
+}
+
+.photopress-offload-status > h3:first-child {
+	margin-top: 0;
+}
+
+.photopress-duration__inputs {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	max-width: 360px;
+
+	.components-base-control:first-child {
+		flex: 1;
+	}
+}
+
+.photopress-duration .components-base-control__help {
+	margin-top: 8px;
+}
+
+// "Offload Media status: Active / Disabled / Not installed", coloured as
+// WordPress colours success, warning and error, with a dot, so the colour is
+// not the only signal.
+.photopress-offload-state {
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.photopress-offload-state__value {
+
+	&::before {
+		content: "";
+		display: inline-block;
+		width: 10px;
+		height: 10px;
+		margin-right: 6px;
+		border-radius: 50%;
+		background: currentColor;
+	}
+
+	&.is-active {
+		color: #00a32a;
+	}
+
+	&.is-inactive {
+		color: #b88a00; // WordPress's warning yellow (#dba617), darkened to be readable as text
+	}
+
+	&.is-missing {
+		color: #d63638;
+	}
+}

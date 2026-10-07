@@ -5,7 +5,7 @@
 const { __, sprintf } = wp.i18n;
 import { Component, useEffect, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { BaseControl, Button, Notice, PanelBody, TextControl, ToggleControl } from '@wordpress/components';
+import { BaseControl, Button, Notice, PanelBody, SelectControl, TextControl, ToggleControl } from '@wordpress/components';
 
 import {
 	setSetting,
@@ -22,6 +22,12 @@ const CREDENTIAL_SOURCES = {
 	photopress: __( 'PHOTOPRESS_AWS_* constants in wp-config.php' ),
 	'instance-role': __( "the server's IAM role" ),
 	'offload-media': __( "WP Offload Media's credentials" ),
+};
+
+const PLUGIN_STATES = {
+	active: __( 'Active' ),
+	inactive: __( 'Disabled' ),
+	missing: __( 'Not installed' ),
 };
 
 const when = ( time ) => new Date( time * 1000 ).toLocaleString();
@@ -70,19 +76,30 @@ function OffloadStatus() {
 		return error ? <Notice status="error" isDismissible={ false }>{ error }</Notice> : <p>{ __( 'Checking…' ) }</p>;
 	}
 
+	const state = (
+		<p className="photopress-offload-state">
+			{ __( 'Offload Media status:' ) }{ ' ' }
+			<span className={ `photopress-offload-state__value is-${ status.plugin }` }>{ PLUGIN_STATES[ status.plugin ] || status.plugin }</span>
+		</p>
+	);
+
 	if ( 'missing' === status.plugin ) {
 		return (
-			<p className="photopress-offload-status" data-state="missing">
-				{ __( 'WP Offload Media is not installed. With it, images are stored in a bucket (Amazon S3 and others) and can be served from a CDN; this page then shows where, sets their cache lifetime, and clears replaced images from CloudFront.' ) }
-			</p>
+			<div className="photopress-offload-status" data-state="missing">
+				{ state }
+				<p>
+					{ __( 'With WP Offload Media, images are stored in a bucket (Amazon S3 and others) and can be served from a CDN; this page then shows where, sets their cache lifetime, and clears replaced images from CloudFront.' ) }
+				</p>
+			</div>
 		);
 	}
 
 	if ( 'inactive' === status.plugin ) {
 		return (
-			<p className="photopress-offload-status" data-state="inactive">
-				{ __( 'WP Offload Media is installed but not active. Activate it to store images in a bucket; this page then shows where they are stored and served.' ) }
-			</p>
+			<div className="photopress-offload-status" data-state="inactive">
+				{ state }
+				<p>{ __( 'Activate it to store images in a bucket; this page then shows where they are stored and served.' ) }</p>
+			</div>
 		);
 	}
 
@@ -92,6 +109,7 @@ function OffloadStatus() {
 
 	return (
 		<div className="photopress-offload-status" data-state="active">
+			{ state }
 			{ error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
 
 			<h3>{ __( 'Storage' ) }</h3>
@@ -112,8 +130,10 @@ function OffloadStatus() {
 					{ status.domain && (
 						<Row label={ __( 'CloudFront distribution' ) }>
 							{ status.distribution
-								? `${ status.distribution.id } (${ 'setting' === status.distribution.source ? __( 'set below' ) : __( 'found from the domain' ) })`
+								? status.distribution.id
 								: __( 'None found for this domain: it may not be a CloudFront domain.' ) }
+							<br />
+							<span className="description">{ __( "Found from Offload Media's delivery domain." ) }</span>
 						</Row>
 					) }
 					<Row label={ __( 'AWS credentials for CloudFront' ) }>
@@ -141,15 +161,56 @@ function OffloadStatus() {
 					</p>
 					<Button variant="secondary" disabled={ busy || ! canInvalidate || ! status.pending } onClick={ () => invalidate( 'pending' ) }>
 						{ __( 'Clear waiting images now' ) }
-					</Button>{ ' ' }
+					</Button>
 					<Button variant="secondary" isDestructive disabled={ busy || ! canInvalidate } onClick={ () => invalidate( 'all' ) }>
 						{ __( 'Invalidate the whole CDN' ) }
-					</Button>{ ' ' }
-					<Button variant="tertiary" disabled={ busy } onClick={ () => call( { path: '/photopress/v1/cdn/distribution', method: 'DELETE' } ) }>
-						{ __( 'Find the distribution again' ) }
 					</Button>
 				</>
 			) }
+		</div>
+	);
+}
+
+const HOUR = 3600;
+const DAY = 86400;
+
+/**
+ * A duration in seconds, entered as a number of hours or days.
+ */
+function DurationControl( { id, label, help, seconds, onChange } ) {
+	const [ unit, setUnit ] = useState( seconds % DAY === 0 && seconds >= DAY ? DAY : HOUR );
+	const amount = Math.round( ( seconds / unit ) * 100 ) / 100;
+
+	return (
+		<div className="photopress-duration" id={ id }>
+			<div className="photopress-duration__inputs">
+				<TextControl
+					__nextHasNoMarginBottom
+					label={ label }
+					type="number"
+					min={ 0 }
+					step={ 1 }
+					value={ String( amount ) }
+					onChange={ ( value ) => onChange( Math.max( 0, Math.round( ( parseFloat( value ) || 0 ) * unit ) ) ) }
+				/>
+				<SelectControl
+					__nextHasNoMarginBottom
+					label={ __( 'Unit' ) }
+					hideLabelFromVision
+					value={ String( unit ) }
+					options={ [
+						{ value: String( HOUR ), label: __( 'hours' ) },
+						{ value: String( DAY ), label: __( 'days' ) },
+					] }
+					onChange={ ( value ) => {
+						// The same amount in the new unit: "1 hour" becomes "1 day".
+						const next = Number( value );
+						setUnit( next );
+						onChange( Math.round( amount * next ) );
+					} }
+				/>
+			</div>
+			{ help && <p className="components-base-control__help">{ help }</p> }
 		</div>
 	);
 }
@@ -172,8 +233,8 @@ class MediaSettings extends Component {
 			isAPISaving: false,
 			errors: {},
 			settings: {
-				cache_control: 'max-age=86400, stale-while-revalidate=3600',
-				cloudfront_distribution_id: '',
+				cache_seconds: DAY,
+				stale_seconds: HOUR,
 				delete_replaced_objects: false,
 				...this.props.data,
 			},
@@ -195,37 +256,38 @@ class MediaSettings extends Component {
 
 					<OffloadStatus />
 
-					<h3>{ __( 'Settings' ) }</h3>
+					<div className="photopress-offload-settings">
+						<h3>{ __( 'Settings' ) }</h3>
 
-					<TextControl
-						id="cache_control"
-						label={ __( 'Cache-Control for offloaded files' ) }
-						help={ __( "How long browsers and a CDN may keep an image before checking back. A replaced image keeps its URL, so this is how long an old copy can still be shown where it was not cleared. Offload Media's own value is a year (max-age=31536000)." ) }
-						value={ this.getSetting( 'cache_control' ) || '' }
-						onChange={ ( value ) => this.setSetting( 'cache_control', value ) }
-						onBlur={ ( event ) => this.setSetting( 'cache_control', sanitize( event.target.value, 'string' ) ) }
-					/>
+						<DurationControl
+							id="cache_seconds"
+							label={ __( 'Browsers and the CDN keep an image for' ) }
+							help={ __( "Before checking back for a new copy. A replaced image keeps its URL, so this is how long an old copy can still be shown where it was not cleared. Offload Media's own is a year." ) }
+							seconds={ Number( this.getSetting( 'cache_seconds' ) ?? DAY ) }
+							onChange={ ( value ) => this.setSetting( 'cache_seconds', value ) }
+						/>
 
-					<ToggleControl
-						id="delete_replaced_objects"
-						label={ __( 'Delete replaced files from the bucket' ) }
-						help={ __( "When a replacement gives an image's sizes new names (new dimensions or file type), delete the old files from the bucket two days later, once no cached page can still show them. Offload Media itself leaves them there." ) }
-						checked={ !! this.getSetting( 'delete_replaced_objects' ) }
-						onChange={ ( value ) => this.persistSetting( 'delete_replaced_objects', value ) }
-					/>
+						<DurationControl
+							id="stale_seconds"
+							label={ __( 'Then keep showing it while checking for' ) }
+							help={ __( 'After that, how long the old copy may still be shown while the new one is fetched, so nobody waits on the check. 0 to always wait.' ) }
+							seconds={ Number( this.getSetting( 'stale_seconds' ) ?? HOUR ) }
+							onChange={ ( value ) => this.setSetting( 'stale_seconds', value ) }
+						/>
 
-					<TextControl
-						id="cloudfront_distribution_id"
-						label={ __( 'CloudFront distribution ID' ) }
-						help={ __( "Leave empty to find it from Offload Media's delivery domain." ) }
-						value={ this.getSetting( 'cloudfront_distribution_id' ) || '' }
-						onChange={ ( value ) => this.setSetting( 'cloudfront_distribution_id', value ) }
-						onBlur={ ( event ) => this.setSetting( 'cloudfront_distribution_id', sanitize( event.target.value, 'string' ) ) }
-					/>
+						<ToggleControl
+							__nextHasNoMarginBottom
+							id="delete_replaced_objects"
+							label={ __( 'Delete replaced files from the bucket' ) }
+							help={ __( "When a replacement gives an image's sizes new names (new dimensions or file type), delete the old files from the bucket two days later, once no cached page can still show them. Offload Media itself leaves them there." ) }
+							checked={ !! this.getSetting( 'delete_replaced_objects' ) }
+							onChange={ ( value ) => this.persistSetting( 'delete_replaced_objects', value ) }
+						/>
 
-					<Button variant="primary" disabled={ this.state.isAPISaving } onClick={ this.saveSettings } className="components-base-control__field">
-						{ __( 'Save' ) }
-					</Button>
+						<Button variant="primary" disabled={ this.state.isAPISaving } onClick={ this.saveSettings }>
+							{ __( 'Save' ) }
+						</Button>
+					</div>
 				</BaseControl>
 			</PanelBody>
 		);
