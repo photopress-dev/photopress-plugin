@@ -138,4 +138,62 @@ final class MetadataTest extends TestCase {
 		// A child taxonomy the family does not have: the keyword goes to the parent as is.
 		$this->assertSame( [ 'photos_keywords' => [ 'genre:portrait' ] ], $m->matchTermToTaxonomy( 'genre:portrait', $family ) );
 	}
+
+	public function test_xmp_gives_the_title_and_caption_when_iptc_does_not(): void {
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$file = $this->tempFile( file_get_contents( __DIR__ . '/fixtures/xmp/capture-one.xml' ), '.xmp' );
+
+		$meta = $m->storeMoreMetaData( [ 'title' => '', 'caption' => '' ], $file, 2, [], [] );
+		$this->assertSame( 'Bob', $meta['title'] );
+
+		$meta = $m->storeMoreMetaData( [ 'title' => 'From IPTC', 'caption' => 'IPTC caption' ], $file, 2, [], [] );
+		$this->assertSame( [ 'From IPTC', 'IPTC caption' ], [ $meta['title'], $meta['caption'] ], 'IPTC wins' );
+	}
+
+	public function test_description_template(): void {
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'photoshop:Headline' => 'Bob at the lake' ] ] );
+
+		\pp_api::$options['core/metadata/description_template'] = '';
+		$this->assertNull( $m->generateDescription( $md ), 'no template: leave the description alone' );
+
+		\pp_api::$options['core/metadata/description_template'] = '[photoshop:Headline]';
+		$this->assertSame( 'Bob at the lake', $m->generateDescription( $md ) );
+
+		\pp_api::$options['core/metadata/description_template'] = '[photoshop:City]';
+		$this->assertSame( '', $m->generateDescription( $md ), 'nothing in the file: cleared' );
+	}
+
+	public function test_a_taxonomy_the_file_has_nothing_for_is_emptied(): void {
+
+		\pp_api::$options['core/metadata/custom_taxonomies'] = [
+			[ 'id' => 'photos_keywords', 'tag' => 'dc:subject', 'parseTagValue' => false ],
+			[ 'id' => 'photos_people', 'tag' => 'dc:subject', 'parseTagValue' => true ],
+			[ 'id' => 'photos_city', 'tag' => 'photoshop:City', 'parseTagValue' => false ],
+		];
+		\pp_api::$options['core/metadata/custom_taxonomies_tag_delimiter'] = ':';
+
+		$m = $this->getMockBuilder( metadata::class )
+			->disableOriginalConstructor()
+			->onlyMethods( [ 'matchTermToTaxonomy' ] )
+			->getMock();
+		$m->method( 'matchTermToTaxonomy' )->willReturn( [ 'photos_keywords' => [ 'lake' ] ] );
+
+		$set = [];
+		Functions\when( 'taxonomy_exists' )->justReturn( true );
+		Functions\when( 'wp_defer_term_counting' )->justReturn( true );
+		Functions\when( 'wp_set_object_terms' )->alias( static function ( $id, $terms, $taxonomy ) use ( &$set ) {
+			$set[ $taxonomy ] = $terms;
+		} );
+
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'dc:subject' => [ 'lake' ] ] ] );
+		$m->setTaxonomyTerms( 42, $md );
+
+		$this->assertSame( [ 'photos_keywords' => [ 'lake' ], 'photos_people' => [], 'photos_city' => [] ], $set );
+	}
 }
+

@@ -66,11 +66,29 @@ function pp_fixture_delete_terms( array $term_ids ) {
 	}
 }
 
+/**
+ * Files left by the fixtures that no attachment owns any more: the old files
+ * a replacement keeps (see MediaRest). Every fixture file name starts with
+ * pp-fixture-.
+ */
+function pp_fixture_delete_files( $older_than = 0 ) {
+
+	$basedir = wp_get_upload_dir()['basedir'];
+
+	foreach ( glob( $basedir . '/*/*/pp-fixture-*' ) ?: [] as $file ) {
+
+		if ( ! $older_than || filemtime( $file ) < time() - $older_than ) {
+			wp_delete_file( $file );
+		}
+	}
+}
+
 if ( 'delete' === $pp_action ) {
 
 	$made = json_decode( $args[1] ?? '', true ) ?: [];
-	pp_fixture_delete_posts( array_merge( array_values( $made['pages'] ?? [] ), $made['images'] ?? [] ) );
+	pp_fixture_delete_posts( array_merge( array_values( $made['pages'] ?? [] ), $made['images'] ?? [], array_values( $made['replace'] ?? [] ) ) );
 	pp_fixture_delete_terms( $made['terms'] ?? [] );
+	pp_fixture_delete_files();
 
 	$pending = array_values( array_diff( get_option( '_pp_test_fixture_terms', [] ), $made['terms'] ?? [] ) );
 	$pending ? update_option( '_pp_test_fixture_terms', $pending, false ) : delete_option( '_pp_test_fixture_terms' );
@@ -90,6 +108,7 @@ if ( 'sweep' === $pp_action ) {
 
 	$terms = get_option( '_pp_test_fixture_terms', [] );
 	pp_fixture_delete_posts( $stale );
+	pp_fixture_delete_files( HOUR_IN_SECONDS );
 	if ( $stale ) {
 		pp_fixture_delete_terms( $terms );
 		delete_option( '_pp_test_fixture_terms' );
@@ -135,6 +154,19 @@ $new_terms = array_values( array_diff( pp_fixture_terms(), $terms_before ) );
 // For sweep, should this run be killed before it deletes them.
 update_option( '_pp_test_fixture_terms', array_values( array_unique( array_merge( get_option( '_pp_test_fixture_terms', [] ), $new_terms ) ) ), false );
 
+// An image of its own for the replacement tests, which change its file.
+$tmp = wp_tempnam( 'replace' );
+copy( dirname( __DIR__ ) . '/fixtures/images/02-landscape-3x2.jpg', $tmp );
+$replace_id = media_handle_sideload( [ 'name' => 'pp-fixture-replace-me.jpg', 'tmp_name' => $tmp ], 0 );
+
+if ( is_wp_error( $replace_id ) ) {
+	pp_fixture_delete_posts( $images );
+	fwrite( STDERR, 'replace-me: ' . $replace_id->get_error_message() . "\n" );
+	exit( 1 );
+}
+
+update_post_meta( $replace_id, PP_FIXTURE_META, 1 );
+
 $image_blocks = '';
 
 foreach ( $images as $id ) {
@@ -179,8 +211,22 @@ $page = static function ( $title, $content ) {
 
 $spacer = str_repeat( '<!-- wp:paragraph --><p>Spacer paragraph between the slideshow and its gallery.</p><!-- /wp:paragraph -->', 4 );
 
+$medium = wp_get_attachment_image_src( $replace_id, 'medium' );
+
 echo wp_json_encode( [
 	'images' => array_values( $images ),
+	'replace' => [
+		'image' => $replace_id,
+		// An image block showing the medium size, with its own alt text and
+		// caption, and a link to the full size.
+		'post'  => $page( 'E2E: replaced image', sprintf(
+			'<!-- wp:image {"id":%1$d,"sizeSlug":"medium"} --><figure class="wp-block-image size-medium"><img src="%2$s" alt="Alt written in the post" class="wp-image-%1$d"/><figcaption class="wp-element-caption">Caption written in the post</figcaption></figure><!-- /wp:image -->'
+			. '<!-- wp:paragraph --><p><a href="%3$s">Full size</a></p><!-- /wp:paragraph -->',
+			$replace_id,
+			esc_url( $medium[0] ),
+			esc_url( wp_get_attachment_url( $replace_id ) )
+		) ),
+	],
 	'names'  => $images,
 	'terms'  => $new_terms,
 	'pages'  => [

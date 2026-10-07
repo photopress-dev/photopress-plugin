@@ -21,6 +21,9 @@ class metadata extends photopress_module {
 		// add additional meta-data to images
 		add_filter( 'wp_read_image_metadata', [$this, 'storeMoreMetaData'], 10, 5);
 		
+		// the description of an image whose file was replaced (see MediaRest)
+		add_filter( 'photopress_attachment_description', [ $this, 'descriptionForReplacedFile' ], 10, 3 );
+		
 		// add additional attributes to images
 		//add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
 		add_filter( 'render_block', [ $this, 'addAttributesToImagesInContent' ], 11, 3 );
@@ -79,6 +82,13 @@ class metadata extends photopress_module {
 			//add_filter('wp_generate_attachment_metadata', 'papt_storeNewMeta',1,2);
 			
 			add_action('enable-media-replace-upload-done', [ $this, 'updateAttachment' ], 1, 2 );
+
+			/**
+			 * Handler for when PhotoPress gives an image a new file (see
+			 * MediaRest): its terms and alt text come from the new file,
+			 * unless the client asked for them to be left alone.
+			 */
+			add_action( 'photopress_attachment_file_replaced', [ $this, 'fileReplaced' ], 10, 4 );
 						
 			// needed to show attachments on taxonomy pages
 			add_filter( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
@@ -301,6 +311,24 @@ class metadata extends photopress_module {
 	
 	public function storeMoreMetaData( $meta, $file, $image_type, $iptc, $exif ) {
 		
+		// WordPress takes the title and caption from IPTC or EXIF only. Files
+		// with XMP but no IPTC give theirs from dc:title and dc:description,
+		// on upload and when a file is replaced alike.
+		if ( empty( $meta['title'] ) || empty( $meta['caption'] ) ) {
+			
+			$md = new XmpReader();
+			$md->loadFromFile( $file );
+			
+			foreach ( [ 'title' => 'dc:title', 'caption' => 'dc:description' ] as $key => $tag ) {
+				
+				$value = $md->getXmp( $tag );
+				
+				if ( empty( $meta[ $key ] ) && is_string( $value ) && '' !== trim( $value ) ) {
+					$meta[ $key ] = trim( $value );
+				}
+			}
+		}
+		
 		//pp_api::debug($meta);
 		//pp_api::debug($image_type);
 		//pp_api::debug($iptc);
@@ -494,6 +522,20 @@ class metadata extends photopress_module {
 				]
 			],
 			
+			'description_template'	=> [
+				
+				'default_value'							=> '',
+				'field'									=> [
+					'type'									=> 'text',
+					'title'									=> 'XMP template for Description',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'The XMP tag template used to set an image\'s description on upload and when its file is replaced, e.g. [photoshop:Headline]. Leave empty to leave descriptions alone.',
+					'label_for'								=> 'The XMP tag template used to set image descriptions.',
+					'error_message'							=> ''		
+				]
+			],
+			
 			// depricated
 			'alt_text_tag'	=> [
 				
@@ -676,6 +718,13 @@ class metadata extends photopress_module {
 		// set the taxonomy terms
 		$this->setTaxonomyTerms( $id, $md );
 		
+		// set the description, when a template is configured
+		$description = $this->generateDescription( $md );
+		
+		if ( null !== $description && $description !== get_post_field( 'post_content', $id ) ) {
+			wp_update_post( [ 'ID' => $id, 'post_content' => $description ] );
+		}
+		
 		// set ALT text of image
 		
 		if ( pp_api::getOption('core', 'metadata', 'alt_text_enable') ) {
@@ -695,12 +744,54 @@ class metadata extends photopress_module {
 	}
 	
 	/**
+	 * photopress_attachment_file_replaced: reads the new file's metadata, as
+	 * for an upload, when the client asked for it (the default).
+	 */
+	public function fileReplaced( $id, $replacements = [], $updated = [], $options = [] ) {
+		
+		if ( isset( $options['reprocess_metadata'] ) && ! $options['reprocess_metadata'] ) {
+			return;
+		}
+		
+		$this->addAttachment( $id );
+	}
+	
+	/**
 	 * Handler for updating the image meta when the file is replaced
 	 */
 	public function updateAttachment( $url ) {
 		
 		$id = attachment_url_to_postid( $url );
 		$this->addAttachment( $id );
+	}
+	
+	/**
+	 * The description from the description template, or null when no
+	 * template is set (the description is then not touched).
+	 */
+	public function generateDescription( $md ) {
+		
+		$template = trim( (string) pp_api::getOption( 'core', 'metadata', 'description_template' ) );
+		
+		if ( '' === $template ) {
+			return null;
+		}
+		
+		return self::fillAltTemplate( $template, function ( $tag ) use ( $md ) {
+			return $md->getXmp( $tag );
+		} );
+	}
+	
+	/**
+	 * photopress_attachment_description: the description of an image given
+	 * a new file, from the template; null to leave it alone.
+	 */
+	public function descriptionForReplacedFile( $description, $id, $file ) {
+		
+		$md = new XmpReader();
+		$md->loadFromFile( $file );
+		
+		return $this->generateDescription( $md ) ?? $description;
 	}
 	
 	/**
@@ -987,6 +1078,16 @@ class metadata extends photopress_module {
 				
 				$ret = $this->matchTermToTaxonomy( $value, $family );
 				$toInsert = array_merge_recursive($toInsert, $ret);			
+			}
+		}
+		
+		// Every configured taxonomy matches the file: one the file has
+		// nothing for is emptied, so a keyword removed from the file goes.
+		foreach ( $c as $family ) {
+			foreach ( array_merge( $family['parents'] ?? [], $family['children'] ?? [] ) as $tax_id ) {
+				if ( ! isset( $toInsert[ $tax_id ] ) && taxonomy_exists( $tax_id ) ) {
+					$toInsert[ $tax_id ] = [];
+				}
 			}
 		}
 		
