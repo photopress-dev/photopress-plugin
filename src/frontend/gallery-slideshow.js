@@ -91,6 +91,12 @@ export function createSlideshow( root ) {
 		const from = slides[ index ];
 		const to = slides[ next ];
 
+		// The height now, mid-ease if slides are changing quickly; then back
+		// to the height the current slide gives (see easeHeight()).
+		const fromHeight = track.getBoundingClientRect().height;
+		track.style.height = '';
+		load( next );
+
 		if ( instant || reducedMotion ) {
 			root.classList.add( 'is-instant' );
 			from.classList.remove( 'is-current' );
@@ -121,6 +127,10 @@ export function createSlideshow( root ) {
 			}, 400 );
 		}
 
+		if ( ! instant && ! reducedMotion ) {
+			easeHeight( fromHeight );
+		}
+
 		slides.forEach( ( slide, i ) => slide.setAttribute( 'aria-hidden', i === next ? 'false' : 'true' ) );
 
 		index = next;
@@ -131,6 +141,27 @@ export function createSlideshow( root ) {
 	}
 
 	// Wrapping from the last image to the first, or back, is instant.
+	// The slideshow's height is the current slide's, from CSS, so it follows
+	// the window. Between slides it eases from the old height to the new one,
+	// then is left to CSS again.
+	const track = root.querySelector( '.photopress-gallery-slideshow__track' );
+	let heightTimer = null;
+
+	function easeHeight( fromHeight ) {
+		const toHeight = track.getBoundingClientRect().height;
+
+		view.clearTimeout( heightTimer );
+
+		if ( Math.abs( toHeight - fromHeight ) < 1 ) {
+			return;
+		}
+
+		track.style.height = `${ fromHeight }px`;
+		void track.offsetHeight; // apply it before easing
+		track.style.height = `${ toHeight }px`;
+		heightTimer = view.setTimeout( () => ( track.style.height = '' ), 400 );
+	}
+
 	const next = () => show( index + 1, { direction: 1, instant: index === count - 1 } );
 	const prev = () => show( index - 1, { direction: -1, instant: index === 0 } );
 

@@ -32,15 +32,21 @@ $speed: 0.3s;
 	position: relative;
 	outline-offset: 4px;
 
-	// Every slide in one grid cell: the slideshow keeps the height of its
-	// tallest slide, so the page does not jump between slides.
+	// The current slide is in the flow and gives the slideshow its height,
+	// whatever the window's size; the others lie over it. Between slides the
+	// script eases the height from one to the next.
 	.photopress-gallery-slideshow__track {
-		display: grid;
+		position: relative;
 		overflow: hidden;
+		transition: height $speed ease;
 	}
 
 	.photopress-gallery-slideshow__slide {
-		grid-area: 1 / 1;
+		position: absolute;
+		top: 0;
+		left: 0;
+		box-sizing: border-box;
+		width: 100%;
 		margin: 0;
 		display: flex;
 		flex-direction: column;
@@ -52,21 +58,24 @@ $speed: 0.3s;
 	}
 
 	.photopress-gallery-slideshow__slide.is-current {
+		position: relative;
 		opacity: 1;
 		visibility: visible;
 		z-index: 1;
 		transition: opacity $speed ease, transform $speed ease, visibility 0s;
 	}
 
-	// Each image fits the width and is never taller than the window less the
-	// offset; its shape comes from the inline aspect-ratio, so slides size
-	// themselves before their images load.
+	// Each image is as large as fits both the slideshow's width and the
+	// window's height less the offset, keeping its shape (the inline
+	// aspect-ratio, so slides size themselves before their images load).
+	// svh: the height visible with a phone's browser bars shown.
 	.photopress-gallery-slideshow__image {
 		display: block;
 		width: auto;
 		max-width: 100%;
 		height: auto;
 		max-height: calc(100vh - var(--pp-slideshow-offset));
+		max-height: calc(100svh - var(--pp-slideshow-offset));
 		object-fit: contain;
 	}
 
@@ -217,6 +226,7 @@ $speed: 0.3s;
 
 	@media (prefers-reduced-motion: reduce) {
 
+		.photopress-gallery-slideshow__track,
 		.photopress-gallery-slideshow__slide,
 		.photopress-gallery-slideshow__slide.is-current {
 			transition: none;

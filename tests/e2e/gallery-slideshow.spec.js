@@ -59,7 +59,11 @@ test( 'a mouse press moves at once, once, without selecting anything', async ( {
 } );
 
 test( 'the cursor shows on a press without a move, and hides on window blur', async ( { page } ) => {
-	const left = await middle( page, 0.25 );
+	// Near the top: the press wraps to the last, small image, and the
+	// slideshow shrinks to its height; lower down the pointer would end up
+	// below the slideshow, where the cursor is rightly hidden.
+	const box = await page.locator( ROOT ).boundingBox();
+	const left = { x: box.x + box.width * 0.25, y: box.y + 40 };
 	await page.mouse.move( left.x, left.y );
 	await page.evaluate( () => ( document.querySelector( '.photopress-press-cursor' ).style.display = 'none' ) );
 	await page.mouse.down();
@@ -89,6 +93,83 @@ test( 'wrapping around is instant; steps between take 300ms', async ( { page, ma
 
 	expect( instant ).toBe( true );
 	expect( ( await state( page ) ).index ).toBe( made.images.length - 1 );
+} );
+
+/** The slideshow's height, and the current slide's (image and caption). */
+const heights = ( page ) => page.evaluate( ( selector ) => {
+	const root = document.querySelector( selector );
+	const slide = root.querySelector( '.photopress-gallery-slideshow__slide.is-current' );
+	return {
+		index: [ ...root.querySelectorAll( '.photopress-gallery-slideshow__slide' ) ].indexOf( slide ),
+		track: root.querySelector( '.photopress-gallery-slideshow__track' ).getBoundingClientRect().height,
+		slide: slide.getBoundingClientRect().height,
+		image: slide.querySelector( 'img' ).getBoundingClientRect().height,
+		visible: window.innerHeight,
+	};
+}, ROOT );
+
+/** Every slide in turn: the slideshow's height is the slide's. */
+async function checkEverySlide( page, count, label ) {
+	for ( let i = 0; i < count; i++ ) {
+		await page.waitForTimeout( 400 );
+		const h = await heights( page );
+		expect( h.index, label ).toBe( i );
+		expect( Math.abs( h.track - h.slide ), `${ label }, slide ${ i }: ${ h.track } for a ${ h.slide } slide` ).toBeLessThanOrEqual( 1 );
+		expect( h.image, `${ label }, slide ${ i }: taller than the window allows` ).toBeLessThanOrEqual( h.visible - 150 + 1 );
+		await page.evaluate( ( selector ) => document.querySelector( selector ).photopressSlideshow.next(), ROOT );
+	}
+}
+
+const VIEWPORTS = [ [ 1280, 900 ], [ 1024, 768 ], [ 768, 1024 ], [ 390, 844 ], [ 360, 640 ] ];
+
+for ( const [ order, page_key ] of [ [ 'portrait first', 'slideshow' ], [ 'landscape first', 'slideshowLandscapeFirst' ] ] ) {
+	test( `the slideshow is as tall as the current slide at every window size (${ order })`, async ( { page, made } ) => {
+		test.setTimeout( 240000 );
+
+		for ( const [ width, height ] of VIEWPORTS ) {
+			await page.setViewportSize( { width, height } );
+			await page.goto( `/?page_id=${ made.pages[ page_key ] }&preview=true` );
+			await page.locator( ROOT ).scrollIntoViewIfNeeded();
+			await checkEverySlide( page, made.images.length, `${ order } ${ width }x${ height }` );
+		}
+
+		// Resizing while the slideshow is in use, on a short slide and on a
+		// tall one, narrow to wide and back.
+		const names = Object.keys( made.names );
+		for ( const name of [ '02-landscape-3x2', '07-tall-1x3' ] ) {
+			const at = await page.evaluate( ( selector ) => [ ...document.querySelectorAll( `${ selector } .photopress-gallery-slideshow__slide` ) ].map( ( s ) => Number( s.dataset.id ) ), ROOT );
+			await page.evaluate( ( [ selector, i ] ) => document.querySelector( selector ).photopressSlideshow.show( i, { instant: true } ), [ ROOT, at.indexOf( made.names[ name ] ) ] );
+			for ( const [ width, height ] of [ [ 360, 640 ], [ 1280, 900 ], [ 390, 844 ] ] ) {
+				await page.setViewportSize( { width, height } );
+				await page.waitForTimeout( 400 );
+				const h = await heights( page );
+				expect( Math.abs( h.track - h.slide ), `${ order }, ${ name } resized to ${ width }x${ height }` ).toBeLessThanOrEqual( 1 );
+			}
+		}
+		expect( names.length ).toBe( made.images.length );
+	} );
+}
+
+test( 'the height eases from one slide to the next', async ( { page, made } ) => {
+	await page.goto( `/?page_id=${ made.pages.slideshow }&preview=true` );
+	await page.locator( ROOT ).scrollIntoViewIfNeeded();
+
+	// From the 3:1 panorama to the 1:3 tall image, which follows it.
+	const order = Object.keys( made.names );
+	await page.evaluate( ( [ selector, i ] ) => document.querySelector( selector ).photopressSlideshow.show( i, { instant: true } ), [ ROOT, order.indexOf( '06-panorama-3x1' ) ] );
+	await page.waitForTimeout( 450 );
+	const short = ( await heights( page ) ).track;
+	const midway = await page.evaluate( ( selector ) => new Promise( ( resolve ) => {
+		const root = document.querySelector( selector );
+		root.photopressSlideshow.next();
+		setTimeout( () => resolve( root.querySelector( '.photopress-gallery-slideshow__track' ).getBoundingClientRect().height ), 150 );
+	} ), ROOT );
+	await page.waitForTimeout( 450 );
+	const tall = ( await heights( page ) ).track;
+
+	expect( tall ).toBeGreaterThan( short + 100 );
+	expect( midway ).toBeGreaterThan( short + 10 );
+	expect( midway ).toBeLessThan( tall - 10 );
 } );
 
 test( 'the slide that leaves does not come back into view', async ( { page } ) => {
