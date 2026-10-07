@@ -79,6 +79,12 @@ class metadata extends photopress_module {
 			//add_filter('wp_generate_attachment_metadata', 'papt_storeNewMeta',1,2);
 			
 			add_action('enable-media-replace-upload-done', [ $this, 'updateAttachment' ], 1, 2 );
+
+			/**
+			 * Handler for when PhotoPress gives an image a new file (see
+			 * MediaRest): its terms and alt text come from the new file.
+			 */
+			add_action( 'photopress_attachment_file_replaced', [ $this, 'addAttachment' ] );
 						
 			// needed to show attachments on taxonomy pages
 			add_filter( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
