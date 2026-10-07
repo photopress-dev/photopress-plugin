@@ -172,4 +172,38 @@ final class MediaRestTest extends TestCase {
 		$caps = [ 'upload_files', 'edit_post:12' ];
 		$this->assertTrue( MediaRest::canReplace( $request ) );
 	}
+
+	public function test_img_dimensions_follow_the_new_shape(): void {
+
+		// The landscape photo became a portrait: its medium size is now 200x300.
+		$dimensions = [ '2024/05/photo-v2-200x300.jpg' => [ 200, 300 ] ];
+		$html = '<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-200x300.jpg" width="300" height="200">'
+			. '<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-200x300.jpg" height="150">'
+			. '<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-200x300.jpg" class="a">'
+			. '<img src="https://example.com/wp-content/uploads/2024/05/other.jpg" width="300" height="200">';
+
+		$p = new \WP_HTML_Tag_Processor( MediaRest::fixImageDimensions( $html, $dimensions ) );
+
+		$p->next_tag( 'img' );
+		$this->assertSame( [ '300', '450' ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'the width the author gave is kept' );
+		$p->next_tag( 'img' );
+		$this->assertSame( [ '100', '150' ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'only a height: the width follows' );
+		$p->next_tag( 'img' );
+		$this->assertSame( [ null, null ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'no dimensions given, none added' );
+		$p->next_tag( 'img' );
+		$this->assertSame( [ '300', '200' ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'another image is left alone' );
+	}
+
+	public function test_metadata_is_reread_unless_the_client_says_not_to(): void {
+
+		$m = $this->getMockBuilder( \PhotoPress\modules\metadata\metadata::class )
+			->disableOriginalConstructor()
+			->onlyMethods( [ 'addAttachment' ] )
+			->getMock();
+		$m->expects( $this->exactly( 2 ) )->method( 'addAttachment' )->with( 12 );
+
+		$m->fileReplaced( 12, [], [], [ 'reprocess_metadata' => true ] );
+		$m->fileReplaced( 12, [], [], [ 'reprocess_metadata' => false ] );
+		$m->fileReplaced( 12 ); // Other callers: as for an upload.
+	}
 }

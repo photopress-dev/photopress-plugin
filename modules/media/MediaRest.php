@@ -55,6 +55,11 @@ class MediaRest {
 					'type'        => 'boolean',
 					'default'     => true,
 				],
+				'reprocess_metadata' => [
+					'description' => __( 'Read the new file\'s metadata as for an upload: the image taxonomies, and the alt text from its template. When false, they are left as they are.' ),
+					'type'        => 'boolean',
+					'default'     => true,
+				],
 			],
 		] );
 	}
@@ -111,6 +116,15 @@ class MediaRest {
 			return $upload;
 		}
 
+		// Checked before anything is written: a client sending the wrong kind
+		// of file gets a 400, not the 500 of a failed upload.
+		$type = wp_check_filetype_and_ext( $upload['tmp_name'], $upload['name'] );
+
+		if ( empty( $type['type'] ) || 0 !== strpos( $type['type'], 'image/' ) ) {
+			@unlink( $upload['tmp_name'] ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return new WP_Error( 'rest_upload_invalid_type', __( 'Sorry, you are not allowed to upload this file type.' ), [ 'status' => 400 ] );
+		}
+
 		$old_meta = wp_get_attachment_metadata( $id, true );
 		$old_meta = is_array( $old_meta ) ? $old_meta : [];
 		$old_files = self::attachmentFiles( $old_file, $old_meta );
@@ -130,14 +144,14 @@ class MediaRest {
 			return $uploads;
 		};
 
+		// A variable: wp_handle_sideload() takes the file by reference.
+		$file = [
+			'name'     => "{$stem}-v{$version}.{$extension}",
+			'tmp_name' => $upload['tmp_name'],
+		];
+
 		add_filter( 'upload_dir', $pin_dir );
-		$saved = wp_handle_sideload(
-			[
-				'name'     => "{$stem}-v{$version}.{$extension}",
-				'tmp_name' => $upload['tmp_name'],
-			],
-			[ 'test_form' => false ]
-		);
+		$saved = wp_handle_sideload( $file, [ 'test_form' => false ] );
 		remove_filter( 'upload_dir', $pin_dir );
 
 		if ( isset( $saved['error'] ) ) {
@@ -162,7 +176,9 @@ class MediaRest {
 		$new_meta = is_array( $new_meta ) ? $new_meta : [];
 		$new_files = self::attachmentFiles( get_attached_file( $id, true ), $new_meta );
 		$replacements = self::fileReplacements( $old_files, $new_files, self::sizeWidths( $old_meta ), self::sizeWidths( $new_meta ) );
-		$updated = $request['update_references'] ? self::updateReferences( $stem, $replacements ) : [];
+		$dimensions = self::fileDimensions( $new_files, $new_meta );
+		$updated = $request['update_references'] ? self::updateReferences( $stem, $replacements, $dimensions ) : [];
+		$reprocess = (bool) $request['reprocess_metadata'];
 
 		/**
 		 * Filters whether the replaced files are kept.
@@ -188,8 +204,10 @@ class MediaRest {
 		 * @param int      $id           Attachment ID.
 		 * @param string[] $replacements Old upload-relative paths mapped to the new ones.
 		 * @param int[]    $updated      IDs of posts whose content was updated.
+		 * @param array    $options      reprocess_metadata: whether the client asked
+		 *                               for the new file's metadata to be read.
 		 */
-		do_action( 'photopress_attachment_file_replaced', $id, $replacements, $updated );
+		do_action( 'photopress_attachment_file_replaced', $id, $replacements, $updated, [ 'reprocess_metadata' => $reprocess ] );
 
 		// The image as core returns it, plus what changed.
 		$get = new WP_REST_Request( 'GET', '/wp/v2/media/' . $id );
@@ -202,8 +220,9 @@ class MediaRest {
 
 		$data = $response->get_data();
 		$data['photopress_replaced'] = [
-			'files'         => $replacements,
-			'posts_updated' => $updated,
+			'files'                => $replacements,
+			'posts_updated'        => $updated,
+			'metadata_reprocessed' => $reprocess,
 		];
 		$response->set_data( $data );
 
@@ -336,6 +355,112 @@ class MediaRest {
 	}
 
 	/**
+	 * Width and height of each new file, keyed by its upload-relative path.
+	 *
+	 * @return array<string, int[]>
+	 */
+	public static function fileDimensions( array $files, array $meta ) {
+
+		$dimensions = [];
+
+		if ( isset( $files['full'], $meta['width'], $meta['height'] ) ) {
+			$dimensions[ $files['full'] ] = [ (int) $meta['width'], (int) $meta['height'] ];
+		}
+
+		foreach ( (array) ( $meta['sizes'] ?? [] ) as $size => $data ) {
+
+			if ( isset( $files[ $size ], $data['width'], $data['height'] ) ) {
+				$dimensions[ $files[ $size ] ] = [ (int) $data['width'], (int) $data['height'] ];
+			}
+		}
+
+		// The original is not in the metadata, only its name.
+		if ( isset( $files['original'] ) ) {
+
+			$size = wp_getimagesize( path_join( wp_get_upload_dir()['basedir'], $files['original'] ) );
+
+			if ( $size ) {
+				$dimensions[ $files['original'] ] = [ (int) $size[0], (int) $size[1] ];
+			}
+		}
+
+		return array_filter( $dimensions, static fn( $d ) => $d[0] > 0 && $d[1] > 0 );
+	}
+
+	/**
+	 * Corrects the width and height attributes of img tags showing one of the
+	 * new files, when the new image has another shape: the width the author
+	 * gave is kept and the height follows the new proportions (or the
+	 * reverse, for a tag with only a height). Without this a re-cropped image
+	 * is stretched to the old shape.
+	 *
+	 * @param string               $content
+	 * @param array<string, int[]> $dimensions New upload-relative paths => [ width, height ].
+	 */
+	public static function fixImageDimensions( $content, array $dimensions ) {
+
+		if ( ! $dimensions || false === stripos( $content, '<img' ) ) {
+			return $content;
+		}
+
+		$p = new \WP_HTML_Tag_Processor( $content );
+
+		while ( $p->next_tag( 'img' ) ) {
+
+			$src = (string) $p->get_attribute( 'src' );
+			$shape = null;
+
+			foreach ( $dimensions as $path => $size ) {
+
+				if ( self::refersTo( $src, $path ) ) {
+					$shape = $size;
+					break;
+				}
+			}
+
+			if ( ! $shape ) {
+				continue;
+			}
+
+			$width = $p->get_attribute( 'width' );
+			$height = $p->get_attribute( 'height' );
+
+			if ( is_string( $width ) && ctype_digit( $width ) && (int) $width > 0 ) {
+				$p->set_attribute( 'height', (string) max( 1, (int) round( (int) $width * $shape[1] / $shape[0] ) ) );
+			} elseif ( is_string( $height ) && ctype_digit( $height ) && (int) $height > 0 ) {
+				$p->set_attribute( 'width', (string) max( 1, (int) round( (int) $height * $shape[0] / $shape[1] ) ) );
+			}
+		}
+
+		return $p->get_updated_html();
+	}
+
+	/**
+	 * Whether a URL is of the file at an upload-relative path, by the same
+	 * rule as rewriteReferences().
+	 */
+	protected static function refersTo( $url, $path ) {
+
+		return (bool) preg_match( self::referencePattern( $path ), $url );
+	}
+
+	/**
+	 * Matches a reference to the file at an upload-relative path; group 1 is
+	 * everything before its name.
+	 */
+	protected static function referencePattern( $path ) {
+
+		$separator = '(?:/|\\\\/)';
+		$dir_pattern = '';
+
+		foreach ( array_filter( explode( '/', self::uploadSubdir( $path ) ) ) as $part ) {
+			$dir_pattern .= $separator . preg_quote( $part, '#' );
+		}
+
+		return '#(' . $dir_pattern . $separator . '(?:\d{6,14}' . $separator . ')?)' . preg_quote( wp_basename( $path ), '#' ) . '(?![\w.-])#';
+	}
+
+	/**
 	 * Replaces references to old files in a piece of content.
 	 *
 	 * A reference is the path within the uploads folder (2024/05/photo.jpg),
@@ -346,22 +471,12 @@ class MediaRest {
 	 */
 	public static function rewriteReferences( $content, array $replacements ) {
 
-		$separator = '(?:/|\\\\/)';
-
 		foreach ( $replacements as $old => $new ) {
 
-			$dir = self::uploadSubdir( $old );
-			$dir_pattern = '';
-
-			foreach ( array_filter( explode( '/', $dir ) ) as $part ) {
-				$dir_pattern .= $separator . preg_quote( $part, '#' );
-			}
-
-			$pattern = '#(' . $dir_pattern . $separator . '(?:\d{6,14}' . $separator . ')?)' . preg_quote( wp_basename( $old ), '#' ) . '(?![\w.-])#';
 			$basename = wp_basename( $new );
 
 			$content = preg_replace_callback(
-				$pattern,
+				self::referencePattern( $old ),
 				static function ( $match ) use ( $basename ) {
 					return $match[1] . $basename;
 				},
@@ -441,9 +556,11 @@ class MediaRest {
 	 *
 	 * @param string   $stem          The image's name, to find candidate rows.
 	 * @param string[] $replacements  Old upload-relative paths mapped to new ones.
+	 * @param array    $dimensions    New upload-relative paths => [ width, height ],
+	 *                                to correct img tags (see fixImageDimensions()).
 	 * @return int[] IDs of the updated posts.
 	 */
-	protected static function updateReferences( $stem, array $replacements ) {
+	protected static function updateReferences( $stem, array $replacements, array $dimensions = [] ) {
 
 		global $wpdb;
 
@@ -469,6 +586,16 @@ class MediaRest {
 				'post_content' => self::rewriteReferences( $post->post_content, $replacements ),
 				'post_excerpt' => self::rewriteReferences( $post->post_excerpt, $replacements ),
 			];
+
+			// Only tags this replacement changed: their files are the new ones.
+			$changed = array_intersect_key( $dimensions, array_flip( $replacements ) );
+
+			foreach ( [ 'post_content', 'post_excerpt' ] as $field ) {
+
+				if ( $fields[ $field ] !== $post->$field ) {
+					$fields[ $field ] = self::fixImageDimensions( $fields[ $field ], $changed );
+				}
+			}
 
 			if ( $fields['post_content'] === $post->post_content && $fields['post_excerpt'] === $post->post_excerpt ) {
 				continue;

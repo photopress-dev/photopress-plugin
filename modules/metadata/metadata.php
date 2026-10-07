@@ -82,9 +82,10 @@ class metadata extends photopress_module {
 
 			/**
 			 * Handler for when PhotoPress gives an image a new file (see
-			 * MediaRest): its terms and alt text come from the new file.
+			 * MediaRest): its terms and alt text come from the new file,
+			 * unless the client asked for them to be left alone.
 			 */
-			add_action( 'photopress_attachment_file_replaced', [ $this, 'addAttachment' ] );
+			add_action( 'photopress_attachment_file_replaced', [ $this, 'fileReplaced' ], 10, 4 );
 						
 			// needed to show attachments on taxonomy pages
 			add_filter( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
@@ -698,6 +699,19 @@ class metadata extends photopress_module {
 			// as missing and add a duplicate row.
 			update_post_meta( $id, '_wp_attachment_image_alt', $alt );
 		}
+	}
+	
+	/**
+	 * photopress_attachment_file_replaced: reads the new file's metadata, as
+	 * for an upload, when the client asked for it (the default).
+	 */
+	public function fileReplaced( $id, $replacements = [], $updated = [], $options = [] ) {
+		
+		if ( isset( $options['reprocess_metadata'] ) && ! $options['reprocess_metadata'] ) {
+			return;
+		}
+		
+		$this->addAttachment( $id );
 	}
 	
 	/**
