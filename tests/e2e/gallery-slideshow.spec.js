@@ -59,7 +59,11 @@ test( 'a mouse press moves at once, once, without selecting anything', async ( {
 } );
 
 test( 'the cursor shows on a press without a move, and hides on window blur', async ( { page } ) => {
-	const left = await middle( page, 0.25 );
+	// Near the top: the press wraps to the last, small image, and the
+	// slideshow shrinks to its height; lower down the pointer would end up
+	// below the slideshow, where the cursor is rightly hidden.
+	const box = await page.locator( ROOT ).boundingBox();
+	const left = { x: box.x + box.width * 0.25, y: box.y + 40 };
 	await page.mouse.move( left.x, left.y );
 	await page.evaluate( () => ( document.querySelector( '.photopress-press-cursor' ).style.display = 'none' ) );
 	await page.mouse.down();
@@ -89,6 +93,104 @@ test( 'wrapping around is instant; steps between take 300ms', async ( { page, ma
 
 	expect( instant ).toBe( true );
 	expect( ( await state( page ) ).index ).toBe( made.images.length - 1 );
+} );
+
+/** The slideshow's size, and the current slide's and image's. */
+const sizes = ( page ) => page.evaluate( ( selector ) => {
+	const root = document.querySelector( selector );
+	const track = root.querySelector( '.photopress-gallery-slideshow__track' ).getBoundingClientRect();
+	const slide = root.querySelector( '.photopress-gallery-slideshow__slide.is-current' );
+	const image = slide.querySelector( 'img' ).getBoundingClientRect();
+	return {
+		index: [ ...root.querySelectorAll( '.photopress-gallery-slideshow__slide' ) ].indexOf( slide ),
+		height: track.height,
+		width: track.width,
+		slide: slide.getBoundingClientRect().height,
+		image: { width: image.width, height: image.height },
+		visible: window.innerHeight,
+	};
+}, ROOT );
+
+/**
+ * Every slide in turn: the slideshow keeps one height, within the visible
+ * window less the offset (150); each image is as wide as the slideshow
+ * unless the height holds it back.
+ *
+ * @return {number} The slideshow's height.
+ */
+async function checkEverySlide( page, count, label ) {
+	const first = await sizes( page );
+	expect( first.height, `${ label }: taller than the window allows` ).toBeLessThanOrEqual( first.visible - 150 + 1 );
+
+	for ( let i = 0; i < count; i++ ) {
+		const s = await sizes( page );
+		expect( s.index, label ).toBe( i );
+		expect( Math.abs( s.height - first.height ), `${ label }, slide ${ i }: the height changed` ).toBeLessThanOrEqual( 1 );
+		const fullWidth = s.image.width >= s.width - 1;
+		const heldByHeight = s.slide >= s.height - 1 || s.image.height >= s.visible - 150 - 1;
+		const small = s.image.width <= 200 + 1; // the 200px image is never enlarged
+		expect( fullWidth || heldByHeight || small, `${ label }, slide ${ i }: ${ s.image.width }px wide in ${ s.width }px` ).toBe( true );
+		await page.evaluate( ( selector ) => document.querySelector( selector ).photopressSlideshow.next(), ROOT );
+		await page.waitForTimeout( 350 );
+	}
+
+	return first.height;
+}
+
+const VIEWPORTS = [ [ 1280, 900 ], [ 1024, 768 ], [ 768, 1024 ], [ 390, 844 ], [ 360, 640 ] ];
+
+for ( const [ order, pageKey ] of [ [ 'portrait first', 'slideshow' ], [ 'landscape first', 'slideshowLandscapeFirst' ] ] ) {
+	test( `one height for every slide, within the window, at every window size (${ order })`, async ( { page, made } ) => {
+		test.setTimeout( 240000 );
+
+		for ( const [ width, height ] of VIEWPORTS ) {
+			await page.setViewportSize( { width, height } );
+			await page.goto( `/?page_id=${ made.pages[ pageKey ] }&preview=true` );
+			await page.locator( ROOT ).scrollIntoViewIfNeeded();
+			await checkEverySlide( page, made.images.length, `${ order } ${ width }x${ height }` );
+		}
+
+		// Resized while in use: a new height, then the same on every slide.
+		for ( const [ width, height ] of [ [ 1280, 900 ], [ 360, 640 ] ] ) {
+			await page.setViewportSize( { width, height } );
+			await page.waitForTimeout( 400 );
+			await checkEverySlide( page, made.images.length, `${ order } resized to ${ width }x${ height }` );
+		}
+	} );
+}
+
+test( 'the slide that leaves does not come back into view', async ( { page } ) => {
+	// Where the previous slide is, and whether it can be seen, on every frame
+	// for most of a second after moving on.
+	const frames = await page.evaluate( ( selector ) => new Promise( ( resolve ) => {
+		const root = document.querySelector( selector );
+		const from = root.querySelector( '.photopress-gallery-slideshow__slide.is-current' );
+		const out = [];
+		const t0 = performance.now();
+		const tick = () => {
+			const style = getComputedStyle( from );
+			out.push( {
+				ms: performance.now() - t0,
+				leaving: from.classList.contains( 'is-leaving' ),
+				seen: 'visible' === style.visibility && Number( style.opacity ) > 0.01,
+				left: from.getBoundingClientRect().left - root.getBoundingClientRect().left,
+			} );
+			if ( performance.now() - t0 < 900 ) {
+				requestAnimationFrame( tick );
+			} else {
+				resolve( out );
+			}
+		};
+		root.photopressSlideshow.next();
+		tick();
+	} ), ROOT );
+
+	// Seen only while it slides off; never moving back towards the frame.
+	expect( frames.filter( ( f ) => f.seen && ! f.leaving ) ).toEqual( [] );
+	const seen = frames.filter( ( f ) => f.seen );
+	for ( let i = 1; i < seen.length; i++ ) {
+		expect( seen[ i ].left ).toBeLessThanOrEqual( seen[ i - 1 ].left + 1 );
+	}
 } );
 
 test( 'a gallery click jumps to its image and scrolls there at once; modified clicks do not', async ( { page } ) => {

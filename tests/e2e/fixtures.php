@@ -145,12 +145,25 @@ foreach ( $images as $id ) {
 	);
 }
 
-$gallery = static function ( array $attrs, $anchor = '' ) use ( $image_blocks ) {
+// The same images with the landscape one first.
+$landscape_first = $images;
+$landscape_first = [ '02-landscape-3x2' => $landscape_first['02-landscape-3x2'] ] + $landscape_first;
+$landscape_blocks = '';
+
+foreach ( $landscape_first as $id ) {
+	$landscape_blocks .= sprintf(
+		'<!-- wp:image {"id":%1$d,"sizeSlug":"large","linkDestination":"none"} --><figure class="wp-block-image size-large"><img src="%2$s" alt="" class="wp-image-%1$d"/></figure><!-- /wp:image -->',
+		$id,
+		esc_url( wp_get_attachment_image_url( $id, 'large' ) )
+	);
+}
+
+$gallery = static function ( array $attrs, $anchor = '', $blocks = null ) use ( $image_blocks ) {
 	return sprintf(
 		'<!-- wp:gallery %s --><figure class="wp-block-gallery has-nested-images columns-default is-cropped"%s>%s</figure><!-- /wp:gallery -->',
 		wp_json_encode( $attrs + [ 'linkTo' => 'none' ] ),
 		$anchor ? ' id="' . esc_attr( $anchor ) . '"' : '',
-		$image_blocks
+		$blocks ?? $image_blocks
 	);
 };
 
@@ -173,6 +186,7 @@ echo wp_json_encode( [
 	'pages'  => [
 		'slideshow' => $page( 'E2E: gallery slideshow', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"main-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'main-gallery' ) ),
 		'lightbox'  => $page( 'E2E: lightbox', $gallery( [ 'photopressSlideshow' => true ] ) ),
+		'slideshowLandscapeFirst' => $page( 'E2E: gallery slideshow, landscape first', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"landscape-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'landscape-gallery', $landscape_blocks ) ),
 		'hidden'    => $page( 'E2E: hidden gallery', $gallery( [], 'hidden-gallery' ) . '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"hidden-gallery","hideGallery":true} /-->' ),
 		'captions'  => $page( 'E2E: slideshow captions', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"left","captionPadding":10,"galleryNavigation":false} /-->'
 			. '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"right","galleryNavigation":false} /-->'
