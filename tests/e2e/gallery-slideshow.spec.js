@@ -91,6 +91,40 @@ test( 'wrapping around is instant; steps between take 300ms', async ( { page, ma
 	expect( ( await state( page ) ).index ).toBe( made.images.length - 1 );
 } );
 
+test( 'the slide that leaves does not come back into view', async ( { page } ) => {
+	// Where the previous slide is, and whether it can be seen, on every frame
+	// for most of a second after moving on.
+	const frames = await page.evaluate( ( selector ) => new Promise( ( resolve ) => {
+		const root = document.querySelector( selector );
+		const from = root.querySelector( '.photopress-gallery-slideshow__slide.is-current' );
+		const out = [];
+		const t0 = performance.now();
+		const tick = () => {
+			const style = getComputedStyle( from );
+			out.push( {
+				ms: performance.now() - t0,
+				leaving: from.classList.contains( 'is-leaving' ),
+				seen: 'visible' === style.visibility && Number( style.opacity ) > 0.01,
+				left: from.getBoundingClientRect().left - root.getBoundingClientRect().left,
+			} );
+			if ( performance.now() - t0 < 900 ) {
+				requestAnimationFrame( tick );
+			} else {
+				resolve( out );
+			}
+		};
+		root.photopressSlideshow.next();
+		tick();
+	} ), ROOT );
+
+	// Seen only while it slides off; never moving back towards the frame.
+	expect( frames.filter( ( f ) => f.seen && ! f.leaving ) ).toEqual( [] );
+	const seen = frames.filter( ( f ) => f.seen );
+	for ( let i = 1; i < seen.length; i++ ) {
+		expect( seen[ i ].left ).toBeLessThanOrEqual( seen[ i - 1 ].left + 1 );
+	}
+} );
+
 test( 'a gallery click jumps to its image and scrolls there at once; modified clicks do not', async ( { page } ) => {
 	const fifth = page.locator( '#main-gallery figure.wp-block-image img' ).nth( 4 );
 	await fifth.scrollIntoViewIfNeeded();

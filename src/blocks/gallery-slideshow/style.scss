@@ -137,8 +137,10 @@ $speed: 0.3s;
 		}
 	}
 
-	// Wrap-around and gallery jumps change slides at once.
-	&.is-instant .photopress-gallery-slideshow__slide {
+	// Wrap-around and gallery jumps change slides at once, and a slide that
+	// has slid off goes back to its place unseen.
+	&.is-instant .photopress-gallery-slideshow__slide,
+	.photopress-gallery-slideshow__slide.is-settling {
 		transition: none !important;
 	}
 
