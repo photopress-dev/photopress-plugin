@@ -248,5 +248,90 @@ final class MediaRestTest extends TestCase {
 			'not a header value: default'   => [ "max-age=1\r\nX-Evil: 1", $default ],
 		];
 	}
+
+	public function test_invalidation_batches_stay_within_the_wildcard_limit(): void {
+
+		$batch = [ \PhotoPress\modules\media\CdnInvalidator::class, 'batch' ];
+
+		$few = [ '/u/2026/10/01/a*', '/u/2026/10/02/b*', '/u/2026/10/02/b*' ];
+		$this->assertSame( [ '/u/2026/10/01/a*', '/u/2026/10/02/b*' ], $batch( $few ), 'up to 15: as they are, once each' );
+
+		$many = array_map( static fn( $i ) => '/u/2026/' . ( $i % 3 ? '10' : '09' ) . "/img$i*", range( 1, 20 ) );
+		$this->assertSame( [ '/u/2026/09/*', '/u/2026/10/*' ], $this->sorted( $batch( $many ) ), 'more: one per folder' );
+
+		$scattered = array_map( static fn( $i ) => "/u/folder$i/img*", range( 1, 20 ) );
+		$this->assertSame( [ '/*' ], $batch( $scattered ), 'more folders than that: everything' );
+	}
+
+	private function sorted( array $paths ): array {
+
+		sort( $paths );
+		return $paths;
+	}
+
+	public function test_offload_media_installed_or_not(): void {
+
+		$state = [ \PhotoPress\modules\media\CdnInvalidator::class, 'pluginState' ];
+
+		Functions\when( 'get_plugins' )->justReturn( [ 'akismet/akismet.php' => [] ] );
+		$this->assertSame( 'missing', $state() );
+
+		Functions\when( 'get_plugins' )->justReturn( [ 'amazon-s3-and-cloudfront/wordpress-s3.php' => [] ] );
+		$this->assertSame( 'inactive', $state() );
+
+		Functions\when( 'get_plugins' )->justReturn( [ 'amazon-s3-and-cloudfront-pro/amazon-s3-and-cloudfront-pro.php' => [] ] );
+		$this->assertSame( 'inactive', $state(), 'the Pro version too' );
+	}
+
+	public function test_bucket_keys_of_removed_files(): void {
+
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+
+		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
+		$as3cf = new class() {
+			public function get_setting( $key ) {
+				return [ 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
+			}
+		};
+		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		$key = [ \PhotoPress\modules\media\CdnInvalidator::class, 'objectKey' ];
+
+		try {
+			$this->assertSame( 'wp-content/uploads/2026/10/07072326/photo-300x200.jpg', $key( 'https://cdn.example.com/wp-content/uploads/2026/10/07072326/photo-300x200.jpg', 'images.example.com' ) );
+			$this->assertSame( 'wp-content/uploads/a b.jpg', $key( 'https://images.example.com.s3.us-east-1.amazonaws.com/wp-content/uploads/a%20b.jpg', 'images.example.com' ), 'served from the bucket' );
+			$this->assertNull( $key( 'https://www.example.com/wp-content/uploads/photo.jpg', 'images.example.com' ), 'served from this server' );
+		} finally {
+			$invalidator->setStaticPropertyValue( 'as3cf', null );
+		}
+	}
+
+	public function test_replaced_files_stay_in_the_bucket_unless_the_setting_is_on(): void {
+
+		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
+		$as3cf = new class() {
+			public function get_setting( $key ) {
+				return [ 'bucket' => 'images.example.com', 'region' => 'us-east-1', 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
+			}
+		};
+		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+		$urls = [ 'https://cdn.example.com/wp-content/uploads/2026/10/photo-300x200.jpg' ];
+
+		try {
+			Functions\expect( 'as_schedule_single_action' )->never();
+			\PhotoPress\modules\media\CdnInvalidator::scheduleDeletion( 12, $urls );
+
+			\pp_api::$options['core/media/delete_replaced_objects'] = true;
+			Functions\expect( 'as_schedule_single_action' )->once()->with(
+				\Mockery::type( 'int' ),
+				'photopress_offload_delete_objects',
+				[ 'images.example.com', 'us-east-1', [ 'wp-content/uploads/2026/10/photo-300x200.jpg' ], 1 ],
+				'photopress'
+			);
+			\PhotoPress\modules\media\CdnInvalidator::scheduleDeletion( 12, $urls );
+		} finally {
+			$invalidator->setStaticPropertyValue( 'as3cf', null );
+		}
+	}
 }
 

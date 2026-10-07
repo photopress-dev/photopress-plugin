@@ -23,6 +23,13 @@ if ( ! defined( 'WPINC' ) ) {
 // autoloader and every class in this plugin fails to resolve.
 require_once( __DIR__ . '/vendor/autoload.php' );
 
+// Action Scheduler runs background jobs (see jobs/Jobs.php). It must load
+// before plugins_loaded; when several plugins bundle it, the newest copy is
+// used by all.
+require_once( __DIR__ . '/vendor/woocommerce/action-scheduler/action-scheduler.php' );
+
+\PhotoPress\jobs\Jobs::addHooks();
+
 // Define the path to this plugin
 if ( ! defined( 'PHOTOPRESS_CORE_PATH' ) ) {
 

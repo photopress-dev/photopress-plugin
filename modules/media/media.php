@@ -13,7 +13,7 @@ use pp_api;
  */
 class media extends photopress_module {
 
-	public $label = 'Media';
+	public $label = 'Offload Media';
 
 	/**
 	 * The Cache-Control header when none is set: browsers and a CDN check
@@ -26,8 +26,10 @@ class media extends photopress_module {
 	public function definePublicHooks() {
 
 		MediaRest::addHooks();
+		CdnInvalidator::addHooks();
 
 		add_filter( 'as3cf_object_meta', [ $this, 'setCacheControl' ] );
+		add_action( 'rest_api_init', [ $this, 'registerRoutes' ] );
 	}
 
 	/**
@@ -54,6 +56,43 @@ class media extends photopress_module {
 		return preg_match( '/^[a-z-]+(=\d+)?(\s*,\s*[a-z-]+(=\d+)?)*$/i', $value ) ? $value : self::DEFAULT_CACHE_CONTROL;
 	}
 
+	/**
+	 * For the Offload Media settings page: GET /photopress/v1/cdn, the
+	 * storage, delivery and invalidation status; POST /cdn/invalidate, clear
+	 * now; DELETE /cdn/distribution, forget the detected distribution so it
+	 * is looked up again.
+	 */
+	public function registerRoutes() {
+
+		$admin = static fn() => current_user_can( 'manage_options' );
+
+		register_rest_route( 'photopress/v1', '/cdn', [
+			'methods'             => 'GET',
+			'callback'            => static fn() => CdnInvalidator::status(),
+			'permission_callback' => $admin,
+		] );
+
+		// Invalidate now: the images waiting to be cleared, or everything.
+		register_rest_route( 'photopress/v1', '/cdn/invalidate', [
+			'methods'             => 'POST',
+			'callback'            => static function ( $request ) {
+				$result = 'all' === $request['scope'] ? CdnInvalidator::invalidateAll() : CdnInvalidator::flush();
+				return is_wp_error( $result ) ? $result : CdnInvalidator::status();
+			},
+			'permission_callback' => $admin,
+			'args'                => [ 'scope' => [ 'type' => 'string', 'enum' => [ 'pending', 'all' ], 'default' => 'pending' ] ],
+		] );
+
+		register_rest_route( 'photopress/v1', '/cdn/distribution', [
+			'methods'             => 'DELETE',
+			'callback'            => static function () {
+				delete_option( CdnInvalidator::DISTRIBUTION_OPTION );
+				return CdnInvalidator::status();
+			},
+			'permission_callback' => $admin,
+		] );
+	}
+
 	public function registerOptions() {
 
 		return [
@@ -71,6 +110,34 @@ class media extends photopress_module {
 					'error_message' => '',
 				],
 			],
+
+			'delete_replaced_objects' => [
+
+				'default_value' => false,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Delete replaced files from the bucket',
+					'page_name'     => 'media',
+					'section'       => 'general',
+					'description'   => 'When a replacement gives an image\'s sizes new names (new dimensions or file type), delete the old files from the bucket two days later. Offload Media itself leaves them there.',
+					'label_for'     => 'Delete replaced files from the bucket',
+					'error_message' => '',
+				],
+			],
+
+			'cloudfront_distribution_id' => [
+
+				'default_value' => '',
+				'field'         => [
+					'type'          => 'text',
+					'title'         => 'CloudFront distribution',
+					'page_name'     => 'media',
+					'section'       => 'general',
+					'description'   => 'The distribution to clear replaced images from. Leave empty to find it from Offload Media\'s delivery domain.',
+					'label_for'     => 'CloudFront distribution ID',
+					'error_message' => '',
+				],
+			],
 		];
 	}
 
@@ -81,11 +148,11 @@ class media extends photopress_module {
 			'media' => [
 
 				'parent_slug'         => 'photopress-core-base',
-				'title'               => 'Media',
-				'menu_title'          => 'Media',
+				'title'               => 'Offload Media',
+				'menu_title'          => 'Offload Media',
 				'required_capability' => 'manage_options',
 				'menu_slug'           => 'photopress-media',
-				'description'         => 'Settings for replacing images and for offloaded files.',
+				'description'         => 'WP Offload Media: where images are stored and served, their cache lifetime, and clearing replaced images from CloudFront.',
 				'sections'            => [
 					'general' => [
 						'id'          => 'general',

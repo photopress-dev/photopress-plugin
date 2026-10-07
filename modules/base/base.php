@@ -109,9 +109,9 @@ class base extends photopress_module {
 		$modules = pp_api::getActiveModules( 'core' );
 		// todo add active module list to this div as a data attribute
 		
-		$modules = esc_attr(  json_encode( $modules ) );
-		
-		echo sprintf('<div id="photopress-core-options" data-modules=%s></div>', $modules);
+		// Quoted: unquoted, the attribute ended at the first space in the JSON
+		// (a module label such as "Offload Media").
+		echo sprintf( '<div id="photopress-core-options" data-modules="%s"></div>', esc_attr( wp_json_encode( $modules ) ) );
 	}
 	
 }

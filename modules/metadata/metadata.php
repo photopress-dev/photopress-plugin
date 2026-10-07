@@ -24,6 +24,15 @@ class metadata extends photopress_module {
 		// the description of an image whose file was replaced (see MediaRest)
 		add_filter( 'photopress_attachment_description', [ $this, 'descriptionForReplacedFile' ], 10, 3 );
 		
+		// re-reading the metadata of every image, as a background job
+		\PhotoPress\jobs\Jobs::register( 'metadata.reprocess', [
+			'label'       => __( 'Re-read image metadata' ),
+			'description' => __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. For after changing the taxonomies or templates.' ),
+			'count'       => [ self::class, 'countImages' ],
+			'items'       => [ self::class, 'nextImages' ],
+			'process'     => [ $this, 'reprocessImage' ],
+		] );
+		
 		// add additional attributes to images
 		//add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
 		add_filter( 'render_block', [ $this, 'addAttributesToImagesInContent' ], 11, 3 );
@@ -792,6 +801,61 @@ class metadata extends photopress_module {
 		$md->loadFromFile( $file );
 		
 		return $this->generateDescription( $md ) ?? $description;
+	}
+	
+	/**
+	 * The images, for the metadata.reprocess job: all of them, or those in
+	 * $args['ids'].
+	 */
+	public static function countImages( $args = [] ) {
+		
+		global $wpdb;
+		
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'" . self::onlyIds( $args ) );
+	}
+	
+	/**
+	 * The next images after $after, by ID, for the metadata.reprocess job.
+	 */
+	public static function nextImages( $after, $limit, $args = [] ) {
+		
+		global $wpdb;
+		
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%%' AND ID > %d" . self::onlyIds( $args ) . ' ORDER BY ID LIMIT %d',
+			(int) $after,
+			(int) $limit
+		) ) );
+	}
+	
+	/**
+	 * " AND ID IN (...)" for a job limited to some images; integers only.
+	 */
+	private static function onlyIds( $args ) {
+		
+		$ids = array_filter( array_map( 'intval', (array) ( $args['ids'] ?? [] ) ) );
+		
+		return $ids ? ' AND ID IN (' . implode( ',', $ids ) . ')' : '';
+	}
+	
+	/**
+	 * One image of the metadata.reprocess job.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function reprocessImage( $id ) {
+		
+		$file = get_attached_file( $id );
+		
+		if ( ! $file || ! file_exists( $file ) ) {
+			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
+		}
+		
+		$this->addAttachment( $id );
+		
+		return true;
 	}
 	
 	/**

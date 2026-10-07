@@ -35,5 +35,8 @@
     },
     "scripts": {
         "test": "phpunit"
+    },
+    "require": {
+        "woocommerce/action-scheduler": "^3.9"
     }
 }
