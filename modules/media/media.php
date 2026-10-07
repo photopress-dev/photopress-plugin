@@ -6,8 +6,8 @@ use photopress_module;
 /**
  * Media Module
  *
- * REST routes that let publishing tools find the images they published and
- * give them new files. See MediaRest.
+ * A REST route that lets publishing tools give an image a new file, keeping
+ * the image. See MediaRest.
  */
 class media extends photopress_module {
 

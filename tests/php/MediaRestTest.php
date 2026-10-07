@@ -7,8 +7,8 @@ use PhotoPress\modules\media\MediaRest;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * Finding an image by file name, and pointing content at its new files after
- * MediaRest gives it one.
+ * Recognising an image by file name, and pointing content at its new files
+ * after MediaRest gives it one.
  */
 final class MediaRestTest extends TestCase {
 
@@ -27,29 +27,24 @@ final class MediaRestTest extends TestCase {
 	public static function names(): array {
 
 		return [
-			'plain'                   => [ 'IMG_1234.jpg', 'img_1234' ],
-			'no extension'            => [ 'IMG_1234', 'img_1234' ],
-			'with a folder'           => [ '2024/05/IMG_1234.jpg', 'img_1234' ],
-			'scaled'                  => [ 'IMG_1234-scaled.jpg', 'img_1234' ],
-			'rotated'                 => [ 'IMG_1234-rotated.jpg', 'img_1234' ],
-			'edited in WordPress'     => [ 'IMG_1234-e1712345678901.jpg', 'img_1234' ],
-			'replaced'                => [ 'IMG_1234-v3.jpg', 'img_1234' ],
-			'replaced and scaled'     => [ 'IMG_1234-v12-scaled.jpg', 'img_1234' ],
-			'a -1 copy is another'    => [ 'IMG_1234-1.jpg', 'img_1234-1' ],
-			'a size is not the image' => [ 'IMG_1234-300x200.jpg', 'img_1234-300x200' ],
+			'plain'                   => [ 'IMG_1234.jpg', 'IMG_1234' ],
+			'no extension'            => [ 'IMG_1234', 'IMG_1234' ],
+			'with a folder'           => [ '2024/05/IMG_1234.jpg', 'IMG_1234' ],
+			'scaled'                  => [ 'IMG_1234-scaled.jpg', 'IMG_1234' ],
+			'rotated'                 => [ 'IMG_1234-rotated.jpg', 'IMG_1234' ],
+			'edited in WordPress'     => [ 'IMG_1234-e1712345678901.jpg', 'IMG_1234' ],
+			'replaced'                => [ 'IMG_1234-v3.jpg', 'IMG_1234' ],
+			'replaced and scaled'     => [ 'Photo-v12-scaled.jpg', 'Photo' ],
+			'a -1 copy is another'    => [ 'IMG_1234-1.jpg', 'IMG_1234-1' ],
+			'a size is not the image' => [ 'IMG_1234-300x200.jpg', 'IMG_1234-300x200' ],
 			'v in the name stays'     => [ 'trip-v.jpg', 'trip-v' ],
 		];
 	}
 
 	#[DataProvider( 'names' )]
-	public function test_base_name( string $file, string $expected ): void {
+	public function test_stem( string $file, string $expected ): void {
 
-		$this->assertSame( $expected, MediaRest::baseName( $file ) );
-	}
-
-	public function test_stem_keeps_the_case(): void {
-
-		$this->assertSame( 'Photo', MediaRest::stem( '2024/05/Photo-v2-scaled.jpg' ) );
+		$this->assertSame( $expected, MediaRest::stem( $file ) );
 	}
 
 	public function test_attachment_files(): void {
@@ -176,8 +171,5 @@ final class MediaRestTest extends TestCase {
 
 		$caps = [ 'upload_files', 'edit_post:12' ];
 		$this->assertTrue( MediaRest::canReplace( $request ) );
-
-		$caps = [];
-		$this->assertFalse( MediaRest::canUpload() );
 	}
 }

@@ -8,18 +8,18 @@ use WP_REST_Request;
 use WP_REST_Server;
 
 /**
- * REST routes for publishing tools (such as the Capture One plugin) that keep
- * images on the site up to date:
+ * POST /photopress/v1/media/<id>/file gives an image a new file, for
+ * publishing tools (such as the Capture One plugin) that keep images on the
+ * site up to date. The body is the file, as for POST /wp/v2/media (raw with
+ * Content-Disposition, or multipart "file"), and the response is the image as
+ * GET /wp/v2/media/<id> returns it.
  *
- *   GET  /photopress/v1/media?filename=IMG_1234.jpg
- *        Images whose file is that image, newest first.
- *
- *   POST /photopress/v1/media/<id>/file
- *        Gives an image a new file. The body is the file, as for
- *        POST /wp/v2/media (raw with Content-Disposition, or multipart "file").
- *
- * Core REST can upload images and edit their fields, but cannot change the
- * file of an image that is in use. Replacing it here keeps the attachment:
+ * Everything else such a tool needs is core: finding an earlier upload by
+ * file name (GET /wp/v2/media?search=, which searches file names too),
+ * uploading new images, and setting title, caption and alt text. Core cannot
+ * change the file of an image that is in use: 7.1's sideload and finalize
+ * endpoints are for the editor's upload flow, keep the old file as the
+ * original, and leave thumbnails to the client. Replacing it here keeps the attachment:
  * its ID, attachment page, title, caption, alt text, galleries and featured
  * image uses stay as they are. The file gets a new versioned name
  * (photo.jpg -> photo-v2.jpg), so a CDN or offload plugin serves new URLs
@@ -42,20 +42,6 @@ class MediaRest {
 
 	public static function registerRoutes() {
 
-		register_rest_route( self::REST_NAMESPACE, '/media', [
-			'methods'             => WP_REST_Server::READABLE,
-			'callback'            => [ self::class, 'findByFilename' ],
-			'permission_callback' => [ self::class, 'canUpload' ],
-			'args'                => [
-				'filename' => [
-					'description' => __( 'File name of the image, with or without its extension.' ),
-					'type'        => 'string',
-					'required'    => true,
-					'minLength'   => 1,
-				],
-			],
-		] );
-
 		register_rest_route( self::REST_NAMESPACE, '/media/(?P<id>[\d]+)/file', [
 			'methods'             => WP_REST_Server::CREATABLE,
 			'callback'            => [ self::class, 'replaceFile' ],
@@ -73,11 +59,6 @@ class MediaRest {
 		] );
 	}
 
-	public static function canUpload() {
-
-		return current_user_can( 'upload_files' );
-	}
-
 	public static function canReplace( WP_REST_Request $request ) {
 
 		return current_user_can( 'upload_files' ) && current_user_can( 'edit_post', (int) $request['id'] );
@@ -87,15 +68,8 @@ class MediaRest {
 	 * The name an image was uploaded under, from any of the names WordPress
 	 * or this class give its file: photo.jpg, photo-scaled.jpg,
 	 * photo-rotated.jpg, photo-e1712345678901.jpg (edited in WordPress) and
-	 * photo-v3.jpg are all "photo". Compared case-insensitively.
-	 */
-	public static function baseName( $filename ) {
-
-		return mb_strtolower( self::stem( $filename ) );
-	}
-
-	/**
-	 * baseName() keeping the case: "Photo" for Photo-v2-scaled.jpg.
+	 * photo-v3.jpg are all "photo". Clients matching core search results to
+	 * a file name do the same, case-insensitively.
 	 */
 	public static function stem( $filename ) {
 
@@ -107,59 +81,6 @@ class MediaRest {
 		} while ( $name !== $before );
 
 		return $name;
-	}
-
-	/**
-	 * Images whose file is the given image, newest first, limited to those
-	 * the current user may edit.
-	 */
-	public static function findByFilename( WP_REST_Request $request ) {
-
-		$base = self::baseName( $request['filename'] );
-
-		if ( '' === $base ) {
-			return new WP_Error( 'rest_invalid_param', __( 'Invalid file name.' ), [ 'status' => 400 ] );
-		}
-
-		// LIKE narrows the candidates; baseName() decides.
-		$ids = get_posts( [
-			'post_type'      => 'attachment',
-			'post_status'    => 'any',
-			'post_mime_type' => 'image',
-			'posts_per_page' => 100,
-			'orderby'        => 'date',
-			'order'          => 'DESC',
-			'fields'         => 'ids',
-			'meta_query'     => [
-				[
-					'key'     => '_wp_attached_file',
-					'value'   => $base,
-					'compare' => 'LIKE',
-				],
-			],
-		] );
-
-		$matches = [];
-
-		foreach ( $ids as $id ) {
-
-			$file = (string) get_post_meta( $id, '_wp_attached_file', true );
-
-			if ( self::baseName( $file ) !== $base || ! current_user_can( 'edit_post', $id ) ) {
-				continue;
-			}
-
-			$matches[] = [
-				'id'           => (int) $id,
-				'file'         => $file,
-				'source_url'   => wp_get_attachment_url( $id ),
-				'link'         => get_permalink( $id ),
-				'date_gmt'     => get_post_time( 'Y-m-d\TH:i:s', true, $id ),
-				'modified_gmt' => get_post_modified_time( 'Y-m-d\TH:i:s', true, $id ),
-			];
-		}
-
-		return rest_ensure_response( $matches );
 	}
 
 	/**
@@ -270,13 +191,23 @@ class MediaRest {
 		 */
 		do_action( 'photopress_attachment_file_replaced', $id, $replacements, $updated );
 
-		return rest_ensure_response( [
-			'id'            => $id,
-			'source_url'    => wp_get_attachment_url( $id ),
-			'link'          => get_permalink( $id ),
+		// The image as core returns it, plus what changed.
+		$get = new WP_REST_Request( 'GET', '/wp/v2/media/' . $id );
+		$get->set_param( 'context', 'edit' );
+		$response = rest_do_request( $get );
+
+		if ( $response->is_error() ) {
+			return $response;
+		}
+
+		$data = $response->get_data();
+		$data['photopress_replaced'] = [
 			'files'         => $replacements,
 			'posts_updated' => $updated,
-		] );
+		];
+		$response->set_data( $data );
+
+		return $response;
 	}
 
 	/**
