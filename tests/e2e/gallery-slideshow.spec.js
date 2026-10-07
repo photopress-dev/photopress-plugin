@@ -95,82 +95,69 @@ test( 'wrapping around is instant; steps between take 300ms', async ( { page, ma
 	expect( ( await state( page ) ).index ).toBe( made.images.length - 1 );
 } );
 
-/** The slideshow's height, and the current slide's (image and caption). */
-const heights = ( page ) => page.evaluate( ( selector ) => {
+/** The slideshow's size, and the current slide's and image's. */
+const sizes = ( page ) => page.evaluate( ( selector ) => {
 	const root = document.querySelector( selector );
+	const track = root.querySelector( '.photopress-gallery-slideshow__track' ).getBoundingClientRect();
 	const slide = root.querySelector( '.photopress-gallery-slideshow__slide.is-current' );
+	const image = slide.querySelector( 'img' ).getBoundingClientRect();
 	return {
 		index: [ ...root.querySelectorAll( '.photopress-gallery-slideshow__slide' ) ].indexOf( slide ),
-		track: root.querySelector( '.photopress-gallery-slideshow__track' ).getBoundingClientRect().height,
+		height: track.height,
+		width: track.width,
 		slide: slide.getBoundingClientRect().height,
-		image: slide.querySelector( 'img' ).getBoundingClientRect().height,
+		image: { width: image.width, height: image.height },
 		visible: window.innerHeight,
 	};
 }, ROOT );
 
-/** Every slide in turn: the slideshow's height is the slide's. */
+/**
+ * Every slide in turn: the slideshow keeps one height, within the visible
+ * window less the offset (150); each image is as wide as the slideshow
+ * unless the height holds it back.
+ *
+ * @return {number} The slideshow's height.
+ */
 async function checkEverySlide( page, count, label ) {
+	const first = await sizes( page );
+	expect( first.height, `${ label }: taller than the window allows` ).toBeLessThanOrEqual( first.visible - 150 + 1 );
+
 	for ( let i = 0; i < count; i++ ) {
-		await page.waitForTimeout( 400 );
-		const h = await heights( page );
-		expect( h.index, label ).toBe( i );
-		expect( Math.abs( h.track - h.slide ), `${ label }, slide ${ i }: ${ h.track } for a ${ h.slide } slide` ).toBeLessThanOrEqual( 1 );
-		expect( h.image, `${ label }, slide ${ i }: taller than the window allows` ).toBeLessThanOrEqual( h.visible - 150 + 1 );
+		const s = await sizes( page );
+		expect( s.index, label ).toBe( i );
+		expect( Math.abs( s.height - first.height ), `${ label }, slide ${ i }: the height changed` ).toBeLessThanOrEqual( 1 );
+		const fullWidth = s.image.width >= s.width - 1;
+		const heldByHeight = s.slide >= s.height - 1 || s.image.height >= s.visible - 150 - 1;
+		const small = s.image.width <= 200 + 1; // the 200px image is never enlarged
+		expect( fullWidth || heldByHeight || small, `${ label }, slide ${ i }: ${ s.image.width }px wide in ${ s.width }px` ).toBe( true );
 		await page.evaluate( ( selector ) => document.querySelector( selector ).photopressSlideshow.next(), ROOT );
+		await page.waitForTimeout( 350 );
 	}
+
+	return first.height;
 }
 
 const VIEWPORTS = [ [ 1280, 900 ], [ 1024, 768 ], [ 768, 1024 ], [ 390, 844 ], [ 360, 640 ] ];
 
-for ( const [ order, page_key ] of [ [ 'portrait first', 'slideshow' ], [ 'landscape first', 'slideshowLandscapeFirst' ] ] ) {
-	test( `the slideshow is as tall as the current slide at every window size (${ order })`, async ( { page, made } ) => {
+for ( const [ order, pageKey ] of [ [ 'portrait first', 'slideshow' ], [ 'landscape first', 'slideshowLandscapeFirst' ] ] ) {
+	test( `one height for every slide, within the window, at every window size (${ order })`, async ( { page, made } ) => {
 		test.setTimeout( 240000 );
 
 		for ( const [ width, height ] of VIEWPORTS ) {
 			await page.setViewportSize( { width, height } );
-			await page.goto( `/?page_id=${ made.pages[ page_key ] }&preview=true` );
+			await page.goto( `/?page_id=${ made.pages[ pageKey ] }&preview=true` );
 			await page.locator( ROOT ).scrollIntoViewIfNeeded();
 			await checkEverySlide( page, made.images.length, `${ order } ${ width }x${ height }` );
 		}
 
-		// Resizing while the slideshow is in use, on a short slide and on a
-		// tall one, narrow to wide and back.
-		const names = Object.keys( made.names );
-		for ( const name of [ '02-landscape-3x2', '07-tall-1x3' ] ) {
-			const at = await page.evaluate( ( selector ) => [ ...document.querySelectorAll( `${ selector } .photopress-gallery-slideshow__slide` ) ].map( ( s ) => Number( s.dataset.id ) ), ROOT );
-			await page.evaluate( ( [ selector, i ] ) => document.querySelector( selector ).photopressSlideshow.show( i, { instant: true } ), [ ROOT, at.indexOf( made.names[ name ] ) ] );
-			for ( const [ width, height ] of [ [ 360, 640 ], [ 1280, 900 ], [ 390, 844 ] ] ) {
-				await page.setViewportSize( { width, height } );
-				await page.waitForTimeout( 400 );
-				const h = await heights( page );
-				expect( Math.abs( h.track - h.slide ), `${ order }, ${ name } resized to ${ width }x${ height }` ).toBeLessThanOrEqual( 1 );
-			}
+		// Resized while in use: a new height, then the same on every slide.
+		for ( const [ width, height ] of [ [ 1280, 900 ], [ 360, 640 ] ] ) {
+			await page.setViewportSize( { width, height } );
+			await page.waitForTimeout( 400 );
+			await checkEverySlide( page, made.images.length, `${ order } resized to ${ width }x${ height }` );
 		}
-		expect( names.length ).toBe( made.images.length );
 	} );
 }
-
-test( 'the height eases from one slide to the next', async ( { page, made } ) => {
-	await page.goto( `/?page_id=${ made.pages.slideshow }&preview=true` );
-	await page.locator( ROOT ).scrollIntoViewIfNeeded();
-
-	// From the 3:1 panorama to the 1:3 tall image, which follows it.
-	const order = Object.keys( made.names );
-	await page.evaluate( ( [ selector, i ] ) => document.querySelector( selector ).photopressSlideshow.show( i, { instant: true } ), [ ROOT, order.indexOf( '06-panorama-3x1' ) ] );
-	await page.waitForTimeout( 450 );
-	const short = ( await heights( page ) ).track;
-	const midway = await page.evaluate( ( selector ) => new Promise( ( resolve ) => {
-		const root = document.querySelector( selector );
-		root.photopressSlideshow.next();
-		setTimeout( () => resolve( root.querySelector( '.photopress-gallery-slideshow__track' ).getBoundingClientRect().height ), 150 );
-	} ), ROOT );
-	await page.waitForTimeout( 450 );
-	const tall = ( await heights( page ) ).track;
-
-	expect( tall ).toBeGreaterThan( short + 100 );
-	expect( midway ).toBeGreaterThan( short + 10 );
-	expect( midway ).toBeLessThan( tall - 10 );
-} );
 
 test( 'the slide that leaves does not come back into view', async ( { page } ) => {
 	// Where the previous slide is, and whether it can be seen, on every frame

@@ -32,51 +32,57 @@ $speed: 0.3s;
 	position: relative;
 	outline-offset: 4px;
 
-	// The current slide is in the flow and gives the slideshow its height,
-	// whatever the window's size; the others lie over it. Between slides the
-	// script eases the height from one to the next.
+	// Every slide in one grid cell: the slideshow is as tall as its tallest
+	// slide at the slideshow's width, and keeps that height from slide to
+	// slide, so the page does not move; it changes only with the window.
 	.photopress-gallery-slideshow__track {
-		position: relative;
+		display: grid;
 		overflow: hidden;
-		transition: height $speed ease;
 	}
 
+	// No slide, caption included, taller than the visible window less the
+	// offset (svh: the height visible with a phone's browser bars shown).
+	// A shorter slide sits in the middle of the frame.
 	.photopress-gallery-slideshow__slide {
-		position: absolute;
-		top: 0;
-		left: 0;
-		box-sizing: border-box;
-		width: 100%;
+		grid-area: 1 / 1;
+		min-height: 0;
+		max-height: calc(100vh - var(--pp-slideshow-offset));
+		max-height: calc(100svh - var(--pp-slideshow-offset));
 		margin: 0;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		justify-content: flex-start;
+		justify-content: center;
 		opacity: 0;
 		visibility: hidden;
 		transition: opacity $speed ease, transform $speed ease, visibility 0s linear $speed;
 	}
 
 	.photopress-gallery-slideshow__slide.is-current {
-		position: relative;
 		opacity: 1;
 		visibility: visible;
 		z-index: 1;
 		transition: opacity $speed ease, transform $speed ease, visibility 0s;
 	}
 
-	// Each image is as large as fits both the slideshow's width and the
-	// window's height less the offset, keeping its shape (the inline
-	// aspect-ratio, so slides size themselves before their images load).
-	// svh: the height visible with a phone's browser bars shown.
+	// Each image is as large as fits the slideshow's width and the height
+	// its slide allows, keeping its shape (the inline aspect-ratio, so slides
+	// size themselves before their images load); with a caption, the image
+	// gives up the room the caption needs.
 	.photopress-gallery-slideshow__image {
 		display: block;
+		flex: 0 1 auto;
 		width: auto;
+		min-height: 0;
 		max-width: 100%;
 		height: auto;
 		max-height: calc(100vh - var(--pp-slideshow-offset));
 		max-height: calc(100svh - var(--pp-slideshow-offset));
 		object-fit: contain;
+	}
+
+	.photopress-gallery-slideshow__caption {
+		flex: none;
 	}
 
 	.photopress-gallery-slideshow__caption {
@@ -226,7 +232,6 @@ $speed: 0.3s;
 
 	@media (prefers-reduced-motion: reduce) {
 
-		.photopress-gallery-slideshow__track,
 		.photopress-gallery-slideshow__slide,
 		.photopress-gallery-slideshow__slide.is-current {
 			transition: none;
