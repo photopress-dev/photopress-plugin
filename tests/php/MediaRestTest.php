@@ -33,8 +33,8 @@ final class MediaRestTest extends TestCase {
 			'scaled'                  => [ 'IMG_1234-scaled.jpg', 'IMG_1234' ],
 			'rotated'                 => [ 'IMG_1234-rotated.jpg', 'IMG_1234' ],
 			'edited in WordPress'     => [ 'IMG_1234-e1712345678901.jpg', 'IMG_1234' ],
-			'replaced'                => [ 'IMG_1234-v3.jpg', 'IMG_1234' ],
-			'replaced and scaled'     => [ 'Photo-v12-scaled.jpg', 'Photo' ],
+			'a -v in the name stays'  => [ 'IMG_1234-v3.jpg', 'IMG_1234-v3' ],
+			'edited and scaled'       => [ 'Photo-e1712345678901-scaled.jpg', 'Photo' ],
 			'a -1 copy is another'    => [ 'IMG_1234-1.jpg', 'IMG_1234-1' ],
 			'a size is not the image' => [ 'IMG_1234-300x200.jpg', 'IMG_1234-300x200' ],
 			'v in the name stays'     => [ 'trip-v.jpg', 'trip-v' ],
@@ -73,10 +73,10 @@ final class MediaRestTest extends TestCase {
 	public function test_each_size_maps_to_the_same_size(): void {
 
 		$old = [ 'full' => '2024/05/photo.jpg', 'thumbnail' => '2024/05/photo-150x150.jpg' ];
-		$new = [ 'full' => '2024/05/photo-v2.jpg', 'thumbnail' => '2024/05/photo-v2-150x150.jpg', 'large' => '2024/05/photo-v2-1024x683.jpg' ];
+		$new = [ 'full' => '2024/05/photo-new.jpg', 'thumbnail' => '2024/05/photo-new-150x150.jpg', 'large' => '2024/05/photo-new-1024x683.jpg' ];
 
 		$this->assertSame(
-			[ '2024/05/photo.jpg' => '2024/05/photo-v2.jpg', '2024/05/photo-150x150.jpg' => '2024/05/photo-v2-150x150.jpg' ],
+			[ '2024/05/photo.jpg' => '2024/05/photo-new.jpg', '2024/05/photo-150x150.jpg' => '2024/05/photo-new-150x150.jpg' ],
 			MediaRest::fileReplacements( $old, $new )
 		);
 	}
@@ -84,7 +84,7 @@ final class MediaRestTest extends TestCase {
 	public function test_a_size_the_new_image_lacks_maps_to_the_nearest_width(): void {
 
 		$old = [ 'full' => 'a/photo-scaled.jpg', 'original' => 'a/photo.jpg', 'large' => 'a/photo-1024x683.jpg', '1536x1536' => 'a/photo-1536x1024.jpg' ];
-		$new = [ 'full' => 'a/photo-v2.jpg', 'medium' => 'a/photo-v2-300x200.jpg', 'large' => 'a/photo-v2-1024x683.jpg' ];
+		$new = [ 'full' => 'a/photo-new.jpg', 'medium' => 'a/photo-new-300x200.jpg', 'large' => 'a/photo-new-1024x683.jpg' ];
 
 		$map = MediaRest::fileReplacements(
 			$old,
@@ -93,16 +93,16 @@ final class MediaRestTest extends TestCase {
 			[ 'full' => 1200, 'medium' => 300, 'large' => 1024 ]
 		);
 
-		$this->assertSame( 'a/photo-v2.jpg', $map['a/photo-1536x1024.jpg'], '1536 is nearer 1200 than 1024' );
-		$this->assertSame( 'a/photo-v2.jpg', $map['a/photo.jpg'], 'no original: the full size' );
-		$this->assertSame( 'a/photo-v2-1024x683.jpg', $map['a/photo-1024x683.jpg'] );
+		$this->assertSame( 'a/photo-new.jpg', $map['a/photo-1536x1024.jpg'], '1536 is nearer 1200 than 1024' );
+		$this->assertSame( 'a/photo-new.jpg', $map['a/photo.jpg'], 'no original: the full size' );
+		$this->assertSame( 'a/photo-new-1024x683.jpg', $map['a/photo-1024x683.jpg'] );
 	}
 
 	public function test_rewrites_every_form_of_url(): void {
 
 		$replacements = [
-			'2024/05/photo-1024x683.jpg' => '2024/05/photo-v2-1024x683.jpg',
-			'2024/05/photo.jpg'          => '2024/05/photo-v2.jpg',
+			'2024/05/photo-1024x683.jpg' => '2024/05/photo-new-1024x683.jpg',
+			'2024/05/photo.jpg'          => '2024/05/photo-new.jpg',
 		];
 
 		$content = implode( "\n", [
@@ -113,10 +113,10 @@ final class MediaRestTest extends TestCase {
 		] );
 
 		$this->assertSame( implode( "\n", [
-			'<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-1024x683.jpg" class="wp-image-12"/>',
-			'<!-- wp:cover {"url":"https:\/\/example.com\/wp-content\/uploads\/2024\/05\/photo-v2.jpg"} -->',
-			'<img src="https://cdn.example.com/wp-content/uploads/2024/05/06123456/photo-v2.jpg">',
-			'<a href="/wp-content/uploads/2024/05/photo-v2.jpg?ver=1">',
+			'<img src="https://example.com/wp-content/uploads/2024/05/photo-new-1024x683.jpg" class="wp-image-12"/>',
+			'<!-- wp:cover {"url":"https:\/\/example.com\/wp-content\/uploads\/2024\/05\/photo-new.jpg"} -->',
+			'<img src="https://cdn.example.com/wp-content/uploads/2024/05/06123456/photo-new.jpg">',
+			'<a href="/wp-content/uploads/2024/05/photo-new.jpg?ver=1">',
 		] ), MediaRest::rewriteReferences( $content, $replacements ) );
 	}
 
@@ -124,16 +124,16 @@ final class MediaRestTest extends TestCase {
 
 		$content = '/uploads/2023/01/photo.jpg /uploads/2024/05/photo.jpeg /uploads/2024/05/myphoto.jpg /uploads/2024/05/photo.jpg.webp /uploads/2024/05/photo.jpg-x';
 
-		$this->assertSame( $content, MediaRest::rewriteReferences( $content, [ '2024/05/photo.jpg' => '2024/05/photo-v2.jpg' ] ) );
+		$this->assertSame( $content, MediaRest::rewriteReferences( $content, [ '2024/05/photo.jpg' => '2024/05/photo-new.jpg' ] ) );
 	}
 
 	public function test_rewrites_inside_serialized_meta(): void {
 
 		$value = serialize( [ 'image' => [ 'url' => 'https://example.com/wp-content/uploads/2024/05/photo.jpg', 'id' => 12 ], 'title' => 'photo' ] );
-		$rewritten = MediaRest::rewriteValue( $value, [ '2024/05/photo.jpg' => '2024/05/photo-v2.jpg' ] );
+		$rewritten = MediaRest::rewriteValue( $value, [ '2024/05/photo.jpg' => '2024/05/photo-new.jpg' ] );
 
 		$this->assertSame(
-			[ 'image' => [ 'url' => 'https://example.com/wp-content/uploads/2024/05/photo-v2.jpg', 'id' => 12 ], 'title' => 'photo' ],
+			[ 'image' => [ 'url' => 'https://example.com/wp-content/uploads/2024/05/photo-new.jpg', 'id' => 12 ], 'title' => 'photo' ],
 			unserialize( $rewritten ),
 			'the string lengths are rebuilt'
 		);
@@ -144,8 +144,8 @@ final class MediaRestTest extends TestCase {
 		$json = '[{"settings":{"image":{"url":"https:\/\/example.com\/wp-content\/uploads\/2024\/05\/photo.jpg","id":12}}}]';
 
 		$this->assertSame(
-			str_replace( 'photo.jpg', 'photo-v2.jpg', $json ),
-			MediaRest::rewriteValue( $json, [ '2024/05/photo.jpg' => '2024/05/photo-v2.jpg' ] )
+			str_replace( 'photo.jpg', 'photo-new.jpg', $json ),
+			MediaRest::rewriteValue( $json, [ '2024/05/photo.jpg' => '2024/05/photo-new.jpg' ] )
 		);
 	}
 
@@ -153,7 +153,7 @@ final class MediaRestTest extends TestCase {
 
 		$value = serialize( (object) [ 'url' => 'https://example.com/wp-content/uploads/2024/05/photo.jpg' ] );
 
-		$this->assertSame( $value, MediaRest::rewriteValue( $value, [ '2024/05/photo.jpg' => '2024/05/photo-v2.jpg' ] ) );
+		$this->assertSame( $value, MediaRest::rewriteValue( $value, [ '2024/05/photo.jpg' => '2024/05/photo-new.jpg' ] ) );
 	}
 
 	public function test_replacing_needs_upload_and_edit_rights(): void {
@@ -171,27 +171,6 @@ final class MediaRestTest extends TestCase {
 
 		$caps = [ 'upload_files', 'edit_post:12' ];
 		$this->assertTrue( MediaRest::canReplace( $request ) );
-	}
-
-	public function test_img_dimensions_follow_the_new_shape(): void {
-
-		// The landscape photo became a portrait: its medium size is now 200x300.
-		$dimensions = [ '2024/05/photo-v2-200x300.jpg' => [ 200, 300 ] ];
-		$html = '<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-200x300.jpg" width="300" height="200">'
-			. '<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-200x300.jpg" height="150">'
-			. '<img src="https://example.com/wp-content/uploads/2024/05/photo-v2-200x300.jpg" class="a">'
-			. '<img src="https://example.com/wp-content/uploads/2024/05/other.jpg" width="300" height="200">';
-
-		$p = new \WP_HTML_Tag_Processor( MediaRest::fixImageDimensions( $html, $dimensions ) );
-
-		$p->next_tag( 'img' );
-		$this->assertSame( [ '300', '450' ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'the width the author gave is kept' );
-		$p->next_tag( 'img' );
-		$this->assertSame( [ '100', '150' ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'only a height: the width follows' );
-		$p->next_tag( 'img' );
-		$this->assertSame( [ null, null ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'no dimensions given, none added' );
-		$p->next_tag( 'img' );
-		$this->assertSame( [ '300', '200' ], [ $p->get_attribute( 'width' ), $p->get_attribute( 'height' ) ], 'another image is left alone' );
 	}
 
 	public function test_metadata_is_reread_unless_the_client_says_not_to(): void {

@@ -19,25 +19,40 @@ use WP_REST_Server;
  * uploading new images, and setting title, caption and alt text. Core cannot
  * change the file of an image that is in use: 7.1's sideload and finalize
  * endpoints are for the editor's upload flow, keep the old file as the
- * original, and leave thumbnails to the client. Replacing it here keeps the attachment:
- * its ID, attachment page, title, caption, alt text, galleries and featured
- * image uses stay as they are. The file gets a new versioned name
- * (photo.jpg -> photo-v2.jpg), so a CDN or offload plugin serves new URLs
- * rather than a cached copy, and posts showing the old files are pointed at
- * the new ones.
+ * original, and leave thumbnails to the client.
+ *
+ * Replacing keeps the attachment (its ID, attachment page, title, caption,
+ * galleries and featured image uses) and the file's name, as Enable Media
+ * Replace does: the old files are deleted and the new one takes their name,
+ * with new sizes. Posts are pointed at sizes whose names changed with the
+ * image's shape.
+ *
+ * With WP Offload Media, the image is removed from the bucket and forgotten
+ * before the new files are written, so Offload Media offloads it afresh,
+ * under a new versioned folder: new URLs, which no CDN has cached. That is
+ * what Offload Media does itself when an attachment is deleted. It has no
+ * public API for this, so the calls are guarded: if its classes change, the
+ * file is still replaced and the response reports that the bucket was not
+ * handled.
  */
 class MediaRest {
 
 	const REST_NAMESPACE = 'photopress/v1';
 
 	/**
-	 * The version of an image's file, 2 after the first replacement.
+	 * WP Offload Media's main object, as its as3cf_init action passes it.
 	 */
-	const VERSION_META_KEY = '_photopress_file_version';
+	protected static $as3cf = null;
 
 	public static function addHooks() {
 
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
+		add_action( 'as3cf_init', [ self::class, 'setOffloadMedia' ] );
+	}
+
+	public static function setOffloadMedia( $as3cf ) {
+
+		self::$as3cf = $as3cf;
 	}
 
 	public static function registerRoutes() {
@@ -72,9 +87,9 @@ class MediaRest {
 	/**
 	 * The name an image was uploaded under, from any of the names WordPress
 	 * or this class give its file: photo.jpg, photo-scaled.jpg,
-	 * photo-rotated.jpg, photo-e1712345678901.jpg (edited in WordPress) and
-	 * photo-v3.jpg are all "photo". Clients matching core search results to
-	 * a file name do the same, case-insensitively.
+	 * photo-rotated.jpg and photo-e1712345678901.jpg (edited in WordPress)
+	 * are all "photo". Clients matching core search results to a file name
+	 * do the same, case-insensitively.
 	 */
 	public static function stem( $filename ) {
 
@@ -82,15 +97,15 @@ class MediaRest {
 
 		do {
 			$before = $name;
-			$name = preg_replace( '/-(scaled|rotated|e\d{13}|v\d+)$/', '', $name );
+			$name = preg_replace( '/-(scaled|rotated|e\d{13})$/', '', $name );
 		} while ( $name !== $before );
 
 		return $name;
 	}
 
 	/**
-	 * Gives an image a new file under a versioned name, then points posts at
-	 * the new files.
+	 * Gives an image a new file under its current name, then points posts at
+	 * any sizes whose names changed.
 	 */
 	public static function replaceFile( WP_REST_Request $request ) {
 
@@ -128,15 +143,15 @@ class MediaRest {
 		$old_meta = wp_get_attachment_metadata( $id, true );
 		$old_meta = is_array( $old_meta ) ? $old_meta : [];
 		$old_files = self::attachmentFiles( $old_file, $old_meta );
-		$stem = self::stem( $old_files['original'] ?? $old_files['full'] );
-		$version = max( 2, (int) get_post_meta( $id, self::VERSION_META_KEY, true ) + 1 );
-		$extension = strtolower( pathinfo( $upload['name'], PATHINFO_EXTENSION ) );
 
-		// Into the image's own folder rather than this month's. Through
-		// wp_handle_sideload() so the upload checks, unique names and the
-		// filters other plugins hook (licence embedding, offloading) all run
-		// as for any upload.
+		// The name the image was uploaded under, before WordPress scaled it.
+		$name = pathinfo( $old_files['original'] ?? $old_files['full'], PATHINFO_FILENAME );
+		$extension = strtolower( pathinfo( $upload['name'], PATHINFO_EXTENSION ) );
 		$subdir = self::uploadSubdir( $old_files['full'] );
+
+		// 1. The new file, next to the old ones under a temporary name. Through
+		// wp_handle_sideload() so the upload checks and the filters other
+		// plugins hook (licence embedding among them) run as for any upload.
 		$pin_dir = static function ( $uploads ) use ( $subdir ) {
 			$uploads['subdir'] = $subdir;
 			$uploads['path'] = $uploads['basedir'] . $subdir;
@@ -146,7 +161,7 @@ class MediaRest {
 
 		// A variable: wp_handle_sideload() takes the file by reference.
 		$file = [
-			'name'     => "{$stem}-v{$version}.{$extension}",
+			'name'     => "{$name}-photopress-replacing.{$extension}",
 			'tmp_name' => $upload['tmp_name'],
 		];
 
@@ -164,45 +179,62 @@ class MediaRest {
 			return new WP_Error( 'rest_upload_invalid_image', __( 'The file is not an image this site can display.' ), [ 'status' => 400 ] );
 		}
 
-		update_attached_file( $id, $saved['file'] );
-		wp_update_post( [ 'ID' => $id, 'post_mime_type' => $saved['type'] ] );
+		// 2. Out of the bucket, and forgotten by Offload Media. Before the old
+		// files are touched: if the bucket refuses, nothing has changed.
+		$offloaded = self::forgetOffloaded( $id );
 
-		// Generates the sizes, and -scaled for large images, as an upload does.
-		wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $saved['file'] ) );
-		update_post_meta( $id, self::VERSION_META_KEY, $version );
+		if ( is_wp_error( $offloaded ) ) {
+			wp_delete_file( $saved['file'] );
+			return new WP_Error( 'photopress_offload_failed', $offloaded->get_error_message(), [ 'status' => 502 ] );
+		}
+
+		// 3. The old files go, and the new one takes the image's name.
+		// Sizes kept by WordPress's image editor; '' when there are none.
+		$backup_sizes = get_post_meta( $id, '_wp_attachment_backup_sizes', true );
+		wp_delete_attachment_files( $id, $old_meta, is_array( $backup_sizes ) ? $backup_sizes : [], $old_file );
+		delete_post_meta( $id, '_wp_attachment_backup_sizes' );
+
+		$target = path_join( dirname( $saved['file'] ), "{$name}.{$extension}" );
+
+		if ( file_exists( $target ) ) {
+			$target = path_join( dirname( $saved['file'] ), wp_unique_filename( dirname( $saved['file'] ), "{$name}.{$extension}" ) );
+		}
+
+		if ( ! @rename( $saved['file'], $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			$target = $saved['file'];
+		}
+
+		update_attached_file( $id, $target );
+
+		if ( get_post_mime_type( $id ) !== $saved['type'] ) {
+			wp_update_post( [ 'ID' => $id, 'post_mime_type' => $saved['type'] ] );
+		}
+
+		// 4. The sizes, and -scaled for large images, as an upload makes them.
+		// WordPress saves the metadata as it goes; Offload Media waits for the
+		// finished set, as Enable Media Replace has it do, then offloads it.
+		add_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
+		$new_meta = wp_generate_attachment_metadata( $id, $target );
+		remove_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
+
+		wp_update_attachment_metadata( $id, $new_meta );
 		clean_attachment_cache( $id );
 
 		$new_meta = wp_get_attachment_metadata( $id, true );
 		$new_meta = is_array( $new_meta ) ? $new_meta : [];
 		$new_files = self::attachmentFiles( get_attached_file( $id, true ), $new_meta );
+
+		// 5. Posts showing sizes whose names changed: a new shape, a smaller
+		// image or another extension gives sizes other names.
 		$replacements = self::fileReplacements( $old_files, $new_files, self::sizeWidths( $old_meta ), self::sizeWidths( $new_meta ) );
-		$dimensions = self::fileDimensions( $new_files, $new_meta );
-		$updated = $request['update_references'] ? self::updateReferences( $stem, $replacements, $dimensions ) : [];
+		$updated = $request['update_references'] ? self::updateReferences( self::stem( $name ), $replacements ) : [];
 		$reprocess = (bool) $request['reprocess_metadata'];
-
-		/**
-		 * Filters whether the replaced files are kept.
-		 *
-		 * Kept by default: pages cached with the old URLs keep showing an image,
-		 * and offload plugins have copies of them anyway.
-		 *
-		 * @param bool $keep Whether to keep the old files.
-		 * @param int  $id   Attachment ID.
-		 */
-		if ( ! apply_filters( 'photopress_keep_replaced_files', true, $id ) ) {
-
-			$basedir = wp_get_upload_dir()['basedir'];
-
-			foreach ( array_diff( array_unique( $old_files ), $new_files ) as $relative ) {
-				wp_delete_file( path_join( $basedir, $relative ) );
-			}
-		}
 
 		/**
 		 * Fires after an image was given a new file.
 		 *
 		 * @param int      $id           Attachment ID.
-		 * @param string[] $replacements Old upload-relative paths mapped to the new ones.
+		 * @param string[] $replacements Old upload-relative paths mapped to new ones, for files whose names changed.
 		 * @param int[]    $updated      IDs of posts whose content was updated.
 		 * @param array    $options      reprocess_metadata: whether the client asked
 		 *                               for the new file's metadata to be read.
@@ -223,10 +255,56 @@ class MediaRest {
 			'files'                => $replacements,
 			'posts_updated'        => $updated,
 			'metadata_reprocessed' => $reprocess,
+			// offloaded: removed from the bucket and offloaded afresh;
+			// not_offloaded: Offload Media is not active or did not have the
+			// image; unsupported: it is active but its classes have changed.
+			'offload'              => $offloaded,
 		];
 		$response->set_data( $data );
 
 		return $response;
+	}
+
+	/**
+	 * Removes an image from WP Offload Media's bucket and deletes its record
+	 * of it, as Offload Media does when an attachment is deleted
+	 * (Media_Library::delete_attachment). The next metadata update then
+	 * offloads it as a new item, under a new versioned folder.
+	 *
+	 * @return string|WP_Error "offloaded", "not_offloaded" or "unsupported".
+	 */
+	protected static function forgetOffloaded( $id ) {
+
+		$item_class = '\\DeliciousBrains\\WP_Offload_Media\\Items\\Media_Library_Item';
+		$remove_class = '\\DeliciousBrains\\WP_Offload_Media\\Items\\Remove_Provider_Handler';
+
+		if ( ! self::$as3cf ) {
+			return 'not_offloaded';
+		}
+
+		if (
+			! class_exists( $item_class ) || ! class_exists( $remove_class )
+			|| ! method_exists( $item_class, 'get_by_source_id' ) || ! method_exists( $remove_class, 'get_item_handler_key_name' )
+			|| ! method_exists( self::$as3cf, 'get_item_handler' )
+		) {
+			return 'unsupported';
+		}
+
+		$item = $item_class::get_by_source_id( $id );
+
+		if ( ! $item ) {
+			return 'not_offloaded';
+		}
+
+		$result = self::$as3cf->get_item_handler( $remove_class::get_item_handler_key_name() )->handle( $item, [ 'verify_exists_on_local' => false ] );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$item->delete();
+
+		return 'offloaded';
 	}
 
 	/**
@@ -355,98 +433,8 @@ class MediaRest {
 	}
 
 	/**
-	 * Width and height of each new file, keyed by its upload-relative path.
-	 *
-	 * @return array<string, int[]>
-	 */
-	public static function fileDimensions( array $files, array $meta ) {
-
-		$dimensions = [];
-
-		if ( isset( $files['full'], $meta['width'], $meta['height'] ) ) {
-			$dimensions[ $files['full'] ] = [ (int) $meta['width'], (int) $meta['height'] ];
-		}
-
-		foreach ( (array) ( $meta['sizes'] ?? [] ) as $size => $data ) {
-
-			if ( isset( $files[ $size ], $data['width'], $data['height'] ) ) {
-				$dimensions[ $files[ $size ] ] = [ (int) $data['width'], (int) $data['height'] ];
-			}
-		}
-
-		// The original is not in the metadata, only its name.
-		if ( isset( $files['original'] ) ) {
-
-			$size = wp_getimagesize( path_join( wp_get_upload_dir()['basedir'], $files['original'] ) );
-
-			if ( $size ) {
-				$dimensions[ $files['original'] ] = [ (int) $size[0], (int) $size[1] ];
-			}
-		}
-
-		return array_filter( $dimensions, static fn( $d ) => $d[0] > 0 && $d[1] > 0 );
-	}
-
-	/**
-	 * Corrects the width and height attributes of img tags showing one of the
-	 * new files, when the new image has another shape: the width the author
-	 * gave is kept and the height follows the new proportions (or the
-	 * reverse, for a tag with only a height). Without this a re-cropped image
-	 * is stretched to the old shape.
-	 *
-	 * @param string               $content
-	 * @param array<string, int[]> $dimensions New upload-relative paths => [ width, height ].
-	 */
-	public static function fixImageDimensions( $content, array $dimensions ) {
-
-		if ( ! $dimensions || false === stripos( $content, '<img' ) ) {
-			return $content;
-		}
-
-		$p = new \WP_HTML_Tag_Processor( $content );
-
-		while ( $p->next_tag( 'img' ) ) {
-
-			$src = (string) $p->get_attribute( 'src' );
-			$shape = null;
-
-			foreach ( $dimensions as $path => $size ) {
-
-				if ( self::refersTo( $src, $path ) ) {
-					$shape = $size;
-					break;
-				}
-			}
-
-			if ( ! $shape ) {
-				continue;
-			}
-
-			$width = $p->get_attribute( 'width' );
-			$height = $p->get_attribute( 'height' );
-
-			if ( is_string( $width ) && ctype_digit( $width ) && (int) $width > 0 ) {
-				$p->set_attribute( 'height', (string) max( 1, (int) round( (int) $width * $shape[1] / $shape[0] ) ) );
-			} elseif ( is_string( $height ) && ctype_digit( $height ) && (int) $height > 0 ) {
-				$p->set_attribute( 'width', (string) max( 1, (int) round( (int) $height * $shape[0] / $shape[1] ) ) );
-			}
-		}
-
-		return $p->get_updated_html();
-	}
-
-	/**
-	 * Whether a URL is of the file at an upload-relative path, by the same
-	 * rule as rewriteReferences().
-	 */
-	protected static function refersTo( $url, $path ) {
-
-		return (bool) preg_match( self::referencePattern( $path ), $url );
-	}
-
-	/**
-	 * Matches a reference to the file at an upload-relative path; group 1 is
-	 * everything before its name.
+	 * Matches a reference to the file at an upload-relative path (see
+	 * rewriteReferences()); group 1 is everything before its name.
 	 */
 	protected static function referencePattern( $path ) {
 
@@ -556,11 +544,9 @@ class MediaRest {
 	 *
 	 * @param string   $stem          The image's name, to find candidate rows.
 	 * @param string[] $replacements  Old upload-relative paths mapped to new ones.
-	 * @param array    $dimensions    New upload-relative paths => [ width, height ],
-	 *                                to correct img tags (see fixImageDimensions()).
 	 * @return int[] IDs of the updated posts.
 	 */
-	protected static function updateReferences( $stem, array $replacements, array $dimensions = [] ) {
+	protected static function updateReferences( $stem, array $replacements ) {
 
 		global $wpdb;
 
@@ -587,15 +573,6 @@ class MediaRest {
 				'post_excerpt' => self::rewriteReferences( $post->post_excerpt, $replacements ),
 			];
 
-			// Only tags this replacement changed: their files are the new ones.
-			$changed = array_intersect_key( $dimensions, array_flip( $replacements ) );
-
-			foreach ( [ 'post_content', 'post_excerpt' ] as $field ) {
-
-				if ( $fields[ $field ] !== $post->$field ) {
-					$fields[ $field ] = self::fixImageDimensions( $fields[ $field ], $changed );
-				}
-			}
 
 			if ( $fields['post_content'] === $post->post_content && $fields['post_excerpt'] === $post->post_excerpt ) {
 				continue;
