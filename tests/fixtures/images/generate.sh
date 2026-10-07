@@ -65,4 +65,8 @@ for row in "${IMAGES[@]}"; do
 	convert "${args[@]}" "$name.jpg"
 done
 
-ls -l ./*.jpg
+# A PNG, for replacing a JPEG with another file type. Not one of the gallery
+# images (those are the .jpg files).
+convert -size 900x600 xc:'#e46c0a' -fill white -gravity center -pointsize 75 -annotate 0 "png\n900×600" -strip 09-png-3x2.png
+
+ls -l ./*.jpg ./*.png

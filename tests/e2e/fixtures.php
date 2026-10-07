@@ -204,8 +204,15 @@ echo wp_json_encode( [
 	'images' => array_values( $images ),
 	'replace' => [
 		'image' => $replace_id,
-		// A classic-editor image with its width and height written in.
-		'post'  => $page( 'E2E: replaced image', sprintf( '<p><img src="%s" width="%d" height="%d" alt=""></p>', esc_url( $medium[0] ), $medium[1], $medium[2] ) ),
+		// An image block showing the medium size, with its own alt text and
+		// caption, and a link to the full size.
+		'post'  => $page( 'E2E: replaced image', sprintf(
+			'<!-- wp:image {"id":%1$d,"sizeSlug":"medium"} --><figure class="wp-block-image size-medium"><img src="%2$s" alt="Alt written in the post" class="wp-image-%1$d"/><figcaption class="wp-element-caption">Caption written in the post</figcaption></figure><!-- /wp:image -->'
+			. '<!-- wp:paragraph --><p><a href="%3$s">Full size</a></p><!-- /wp:paragraph -->',
+			$replace_id,
+			esc_url( $medium[0] ),
+			esc_url( wp_get_attachment_url( $replace_id ) )
+		) ),
 	],
 	'names'  => $images,
 	'terms'  => $new_terms,

@@ -185,4 +185,68 @@ final class MediaRestTest extends TestCase {
 		$m->fileReplaced( 12, [], [], [ 'reprocess_metadata' => false ] );
 		$m->fileReplaced( 12 ); // Other callers: as for an upload.
 	}
+
+	public function test_an_image_block_gets_the_alt_text_and_caption(): void {
+
+		Functions\when( 'wp_kses_post' )->returnArg();
+
+		$with_caption = '<figure class="wp-block-image size-large"><img src="a.jpg" alt="Old" class="wp-image-12"/><figcaption class="wp-element-caption">Old caption</figcaption></figure>';
+		$without = '<figure class="wp-block-image size-large"><img src="a.jpg" alt="" class="wp-image-12"/></figure>';
+
+		$this->assertSame(
+			'<figure class="wp-block-image size-large"><img src="a.jpg" alt="Bob at the lake" class="wp-image-12"/><figcaption class="wp-element-caption">New <em>caption</em></figcaption></figure>',
+			MediaRest::imageBlockWith( $with_caption, 'Bob at the lake', 'New <em>caption</em>' )
+		);
+		$this->assertSame(
+			'<figure class="wp-block-image size-large"><img src="a.jpg" alt="Bob" class="wp-image-12"/><figcaption class="wp-element-caption">Added</figcaption></figure>',
+			MediaRest::imageBlockWith( $without, 'Bob', 'Added' ),
+			'a caption is added where there was none'
+		);
+		$this->assertSame(
+			'<figure class="wp-block-image size-large"><img src="a.jpg" alt="Old" class="wp-image-12"/></figure>',
+			MediaRest::imageBlockWith( $with_caption, 'Old', '' ),
+			'an empty caption removes the figcaption, as the block saves it'
+		);
+	}
+
+	public function test_sync_reaches_images_in_galleries_and_only_this_image(): void {
+
+		Functions\when( 'wp_kses_post' )->returnArg();
+
+		$image = static fn( $id ) => [
+			'blockName'    => 'core/image',
+			'attrs'        => [ 'id' => $id ],
+			'innerBlocks'  => [],
+			'innerHTML'    => '<figure class="wp-block-image"><img src="a.jpg" alt="Old" class="wp-image-' . $id . '"/></figure>',
+			'innerContent' => [ '<figure class="wp-block-image"><img src="a.jpg" alt="Old" class="wp-image-' . $id . '"/></figure>' ],
+		];
+		$blocks = [
+			[ 'blockName' => 'core/gallery', 'attrs' => [], 'innerBlocks' => [ $image( 12 ), $image( 13 ) ], 'innerHTML' => '', 'innerContent' => [] ],
+		];
+
+		$this->assertTrue( MediaRest::syncBlocks( $blocks, 12, 'New', '' ) );
+		$this->assertStringContainsString( 'alt="New"', $blocks[0]['innerBlocks'][0]['innerHTML'] );
+		$this->assertSame( [ $blocks[0]['innerBlocks'][0]['innerHTML'] ], $blocks[0]['innerBlocks'][0]['innerContent'] );
+		$this->assertStringContainsString( 'alt="Old"', $blocks[0]['innerBlocks'][1]['innerHTML'], 'another image is left alone' );
+		$this->assertFalse( MediaRest::syncBlocks( $blocks, 12, 'New', '' ), 'nothing left to change' );
+	}
+
+	#[DataProvider( 'cacheControls' )]
+	public function test_cache_control_setting( string $setting, string $expected ): void {
+
+		$this->assertSame( $expected, \PhotoPress\modules\media\media::cacheControl( $setting ) );
+	}
+
+	public static function cacheControls(): array {
+
+		$default = \PhotoPress\modules\media\media::DEFAULT_CACHE_CONTROL;
+
+		return [
+			'empty: the default'            => [ '', $default ],
+			'a value'                       => [ 'max-age=3600', 'max-age=3600' ],
+			'several directives'            => [ 'public, max-age=600, stale-while-revalidate=60', 'public, max-age=600, stale-while-revalidate=60' ],
+			'not a header value: default'   => [ "max-age=1\r\nX-Evil: 1", $default ],
+		];
+	}
 }
+
