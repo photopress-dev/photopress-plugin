@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.0
-Stable tag: 1.7.2
+Stable tag: 1.7.3
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -63,6 +63,12 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 5. Embed Licensing meta-data into uploaded images
 
 == Changelog ==
+
+= 1.7.3 =
+
+* Fixed: in the Mosaic gallery layout, some images hung over the row below
+  at wider window widths. Each image now fills its place in the row exactly,
+  at its own proportions.
 
 = 1.7.2 =
 

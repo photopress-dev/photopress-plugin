@@ -83,8 +83,14 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 		flex: var(--pp-ar, 1) 1 calc(var(--pp-ar, 1) * var(--pp-row-height, 300px));
 	}
 
+	// The image fills its slot exactly, cropping a fraction if the slot's
+	// shape differs. min-height: 0, as the figure is a flex column and an
+	// image's automatic minimum height is the one its own shape gives at its
+	// width: a slot wider than the image's shape could not contain it, and
+	// the image hung over the row below.
 	#{$item} img {
 		width: 100%;
+		min-height: 0;
 		object-fit: cover;
 	}
 

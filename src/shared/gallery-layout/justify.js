@@ -20,21 +20,23 @@ const items = ( figure ) =>
 
 const ratioOf = ( item ) => parseFloat( item.style.getPropertyValue( '--pp-ar' ) ) || 1;
 
+// Down to a hundredth of a pixel: a full row then never adds up to more than
+// the gallery's width (it would wrap), and is short of it by under a pixel.
+const hundredths = ( n ) => Math.floor( n * 100 ) / 100;
+
 function sizeRow( row, height, gap ) {
+	height = hundredths( height );
+
 	row.forEach( ( item ) => {
 		item.style.flex = 'none';
 		item.style.height = height + 'px';
 	} );
 
-	// Whole pixels, with the rounding remainder given to the last image, so
-	// a full row neither overflows nor leaves a gap.
-	let used = 0;
-	row.forEach( ( item, i ) => {
-		const width = i === row.length - 1 && row.full
-			? row.width - used - gap * ( row.length - 1 )
-			: Math.floor( ratioOf( item ) * height );
-		item.style.width = width + 'px';
-		used += width;
+	// Each image at its own proportions. Whole pixels lost up to a pixel per
+	// image and to the row height, and the last image was given all of it,
+	// up to 14px wider than its shape: its image overflowed the row.
+	row.forEach( ( item ) => {
+		item.style.width = hundredths( ratioOf( item ) * height ) + 'px';
 	} );
 }
 
@@ -64,9 +66,7 @@ export function justify( figure, rowHeight ) {
 		const gaps = gap * ( row.length - 1 );
 
 		if ( ratios * rowHeight + gaps >= width ) {
-			row.full = true;
-			row.width = width;
-			sizeRow( row, Math.floor( ( width - gaps ) / ratios ), gap );
+			sizeRow( row, ( width - gaps ) / ratios, gap );
 			row = [];
 			ratios = 0;
 		}

@@ -31,7 +31,7 @@ function gallery( ratios, { width = 620, gap = 16 } = {} ) {
 	return figure;
 }
 
-const sizes = ( figure ) => Array.from( figure.querySelectorAll( '.wp-block-image' ) ).map( ( el ) => [ parseInt( el.style.width, 10 ), parseInt( el.style.height, 10 ) ] );
+const sizes = ( figure ) => Array.from( figure.querySelectorAll( '.wp-block-image' ) ).map( ( el ) => [ parseFloat( el.style.width ), parseFloat( el.style.height ) ] );
 
 afterEach( () => vi.restoreAllMocks() );
 
@@ -42,12 +42,36 @@ test( 'a full row spans the gallery exactly, at a height that fits its images', 
 
 	const [ a, b, c ] = sizes( figure );
 	// Ratios 1.5 + 1.5 at 300px tall are 900px: wider than 620, so the row is
-	// those two at (620 - 16) / 3 = 201px.
-	expect( a[ 1 ] ).toBe( 201 );
-	expect( b[ 1 ] ).toBe( 201 );
-	expect( a[ 0 ] + 16 + b[ 0 ] ).toBe( 620 );
+	// those two at (620 - 16) / 3 = 201.33px.
+	[ a, b ].forEach( ( [ w, h ] ) => {
+		expect( h ).toBe( 201.33 );
+		expect( w ).toBeCloseTo( 302, 1 );
+	} );
+	expect( a[ 0 ] + 16 + b[ 0 ] ).toBeLessThanOrEqual( 620 );
 	// The last row is not full and stays at the target height.
 	expect( c ).toEqual( [ 225, 300 ] );
+} );
+
+test( 'every image in a full row keeps its shape; the row fills the gallery without overflowing', () => {
+	// Twelve images of mixed shapes, 1080px wide, 100px rows: the widths of
+	// the archive site's mosaic, where whole-pixel rounding gave the last image
+	// of each row up to 14px more than its shape.
+	const ratios = [ 1.5, 1.3333, 0.75, 1.5045, 1.0479, 1.5, 0.8, 1.3593, 1.4993, 1.5, 0.7693, 1.2215 ];
+	const figure = gallery( ratios, { width: 1080, gap: 16 } );
+
+	justify( figure, 100 );
+
+	const all = sizes( figure );
+	const row = all.filter( ( [ , h ] ) => h === all[ 0 ][ 1 ] );
+	expect( row.length ).toBeLessThan( ratios.length );
+
+	row.forEach( ( [ w, h ], i ) => {
+		expect( Math.abs( w / h - ratios[ i ] ), `image ${ i }` ).toBeLessThan( 0.002 );
+	} );
+
+	const used = row.reduce( ( sum, [ w ] ) => sum + w, 0 ) + 16 * ( row.length - 1 );
+	expect( used ).toBeLessThanOrEqual( 1080 );
+	expect( used ).toBeGreaterThan( 1079 );
 } );
 
 test( 'a very wide image gets a row of its own, scaled down, not cropped', () => {
@@ -55,7 +79,11 @@ test( 'a very wide image gets a row of its own, scaled down, not cropped', () =>
 
 	justify( figure, 300 );
 
-	expect( sizes( figure ) ).toEqual( [ [ 620, 109 ] ] );
+	// 620 / 5.66 = 109.54px tall.
+	const [ [ w, h ] ] = sizes( figure );
+	expect( h ).toBe( 109.54 );
+	expect( w ).toBeCloseTo( 620, 1 );
+	expect( w ).toBeLessThanOrEqual( 620 );
 } );
 
 test( 'items without a ratio yet are laid out as squares', () => {
