@@ -91,6 +91,7 @@ export function createSlideshow( root ) {
 		const from = slides[ index ];
 		const to = slides[ next ];
 
+
 		if ( instant || reducedMotion ) {
 			root.classList.add( 'is-instant' );
 			from.classList.remove( 'is-current' );
@@ -107,7 +108,18 @@ export function createSlideshow( root ) {
 			from.classList.add( 'is-leaving', direction > 0 ? 'to-left' : 'to-right' );
 			to.classList.add( 'is-current' );
 
-			view.setTimeout( () => from.classList.remove( 'is-leaving', 'to-left', 'to-right' ), 400 );
+			// Once it is off, it goes back to its resting place without a
+			// transition: animated, it slid back in behind the new slide while
+			// it faded out. Not if it is the current slide again by then.
+			view.setTimeout( () => {
+				if ( from.classList.contains( 'is-current' ) ) {
+					return;
+				}
+				from.classList.add( 'is-settling' );
+				from.classList.remove( 'is-leaving', 'to-left', 'to-right' );
+				void from.offsetWidth; // apply the resting state before transitions return
+				from.classList.remove( 'is-settling' );
+			}, 400 );
 		}
 
 		slides.forEach( ( slide, i ) => slide.setAttribute( 'aria-hidden', i === next ? 'false' : 'true' ) );

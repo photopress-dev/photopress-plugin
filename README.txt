@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.0
-Stable tag: 1.7.1
+Stable tag: 1.7.3
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -63,6 +63,24 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 5. Embed Licensing meta-data into uploaded images
 
 == Changelog ==
+
+= 1.7.3 =
+
+* Fixed: in the Mosaic gallery layout, some images hung over the row below
+  at wider window widths. Each image now fills its place in the row exactly,
+  at its own proportions.
+
+= 1.7.2 =
+
+* Fixed: in the Gallery Slideshow, the previous image briefly showed behind
+  the new one after clicking to the next slide.
+* Gallery Slideshow: the slideshow keeps one height for every slide, as tall
+  as its tallest image at full width, so the page below does not move. That
+  height, caption included, now stays within the visible window (on phones,
+  the height visible with the browser bars shown). Shorter images are
+  centred in it.
+* Fixed: the full-screen slideshow's Caption Padding setting had no field on
+  the Slideshow settings tab.
 
 = 1.7.1 =
 
