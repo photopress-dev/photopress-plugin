@@ -35,6 +35,8 @@ import {
 	sanitize
 	
 } from '../shared/options.js';
+
+import JobPanel from '../shared/jobs.js';
 /**
  * Metadata Options Component class
  */
@@ -78,6 +80,7 @@ class MetadataSettings extends Component {
 				custom_taxonomies_tag_delimiter: ':',
 				alt_text_enable: true,
 				alt_text_template: '[photoshop:Headline]. [photopress:stringOfKeywords].',
+				description_template: '',
 				strip_metadata_from_resized_image: false
 			},
 			isNewTaxPresent: false,
@@ -608,6 +611,16 @@ class MetadataSettings extends Component {
 						onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
 					/>
 					
+					<TextControl
+						id={'description_template'}
+						label={ __('Description Template') }
+						value={ this.getSetting('description_template') || '' }
+						className="small-input right-pad"
+						help={"The template for an image's description, set on upload and when its file is replaced, e.g. [photoshop:Headline]. Leave empty to leave descriptions alone."}
+						onChange={ ( value ) => this.setSetting( 'description_template', value ) }
+						onBlur={ ( event ) => this.setSetting( 'description_template', sanitize( event.target.value, 'string' ) ) }
+					/>
+					
 					<Button
 						isPrimary
 						disabled={ this.state.isAPISaving }
@@ -690,6 +703,15 @@ class MetadataSettings extends Component {
 					
 				
 				</BaseControl>
+				
+				<hr/>
+				
+				<JobPanel
+					type="metadata.reprocess"
+					label={ __( 'Re-read image metadata' ) }
+					description={ __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. Run it after changing the taxonomies or templates above. It runs in the background; you can leave this page.' ) }
+					confirm={ __( 'Re-read the metadata of every image? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+				/>
 				
 			</PanelBody>
 			

@@ -67,7 +67,8 @@ class SlideshowSettings extends Component {
 				showTitleInCaption: false,
 				showDescriptionInCaption: false,
 				showAttachmentLink: false,
-				attachmentLinkText: "Read Me..."
+				attachmentLinkText: "Read Me...",
+				captionPadding: 0
 			},
 			
 			dirtyFields: []
@@ -169,6 +170,16 @@ class SlideshowSettings extends Component {
 						]
 					}
 					help={"Controls where the caption/info box is displayed."}
+				/>
+				
+				<RangeControl
+					label={ __( 'Caption Padding (px)' ) }
+					help={ __( 'Space around the caption area.' ) }
+					value={ this.getSetting( 'captionPadding' ) || 0 }
+					onChange={ ( value ) => this.persistSetting( 'captionPadding', value ?? 0 ) }
+					min={ 0 }
+					max={ 100 }
+					step={ 1 }
 				/>
 							
 				<CheckboxControl

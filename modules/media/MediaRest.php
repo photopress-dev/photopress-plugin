@@ -140,6 +140,11 @@ class MediaRest {
 		$old_meta = is_array( $old_meta ) ? $old_meta : [];
 		$old_files = self::attachmentFiles( $old_file, $old_meta );
 
+		// Their URLs as served now (Offload Media's, when it serves them),
+		// for anything that keeps copies elsewhere.
+		$old_url_dir = dirname( (string) wp_get_attachment_url( $id ) );
+		$old_urls = array_map( static fn( $relative ) => $old_url_dir . '/' . wp_basename( $relative ), $old_files );
+
 		// 2. The name. The original (before WordPress scaled it) keeps its
 		// name; another type keeps the base name with its own extension, or
 		// the next free name if a file that is not this image's has it.
@@ -235,6 +240,20 @@ class MediaRest {
 		}
 
 		delete_post_meta( $id, '_wp_attachment_backup_sizes' );
+
+		$removed_urls = array_values( array_intersect_key( $old_urls, array_flip( array_keys( array_intersect( $old_files, $gone ) ) ) ) );
+
+		if ( $removed_urls ) {
+
+			/**
+			 * Fires after a replacement deleted files of the image that the new
+			 * file does not have (renamed sizes, the old type's original).
+			 *
+			 * @param int      $id   Attachment ID.
+			 * @param string[] $urls Their URLs, as they were served.
+			 */
+			do_action( 'photopress_attachment_files_removed', $id, $removed_urls );
+		}
 
 		// 7. Stored links to files that were renamed or removed.
 		$replacements = self::fileReplacements( $old_files, $new_files, self::sizeWidths( $old_meta ), self::sizeWidths( $new_meta ) );
