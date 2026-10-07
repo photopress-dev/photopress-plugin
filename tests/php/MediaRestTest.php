@@ -304,5 +304,34 @@ final class MediaRestTest extends TestCase {
 			$invalidator->setStaticPropertyValue( 'as3cf', null );
 		}
 	}
+
+	public function test_replaced_files_stay_in_the_bucket_unless_the_setting_is_on(): void {
+
+		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
+		$as3cf = new class() {
+			public function get_setting( $key ) {
+				return [ 'bucket' => 'images.example.com', 'region' => 'us-east-1', 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
+			}
+		};
+		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+		$urls = [ 'https://cdn.example.com/wp-content/uploads/2026/10/photo-300x200.jpg' ];
+
+		try {
+			Functions\expect( 'as_schedule_single_action' )->never();
+			\PhotoPress\modules\media\CdnInvalidator::scheduleDeletion( 12, $urls );
+
+			\pp_api::$options['core/media/delete_replaced_objects'] = true;
+			Functions\expect( 'as_schedule_single_action' )->once()->with(
+				\Mockery::type( 'int' ),
+				'photopress_offload_delete_objects',
+				[ 'images.example.com', 'us-east-1', [ 'wp-content/uploads/2026/10/photo-300x200.jpg' ], 1 ],
+				'photopress'
+			);
+			\PhotoPress\modules\media\CdnInvalidator::scheduleDeletion( 12, $urls );
+		} finally {
+			$invalidator->setStaticPropertyValue( 'as3cf', null );
+		}
+	}
 }
 

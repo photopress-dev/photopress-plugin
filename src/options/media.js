@@ -5,7 +5,7 @@
 const { __, sprintf } = wp.i18n;
 import { Component, useEffect, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { BaseControl, Button, Notice, PanelBody, TextControl } from '@wordpress/components';
+import { BaseControl, Button, Notice, PanelBody, TextControl, ToggleControl } from '@wordpress/components';
 
 import {
 	setSetting,
@@ -174,6 +174,7 @@ class MediaSettings extends Component {
 			settings: {
 				cache_control: 'max-age=86400, stale-while-revalidate=3600',
 				cloudfront_distribution_id: '',
+				delete_replaced_objects: false,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -203,6 +204,14 @@ class MediaSettings extends Component {
 						value={ this.getSetting( 'cache_control' ) || '' }
 						onChange={ ( value ) => this.setSetting( 'cache_control', value ) }
 						onBlur={ ( event ) => this.setSetting( 'cache_control', sanitize( event.target.value, 'string' ) ) }
+					/>
+
+					<ToggleControl
+						id="delete_replaced_objects"
+						label={ __( 'Delete replaced files from the bucket' ) }
+						help={ __( "When a replacement gives an image's sizes new names (new dimensions or file type), delete the old files from the bucket two days later, once no cached page can still show them. Offload Media itself leaves them there." ) }
+						checked={ !! this.getSetting( 'delete_replaced_objects' ) }
+						onChange={ ( value ) => this.persistSetting( 'delete_replaced_objects', value ) }
 					/>
 
 					<TextControl

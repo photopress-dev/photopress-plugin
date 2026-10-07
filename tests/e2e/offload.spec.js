@@ -32,7 +32,15 @@ const jpeg = ( file ) => fs.readFileSync( path.join( IMAGES, file ) ).toString( 
 
 let image = null;
 
-test.beforeAll( () => wp( 'plugin', 'activate', 'amazon-s3-and-cloudfront' ) );
+// Offload Media on, and the setting that deletes renamed files' old copies.
+const MEDIA_OPTION = 'photopress_core_media';
+let mediaOption = '';
+
+test.beforeAll( () => {
+	wp( 'plugin', 'activate', 'amazon-s3-and-cloudfront' );
+	mediaOption = wp( 'eval', `echo wp_json_encode( get_option( '${ MEDIA_OPTION }', null ) );` ).trim().split( '\n' ).pop();
+	wp( 'eval', `$o = (array) get_option( '${ MEDIA_OPTION }', [] ); $o['delete_replaced_objects'] = true; update_option( '${ MEDIA_OPTION }', $o );` );
+} );
 
 test.afterAll( async ( { browser } ) => {
 	if ( image ) {
@@ -40,6 +48,7 @@ test.afterAll( async ( { browser } ) => {
 		wp( 'post', 'delete', String( image ), '--force' );
 	}
 	wp( 'eval', "delete_option( 'photopress_cdn_last' ); delete_option( 'photopress_cdn_pending' ); as_unschedule_all_actions( 'photopress_cdn_invalidate', [], 'photopress' ); as_unschedule_all_actions( 'photopress_offload_delete_objects' );" );
+	wp( 'eval', `$before = json_decode( '${ mediaOption.replace( /'/g, "\\'" ) }', true ); null === $before ? delete_option( '${ MEDIA_OPTION }' ) : update_option( '${ MEDIA_OPTION }', $before );` );
 	wp( 'plugin', 'deactivate', 'amazon-s3-and-cloudfront' );
 } );
 

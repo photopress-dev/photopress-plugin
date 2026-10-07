@@ -111,6 +111,20 @@ class media extends photopress_module {
 				],
 			],
 
+			'delete_replaced_objects' => [
+
+				'default_value' => false,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Delete replaced files from the bucket',
+					'page_name'     => 'media',
+					'section'       => 'general',
+					'description'   => 'When a replacement gives an image\'s sizes new names (new dimensions or file type), delete the old files from the bucket two days later. Offload Media itself leaves them there.',
+					'label_for'     => 'Delete replaced files from the bucket',
+					'error_message' => '',
+				],
+			],
+
 			'cloudfront_distribution_id' => [
 
 				'default_value' => '',

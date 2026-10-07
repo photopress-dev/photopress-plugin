@@ -220,13 +220,18 @@ class CdnInvalidator {
 	 * photopress_attachment_files_removed: a replacement renamed files
 	 * (new dimensions or type) and deleted the old ones from this server.
 	 * Offload Media keeps their copies in the bucket but no longer knows
-	 * them; they are deleted after DELETE_DELAY, once no cached page can
-	 * still show them.
+	 * them. With the delete_replaced_objects setting on, they are deleted
+	 * after DELETE_DELAY, once no cached page can still show them.
 	 *
 	 * @param int      $id   Attachment ID.
 	 * @param string[] $urls The removed files' URLs, as they were served.
 	 */
 	public static function scheduleDeletion( $id, array $urls ) {
+
+		// Off unless the "Delete replaced files from the bucket" setting is on.
+		if ( ! pp_api::getOption( 'core', 'media', 'delete_replaced_objects' ) ) {
+			return;
+		}
 
 		if ( ! self::$as3cf || ! $urls || ! function_exists( 'as_schedule_single_action' ) ) {
 			return;
