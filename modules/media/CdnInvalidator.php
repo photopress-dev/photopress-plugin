@@ -10,8 +10,8 @@ use WP_Error;
  * Clears a replaced image from the CloudFront distribution in front of WP
  * Offload Media, so the new file shows at once under the same URL.
  *
- * The distribution is found from Offload Media's delivery domain (a
- * distribution with it as an alias), or set on the Media settings page.
+ * The distribution is the one serving Offload Media's delivery domain (a
+ * distribution with it as an alias).
  * Paths of replaced images are collected and sent as one invalidation a few
  * seconds later (DELAY), so replacing many images makes a few invalidations,
  * not one each. CloudFront allows 15 wildcard paths in progress at once; a
@@ -25,7 +25,12 @@ class CdnInvalidator {
 
 	const LAST_OPTION = 'photopress_cdn_last';
 
-	const DISTRIBUTION_OPTION = 'photopress_cdn_distribution';
+	/**
+	 * The distribution found for the delivery domain, remembered for a day
+	 * (a transient), so a change in CloudFront is picked up without a
+	 * setting to keep in step with Offload Media.
+	 */
+	const DISTRIBUTION_TRANSIENT = 'photopress_cdn_distribution';
 
 	/**
 	 * Seconds to wait for more replacements before invalidating.
@@ -74,18 +79,12 @@ class CdnInvalidator {
 	}
 
 	/**
-	 * The distribution to invalidate: the setting, or the one found for the
+	 * The distribution to invalidate: the one serving Offload Media's
 	 * delivery domain (remembered per domain).
 	 *
-	 * @return array|null|WP_Error id and source ("setting" or "detected"); null when there is none.
+	 * @return array|null|WP_Error id; null when there is none.
 	 */
 	public static function distribution() {
-
-		$setting = trim( (string) pp_api::getOption( 'core', 'media', 'cloudfront_distribution_id' ) );
-
-		if ( '' !== $setting ) {
-			return [ 'id' => $setting, 'source' => 'setting' ];
-		}
 
 		$domain = self::domain();
 
@@ -93,10 +92,10 @@ class CdnInvalidator {
 			return null;
 		}
 
-		$known = get_option( self::DISTRIBUTION_OPTION );
+		$known = get_transient( self::DISTRIBUTION_TRANSIENT );
 
 		if ( is_array( $known ) && ( $known['domain'] ?? '' ) === $domain ) {
-			return $known['id'] ? [ 'id' => $known['id'], 'source' => 'detected' ] : null;
+			return $known['id'] ? [ 'id' => $known['id'] ] : null;
 		}
 
 		$id = CloudFront::findDistribution( $domain );
@@ -106,9 +105,9 @@ class CdnInvalidator {
 		}
 
 		// Not found is remembered too: the domain is not a CloudFront one.
-		update_option( self::DISTRIBUTION_OPTION, [ 'domain' => $domain, 'id' => (string) $id ], false );
+		set_transient( self::DISTRIBUTION_TRANSIENT, [ 'domain' => $domain, 'id' => (string) $id ], DAY_IN_SECONDS );
 
-		return $id ? [ 'id' => $id, 'source' => 'detected' ] : null;
+		return $id ? [ 'id' => $id ] : null;
 	}
 
 	/**
@@ -168,13 +167,7 @@ class CdnInvalidator {
 
 		delete_option( self::PENDING_OPTION );
 
-		$distribution = self::distribution();
-
-		if ( ! is_array( $distribution ) ) {
-			$result = is_wp_error( $distribution ) ? $distribution : new WP_Error( 'photopress_cdn_none', __( 'No CloudFront distribution found for the delivery domain.' ) );
-		} else {
-			$result = CloudFront::invalidate( $distribution['id'], self::batch( $pending ) );
-		}
+		$result = self::invalidatePaths( self::batch( $pending ) );
 
 		update_option( self::LAST_OPTION, [
 			'time'         => time(),
@@ -183,7 +176,8 @@ class CdnInvalidator {
 			'error'        => is_wp_error( $result ) ? $result->get_error_message() : null,
 		], false );
 
-		if ( is_wp_error( $result ) && is_array( $distribution ) ) {
+		// Queued again unless there is nothing to send them to.
+		if ( is_wp_error( $result ) && 'photopress_cdn_none' !== $result->get_error_code() ) {
 
 			$again = array_values( array_unique( array_merge( (array) get_option( self::PENDING_OPTION, [] ), $pending ) ) );
 			update_option( self::PENDING_OPTION, $again, false );
@@ -302,19 +296,42 @@ class CdnInvalidator {
 	}
 
 	/**
+	 * Invalidates paths on the distribution serving the delivery domain. If
+	 * CloudFront no longer has the one found before (it was deleted and
+	 * made again for the same domain), it is looked up again, once.
+	 *
+	 * @return string|WP_Error The invalidation's ID.
+	 */
+	protected static function invalidatePaths( array $paths ) {
+
+		for ( $attempt = 1; $attempt <= 2; $attempt++ ) {
+
+			$distribution = self::distribution();
+
+			if ( ! is_array( $distribution ) ) {
+				return is_wp_error( $distribution ) ? $distribution : new WP_Error( 'photopress_cdn_none', __( 'No CloudFront distribution found for the delivery domain.' ) );
+			}
+
+			$result = CloudFront::invalidate( $distribution['id'], $paths );
+
+			if ( ! is_wp_error( $result ) || 'NoSuchDistribution' !== ( $result->get_error_data()['aws_code'] ?? '' ) ) {
+				return $result;
+			}
+
+			delete_transient( self::DISTRIBUTION_TRANSIENT );
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Invalidates the whole distribution: one wildcard path.
 	 *
 	 * @return string|WP_Error The invalidation's ID.
 	 */
 	public static function invalidateAll() {
 
-		$distribution = self::distribution();
-
-		if ( ! is_array( $distribution ) ) {
-			return is_wp_error( $distribution ) ? $distribution : new WP_Error( 'photopress_cdn_none', __( 'No CloudFront distribution found for the delivery domain.' ) );
-		}
-
-		$result = CloudFront::invalidate( $distribution['id'], [ '/*' ] );
+		$result = self::invalidatePaths( [ '/*' ] );
 
 		update_option( self::LAST_OPTION, [
 			'time'         => time(),

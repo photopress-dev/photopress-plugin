@@ -219,7 +219,8 @@ class CloudFront {
 
 		} catch ( \Throwable $e ) {
 			$message = method_exists( $e, 'getAwsErrorMessage' ) && $e->getAwsErrorMessage() ? $e->getAwsErrorMessage() : $e->getMessage();
-			return new WP_Error( 'photopress_aws_error', sprintf( '%s (%s): %s', 's3' === $service ? 'S3' : 'CloudFront', $credentials['source'], $message ) );
+			$code = method_exists( $e, 'getAwsErrorCode' ) ? (string) $e->getAwsErrorCode() : '';
+			return new WP_Error( 'photopress_aws_error', sprintf( '%s (%s): %s', 's3' === $service ? 'S3' : 'CloudFront', $credentials['source'], $message ), [ 'aws_code' => $code ] );
 		}
 	}
 }

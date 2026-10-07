@@ -109,6 +109,13 @@ class base extends photopress_module {
 		$modules = pp_api::getActiveModules( 'core' );
 		// todo add active module list to this div as a data attribute
 		
+		// The Offload Media tab only where WP Offload Media is installed,
+		// active or not. The media module itself stays: it has the image
+		// replacement route.
+		if ( ! empty( $modules['media'] ) && 'missing' === \PhotoPress\modules\media\CdnInvalidator::pluginState() ) {
+			unset( $modules['media'] );
+		}
+		
 		// Quoted: unquoted, the attribute ended at the first space in the JSON
 		// (a module label such as "Offload Media").
 		echo sprintf( '<div id="photopress-core-options" data-modules="%s"></div>', esc_attr( wp_json_encode( $modules ) ) );
