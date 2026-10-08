@@ -14,6 +14,9 @@ use WP_REST_Server;
  * Content-Disposition, or multipart "file"), and the response is the image as
  * GET /wp/v2/media/<id> returns it.
  *
+ * GET /photopress/v1/media/limits gives the size limit WordPress applies
+ * to uploads, for checking exports before uploading them.
+ *
  * Everything else such a tool needs is core: finding an earlier upload by
  * file name (GET /wp/v2/media?search=, which searches file names too),
  * uploading new images, and setting fields. Core cannot change the file of an
@@ -73,6 +76,42 @@ class MediaRest {
 				],
 			],
 		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/media/limits', [
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => [ self::class, 'limits' ],
+			'permission_callback' => [ self::class, 'canUpload' ],
+		] );
+	}
+
+	public static function canUpload() {
+
+		return current_user_can( 'upload_files' );
+	}
+
+	/**
+	 * GET /photopress/v1/media/limits: the size limit WordPress applies to
+	 * uploaded images, so that a publishing tool can check its exports
+	 * against the live value before uploading them.
+	 *
+	 * Core lists image_size_threshold in the REST index (WordPress 7.1), but
+	 * only while client-side media processing is on; this answers either way.
+	 */
+	public static function limits() {
+
+		return rest_ensure_response( [
+			'image_size_threshold' => self::imageSizeThreshold(),
+		] );
+	}
+
+	/**
+	 * Images wider or taller than this are scaled down to it on upload; 0
+	 * when the site turns that off. Asked as WP_REST_Server::get_index()
+	 * asks, for no image in particular.
+	 */
+	public static function imageSizeThreshold() {
+
+		return max( 0, (int) apply_filters( 'big_image_size_threshold', 2560, [ 0, 0 ], '', 0 ) );
 	}
 
 	public static function canReplace( WP_REST_Request $request ) {

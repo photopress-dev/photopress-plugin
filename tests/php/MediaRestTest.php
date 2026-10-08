@@ -2,6 +2,7 @@
 
 namespace PhotoPress\Tests;
 
+use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
 use PhotoPress\modules\media\MediaRest;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -154,6 +155,36 @@ final class MediaRestTest extends TestCase {
 		$value = serialize( (object) [ 'url' => 'https://example.com/wp-content/uploads/2024/05/photo.jpg' ] );
 
 		$this->assertSame( $value, MediaRest::rewriteValue( $value, [ '2024/05/photo.jpg' => '2024/05/photo-new.jpg' ] ) );
+	}
+
+	public function test_size_limit_is_wordpress_threshold(): void {
+
+		$this->assertSame( 2560, MediaRest::imageSizeThreshold(), 'WordPress default' );
+
+		Filters\expectApplied( 'big_image_size_threshold' )->once()->with( 2560, [ 0, 0 ], '', 0 )->andReturn( 4096 );
+		$this->assertSame( 4096, MediaRest::imageSizeThreshold() );
+	}
+
+	public function test_size_limit_turned_off_is_zero(): void {
+
+		Filters\expectApplied( 'big_image_size_threshold' )->once()->andReturn( false );
+		$this->assertSame( 0, MediaRest::imageSizeThreshold() );
+	}
+
+	public function test_limits_route_answers_with_the_threshold(): void {
+
+		Functions\when( 'rest_ensure_response' )->alias( static fn( $data ) => new \WP_REST_Response( $data ) );
+
+		$this->assertSame( [ 'image_size_threshold' => 2560 ], MediaRest::limits()->get_data() );
+	}
+
+	public function test_limits_need_upload_rights(): void {
+
+		Functions\when( 'current_user_can' )->alias( static fn( $cap ) => 'upload_files' === $cap );
+		$this->assertTrue( MediaRest::canUpload() );
+
+		Functions\when( 'current_user_can' )->justReturn( false );
+		$this->assertFalse( MediaRest::canUpload() );
 	}
 
 	public function test_replacing_needs_upload_and_edit_rights(): void {
