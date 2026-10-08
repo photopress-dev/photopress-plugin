@@ -23,6 +23,22 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
+    # WordPress.org takes the version from the tag; the plugin from the Version
+    # header in photopress.php (PHOTOPRESS_CORE_VERSION is read from it); the
+    # plugin directory from README.txt's Stable tag. A release where they differ
+    # stops here. A manual dispatch has no tag and checks the other two.
+    - name: Check the version
+      env:
+        TAG: ${{ github.event.release.tag_name }}
+      run: |
+        header=$(sed -n 's/^Version:[[:space:]]*//p' photopress.php | tr -d '\r[:space:]')
+        stable=$(sed -n 's/^Stable tag:[[:space:]]*//p' README.txt | tr -d '\r[:space:]')
+        expected=${TAG:-$header}
+        echo "tag: ${TAG:-none}  Version header: $header  Stable tag: $stable"
+        if [ -z "$header" ] || [ "$header" != "$expected" ] || [ "$stable" != "$expected" ]; then
+          echo "::error::The release tag, the Version header in photopress.php and the Stable tag in README.txt must be the same."
+          exit 1
+        fi
     # v1 dates from 2021. Composer is still needed even though there are no
     # runtime dependencies left: composer.json's autoload block (psr-4 plus a
     # classmap over framework/) is what makes pp_api and the rest of the
