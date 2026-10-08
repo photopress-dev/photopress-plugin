@@ -18,6 +18,9 @@ use WP_REST_Server;
  * GET /photopress/v1/media/limits gives the size limit WordPress applies
  * to uploads, for checking exports before uploading them.
  *
+ * GET /photopress/v1 (the namespace index) gives the WordPress and
+ * PhotoPress versions, for clients that depend on either.
+ *
  * Everything else such a tool needs is core: finding an earlier upload by
  * file name (GET /wp/v2/media?search=, which searches file names too),
  * uploading new images, and setting fields. Core cannot change the file of an
@@ -48,6 +51,27 @@ class MediaRest {
 	public static function addHooks() {
 
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
+		add_filter( 'rest_namespace_index', [ self::class, 'addVersions' ], 10, 2 );
+	}
+
+	/**
+	 * rest_namespace_index: GET /photopress/v1 gives the WordPress and
+	 * PhotoPress versions, after the namespace.
+	 */
+	public static function addVersions( $response, $request ) {
+
+		if ( self::REST_NAMESPACE === $request['namespace'] && $response instanceof \WP_REST_Response ) {
+			$data = $response->get_data();
+			$response->set_data( [
+				'namespace' => $data['namespace'],
+				'versions'  => [
+					'wordpress'  => get_bloginfo( 'version' ),
+					'photopress' => PHOTOPRESS_CORE_VERSION,
+				],
+			] + $data );
+		}
+
+		return $response;
 	}
 
 	public static function registerRoutes() {
