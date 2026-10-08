@@ -79,7 +79,7 @@ class GallerySlideshow {
 		}
 
 		$caption_side = in_array( $attributes['captionPosition'] ?? '', [ 'left', 'right' ], true ) ? $attributes['captionPosition'] : 'below';
-		$caption_max  = (int) ( $attributes['captionMaxWidth'] ?? 0 );
+		$caption_max  = (int) ( $attributes['captionMaxWidth'] ?? 75 );
 
 		$wrapper = get_block_wrapper_attributes( [
 			'class'                     => 'is-effect-' . ( 'fade' === ( $attributes['effect'] ?? '' ) ? 'fade' : 'slide' ) . ' has-captions-' . $caption_side,

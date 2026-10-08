@@ -62,7 +62,7 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertSame( 'main-gallery', $p->get_attribute( 'data-gallery' ) );
 		$this->assertSame( '1', $p->get_attribute( 'data-gallery-navigation' ) );
 		$this->assertSame( 'smooth', $p->get_attribute( 'data-scroll-behavior' ) );
-		$this->assertSame( '--pp-slideshow-offset:150px;--pp-slideshow-caption-padding:0px', $p->get_attribute( 'style' ) );
+		$this->assertSame( '--pp-slideshow-offset:150px;--pp-slideshow-caption-padding:0px;--pp-slideshow-caption-max-width:75%', $p->get_attribute( 'style' ) );
 		$this->assertTrue( $p->has_class( 'has-captions-below' ) );
 
 		$ids = [];
@@ -112,7 +112,7 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertStringContainsString( '--pp-slideshow-caption-padding:0px', $p->get_attribute( 'style' ) );
 	}
 
-	public function test_caption_max_width_only_when_set(): void {
+	public function test_caption_max_width_75_percent_unless_set(): void {
 
 		$style = function ( array $attributes ) {
 			$p = new \WP_HTML_Tag_Processor( $this->render( $attributes ) );
@@ -121,7 +121,8 @@ final class GallerySlideshowTest extends TestCase {
 		};
 
 		$this->assertStringContainsString( '--pp-slideshow-caption-max-width:60%', $style( [ 'captionMaxWidth' => 60 ] ) );
-		$this->assertStringNotContainsString( 'caption-max-width', $style( [] ) );
+		$this->assertStringContainsString( '--pp-slideshow-caption-max-width:75%', $style( [] ), 'the default' );
+		$this->assertStringNotContainsString( 'caption-max-width', $style( [ 'captionMaxWidth' => 0 ] ), '0 is no limit' );
 		$this->assertStringNotContainsString( 'caption-max-width', $style( [ 'captionMaxWidth' => 100 ] ), '100% is no limit' );
 		$this->assertStringNotContainsString( 'caption-max-width', $style( [ 'captionMaxWidth' => -50 ] ) );
 	}
