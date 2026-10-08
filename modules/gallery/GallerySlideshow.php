@@ -79,6 +79,7 @@ class GallerySlideshow {
 		}
 
 		$caption_side = in_array( $attributes['captionPosition'] ?? '', [ 'left', 'right' ], true ) ? $attributes['captionPosition'] : 'below';
+		$caption_max  = (int) ( $attributes['captionMaxWidth'] ?? 0 );
 
 		$wrapper = get_block_wrapper_attributes( [
 			'class'                     => 'is-effect-' . ( 'fade' === ( $attributes['effect'] ?? '' ) ? 'fade' : 'slide' ) . ' has-captions-' . $caption_side,
@@ -86,7 +87,7 @@ class GallerySlideshow {
 				'--pp-slideshow-offset:%dpx;--pp-slideshow-caption-padding:%dpx',
 				max( 0, (int) ( $attributes['maxHeightOffset'] ?? 0 ) ),
 				max( 0, (int) ( $attributes['captionPadding'] ?? 0 ) )
-			),
+			) . ( $caption_max > 0 && $caption_max < 100 ? sprintf( ';--pp-slideshow-caption-max-width:%d%%', $caption_max ) : '' ),
 			'data-gallery'              => $anchor,
 			'data-autoplay'             => ! empty( $attributes['autoplay'] ) ? '1' : '0',
 			'data-delay'                => (string) max( 1, (float) ( $attributes['delay'] ?? 3 ) ),

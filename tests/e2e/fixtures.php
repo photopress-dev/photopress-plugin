@@ -276,5 +276,7 @@ echo wp_json_encode( [
 		'captions'  => $page( 'E2E: slideshow captions', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"left","captionPadding":10,"galleryNavigation":false} /-->'
 			. '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"right","galleryNavigation":false} /-->'
 			. $gallery( [], 'left-gallery' ) ),
+		'captionWidth' => $page( 'E2E: slideshow caption width', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"width-gallery","captionMaxWidth":50,"galleryNavigation":false} /-->'
+			. $gallery( [], 'width-gallery' ) ),
 	],
 ] );
