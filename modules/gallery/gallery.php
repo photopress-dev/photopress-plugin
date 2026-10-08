@@ -40,6 +40,8 @@ class gallery extends photopress_module {
 			'render_callback' => [ GallerySlideshow::class, 'render' ],
 		] );
 
+		GalleryAdd::addHooks();
+
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
 		add_filter( 'render_block_core/gallery', [ GallerySlideshow::class, 'hideSourceGallery' ], 10, 2 );

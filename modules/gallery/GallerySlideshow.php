@@ -34,7 +34,7 @@ class GallerySlideshow {
 		}
 
 		$gallery = self::findGallery( parse_blocks( $post->post_content ), $anchor );
-		$ids     = $gallery ? self::imageIds( $gallery ) : [];
+		$ids     = $gallery ? self::imageIds( $gallery, $post_id ) : [];
 
 		if ( ! $ids ) {
 			return '';
@@ -244,7 +244,7 @@ class GallerySlideshow {
 		return null;
 	}
 
-	private static function anchorOf( array $block ) {
+	public static function anchorOf( array $block ) {
 
 		if ( ! empty( $block['attrs']['anchor'] ) ) {
 			return (string) $block['attrs']['anchor'];
@@ -258,9 +258,26 @@ class GallerySlideshow {
 	/**
 	 * Attachment ids of a gallery's images, in gallery order.
 	 *
+	 * A dynamic gallery (WordPress 7.1) keeps no images in the post; core
+	 * resolves its source when it renders, and is asked the same way here.
+	 *
+	 * @param array $gallery The parsed core/gallery block.
+	 * @param int   $post_id The post it is in, for a dynamic gallery.
 	 * @return int[]
 	 */
-	public static function imageIds( array $gallery ) {
+	public static function imageIds( array $gallery, $post_id = 0 ) {
+
+		if ( ! empty( $gallery['attrs']['dynamicContent'] ) ) {
+
+			if ( ! $post_id || ! function_exists( 'block_core_gallery_resolve_dynamic_source' ) ) {
+				return [];
+			}
+
+			// Core reads the post from the block's context.
+			$block = (object) [ 'context' => [ 'postId' => (int) $post_id ] ];
+
+			return array_values( array_unique( array_filter( array_map( 'intval', (array) block_core_gallery_resolve_dynamic_source( $gallery['attrs']['dynamicContent'], $block ) ) ) ) );
+		}
 
 		$ids = [];
 

@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\media;
 
+use PhotoPress\modules\gallery\GalleryAdd;
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -16,6 +17,9 @@ use WP_REST_Server;
  *
  * GET /photopress/v1/media/limits gives the size limit WordPress applies
  * to uploads, for checking exports before uploading them.
+ *
+ * GET /photopress/v1 (the namespace index) gives the WordPress and
+ * PhotoPress versions, for clients that depend on either.
  *
  * Everything else such a tool needs is core: finding an earlier upload by
  * file name (GET /wp/v2/media?search=, which searches file names too),
@@ -47,6 +51,27 @@ class MediaRest {
 	public static function addHooks() {
 
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
+		add_filter( 'rest_namespace_index', [ self::class, 'addVersions' ], 10, 2 );
+	}
+
+	/**
+	 * rest_namespace_index: GET /photopress/v1 gives the WordPress and
+	 * PhotoPress versions, after the namespace.
+	 */
+	public static function addVersions( $response, $request ) {
+
+		if ( self::REST_NAMESPACE === $request['namespace'] && $response instanceof \WP_REST_Response ) {
+			$data = $response->get_data();
+			$response->set_data( [
+				'namespace' => $data['namespace'],
+				'versions'  => [
+					'wordpress'  => get_bloginfo( 'version' ),
+					'photopress' => PHOTOPRESS_CORE_VERSION,
+				],
+			] + $data );
+		}
+
+		return $response;
 	}
 
 	public static function registerRoutes() {
@@ -74,6 +99,7 @@ class MediaRest {
 					'type'        => 'boolean',
 					'default'     => false,
 				],
+				GalleryAdd::FIELD   => GalleryAdd::schema()['arg_options'] + array_diff_key( GalleryAdd::schema(), [ 'arg_options' => 1, 'context' => 1 ] ),
 			],
 		] );
 
@@ -333,12 +359,18 @@ class MediaRest {
 			$file_urls[] = $baseurl . '/' . $relative;
 		}
 
-		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [] );
+		// Its parent post too: a dynamic gallery there shows the image without
+		// a link to it in the content.
+		$parent = (int) get_post_field( 'post_parent', $id );
+		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] );
 		self::announceEdit( $id, $file_urls );
 
 		foreach ( array_unique( $posts ) as $post_id ) {
 			self::announceEdit( (int) $post_id );
 		}
+
+		// The gallery, when asked. Never by attaching: the image is published.
+		$gallery = ! empty( $request[ GalleryAdd::FIELD ] ) ? GalleryAdd::add( $id, $request[ GalleryAdd::FIELD ], false ) : null;
 
 		// The image as core returns it, plus what changed.
 		$get = new WP_REST_Request( 'GET', '/wp/v2/media/' . $id );
@@ -357,6 +389,11 @@ class MediaRest {
 			'metadata_reprocessed' => $reprocess,
 			'embedded_synced'      => $synced,
 		];
+
+		if ( null !== $gallery ) {
+			$data[ GalleryAdd::FIELD ] = $gallery;
+		}
+
 		$response->set_data( $data );
 
 		return $response;
@@ -373,7 +410,7 @@ class MediaRest {
 	 *                        Cache Purge's vhp_purge_urls filter; other plugins
 	 *                        ignore it.
 	 */
-	protected static function announceEdit( $id, array $files = [] ) {
+	public static function announceEdit( $id, array $files = [] ) {
 
 		$post = get_post( $id );
 
@@ -533,7 +570,7 @@ class MediaRest {
 
 		if ( '' !== trim( $caption ) ) {
 			$figcaption = '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
-			$html = preg_replace( '#</figure>\s*$#', $figcaption . '</figure>', rtrim( $html ), 1 );
+			$html = preg_replace( '#</figure>(\s*)$#', $figcaption . '</figure>$1', $html, 1 );
 		}
 
 		return $html;

@@ -178,6 +178,24 @@ final class MediaRestTest extends TestCase {
 		$this->assertSame( [ 'image_size_threshold' => 2560 ], MediaRest::limits()->get_data() );
 	}
 
+	public function test_the_namespace_index_gives_the_versions(): void {
+
+		Functions\when( 'get_bloginfo' )->alias( static fn( $show ) => 'version' === $show ? '7.1.3' : '' );
+
+		$index = static function ( $namespace ) {
+			$request = new \WP_REST_Request( 'GET', "/$namespace" );
+			$request->set_param( 'namespace', $namespace );
+			return MediaRest::addVersions( new \WP_REST_Response( [ 'namespace' => $namespace, 'routes' => [] ] ), $request )->get_data();
+		};
+
+		$this->assertSame( [
+			'namespace' => 'photopress/v1',
+			'versions'  => [ 'wordpress' => '7.1.3', 'photopress' => 'test' ],
+			'routes'    => [],
+		], $index( 'photopress/v1' ) );
+		$this->assertSame( [ 'namespace' => 'wp/v2', 'routes' => [] ], $index( 'wp/v2' ) );
+	}
+
 	public function test_limits_need_upload_rights(): void {
 
 		Functions\when( 'current_user_can' )->alias( static fn( $cap ) => 'upload_files' === $cap );

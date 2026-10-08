@@ -41,7 +41,9 @@ function pp_fixture_delete_posts( array $ids ) {
 
 		$post = get_post( (int) $id );
 
-		if ( ! $post || ! get_post_meta( $post->ID, PP_FIXTURE_META, true ) ) {
+		$upload = $post && 'attachment' === $post->post_type && 0 === strpos( wp_basename( (string) get_post_meta( $post->ID, '_wp_attached_file', true ) ), 'pp-fixture-upload-' );
+
+		if ( ! $post || ! ( $upload || get_post_meta( $post->ID, PP_FIXTURE_META, true ) ) ) {
 			continue;
 		}
 
@@ -71,6 +73,23 @@ function pp_fixture_delete_terms( array $term_ids ) {
  * a replacement keeps (see MediaRest). Every fixture file name starts with
  * pp-fixture-.
  */
+/**
+ * Images the specs upload themselves (as a publishing tool would) cannot be
+ * given the fixture meta, so they are named pp-fixture-upload-*.
+ */
+function pp_fixture_uploads( $older_than = 0 ) {
+
+	global $wpdb;
+
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+	return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+		"SELECT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = '_wp_attached_file'
+		WHERE p.post_type = 'attachment' AND m.meta_value LIKE %s AND p.post_date_gmt < %s",
+		'%/pp-fixture-upload-%',
+		gmdate( 'Y-m-d H:i:s', time() - $older_than )
+	) ) );
+}
+
 function pp_fixture_delete_files( $older_than = 0 ) {
 
 	$basedir = wp_get_upload_dir()['basedir'];
@@ -86,7 +105,7 @@ function pp_fixture_delete_files( $older_than = 0 ) {
 if ( 'delete' === $pp_action ) {
 
 	$made = json_decode( $args[1] ?? '', true ) ?: [];
-	pp_fixture_delete_posts( array_merge( array_values( $made['pages'] ?? [] ), $made['images'] ?? [], array_values( $made['replace'] ?? [] ) ) );
+	pp_fixture_delete_posts( array_merge( array_values( $made['pages'] ?? [] ), $made['images'] ?? [], array_values( $made['replace'] ?? [] ), pp_fixture_uploads() ) );
 	pp_fixture_delete_terms( $made['terms'] ?? [] );
 	pp_fixture_delete_files();
 
@@ -106,6 +125,7 @@ if ( 'sweep' === $pp_action ) {
 		'date_query'     => [ [ 'before' => '1 hour ago' ] ],
 	] );
 
+	$stale = array_merge( $stale, pp_fixture_uploads( HOUR_IN_SECONDS ) );
 	$terms = get_option( '_pp_test_fixture_terms', [] );
 	pp_fixture_delete_posts( $stale );
 	pp_fixture_delete_files( HOUR_IN_SECONDS );
@@ -234,6 +254,25 @@ echo wp_json_encode( [
 		'lightbox'  => $page( 'E2E: lightbox', $gallery( [ 'photopressSlideshow' => true ] ) ),
 		'slideshowLandscapeFirst' => $page( 'E2E: gallery slideshow, landscape first', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"landscape-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'landscape-gallery', $landscape_blocks ) ),
 		'hidden'    => $page( 'E2E: hidden gallery', $gallery( [], 'hidden-gallery' ) . '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"hidden-gallery","hideGallery":true} /-->' ),
+		// Galleries for the new image to take the format of: images linked
+		// to their files, with captions, the last resized and cropped; and
+		// images that open in the lightbox.
+		'addStatic'  => $page( 'E2E: add to a static gallery', sprintf(
+			'<!-- wp:gallery {"linkTo":"media","anchor":"linked"} --><figure class="wp-block-gallery has-nested-images columns-default is-cropped" id="linked">'
+			. '<!-- wp:image {"id":%1$d,"sizeSlug":"large","linkDestination":"media"} --><figure class="wp-block-image size-large"><a href="%2$s"><img src="%3$s" alt="" class="wp-image-%1$d"/></a><figcaption class="wp-element-caption">Caption written in the post</figcaption></figure><!-- /wp:image -->'
+			. '<!-- wp:image {"id":%4$d,"width":"300px","aspectRatio":"1","scale":"cover","sizeSlug":"large","linkDestination":"media"} --><figure class="wp-block-image size-large is-resized"><a href="%5$s"><img src="%6$s" alt="" class="wp-image-%4$d" style="aspect-ratio:1;object-fit:cover;width:300px;height:auto"/></a><figcaption class="wp-element-caption">Another</figcaption></figure><!-- /wp:image -->'
+			. '</figure><!-- /wp:gallery -->'
+			. '<!-- wp:gallery {"linkTo":"none","anchor":"expand"} --><figure class="wp-block-gallery has-nested-images columns-default is-cropped" id="expand">'
+			. '<!-- wp:image {"lightbox":{"enabled":true},"id":%1$d,"sizeSlug":"large","linkDestination":"none"} --><figure class="wp-block-image size-large"><img src="%3$s" alt="" class="wp-image-%1$d"/></figure><!-- /wp:image -->'
+			. '</figure><!-- /wp:gallery -->',
+			$images['01-portrait-2x3'],
+			esc_url( wp_get_attachment_url( $images['01-portrait-2x3'] ) ),
+			esc_url( wp_get_attachment_image_url( $images['01-portrait-2x3'], 'large' ) ),
+			$images['02-landscape-3x2'],
+			esc_url( wp_get_attachment_url( $images['02-landscape-3x2'] ) ),
+			esc_url( wp_get_attachment_image_url( $images['02-landscape-3x2'], 'large' ) )
+		) ),
+		'addDynamic' => $page( 'E2E: add to a dynamic gallery', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"dynamic"} /--><!-- wp:gallery {"anchor":"dynamic","dynamicContent":{"source":"core/attached-media"}} /-->' ),
 		'captions'  => $page( 'E2E: slideshow captions', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"left","captionPadding":10,"galleryNavigation":false} /-->'
 			. '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"left-gallery","captionPosition":"right","galleryNavigation":false} /-->'
 			. $gallery( [], 'left-gallery' ) ),

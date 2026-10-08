@@ -36,6 +36,13 @@ if ( ! defined( 'PHOTOPRESS_CORE_PATH' ) ) {
 	define('PHOTOPRESS_CORE_PATH', plugin_dir_path( __FILE__ ) );
 }
 
+// The plugin's version, from the Version header above: the one place it is
+// written. The deploy workflow checks it against the release tag.
+if ( ! defined( 'PHOTOPRESS_CORE_VERSION' ) ) {
+
+	define( 'PHOTOPRESS_CORE_VERSION', get_file_data( __FILE__, [ 'Version' => 'Version' ] )['Version'] );
+}
+
 // Define the path to the PhotoPress Framework. This is used by other plugins
 if ( ! defined( 'PHOTOPRESS_FRAMEWORK_PATH' ) ) {
 	
@@ -87,7 +94,7 @@ class photopress_plugin {
 					array(
 						'package_name'			=> 'core',
 						'package_label'			=> 'PhotoPress',
-						'version'				=> '1.7.3',
+						'version'				=> PHOTOPRESS_CORE_VERSION,
 						'modules'				=> ['base', 'childpages', 'gallery', 'slideshow', 'metadata', 'media'],
 						'dependencies'			=> []
 					)
