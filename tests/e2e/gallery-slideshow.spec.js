@@ -282,6 +282,36 @@ test.describe( 'caption position', () => {
 
 		expect( ( await layout( page ) ).map( ( l ) => l.side ) ).toEqual( [ 'below', 'below' ] );
 	} );
+
+	// Set to 50%: half the slideshow's width, centred, but never narrower
+	// than 24em, or the full width where that is less.
+	test( 'max width: a share of the slideshow, the full width on a phone', async ( { page, made } ) => {
+		const widths = () => page.locator( ROOT ).evaluate( ( root ) => {
+			const caption = root.querySelector( '.photopress-gallery-slideshow__slide.is-current figcaption' );
+			const box = caption.getBoundingClientRect();
+			const frame = root.getBoundingClientRect();
+			return {
+				slideshow: frame.width,
+				caption: box.width,
+				em: parseFloat( getComputedStyle( caption ).fontSize ),
+				offCentre: Math.abs( ( box.left + box.right ) / 2 - ( frame.left + frame.right ) / 2 ),
+			};
+		} );
+
+		for ( const [ width, height ] of [ [ 1280, 900 ], [ 768, 1024 ], [ 390, 844 ] ] ) {
+			await page.setViewportSize( { width, height } );
+			await page.goto( `/?page_id=${ made.pages.captionWidth }&preview=true` );
+			const w = await widths();
+			const expected = Math.max( w.slideshow / 2, Math.min( w.slideshow, 24 * w.em ) );
+			expect( Math.abs( w.caption - expected ), `${ width }x${ height }: ${ w.caption }px in ${ w.slideshow }px` ).toBeLessThanOrEqual( 1 );
+			expect( w.offCentre, `${ width }x${ height }` ).toBeLessThanOrEqual( 1 );
+			if ( width === 390 ) {
+				expect( w.caption, 'full width on a phone' ).toBeGreaterThanOrEqual( w.slideshow - 1 );
+			} else {
+				expect( w.caption, `${ width }x${ height }: narrower than the slideshow` ).toBeLessThan( w.slideshow - 1 );
+			}
+		}
+	} );
 } );
 
 test( 'Hide the gallery: visitors see only the slideshow, which still has every image', async ( { page, made } ) => {

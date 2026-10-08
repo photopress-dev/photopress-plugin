@@ -112,6 +112,20 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertStringContainsString( '--pp-slideshow-caption-padding:0px', $p->get_attribute( 'style' ) );
 	}
 
+	public function test_caption_max_width_only_when_set(): void {
+
+		$style = function ( array $attributes ) {
+			$p = new \WP_HTML_Tag_Processor( $this->render( $attributes ) );
+			$p->next_tag();
+			return $p->get_attribute( 'style' );
+		};
+
+		$this->assertStringContainsString( '--pp-slideshow-caption-max-width:60%', $style( [ 'captionMaxWidth' => 60 ] ) );
+		$this->assertStringNotContainsString( 'caption-max-width', $style( [] ) );
+		$this->assertStringNotContainsString( 'caption-max-width', $style( [ 'captionMaxWidth' => 100 ] ), '100% is no limit' );
+		$this->assertStringNotContainsString( 'caption-max-width', $style( [ 'captionMaxWidth' => -50 ] ) );
+	}
+
 	public function test_hide_the_gallery_hides_only_the_galleries_it_names(): void {
 
 		// Post 6: the slideshow after the gallery it hides, in a column, and

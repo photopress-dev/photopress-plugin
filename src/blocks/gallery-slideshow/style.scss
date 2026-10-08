@@ -85,9 +85,13 @@ $speed: 0.3s;
 		flex: none;
 	}
 
+	// The Caption max width setting, a share of the slideshow's width, but
+	// never narrower than about 50 characters (24em), or the full width where
+	// that is less, so phones keep full-width captions. Centred.
 	.photopress-gallery-slideshow__caption {
 		box-sizing: border-box;
 		width: 100%;
+		max-width: max(var(--pp-slideshow-caption-max-width, 100%), min(100%, 24em));
 		margin-top: 12px;
 		margin-bottom: 0;
 		padding: var(--pp-slideshow-caption-padding, 0);

@@ -46,10 +46,13 @@ export function uniqueAnchor( galleries ) {
 }
 
 export default function Edit( { attributes, setAttributes } ) {
-	const { galleryAnchor, hideGallery, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, galleryNavigation, scrollBehavior } = attributes;
+	const { galleryAnchor, hideGallery, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, captionMaxWidth, galleryNavigation, scrollBehavior } = attributes;
 	const blockProps = useBlockProps( {
 		className: `is-effect-${ effect } has-captions-${ captionPosition }`,
-		style: { '--pp-slideshow-caption-padding': `${ captionPadding }px` },
+		style: {
+			'--pp-slideshow-caption-padding': `${ captionPadding }px`,
+			...( captionMaxWidth > 0 && captionMaxWidth < 100 && { '--pp-slideshow-caption-max-width': `${ captionMaxWidth }%` } ),
+		},
 	} );
 	const { updateBlockAttributes } = useDispatch( blockEditorStore );
 
@@ -215,6 +218,16 @@ export default function Edit( { attributes, setAttributes } ) {
 								min={ 0 }
 								max={ 100 }
 								onChange={ ( value ) => setAttributes( { captionPadding: value ?? 0 } ) }
+							/>
+							<RangeControl
+								__nextHasNoMarginBottom
+								label={ __( 'Caption max width (%)' ) }
+								help={ __( 'Of the slideshow\'s width; 0 for no limit. Captions stay about 50 characters wide, or the full width on a phone.' ) }
+								value={ captionMaxWidth }
+								min={ 0 }
+								max={ 100 }
+								step={ 5 }
+								onChange={ ( value ) => setAttributes( { captionMaxWidth: value ?? 0 } ) }
 							/>
 						</>
 					) }
