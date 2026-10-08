@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\media;
 
+use PhotoPress\modules\gallery\GalleryAdd;
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -74,6 +75,7 @@ class MediaRest {
 					'type'        => 'boolean',
 					'default'     => false,
 				],
+				GalleryAdd::FIELD   => GalleryAdd::schema()['arg_options'] + array_diff_key( GalleryAdd::schema(), [ 'arg_options' => 1, 'context' => 1 ] ),
 			],
 		] );
 
@@ -333,12 +335,18 @@ class MediaRest {
 			$file_urls[] = $baseurl . '/' . $relative;
 		}
 
-		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [] );
+		// Its parent post too: a dynamic gallery there shows the image without
+		// a link to it in the content.
+		$parent = (int) get_post_field( 'post_parent', $id );
+		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] );
 		self::announceEdit( $id, $file_urls );
 
 		foreach ( array_unique( $posts ) as $post_id ) {
 			self::announceEdit( (int) $post_id );
 		}
+
+		// The gallery, when asked. Never by attaching: the image is published.
+		$gallery = ! empty( $request[ GalleryAdd::FIELD ] ) ? GalleryAdd::add( $id, $request[ GalleryAdd::FIELD ], false ) : null;
 
 		// The image as core returns it, plus what changed.
 		$get = new WP_REST_Request( 'GET', '/wp/v2/media/' . $id );
@@ -357,6 +365,11 @@ class MediaRest {
 			'metadata_reprocessed' => $reprocess,
 			'embedded_synced'      => $synced,
 		];
+
+		if ( null !== $gallery ) {
+			$data[ GalleryAdd::FIELD ] = $gallery;
+		}
+
 		$response->set_data( $data );
 
 		return $response;
@@ -373,7 +386,7 @@ class MediaRest {
 	 *                        Cache Purge's vhp_purge_urls filter; other plugins
 	 *                        ignore it.
 	 */
-	protected static function announceEdit( $id, array $files = [] ) {
+	public static function announceEdit( $id, array $files = [] ) {
 
 		$post = get_post( $id );
 
@@ -533,7 +546,7 @@ class MediaRest {
 
 		if ( '' !== trim( $caption ) ) {
 			$figcaption = '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
-			$html = preg_replace( '#</figure>\s*$#', $figcaption . '</figure>', rtrim( $html ), 1 );
+			$html = preg_replace( '#</figure>(\s*)$#', $figcaption . '</figure>$1', $html, 1 );
 		}
 
 		return $html;
