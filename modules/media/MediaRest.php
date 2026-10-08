@@ -19,7 +19,8 @@ use WP_REST_Server;
  * to uploads, for checking exports before uploading them.
  *
  * GET /photopress/v1 (the namespace index) gives the WordPress and
- * PhotoPress versions, for clients that depend on either.
+ * PhotoPress versions to users who can upload, for clients that depend on
+ * either.
  *
  * Everything else such a tool needs is core: finding an earlier upload by
  * file name (GET /wp/v2/media?search=, which searches file names too),
@@ -56,11 +57,12 @@ class MediaRest {
 
 	/**
 	 * rest_namespace_index: GET /photopress/v1 gives the WordPress and
-	 * PhotoPress versions, after the namespace.
+	 * PhotoPress versions, after the namespace. Only to users who can upload:
+	 * the index is public, and versions tell an attacker what to try.
 	 */
 	public static function addVersions( $response, $request ) {
 
-		if ( self::REST_NAMESPACE === $request['namespace'] && $response instanceof \WP_REST_Response ) {
+		if ( self::REST_NAMESPACE === $request['namespace'] && $response instanceof \WP_REST_Response && current_user_can( 'upload_files' ) ) {
 			$data = $response->get_data();
 			$response->set_data( [
 				'namespace' => $data['namespace'],
