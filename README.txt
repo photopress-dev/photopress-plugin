@@ -6,8 +6,8 @@ Tags: photos, images, gallery, gallery block, masonry, meta-data, photopress, im
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
-Tested up to: 7.0
-Stable tag: 1.7.3
+Tested up to: 7.1
+Stable tag: 1.8.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -63,6 +63,26 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 5. Embed Licensing meta-data into uploaded images
 
 == Changelog ==
+
+= 1.8.0 =
+
+* Gallery Slideshow: a Caption max width setting, a share of the
+  slideshow's width, 75% by default. Captions stay at least about 50
+  characters wide, and the full width on phones. Existing slideshows get
+  the default; set it to 0 for captions as wide as the slideshow. Where the
+  window's height limits an image, the image gives up the height a
+  narrower caption needs.
+* Gallery Slideshow: works with dynamic galleries (WordPress 7.1), showing
+  the images attached to the post.
+* Meta-data tab: "Re-read image metadata" re-reads every image's
+  taxonomies, alt text and description from its file. It runs in the
+  background in batches, with its progress and a Cancel button on the tab.
+* Offload Media tab, where WP Offload Media is installed: its status, where
+  files are stored and served from, how long browsers and the CDN keep
+  offloaded images (by default 1 day, then 1 hour while checking for a new
+  one), and a button to clear the CloudFront cache.
+* Fixed: the Slideshow tab had no Caption Padding field, and the Meta-data
+  tab no Description template field.
 
 = 1.7.3 =
 
