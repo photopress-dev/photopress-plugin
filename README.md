@@ -13,48 +13,94 @@ Our development motto is "do no harm" which means that we leverage the patterns 
 
 ## Features
 
-### Gallery Block 
+### Gallery Layouts
 
-[![PHOTOPRESS Gallery Block](https://github.com/photopress-dev/photopress-plugin/blob/master/.wordpress-org/screenshot-1.gif)](https://wordpress.org/plugins/photopress/)
+Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block variations:
 
-- Native Gutenberg with live editing
-- Grid style
-- Masonry style
-- Justified style
-- Mosaic Style
-- Adjustable gutter spacing
-- Uniform image cropping option
+- Masonry: columns of a width you set, each image at its own height
+- Rows: rows of a height you set, each image at its own width
+- Mosaic: rows that fill the gallery's width, each image at its own proportions
+- They look the same in the editor as on the site
+- Open the full-screen slideshow when an image is clicked
 - Hide captions option
-- Adjustable image heights/column widths
-- Inline image reordering
-- Dynamic responsive images
-- Link to PhotoPress slideshow
+
+![Masonry layout](.wordpress-org/screenshot-1.png)
+
+![Rows layout](.wordpress-org/screenshot-2.png)
+
+![Mosaic layout](.wordpress-org/screenshot-3.png)
+
+### Full-Screen Slideshow
+
+- Opens over the whole window on the image that was clicked
+- Click the right half for the next image, the left half for the previous one; the arrow keys work too
+- Thumbnail navigation option, with adjustable height
+- Configurable caption display (image title, caption and/or description, and a link to the attachment page)
+- Caption box below or to the right of the image, with adjustable padding
+
+![Full-screen slideshow](.wordpress-org/screenshot-4.gif)
+
+![Slideshow settings](.wordpress-org/screenshot-5.png)
+
+### Gallery Slideshow Block
+
+- A slideshow of a gallery on the same page, placed anywhere on the page
+- Clicking an image in the gallery shows it in the slideshow
+- Press the right side of the slideshow for the next image, the left side for the previous one
+- Slide or fade transitions, and autoplay
+- Fits the window's height, less an offset you set
+- Captions below, left or right of the image, with adjustable padding
+- Caption max width, a share of the slideshow's width (75% by default) that keeps the full width on phones
+- Option to hide the gallery and show only the slideshow
+- Works with dynamic galleries (WordPress 7.1)
+
+![Gallery Slideshow block](.wordpress-org/screenshot-6.gif)
+
+![Caption max width on a desktop and a phone](.wordpress-org/screenshot-7.png)
 
 ### Child Pages Block
 
 - Dynamic Gutenberg Block
-- Create an gallery of child pages (useful as an index of gallery pages)
+- Create a gallery of child pages, from their featured images (useful as an index of gallery pages)
+
+![Child Pages block](.wordpress-org/screenshot-8.png)
 
 ### Meta-Data
 
 - Define unlimited custom image taxonomies
 - Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonomies
 - Create and extract "child taxonomies" from embedded meta-data fields
+- Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 - Display Exif Widget
 - Display Image Taxonomy Terms Widget
 - Generate custom image ALT text using meta-data templates
+- Generate image descriptions using meta-data templates
 - Embed Licensing info (Licensor, Licensor URL, Web Statement of Rights) into images files during upload
+- Re-read the meta-data of every image in the background, with its progress on the settings page, after changing taxonomies or templates
 
-### Slideshows
+![Image Taxonomies block](.wordpress-org/screenshot-9.png)
 
-- Light-boxed full page slideshows
-- Thumbnail navigation option
-- configurable caption display (can use image title, caption, and/or description)
-- Two caption layouts
+![Custom image taxonomies](.wordpress-org/screenshot-10.png)
+
+![Alt text and description templates](.wordpress-org/screenshot-11.png)
+
+![Licensing](.wordpress-org/screenshot-12.png)
+
+![Re-reading image meta-data](.wordpress-org/screenshot-13.png)
+
+### Offload Media
+
+With [WP Offload Media](https://wordpress.org/plugins/amazon-s3-and-cloudfront/) installed, the Offload Media settings tab shows:
+
+- Whether Offload Media is active, and where images are stored and served from
+- How long browsers and the CDN keep offloaded images (by default 1 day, then 1 hour while checking for a new one)
+- A button to clear the CloudFront cache
+
+![The Offload Media tab](.wordpress-org/screenshot-14.png)
 
 ## Requirements
 
-* WordPress 5.2.0
+* WordPress 6.6
 * PHP 7.0+
 
 The plugin is coded to work on PHP 5.6+, but only 7.0+ is officially supported.
@@ -70,14 +116,8 @@ To contribute to PhotoPress you need to:
 1. Clone the repository
 2. Download and install [Composer](https://getcomposer.org/) for managing PHP dependencies.
 3. Run `composer install`
-4. Download NPM for building the plugin src
-5. Run `npm start` in the `src/` directory
-
-## Purchase or donate
-
-PhotoPress is free.  However, we ask that you purchase a support membership at [PhotoPress](http://photopressdev.com).  Even if you don't need the support, this purchase helps fund the development of this project.
-
-[Donations to the project](http://paypal.me/padams) are also appreciated.
+4. Install [Node.js](https://nodejs.org/) 22 or later
+5. Run `npm install`, then `npm run build` (or `npm start` to rebuild as you edit)
 
 ## Documentation
 
