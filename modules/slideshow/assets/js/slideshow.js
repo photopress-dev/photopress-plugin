@@ -280,6 +280,17 @@ photopress.slideshow.prototype = {
 			this.displaySlideLoader();
 		}
 		
+		// The full image at the preview's size. Its width is auto, so it is
+		// laid out at its sizes, which the browser also picks its file by:
+		// the width the slide shows it at, no larger than the image itself.
+		// Worked out from the window alone, as above, an image smaller than
+		// the slide was enlarged. That stays only until the slide is laid out.
+		let shown = this.slideWidth( aspectratio, this.fullWidthOf( jQuery(img).data('id') ) );
+		
+		if ( shown ) {
+			i.sizes = `${ Math.round( shown ) }px`;
+		}
+		
 		jQuery(i).on('error', function() {
 			
 			if ( request === that.slideRequest ) {
@@ -376,6 +387,24 @@ photopress.slideshow.prototype = {
 	sizePreview: function( preview, aspectratio, fullWidth ) {
 		
 		let ratio = parseFloat( aspectratio ) || ( preview.naturalWidth / preview.naturalHeight );
+		let width = this.slideWidth( ratio, fullWidth );
+		
+		if ( ! width ) {
+			return;
+		}
+		
+		// Not shrunk to make room for the details: the full image is not.
+		jQuery(preview).css( { width: Math.round( width ) + 'px', height: Math.round( width / ratio ) + 'px', 'flex-shrink': 0 } );
+	},
+	
+	/**
+	 * The width a slide shows an image at: as large as fits the slide,
+	 * keeping its shape, and no larger than the image itself. Null before
+	 * the slide is laid out.
+	 */
+	slideWidth: function( aspectratio, fullWidth ) {
+		
+		let ratio = parseFloat( aspectratio );
 		let center = jQuery('.panels .center');
 		// The full image takes the whole width even with the details on the
 		// right, which then wrap beside it.
@@ -383,13 +412,10 @@ photopress.slideshow.prototype = {
 		let height = center.height();
 		
 		if ( width <= 0 || height <= 0 || ! ratio ) {
-			return;
+			return null;
 		}
 		
-		width = Math.min( width, height * ratio, fullWidth || Infinity );
-		
-		// Not shrunk to make room for the details: the full image is not.
-		jQuery(preview).css( { width: Math.round( width ) + 'px', height: Math.round( width / ratio ) + 'px', 'flex-shrink': 0 } );
+		return Math.min( width, height * ratio, fullWidth || Infinity );
 	},
 	
 	/**
