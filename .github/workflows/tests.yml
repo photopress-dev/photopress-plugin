@@ -17,8 +17,10 @@ jobs:
     - uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php }}
-        extensions: dom, exif
+        extensions: dom, exif, gd, imagick
         coverage: none
+    - name: ExifTool, for checking the files XmpFile writes
+      run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends libimage-exiftool-perl
     - name: Composer
       run: composer install --no-interaction --no-progress
     - name: PHPUnit

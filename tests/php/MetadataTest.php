@@ -93,6 +93,74 @@ final class MetadataTest extends TestCase {
 		$this->upload( '[photoshop:Headline].', [] );
 	}
 
+	public function test_the_licence_is_written_into_a_jpeg_without_re_encoding_it(): void {
+
+		Functions\stubs( [ 'is_wp_error' => static fn( $thing ) => $thing instanceof \WP_Error ] );
+		\pp_api::$options = [
+			'core/metadata/web_statement_of_rights' => 'https://example.test/licence',
+			'core/metadata/licensor_name'           => 'Alice Photography',
+			'core/metadata/licensor_url'            => 'https://alice.example',
+		];
+
+		$im = imagecreatetruecolor( 40, 30 );
+		ob_start();
+		imagejpeg( $im, null, 90 );
+		$jpeg = ob_get_clean();
+
+		// Capture One's packet, after the JFIF segment.
+		$segment = "http://ns.adobe.com/xap/1.0/\0" . file_get_contents( __DIR__ . '/fixtures/xmp/capture-one.xml' );
+		$jfif = 4 + unpack( 'n', substr( $jpeg, 4, 2 ) )[1];
+		$file = $this->tempFile( substr( $jpeg, 0, $jfif ) . "\xFF\xE1" . pack( 'n', strlen( $segment ) + 2 ) . $segment . substr( $jpeg, $jfif ) );
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$this->assertNull( $m->embedLicense( null, [ 'tmp_name' => $file ], $file, 'image/jpeg' ) );
+
+		$after = file_get_contents( $file );
+		$length = 2 + unpack( 'n', substr( $after, $jfif + 2, 2 ) )[1];
+		$this->assertSame( $jpeg, substr( $after, 0, $jfif ) . substr( $after, $jfif + $length ), 'only the XMP segment changed' );
+
+		$md = new XmpReader();
+		$md->loadFromFile( $file );
+		$this->assertSame( 'https://example.test/licence', $md->getXmp( 'xmpRights:WebStatement' ) );
+		$this->assertSame( [ 'plus:LicensorName' => 'Alice Photography', 'plus:LicensorURL' => 'https://alice.example' ], $md->getXmp( 'plus:Licensor' ) );
+		$this->assertSame( 'Bob', $md->getXmp( 'dc:title' ), 'the packet it had is kept' );
+		$this->assertSame( 'IQ4 150MP', $md->getXmp( 'tiff:Model' ) );
+	}
+
+	private static function mergeLicence( string $existing, string $statement, string $name = '', string $url = '' ): string {
+
+		$merge = new \ReflectionMethod( metadata::class, 'mergeLicenceIntoXmp' );
+		$merge->setAccessible( true );
+
+		return $merge->invoke( null, $existing, $statement, $name, $url );
+	}
+
+	public function test_a_web_statement_written_as_an_attribute_is_replaced_not_duplicated(): void {
+
+		$existing = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+			. '<rdf:Description rdf:about="" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmpRights:Marked="True" xmpRights:WebStatement="https://old.example"/>'
+			. '</rdf:RDF></x:xmpmeta>';
+
+		$packet = self::mergeLicence( $existing, 'https://example.test/licence' );
+
+		$this->assertSame( 1, substr_count( $packet, 'WebStatement' ) - substr_count( $packet, '</xmpRights:WebStatement' ) );
+		$this->assertStringNotContainsString( 'old.example', $packet );
+		$this->assertSame( 'https://example.test/licence', ( new XmpReader() )->parsePacket( $packet )['xmpRights:WebStatement'] );
+		$this->assertSame( 'True', ( new XmpReader() )->parsePacket( $packet )['xmpRights:Marked'] );
+	}
+
+	public function test_a_property_with_no_setting_keeps_the_files_value(): void {
+
+		$existing = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+			. '<rdf:Description rdf:about="" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmpRights:WebStatement="https://photographer.example"/>'
+			. '</rdf:RDF></x:xmpmeta>';
+
+		$md = ( new XmpReader() )->parsePacket( self::mergeLicence( $existing, '', 'Alice Photography', 'https://alice.example' ) );
+
+		$this->assertSame( 'https://photographer.example', $md['xmpRights:WebStatement'] );
+		$this->assertSame( [ [ 'plus:LicensorName' => 'Alice Photography', 'plus:LicensorURL' => 'https://alice.example' ] ], $md['plus:Licensor'] );
+	}
+
 	public function test_media_library_attributes_do_not_override_the_blocks_own(): void {
 
 		$m = $this->getMockBuilder( metadata::class )

@@ -567,11 +567,23 @@ class XmpReader {
 		$packets = null;
 
 		if ( $this->readBytes( $fh, 2 ) === "\xFF\xD8" ) {
+
 			$packets = $this->readJpegPackets( $fh );
+
+		} elseif ( stream_is_local( $fh ) ) {
+
+			// Another format: from where the format keeps it (XmpFile), which
+			// also reads compressed packets. Local files only, as it seeks
+			// about the file.
+			$packet = XmpFile::read( $file );
+
+			if ( is_string( $packet ) && '' !== $packet ) {
+				$packets = [ 'main' => $packet, 'extended' => [], 'complete' => true ];
+			}
 		}
 
-		// Not a JPEG, or one whose segments could not be followed to the image
-		// data: search the file instead.
+		// Not one of those formats, or one whose structure could not be
+		// followed: search the file instead.
 		if ( ! $packets || ( ! $packets['main'] && ! $packets['complete'] ) ) {
 			rewind( $fh );
 			$packets = [ 'main' => $this->scanForPacket( $fh ), 'extended' => [] ];
