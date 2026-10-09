@@ -150,11 +150,47 @@ class gallery extends photopress_module {
 
 		wp_enqueue_style( 'photopress-frontend' );
 
-		if ( $layout && 'rows' !== $layout ) {
-			$this->enqueueLayoutScript();
+		if ( ! in_array( $layout, [ 'masonry', 'mosaic' ], true ) ) {
+			return $p->get_updated_html();
 		}
 
-		return $p->get_updated_html();
+		$this->enqueueLayoutScript();
+
+		return $this->inlineLayout( $p->get_updated_html() );
+	}
+
+	/**
+	 * The gallery with the scripts that lay it out before the page is first
+	 * painted with it (src/frontend/gallery-layouts-inline.js), so it does
+	 * not move when the page's scripts run.
+	 *
+	 * Before the first such gallery on the page: the layout code, and the
+	 * photopress-js class on <html>, under which the CSS keeps a gallery
+	 * hidden until it is laid out (the browser may paint before the script
+	 * after a gallery runs). After each gallery: a call that lays it out and
+	 * shows it.
+	 */
+	private function inlineLayout( $gallery ) {
+
+		static $printed = false;
+
+		if ( is_feed() ) {
+			return $gallery;
+		}
+
+		$before = '';
+
+		if ( ! $printed ) {
+			$file = dirname( dirname( __DIR__ ) ) . '/dist/gallery-layouts-inline.build.js';
+			$code = is_readable( $file ) ? trim( (string) file_get_contents( $file ) ) : '';
+
+			if ( '' !== $code ) {
+				$before  = wp_get_inline_script_tag( "document.documentElement.classList.add('photopress-js');\n" . $code );
+				$printed = true;
+			}
+		}
+
+		return $before . $gallery . wp_get_inline_script_tag( 'window.photopressLayout&&photopressLayout(document.currentScript.previousElementSibling);' );
 	}
 
 	/**
@@ -181,7 +217,8 @@ class gallery extends photopress_module {
 	}
 
 	/**
-	 * The script that runs masonry and mosaic; see src/frontend/gallery-layouts.js.
+	 * The script that keeps masonry and mosaic galleries laid out as their
+	 * width changes; see src/frontend/gallery-layouts.js. Rows is CSS alone.
 	 */
 	private function enqueueLayoutScript() {
 
@@ -190,7 +227,7 @@ class gallery extends photopress_module {
 		wp_enqueue_script(
 			'photopress-gallery-layouts',
 			plugins_url( 'dist/gallery-layouts.build.js', dirname( dirname( __FILE__ ) ) ),
-			array_unique( array_merge( [ 'masonry' ], $asset['dependencies'] ) ),
+			$asset['dependencies'],
 			$asset['version'],
 			true
 		);

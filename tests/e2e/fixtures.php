@@ -252,6 +252,10 @@ echo wp_json_encode( [
 	'pages'  => [
 		'slideshow' => $page( 'E2E: gallery slideshow', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"main-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'main-gallery' ) ),
 		'lightbox'  => $page( 'E2E: lightbox', $gallery( [ 'photopressSlideshow' => true ] ) ),
+		// A paragraph after each, which moves if the gallery's height changes.
+		'masonry'   => $page( 'E2E: masonry', $gallery( [ 'photopressLayout' => 'masonry', 'photopressColumnWidth' => 250 ] ) . '<!-- wp:paragraph --><p id="after">After the gallery.</p><!-- /wp:paragraph -->' ),
+		'mosaic'    => $page( 'E2E: mosaic', $gallery( [ 'photopressLayout' => 'mosaic', 'photopressRowHeight' => 200 ] ) . '<!-- wp:paragraph --><p id="after">After the gallery.</p><!-- /wp:paragraph -->' ),
+		'rows'      => $page( 'E2E: rows', $gallery( [ 'photopressLayout' => 'rows', 'photopressRowHeight' => 200 ] ) . '<!-- wp:paragraph --><p id="after">After the gallery.</p><!-- /wp:paragraph -->' ),
 		'slideshowLandscapeFirst' => $page( 'E2E: gallery slideshow, landscape first', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"landscape-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'landscape-gallery', $landscape_blocks ) ),
 		'hidden'    => $page( 'E2E: hidden gallery', $gallery( [], 'hidden-gallery' ) . '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"hidden-gallery","hideGallery":true} /-->' ),
 		// Galleries for the new image to take the format of: images linked

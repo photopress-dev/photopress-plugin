@@ -1,13 +1,16 @@
 /**
- * Masonry for the PhotoPress layouts on core/gallery.
+ * Masonry for the PhotoPress layouts on core/gallery: each image in turn goes
+ * at the foot of the shortest column, as the masonry-layout library places
+ * them, but without the library, so that it can also run inline, as soon as
+ * a gallery's markup is parsed (src/frontend/gallery-layouts-inline.js): the
+ * gallery is laid out before the browser first paints it, and nothing moves
+ * when the rest of the page's scripts run.
  *
- * Imported by both the editor (src/variations/gallery-layouts.js) and the front
- * end (src/frontend/gallery-layouts.js) so that both place images identically.
- *
- * Masonry is WordPress's bundled masonry-layout, taken from the window that owns
- * the gallery. In the editor that is the canvas iframe: masonry-layout keeps only
- * elements that pass `instanceof HTMLElement` against its own window, so a copy
- * from the parent window would discard every image.
+ * Imported by the editor (src/variations/gallery-layouts.js), the front end
+ * (src/frontend/gallery-layouts.js) and the inline script, so that all three
+ * place images identically. Image heights are read from the page: each image
+ * has its width and height attributes, so its height is known before it
+ * loads.
  */
 
 export const ITEM_SELECTOR = '.wp-block-image';
@@ -20,15 +23,63 @@ function gutterOf( figure ) {
 	return parseFloat( view.getComputedStyle( figure ).columnGap ) || 0;
 }
 
+const itemsOf = ( figure ) => Array.from( figure.children ).filter( ( el ) => el.matches( ITEM_SELECTOR ) && ! el.hidden );
+
 /*
- * Centres the columns in the gallery. Masonry's fitWidth option would centre
- * them too, but it counts columns from the width of the gallery's parent, and
- * a gallery in a constrained layout is narrower than that, so the last column
- * overflowed. Masonry now counts from the gallery's own width; the images are
- * shifted by the leftover space through --pp-masonry-offset.
+ * Places the images in columns: as many columns of the column width (or the
+ * gallery's width, if less) as fit, each image at the foot of the shortest
+ * column, the leftmost of equals. The figure is as tall as the tallest.
+ * Heights include the images' margins, which are the vertical gap.
+ *
+ * Returns the columns and their width, or null for a gallery with no width
+ * (not laid out, as when hidden).
  */
-function centre( figure, masonry ) {
-	const used = masonry.cols * masonry.columnWidth - masonry.gutter;
+function place( figure, columnWidth ) {
+	const view = figure.ownerDocument.defaultView;
+	const width = figure.clientWidth;
+
+	if ( width <= 0 ) {
+		return null;
+	}
+
+	const gutter = gutterOf( figure );
+	const column = Math.min( columnWidth, width );
+	const cols = Math.max( 1, Math.floor( ( width + gutter ) / ( column + gutter ) ) );
+	const items = itemsOf( figure );
+
+	// All taken out of the flow first, then all measured, then all placed:
+	// one layout, rather than one per image.
+	items.forEach( ( item ) => ( item.style.position = 'absolute' ) );
+
+	const heights = items.map( ( item ) => {
+		const style = view.getComputedStyle( item );
+
+		return item.getBoundingClientRect().height + ( parseFloat( style.marginTop ) || 0 ) + ( parseFloat( style.marginBottom ) || 0 );
+	} );
+
+	const columns = new Array( cols ).fill( 0 );
+
+	items.forEach( ( item, i ) => {
+		const col = columns.indexOf( Math.min( ...columns ) );
+
+		item.style.left = col * ( column + gutter ) + 'px';
+		item.style.top = columns[ col ] + 'px';
+		columns[ col ] += heights[ i ];
+	} );
+
+	figure.style.height = Math.max( 0, ...columns ) + 'px';
+
+	return { cols, column, gutter };
+}
+
+/*
+ * Centres the columns in the gallery: the images are shifted by half the
+ * space left over, through --pp-masonry-offset. Columns are counted from the
+ * gallery's own width, which in a constrained layout is narrower than its
+ * parent's.
+ */
+function centre( figure, placed ) {
+	const used = placed.cols * ( placed.column + placed.gutter ) - placed.gutter;
 	const offset = Math.max( 0, Math.floor( ( figure.clientWidth - used ) / 2 ) );
 
 	figure.style.setProperty( '--pp-masonry-offset', offset + 'px' );
@@ -68,43 +119,23 @@ function releaseOthers( figure ) {
 }
 
 /**
- * Starts Masonry on a gallery figure and lays it out.
+ * Lays out a masonry gallery, and gives a way to do it again (images added,
+ * removed or resized, the gallery's width or gap changed) and to undo it.
  *
  * @param {HTMLElement} figure      The core/gallery figure.
  * @param {number}      columnWidth Column width in pixels.
- * @return {?{layout: Function, destroy: Function}} Null when Masonry is not loaded.
+ * @return {{layout: Function, destroy: Function}} Its controls.
  */
 export function createMasonry( figure, columnWidth ) {
-	const view = figure.ownerDocument.defaultView;
-
-	if ( ! view.Masonry ) {
-		return null;
-	}
-
-	const masonry = new view.Masonry( figure, {
-		itemSelector: ITEM_SELECTOR,
-		columnWidth,
-		gutter: gutterOf( figure ),
-		fitWidth: false,
-		percentPosition: false,
-		transitionDuration: 0,
-		initLayout: false,
-	} );
-
-	// Masonry also lays out again by itself when the window resizes.
-	masonry.on( 'layoutComplete', () => {
-		centre( figure, masonry );
-		placeOthers( figure );
-	} );
-
 	const layout = () => {
-		// Images may have been added, removed or reordered, and the block
-		// spacing (the gutter) may have changed.
-		masonry.reloadItems();
-		masonry.options.gutter = gutterOf( figure );
-		masonry.layout();
-		centre( figure, masonry );
-		placeOthers( figure );
+		releaseOthers( figure );
+
+		const placed = place( figure, columnWidth );
+
+		if ( placed ) {
+			centre( figure, placed );
+			placeOthers( figure );
+		}
 	};
 
 	layout();
@@ -112,7 +143,10 @@ export function createMasonry( figure, columnWidth ) {
 	return {
 		layout,
 		destroy() {
-			masonry.destroy();
+			itemsOf( figure ).forEach( ( item ) => {
+				item.style.position = item.style.left = item.style.top = '';
+			} );
+			figure.style.height = '';
 			figure.style.removeProperty( '--pp-masonry-offset' );
 			releaseOthers( figure );
 		},
