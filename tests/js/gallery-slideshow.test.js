@@ -196,3 +196,135 @@ test( 'the return button stays and scrolls back to the clicked link, top of the 
 	expect( Element.prototype.scrollIntoView.mock.contexts.at( -1 ) ).toBe( link );
 	expect( slideshow.current() ).toBe( 1 );
 } );
+
+/**
+ * Gives slide i the layout a browser would: the slide's width and the
+ * height it allows, and the image's width and height attributes.
+ */
+function layOut( i, { slideWidth = 930, maxHeight = 700, width = 768, height = 1024 } = {} ) {
+	const slide = root.querySelectorAll( '.photopress-gallery-slideshow__slide' )[ i ];
+	const img = slide.querySelector( 'img' );
+	Object.defineProperty( slide, 'clientWidth', { configurable: true, get: () => slideWidth } );
+	slide.style.maxHeight = `${ maxHeight }px`;
+	img.setAttribute( 'width', width );
+	img.setAttribute( 'height', height );
+	return img;
+}
+
+test( 'a slide gets sizes from the width it is shown at, before its srcset', () => {
+	// A 3:4 portrait in a slide 930 wide that allows 700 high: 525 wide.
+	const img = layOut( 2 );
+	img.dataset.srcset = 's12-768.jpg 768w, s12-1152.jpg 1152w';
+
+	// What srcset the image had when its sizes was set.
+	let srcsetThen;
+	const setAttribute = img.setAttribute.bind( img );
+	img.setAttribute = ( name, value ) => {
+		if ( 'sizes' === name ) {
+			srcsetThen = img.getAttribute( 'srcset' );
+		}
+		setAttribute( name, value );
+	};
+
+	// Showing slide 11 loads its neighbour, slide 12.
+	slideshow.next();
+
+	expect( img.getAttribute( 'sizes' ) ).toBe( '525px' );
+	expect( img.getAttribute( 'srcset' ) ).toBe( 's12-768.jpg 768w, s12-1152.jpg 1152w' );
+	// Set first: with srcset before sizes, the browser would pick by the old sizes.
+	expect( srcsetThen ).toBeNull();
+} );
+
+/**
+ * The slideshow set up again, with every slide but the first not loaded:
+ * set up, it loads the first's neighbours, slides 1 and 3.
+ */
+function restart() {
+	slideshow.destroy();
+	root.querySelectorAll( 'img' ).forEach( ( img, i ) => {
+		img.removeAttribute( 'sizes' );
+		if ( i ) {
+			img.dataset.src = `s${ SLIDES[ i ] }.jpg`;
+		}
+	} );
+	slideshow = createSlideshow( root );
+}
+
+test( 'the width shown allows for the slide, a caption, and the width WordPress gives the image', () => {
+	const sizesOf = ( i ) => root.querySelectorAll( 'img' )[ i ].getAttribute( 'sizes' );
+	const caption = document.createElement( 'figcaption' );
+
+	// A landscape, limited by the slide's width.
+	layOut( 1, { slideWidth: 900, width: 1024, height: 768 } );
+	// A caption below: the image has 700 less the caption's 60 and its margin's 12.
+	layOut( 3, { maxHeight: 700 } ).after( caption );
+	caption.style.marginTop = '12px';
+	caption.getBoundingClientRect = () => ( { width: 600, height: 60 } );
+	restart();
+	expect( sizesOf( 1 ) ).toBe( '900px' );
+	expect( sizesOf( 3 ) ).toBe( `${ Math.ceil( 628 * 0.75 ) }px` );
+
+	// Beside the image: the slide's width less the caption's and its margin.
+	layOut( 3, { slideWidth: 900, maxHeight: 2000, width: 1024, height: 768 } ).closest( 'figure' ).style.flexDirection = 'row';
+	caption.style.marginTop = '0';
+	caption.style.marginLeft = '16px';
+	caption.getBoundingClientRect = () => ( { width: 200, height: 300 } );
+	restart();
+	expect( sizesOf( 3 ) ).toBe( '684px' );
+
+	// A small image is never given more than its own width.
+	caption.remove();
+	layOut( 3, { width: 200, height: 150 } ).closest( 'figure' ).style.flexDirection = 'column';
+	restart();
+	expect( sizesOf( 3 ) ).toBe( '200px' );
+} );
+
+test( 'a slide that is not laid out keeps the sizes it has', () => {
+	const img = root.querySelectorAll( 'img' )[ 2 ];
+	img.setAttribute( 'sizes', '(max-width: 768px) 100vw, 768px' );
+
+	slideshow.next();
+
+	expect( img.getAttribute( 'sizes' ) ).toBe( '(max-width: 768px) 100vw, 768px' );
+} );
+
+test( 'loaded images are measured again when the slideshow changes size', () => {
+	slideshow.destroy();
+
+	let resized;
+	const observed = [];
+	window.ResizeObserver = class {
+		constructor( callback ) {
+			resized = callback;
+		}
+		observe( el ) {
+			observed.push( el );
+		}
+		disconnect() {}
+	};
+	vi.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+		callback();
+		return 1;
+	} );
+
+	let slideWidth = 600;
+	const images = [ 0, 1, 2, 3 ].map( ( i ) => {
+		const img = layOut( i, { maxHeight: 2000, width: 1024, height: 768 } );
+		Object.defineProperty( img.closest( 'figure' ), 'clientWidth', { configurable: true, get: () => slideWidth } );
+		return img;
+	} );
+
+	slideshow = createSlideshow( root );
+	expect( observed ).toEqual( [ root ] );
+
+	resized();
+	expect( images[ 0 ].getAttribute( 'sizes' ) ).toBe( '600px' );
+
+	slideWidth = 930;
+	resized();
+	expect( images[ 0 ].getAttribute( 'sizes' ), 'no wider than WordPress gives it' ).toBe( '930px' );
+	expect( images[ 1 ].getAttribute( 'sizes' ), 'loaded as a neighbour' ).toBe( '930px' );
+	expect( images[ 2 ].hasAttribute( 'sizes' ), 'not loaded yet' ).toBe( false );
+
+	delete window.ResizeObserver;
+} );

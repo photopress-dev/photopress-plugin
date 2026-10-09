@@ -249,6 +249,71 @@ test( 'images keep their shape, and a small one is not enlarged', async ( { page
 	expect( ( await small.boundingBox() ).width ).toBeLessThanOrEqual( 200 );
 } );
 
+/**
+ * Every slide image with its file: its sizes, the width it is shown at, the
+ * width of the file the browser chose (from srcset; naturalWidth is
+ * corrected for the screen's density), and the widths it could choose from.
+ */
+const loadedImages = ( page ) => page.locator( `${ ROOT } .photopress-gallery-slideshow__image[srcset]` ).evaluateAll( ( imgs ) => imgs.map( ( img ) => {
+	const candidates = img.getAttribute( 'srcset' ).split( ',' ).map( ( c ) => {
+		const [ url, w ] = c.trim().split( /\s+/ );
+		return { url: new URL( url, document.baseURI ).href, w: parseInt( w, 10 ) };
+	} );
+	// The width the slide gives it, from the slide alone (an image's own
+	// width follows its sizes): the slide's width or the height it allows,
+	// less any caption, times the image's shape, and at most its width
+	// attribute.
+	const slide = img.closest( '.photopress-gallery-slideshow__slide' );
+	const caption = slide.querySelector( 'figcaption' );
+	const css = ( el ) => getComputedStyle( el );
+	const px = ( v ) => parseFloat( v ) || 0;
+	const row = css( slide ).flexDirection === 'row';
+	const captionBox = caption ? caption.getBoundingClientRect() : { width: 0, height: 0 };
+	const room = {
+		width: slide.clientWidth - ( caption && row ? captionBox.width + px( css( caption ).marginLeft ) + px( css( caption ).marginRight ) : 0 ),
+		height: px( css( slide ).maxHeight ) - ( caption && ! row ? captionBox.height + px( css( caption ).marginTop ) + px( css( caption ).marginBottom ) : 0 ),
+	};
+	const ratio = img.getAttribute( 'width' ) / img.getAttribute( 'height' );
+	return {
+		fits: Math.min( room.width, room.height * ratio, Number( img.getAttribute( 'width' ) ) ),
+		sizes: img.getAttribute( 'sizes' ),
+		shown: img.getBoundingClientRect().width,
+		file: img.complete ? ( candidates.find( ( c ) => c.url === img.currentSrc ) || { w: 0 } ).w : 0,
+		widths: candidates.map( ( c ) => c.w ).sort( ( a, b ) => a - b ),
+	};
+} ) );
+
+test.describe( 'on a screen of density 2', () => {
+	test.use( { deviceScaleFactor: 2 } );
+
+	test( 'sizes follows the width each image is shown at, so its file is never too small, as the window changes', async ( { page } ) => {
+		const big = ( img ) => Math.min( img.widths[ img.widths.length - 1 ], img.shown * 2 );
+
+		for ( const [ i, viewport ] of [ { width: 1280, height: 900 }, { width: 600, height: 900 }, { width: 1600, height: 1100 } ].entries() ) {
+			await page.setViewportSize( viewport );
+			await expect.poll( async () => ( await loadedImages( page ) ).map( ( img ) => img.sizes === `${ Math.ceil( img.shown ) }px` ) ).not.toContain( false );
+
+			// Shown at the size the slide gives it: sizes never makes an
+			// image smaller, as one measured before it loaded would.
+			for ( const img of await loadedImages( page ) ) {
+				expect( Math.abs( img.shown - img.fits ) ).toBeLessThanOrEqual( 1 );
+			}
+
+			// At least as wide as shown on this screen (Chrome may take one up
+			// to 5% narrower, by its rounding), or the widest there is.
+			await expect.poll( async () => ( await loadedImages( page ) ).map( ( img ) => img.file >= big( img ) * 0.95 ) ).not.toContain( false );
+
+			// At the first size nothing is cached yet: no wider than the
+			// next file up from what is needed.
+			if ( 0 === i ) {
+				for ( const img of await loadedImages( page ) ) {
+					expect( img.file ).toBeLessThanOrEqual( img.widths.find( ( w ) => w >= big( img ) ) );
+				}
+			}
+		}
+	} );
+} );
+
 test( 'alt text comes from the image metadata', async ( { page } ) => {
 	await expect( page.locator( `${ ROOT } .photopress-gallery-slideshow__image` ).first() ).toHaveAttribute( 'alt', /Alice/ );
 } );
