@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -92,6 +92,33 @@ With WP Offload Media installed, the Offload Media settings tab shows:
 14. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing the CloudFront cache
 
 == Changelog ==
+
+= 1.9.0 =
+
+* Image Sizes tab: the quality JPEG and WebP sizes are saved at, 92 by
+  default. WordPress's own is 82, which can show on detailed photographs;
+  sizes made after updating are at 92 unless set otherwise. Every
+  registered image size is listed, from WordPress, the theme and plugins,
+  with a switch to stop making it. "Regenerate image sizes" makes every
+  image's sizes again from its original in the background, a few images at
+  a time, resting between batches and waiting while the server is busy.
+* Licence embedding writes the licence into an image's metadata without
+  re-encoding the image, for JPEG, PNG, WebP, GIF, TIFF, HEIC and AVIF, so
+  uploads keep the pixels they were exported with. Imagick is used only
+  where that is not possible, and is no longer required.
+* Licence embedding replaces a Web Statement the file already has, rather
+  than adding a second, and keeps the file's Web Statement or Licensor when
+  no setting replaces it.
+* Masonry and Mosaic galleries no longer move as a page loads: they are
+  laid out before the page is first shown. Masonry no longer loads the
+  masonry and imagesloaded scripts.
+* Gallery images, and Gallery Slideshow images, download a file of the
+  size they are shown at, rather than one for the full width of the window.
+* The full-screen slideshow no longer enlarges an image beyond its own
+  size, and shows images that have only one size.
+* Gallery block: the Columns setting is hidden under the Masonry, Rows and
+  Mosaic layouts, which set their own, and a gallery can be switched back
+  to the plain gallery from the block's variation switcher.
 
 = 1.8.0 =
 
