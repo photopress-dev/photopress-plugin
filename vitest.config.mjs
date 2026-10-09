@@ -21,6 +21,8 @@ export default defineConfig( {
 	resolve: {
 		alias: {
 			'@wordpress/block-editor': new URL( './tests/js/stubs/block-editor.js', import.meta.url ).pathname,
+			'@wordpress/core-data': new URL( './tests/js/stubs/core-data.js', import.meta.url ).pathname,
+			'@wordpress/components': new URL( './tests/js/stubs/components.js', import.meta.url ).pathname,
 		},
 	},
 	test: {
