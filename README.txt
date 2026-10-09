@@ -1,7 +1,7 @@
 === PhotoPress  ===
 
 Contributors: padams
-Donate link: http://www.photopressdev.com
+Donate link: https://github.com/sponsors/padams
 Tags: photos, images, gallery, gallery block, masonry, meta-data, photopress, image taxonomies, EXIF, XMP, IPTC, gutenberg
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
@@ -17,50 +17,79 @@ PHOTOPRESS is an integrated suite of image management and gallery presentation f
 
 The broader goal of PHOTOPRESS is to make WordPress easy to use for photographers by bringing critical image management and presentation features together into a single, modern, and free plugin. Features currently include:
 
-= GALLERY BLOCK =
+= GALLERY LAYOUTS =
 
-* Native Gutenberg live editing
-* Grid style
-* Masonry style
-* Justified style
-* Mosaic Style
-* Adjustable gutter spacing
-* Uniform image cropping option
+Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block variations:
+
+* Masonry: columns of a width you set, each image at its own height
+* Rows: rows of a height you set, each image at its own width
+* Mosaic: rows that fill the gallery's width, each image at its own proportions
+* They look the same in the editor as on the site
+* Open the full-screen slideshow when an image is clicked
 * Hide captions option
-* Adjustable image heights/column widths
-* Inline image reordering
-* Dynamic responsive images
-* Link to PhotoPress slideshow
+
+= FULL-SCREEN SLIDESHOW =
+
+* Opens over the whole window on the image that was clicked
+* Click the right half for the next image, the left half for the previous one; the arrow keys work too
+* Thumbnail navigation option, with adjustable height
+* Configurable caption display (image title, caption and/or description, and a link to the attachment page)
+* Caption box below or to the right of the image, with adjustable padding
+
+= GALLERY SLIDESHOW BLOCK =
+
+* A slideshow of a gallery on the same page, placed anywhere on the page
+* Clicking an image in the gallery shows it in the slideshow
+* Press the right side of the slideshow for the next image, the left side for the previous one
+* Slide or fade transitions, and autoplay
+* Fits the window's height, less an offset you set
+* Captions below, left or right of the image, with adjustable padding
+* Caption max width, a share of the slideshow's width (75% by default) that keeps the full width on phones
+* Option to hide the gallery and show only the slideshow
+* Works with dynamic galleries (WordPress 7.1)
 
 = CHILD PAGES BLOCK =
 
 * Dynamic Gutenberg block
-* Create a gallery of child pages (useful as an index of gallery pages)
+* Create a gallery of child pages, from their featured images (useful as an index of gallery pages)
 
 = IMAGE META-DATA MANAGEMENT =
 
 * Define unlimited custom image taxonomies
 * Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonomies
 * Create and extract "child taxonomies" from embedded meta-data fields
+* Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 * Display Exif Widget
 * Display Image Taxonomy Terms Widget
 * Generate custom image ALT text using meta-data templates
+* Generate image descriptions using meta-data templates
 * Embed Licensing info (Licensor, Licensor URL, Web Statement of Rights) into images files during upload
+* Re-read the meta-data of every image in the background, with its progress on the settings page, after changing taxonomies or templates
 
-= SLIDESHOWS =
+= OFFLOAD MEDIA =
 
-* Light-boxed full page slideshows
-* Thumbnail navigation option
-* configurable caption display (can use image title, caption, and/or description)
-* Two caption layouts to choose from 
+With WP Offload Media installed, the Offload Media settings tab shows:
+
+* Whether Offload Media is active, and where images are stored and served from
+* How long browsers and the CDN keep offloaded images (by default 1 day, then 1 hour while checking for a new one)
+* A button to clear the CloudFront cache
 
 == Screenshots ==
 
-1. Customizable Gallery Block with multiple styles
-2. Full-screen Slideshows with customizable caption placement
-3. Store embedded image meta-data into custom image taxonomies
-4. Generate image ALT text with meta-data templates
-5. Embed Licensing meta-data into uploaded images
+1. Masonry layout for the Gallery block
+2. Rows layout for the Gallery block
+3. Mosaic layout for the Gallery block
+4. Full-screen slideshow, opened from a gallery: click either half to move through the images
+5. Slideshow settings
+6. Gallery Slideshow block: press either side of the slideshow to move through a gallery on the same page
+7. Gallery Slideshow captions at 75% of the slideshow's width on a desktop, and the full width on a phone
+8. Child Pages block: a gallery of a page's child pages
+9. Image Taxonomies block on an image's page
+10. Store embedded image meta-data into custom image taxonomies
+11. Generate image alt text and descriptions with meta-data templates
+12. Embed licensing meta-data into uploaded images
+13. Re-read the meta-data of every image in the background, with its progress
+14. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing the CloudFront cache
 
 == Changelog ==
 
@@ -188,7 +217,3 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 Our development motto is "do no harm" which means that we leverage the patterns outlined in WordPress Core and the Gutenberg editor as opposed to creating proprietary features that impede the overall usability of WordPress.
 
 PHOTOPRESS is actively developed on [Github](https://github.com/photopress-dev/photopress-plugin). Please file any bugs, feature, or support requests on Github!
-
-== Donate or Purchase Premium Support! ==
-
-PHOTOPRESS core is free. However, we ask that you [purchase a support membership](http://www.photopressdev.com). Even if you don't need the support, this purchase helps fund the development of this project. Donations to the project are also appreciated.
