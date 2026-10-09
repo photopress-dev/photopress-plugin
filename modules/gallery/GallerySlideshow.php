@@ -42,6 +42,7 @@ class GallerySlideshow {
 
 		$size     = sanitize_key( $attributes['sizeSlug'] ?? 'large' ) ?: 'large';
 		$captions = ! empty( $attributes['showCaptions'] );
+		$offset   = max( 0, (int) ( $attributes['maxHeightOffset'] ?? 0 ) );
 		$slides   = '';
 		$position = 0;
 
@@ -57,7 +58,7 @@ class GallerySlideshow {
 				continue;
 			}
 
-			$img = self::prepareImage( $img, 0 === $position );
+			$img = self::prepareImage( $img, 0 === $position, $offset );
 
 			$caption = $captions ? wp_get_attachment_caption( $id ) : '';
 			$caption = $caption ? '<figcaption class="photopress-gallery-slideshow__caption wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>' : '';
@@ -85,7 +86,7 @@ class GallerySlideshow {
 			'class'                     => 'is-effect-' . ( 'fade' === ( $attributes['effect'] ?? '' ) ? 'fade' : 'slide' ) . ' has-captions-' . $caption_side,
 			'style'                     => sprintf(
 				'--pp-slideshow-offset:%dpx;--pp-slideshow-caption-padding:%dpx',
-				max( 0, (int) ( $attributes['maxHeightOffset'] ?? 0 ) ),
+				$offset,
 				max( 0, (int) ( $attributes['captionPadding'] ?? 0 ) )
 			) . ( $caption_max > 0 && $caption_max < 100 ? sprintf( ';--pp-slideshow-caption-max-width:%d%%', $caption_max ) : '' ),
 			'data-gallery'              => $anchor,
@@ -116,8 +117,14 @@ class GallerySlideshow {
 	 * Fixes the image's shape with aspect-ratio, so slides size themselves
 	 * before their image loads, and defers the image of every slide but the
 	 * first.
+	 *
+	 * sizes says how wide the image is shown, which the browser picks from
+	 * srcset by: at most the window's width on narrow screens, otherwise at
+	 * most the height a slide allows times the image's shape. Never less
+	 * than the width it is shown at, so the file is never too small; the
+	 * front end replaces it with the measured width.
 	 */
-	private static function prepareImage( $html, $is_first ) {
+	private static function prepareImage( $html, $is_first, $offset = 0 ) {
 
 		$p = new WP_HTML_Tag_Processor( $html );
 
@@ -130,6 +137,7 @@ class GallerySlideshow {
 
 		if ( $width && $height ) {
 			$p->set_attribute( 'style', sprintf( 'aspect-ratio:%d/%d', $width, $height ) );
+			$p->set_attribute( 'sizes', sprintf( '(max-width: 782px) 100vw, calc((100vh - %dpx) * %.4F)', $offset, $width / $height ) );
 		}
 
 		if ( ! $is_first ) {

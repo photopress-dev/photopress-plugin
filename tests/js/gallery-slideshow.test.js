@@ -196,3 +196,74 @@ test( 'the return button stays and scrolls back to the clicked link, top of the 
 	expect( Element.prototype.scrollIntoView.mock.contexts.at( -1 ) ).toBe( link );
 	expect( slideshow.current() ).toBe( 1 );
 } );
+
+test( 'a slide gets sizes from its measured width before its srcset', () => {
+	const img = root.querySelectorAll( 'img' )[ 2 ];
+	img.dataset.srcset = 's12-768.jpg 768w, s12-1152.jpg 1152w';
+	img.getBoundingClientRect = () => ( { width: 539.2, height: 718 } );
+	// What srcset the image had when its sizes was set.
+	let srcsetThen;
+	const setAttribute = img.setAttribute.bind( img );
+	img.setAttribute = ( name, value ) => {
+		if ( 'sizes' === name ) {
+			srcsetThen = img.getAttribute( 'srcset' );
+		}
+		setAttribute( name, value );
+	};
+
+	// Showing slide 11 loads its neighbour, slide 12.
+	slideshow.next();
+
+	expect( img.getAttribute( 'sizes' ) ).toBe( '540px' );
+	expect( img.getAttribute( 'srcset' ) ).toBe( 's12-768.jpg 768w, s12-1152.jpg 1152w' );
+	// Set first: with srcset before sizes, the browser would pick by the old sizes.
+	expect( srcsetThen ).toBeNull();
+} );
+
+test( 'an image that is not laid out keeps the sizes it has', () => {
+	const img = root.querySelectorAll( 'img' )[ 2 ];
+	img.setAttribute( 'sizes', '(max-width: 782px) 100vw, calc((100vh - 0px) * 0.7500)' );
+	img.getBoundingClientRect = () => ( { width: 0, height: 0 } );
+
+	slideshow.next();
+
+	expect( img.getAttribute( 'sizes' ) ).toBe( '(max-width: 782px) 100vw, calc((100vh - 0px) * 0.7500)' );
+} );
+
+test( 'loaded images are measured again when the slideshow changes size', () => {
+	slideshow.destroy();
+
+	let resized;
+	const observed = [];
+	window.ResizeObserver = class {
+		constructor( callback ) {
+			resized = callback;
+		}
+		observe( el ) {
+			observed.push( el );
+		}
+		disconnect() {}
+	};
+	vi.spyOn( window, 'requestAnimationFrame' ).mockImplementation( ( callback ) => {
+		callback();
+		return 1;
+	} );
+
+	const images = root.querySelectorAll( 'img' );
+	let width = 700;
+	images.forEach( ( img ) => ( img.getBoundingClientRect = () => ( { width, height: 600 } ) ) );
+
+	slideshow = createSlideshow( root );
+	expect( observed ).toEqual( [ root ] );
+
+	resized();
+	expect( images[ 0 ].getAttribute( 'sizes' ) ).toBe( '700px' );
+
+	width = 930;
+	resized();
+	expect( images[ 0 ].getAttribute( 'sizes' ) ).toBe( '930px' );
+	expect( images[ 1 ].getAttribute( 'sizes' ), 'loaded as a neighbour' ).toBe( '930px' );
+	expect( images[ 2 ].hasAttribute( 'sizes' ), 'not loaded yet' ).toBe( false );
+
+	delete window.ResizeObserver;
+} );

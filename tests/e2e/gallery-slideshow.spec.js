@@ -249,6 +249,49 @@ test( 'images keep their shape, and a small one is not enlarged', async ( { page
 	expect( ( await small.boundingBox() ).width ).toBeLessThanOrEqual( 200 );
 } );
 
+/**
+ * Every slide image with its file: its sizes, the width it is shown at, the
+ * width of the file the browser chose (from srcset; naturalWidth is
+ * corrected for the screen's density), and the widths it could choose from.
+ */
+const loadedImages = ( page ) => page.locator( `${ ROOT } .photopress-gallery-slideshow__image[srcset]` ).evaluateAll( ( imgs ) => imgs.map( ( img ) => {
+	const candidates = img.getAttribute( 'srcset' ).split( ',' ).map( ( c ) => {
+		const [ url, w ] = c.trim().split( /\s+/ );
+		return { url: new URL( url, document.baseURI ).href, w: parseInt( w, 10 ) };
+	} );
+	return {
+		sizes: img.getAttribute( 'sizes' ),
+		shown: img.getBoundingClientRect().width,
+		file: img.complete ? ( candidates.find( ( c ) => c.url === img.currentSrc ) || { w: 0 } ).w : 0,
+		widths: candidates.map( ( c ) => c.w ).sort( ( a, b ) => a - b ),
+	};
+} ) );
+
+test.describe( 'on a screen of density 2', () => {
+	test.use( { deviceScaleFactor: 2 } );
+
+	test( 'sizes follows the width each image is shown at, so its file is never too small, as the window changes', async ( { page } ) => {
+		const big = ( img ) => Math.min( img.widths[ img.widths.length - 1 ], img.shown * 2 );
+
+		for ( const [ i, viewport ] of [ { width: 1280, height: 900 }, { width: 600, height: 900 }, { width: 1600, height: 1100 } ].entries() ) {
+			await page.setViewportSize( viewport );
+			await expect.poll( async () => ( await loadedImages( page ) ).map( ( img ) => img.sizes === `${ Math.ceil( img.shown ) }px` ) ).not.toContain( false );
+
+			// At least as wide as shown on this screen (Chrome may take one up
+			// to 5% narrower, by its rounding), or the widest there is.
+			await expect.poll( async () => ( await loadedImages( page ) ).map( ( img ) => img.file >= big( img ) * 0.95 ) ).not.toContain( false );
+
+			// At the first size nothing is cached yet: no wider than the
+			// next file up from what is needed.
+			if ( 0 === i ) {
+				for ( const img of await loadedImages( page ) ) {
+					expect( img.file ).toBeLessThanOrEqual( img.widths.find( ( w ) => w >= big( img ) ) );
+				}
+			}
+		}
+	} );
+} );
+
 test( 'alt text comes from the image metadata', async ( { page } ) => {
 	await expect( page.locator( `${ ROOT } .photopress-gallery-slideshow__image` ).first() ).toHaveAttribute( 'alt', /Alice/ );
 } );

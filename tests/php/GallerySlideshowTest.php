@@ -80,12 +80,27 @@ final class GallerySlideshowTest extends TestCase {
 		$this->assertSame( 'img-10-large.jpg', $p->get_attribute( 'src' ) );
 		$this->assertSame( 'eager', $p->get_attribute( 'loading' ) );
 		$this->assertSame( 'aspect-ratio:1200/800', $p->get_attribute( 'style' ) );
+		$this->assertSame( '(max-width: 782px) 100vw, calc((100vh - 0px) * 1.5000)', $p->get_attribute( 'sizes' ) );
 
 		$p->next_tag( 'img' );
 		$this->assertSame( GallerySlideshow::PLACEHOLDER, $p->get_attribute( 'src' ) );
 		$this->assertSame( 'img-11-large.jpg', $p->get_attribute( 'data-src' ) );
 		$this->assertSame( 'img-11-large.jpg 1200w', $p->get_attribute( 'data-srcset' ) );
 		$this->assertNull( $p->get_attribute( 'srcset' ) );
+	}
+
+	/**
+	 * Never less than the width the image is shown at: the window's width on
+	 * narrow screens, and otherwise the height a slide allows (the window's,
+	 * less the offset) times the image's shape.
+	 */
+	public function test_sizes_allow_for_the_height_offset_and_the_images_shape(): void {
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'maxHeightOffset' => 150 ] ) );
+
+		while ( $p->next_tag( 'img' ) ) {
+			$this->assertSame( '(max-width: 782px) 100vw, calc((100vh - 150px) * 1.5000)', $p->get_attribute( 'sizes' ) );
+		}
 	}
 
 	public function test_captions_and_controls(): void {

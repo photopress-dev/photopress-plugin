@@ -58,12 +58,26 @@ export function createSlideshow( root ) {
 		cleanup.push( () => target.removeEventListener( type, handler, options ) );
 	};
 
+	// Sets an image's sizes to the width it is shown at, which the browser
+	// picks its file from srcset by; changing it makes the browser pick
+	// again, a larger file if the image has grown. Slides that are not
+	// showing are laid out all the same (hidden, not removed), and each image
+	// has its shape before it loads, so any image can be measured.
+	const fit = ( img ) => {
+		const width = Math.ceil( img.getBoundingClientRect().width );
+
+		if ( width > 0 && img.getAttribute( 'sizes' ) !== `${ width }px` ) {
+			img.setAttribute( 'sizes', `${ width }px` );
+		}
+	};
+
 	// Gives a slide its real image; slides beyond the first are rendered
 	// with a placeholder so the page does not load every image at once.
 	const load = ( i ) => {
 		const img = slides[ ( i + count ) % count ]?.querySelector( 'img' );
 
 		if ( img && img.dataset.src ) {
+			fit( img );
 			if ( img.dataset.srcset ) {
 				img.srcset = img.dataset.srcset;
 			}
@@ -139,6 +153,29 @@ export function createSlideshow( root ) {
 	load( index + 1 );
 	load( index - 1 );
 	announce();
+
+	// The images that have their file, measured again whenever the
+	// slideshow changes size: the window resized, a phone turned. The first
+	// is measured on the first call, which comes as soon as it is observed.
+	if ( view.ResizeObserver ) {
+		let frame = 0;
+		const observer = new view.ResizeObserver( () => {
+			view.cancelAnimationFrame( frame );
+			frame = view.requestAnimationFrame( () => {
+				slides.forEach( ( slide ) => {
+					const img = slide.querySelector( 'img' );
+					if ( img && ! img.dataset.src ) {
+						fit( img );
+					}
+				} );
+			} );
+		} );
+		observer.observe( root );
+		cleanup.push( () => {
+			view.cancelAnimationFrame( frame );
+			observer.disconnect();
+		} );
+	}
 
 	// Keyboard and touch use the buttons; the mouse navigates on press.
 	on( root.querySelector( '.photopress-gallery-slideshow__next' ), 'click', next );
