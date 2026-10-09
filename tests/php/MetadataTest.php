@@ -119,6 +119,30 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( 2, substr_count( $out, 'data-caption=' ) );
 	}
 
+	/**
+	 * WordPress adds srcset to content images together with sizes, but not
+	 * to one that has a srcset already: given one here, the image had no
+	 * sizes, and browsers took it for the width of the window.
+	 */
+	public function test_media_library_attributes_leave_srcset_to_wordpress(): void {
+
+		Functions\stubs( [
+			'wp_attachment_is_image'     => true,
+			'wp_get_attachment_image_src' => [ 'https://example.test/full.jpg', 1200, 800, false ],
+			'wptexturize'                => static fn( $text ) => $text,
+			'wpautop'                    => static fn( $text ) => $text,
+			'get_attachment_link'        => 'https://example.test/attachment/',
+			'wp_get_attachment_metadata' => [ 'width' => 1200, 'height' => 800 ],
+		] );
+		Functions\expect( 'wp_get_attachment_image_srcset' )->never();
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$attr = $m->addAttributesToImages( [], (object) [ 'ID' => 7, 'post_title' => 'Bob', 'post_excerpt' => '', 'post_content' => '' ] );
+
+		$this->assertArrayNotHasKey( 'srcset', $attr );
+		$this->assertSame( 'https://example.test/full.jpg', $attr['data-orig-file'] );
+	}
+
 	public function test_other_blocks_are_left_alone(): void {
 
 		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
