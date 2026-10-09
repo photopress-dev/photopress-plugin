@@ -14,10 +14,19 @@ const isRunning = ( job ) => !! job && [ 'queued', 'running' ].includes( job.sta
 
 function statusText( job ) {
 	const when = job.finished ? new Date( job.finished * 1000 ).toLocaleString() : '';
+	// A paced job (see jobs/Jobs.php) waiting for the server, before or
+	// between batches.
+	if ( isRunning( job ) && job.waiting === 'busy' ) {
+		return __( 'Waiting: the server is busy…' );
+	}
 	switch ( job.status ) {
 		case 'queued':
 			return __( 'Waiting to start…' );
 		case 'running':
+			// Between batches.
+			if ( job.next && job.next * 1000 > Date.now() ) {
+				return __( 'Running (resting between batches)…' );
+			}
 			return __( 'Running…' );
 		case 'done':
 			return sprintf( __( 'Finished %s' ), when );
@@ -28,7 +37,7 @@ function statusText( job ) {
 	}
 }
 
-export default function JobPanel( { type, label, description, args = {}, confirm = '' } ) {
+export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange } ) {
 	const [ job, setJob ] = useState( null );
 	const [ error, setError ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
@@ -42,6 +51,12 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 			.then( ( jobs ) => setJob( jobs[ 0 ] || null ) )
 			.catch( fail );
 	}, [ type ] );
+
+	useEffect( () => {
+		if ( onChange && job ) {
+			onChange( job );
+		}
+	}, [ job ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	// While it runs, ask for its progress every couple of seconds.
 	useEffect( () => {
