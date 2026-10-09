@@ -7,6 +7,7 @@
  *   blocks.style.build.css    front end + editor   (style.scss files; also the options page)
  *   options.build.js          settings page script (modules/base/base.php)
  *   gallery-layouts.build.js  front-end masonry for core/gallery (modules/gallery/gallery.php)
+ *   gallery-layouts-inline.build.js  the same, printed inline after each gallery
  *   gallery-slideshow.build.js  front end of the Gallery Slideshow block
  *   press-navigation.build.js   click-anywhere navigation for the lightbox (modules/slideshow/slideshow.php)
  *
@@ -57,6 +58,7 @@ module.exports = {
 		'blocks.build': './src/blocks.js',
 		'options.build': './src/options.js',
 		'gallery-layouts.build': './src/frontend/gallery-layouts.js',
+		'gallery-layouts-inline.build': './src/frontend/gallery-layouts-inline.js',
 		'gallery-slideshow.build': './src/frontend/gallery-slideshow.js',
 		'press-navigation.build': './src/frontend/press-navigation.js',
 	},

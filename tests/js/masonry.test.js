@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from 'vitest';
+import { test, expect, afterEach, vi } from 'vitest';
 
 /**
  * Internal dependencies
@@ -6,75 +6,64 @@ import { test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createMasonry } from '../../src/shared/gallery-layout/masonry';
 
 /**
- * Stands in for WordPress's masonry-layout: records its options and, on
- * layout(), sets the container height and the column metrics the real one
- * computes.
+ * A gallery of the given width and gap, with one image of each height and a
+ * gallery caption. jsdom does no layout, so sizes and styles are supplied:
+ * every image has a bottom margin of the gap, as the CSS gives it.
  */
-class FakeMasonry {
-	constructor( element, options ) {
-		FakeMasonry.last = this;
-		this.element = element;
-		this.options = { ...options };
-		this.handlers = {};
-		this.layouts = 0;
-	}
-	on( event, handler ) {
-		this.handlers[ event ] = handler;
-	}
-	reloadItems() {}
-	layout() {
-		this.layouts++;
-		this.gutter = this.options.gutter;
-		this.columnWidth = this.options.columnWidth + this.gutter;
-		this.cols = Math.floor( ( this.element.clientWidth + this.gutter ) / this.columnWidth );
-		this.element.style.height = '500px';
-	}
-	destroy() {
-		this.destroyed = true;
-	}
-}
-
-function gallery( width = 620, gap = 20 ) {
+function gallery( heights, { width = 620, gap = 20 } = {} ) {
 	const figure = document.createElement( 'figure' );
-	figure.innerHTML = '<figure class="wp-block-image"></figure><figure class="wp-block-image"></figure><figcaption>Caption</figcaption>';
+
+	heights.forEach( ( height ) => {
+		const item = document.createElement( 'figure' );
+		item.className = 'wp-block-image';
+		item.getBoundingClientRect = () => ( { height } );
+		figure.appendChild( item );
+	} );
+
+	const caption = document.createElement( 'figcaption' );
+	Object.defineProperty( caption, 'offsetHeight', { value: 40 } );
+	figure.appendChild( caption );
+
 	Object.defineProperty( figure, 'clientWidth', { value: width } );
-	Object.defineProperty( figure.querySelector( 'figcaption' ), 'offsetHeight', { value: 40 } );
-	vi.spyOn( window, 'getComputedStyle' ).mockReturnValue( { columnGap: gap + 'px' } );
+	vi.spyOn( window, 'getComputedStyle' ).mockImplementation( ( el ) => ( el === figure ? { columnGap: gap + 'px' } : { marginTop: '0px', marginBottom: gap + 'px' } ) );
+
 	return figure;
 }
 
-beforeEach( () => {
-	window.Masonry = FakeMasonry;
+const positions = ( figure ) => Array.from( figure.querySelectorAll( '.wp-block-image' ) ).map( ( el ) => [ el.style.left, el.style.top ] );
+
+afterEach( () => vi.restoreAllMocks() );
+
+test( 'each image goes at the foot of the shortest column, the leftmost of equals', () => {
+	// Two 300px columns and a 20px gutter in 620px.
+	const figure = gallery( [ 400, 200, 100, 300 ] );
+
+	createMasonry( figure, 300 );
+
+	expect( positions( figure ) ).toEqual( [
+		[ '0px', '0px' ],
+		[ '320px', '0px' ],
+		// Column 2 is shorter: 220 against 420, margins included.
+		[ '320px', '220px' ],
+		[ '320px', '340px' ],
+	] );
+	expect( figure.querySelector( '.wp-block-image' ).style.position ).toBe( 'absolute' );
 } );
 
-afterEach( () => {
-	delete window.Masonry;
+test( 'as many columns as fit the gallery, and one at most its width', () => {
+	const three = gallery( [ 100, 100, 100, 100 ], { width: 1000 } );
+	createMasonry( three, 300 );
+	expect( positions( three ).map( ( [ left ] ) => left ) ).toEqual( [ '0px', '320px', '640px', '0px' ] );
+
 	vi.restoreAllMocks();
-} );
-
-test( 'without Masonry loaded it does nothing', () => {
-	delete window.Masonry;
-
-	expect( createMasonry( gallery(), 300 ) ).toBeNull();
-} );
-
-test( 'counts columns from the gallery itself and takes the gutter from the block gap', () => {
-	createMasonry( gallery(), 300 );
-
-	expect( FakeMasonry.last.options ).toMatchObject( {
-		itemSelector: '.wp-block-image',
-		columnWidth: 300,
-		gutter: 20,
-		// fitWidth counted columns from the parent and overflowed narrower galleries.
-		fitWidth: false,
-		transitionDuration: 0,
-	} );
-	expect( FakeMasonry.last.layouts ).toBe( 1 );
+	const narrow = gallery( [ 100, 100 ], { width: 250 } );
+	createMasonry( narrow, 300 );
+	expect( positions( narrow ) ).toEqual( [ [ '0px', '0px' ], [ '0px', '120px' ] ] );
 } );
 
 test( 'centres the columns in the gallery', () => {
 	// Two 300px columns and a 20px gutter use 620 of 700px: 40px either side.
-	const figure = gallery( 700 );
+	const figure = gallery( [ 100, 100 ], { width: 700 } );
 
 	createMasonry( figure, 300 );
 
@@ -82,23 +71,41 @@ test( 'centres the columns in the gallery', () => {
 } );
 
 test( 'the caption is placed below the columns and the gallery grows to fit', () => {
-	const figure = gallery();
+	const figure = gallery( [ 400, 200 ] );
 
 	createMasonry( figure, 300 );
 
 	const caption = figure.querySelector( 'figcaption' );
 	expect( caption.style.position ).toBe( 'absolute' );
-	expect( caption.style.top ).toBe( '500px' );
-	expect( figure.style.height ).toBe( '540px' );
+	// The tallest column, 400 and its 20px margin.
+	expect( caption.style.top ).toBe( '420px' );
+	expect( figure.style.height ).toBe( '460px' );
+} );
+
+test( 'laid out again, it gives the same places; a gallery with no width is left alone', () => {
+	const figure = gallery( [ 400, 200, 100 ] );
+	const masonry = createMasonry( figure, 300 );
+	const first = positions( figure );
+
+	masonry.layout();
+	expect( positions( figure ) ).toEqual( first );
+	expect( figure.style.height ).toBe( '460px' );
+
+	vi.restoreAllMocks();
+	const hidden = gallery( [ 100 ], { width: 0 } );
+	createMasonry( hidden, 300 );
+	expect( positions( hidden ) ).toEqual( [ [ '', '' ] ] );
 } );
 
 test( 'destroy undoes the layout', () => {
-	const figure = gallery();
+	const figure = gallery( [ 400, 200 ] );
 	const masonry = createMasonry( figure, 300 );
 
 	masonry.destroy();
 
-	expect( FakeMasonry.last.destroyed ).toBe( true );
+	expect( positions( figure ) ).toEqual( [ [ '', '' ], [ '', '' ] ] );
+	expect( figure.querySelector( '.wp-block-image' ).style.position ).toBe( '' );
+	expect( figure.style.height ).toBe( '' );
 	expect( figure.style.getPropertyValue( '--pp-masonry-offset' ) ).toBe( '' );
 	expect( figure.querySelector( 'figcaption' ).style.position ).toBe( '' );
 } );

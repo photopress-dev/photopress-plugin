@@ -32,6 +32,8 @@ final class GalleryLayoutTest extends TestCase {
 			'plugins_url' => static fn( $path = '' ) => 'https://example.test/wp-content/plugins/photopress/' . $path,
 			// Attachment 11 has no data-aspectratio; its ratio comes from here.
 			'wp_get_attachment_metadata' => static fn( $id ) => 11 === $id ? [ 'width' => 1000, 'height' => 500 ] : false,
+			'is_feed'                    => false,
+			'wp_get_inline_script_tag'   => static fn( $code ) => '<script>' . $code . '</script>',
 		] );
 	}
 
@@ -116,13 +118,49 @@ final class GalleryLayoutTest extends TestCase {
 		$this->assertSame( '--wp--style--unstable-gallery-gap: 8px;--pp-column-width:300px;--pp-row-height:300px', $p->get_attribute( 'style' ) );
 	}
 
-	public function test_only_masonry_and_mosaic_load_the_layout_script(): void {
+	public function test_masonry_and_mosaic_load_the_layout_script_without_a_library(): void {
 
 		Functions\when( 'wp_enqueue_style' )->justReturn();
-		Functions\expect( 'wp_enqueue_script' )->once()->with( 'photopress-gallery-layouts', \Mockery::any(), \Mockery::on( fn( $deps ) => in_array( 'masonry', $deps, true ) ), \Mockery::any(), true );
+		Functions\expect( 'wp_enqueue_script' )->twice()->with( 'photopress-gallery-layouts', \Mockery::any(), \Mockery::on( fn( $deps ) => ! in_array( 'masonry', $deps, true ) ), \Mockery::any(), true );
 
 		$this->render( [ 'photopressLayout' => 'rows' ] );
+		$this->render( [ 'photopressLayout' => 'mosaic' ] );
 		$this->render( [ 'photopressLayout' => 'masonry' ] );
+	}
+
+	/**
+	 * Laid out as soon as it is parsed, so the page is first painted with it
+	 * in its columns: a script right after it calls the layout, whose code
+	 * comes with the first masonry gallery on the page only.
+	 */
+	public function test_masonry_and_mosaic_are_followed_by_a_script_that_lays_them_out(): void {
+
+		Functions\when( 'wp_enqueue_style' )->justReturn();
+		Functions\when( 'wp_enqueue_script' )->justReturn();
+
+		$call = 'window.photopressLayout&&photopressLayout(document.currentScript.previousElementSibling);';
+		$outputs = [ $this->render( [ 'photopressLayout' => 'masonry' ] ), $this->render( [ 'photopressLayout' => 'mosaic' ] ), $this->render( [ 'photopressLayout' => 'masonry' ] ) ];
+
+		foreach ( $outputs as $out ) {
+			// Right after the gallery, so it is the script's previous element.
+			$this->assertStringEndsWith( '</figure><script>' . $call . '</script>', $out );
+		}
+
+		// The code, and the class that hides galleries until they are laid
+		// out, come before the first gallery only (when built).
+		$all = implode( '', $outputs );
+		$this->assertLessThanOrEqual( 1, substr_count( $all, 'photopressLayout=' ) );
+		$this->assertSame( substr_count( $all, 'photopressLayout=' ), substr_count( $all, "classList.add('photopress-js')" ) );
+		$this->assertStringNotContainsString( '<script', $this->render( [ 'photopressLayout' => 'rows' ] ) );
+	}
+
+	public function test_no_script_in_a_feed(): void {
+
+		Functions\when( 'wp_enqueue_style' )->justReturn();
+		Functions\when( 'wp_enqueue_script' )->justReturn();
+		Functions\when( 'is_feed' )->justReturn( true );
+
+		$this->assertStringNotContainsString( '<script', $this->render( [ 'photopressLayout' => 'masonry' ] ) );
 	}
 
 	public function test_core_gallery_gets_the_attributes_registered(): void {

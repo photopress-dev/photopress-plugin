@@ -14,8 +14,26 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 	display: none;
 }
 
-// Masonry: fixed-width columns positioned by Masonry
-// (src/shared/gallery-layout/masonry.js). Until it runs, the images stack.
+// Masonry and mosaic are laid out by a script printed right after each
+// gallery (src/frontend/gallery-layouts-inline.js), which adds
+// photopress-laid-out. The browser may paint the gallery before that script
+// runs, so with JavaScript (photopress-js, added before the first gallery)
+// it is hidden until then: it is first seen laid out, and nothing moves.
+// Shown after 3s whatever happens, should the scripts fail.
+.photopress-js .wp-block-gallery.photopress-layout-masonry:not(.photopress-laid-out),
+.photopress-js .wp-block-gallery.photopress-layout-mosaic:not(.photopress-laid-out) {
+	visibility: hidden;
+	animation: photopress-reveal 0s 3s forwards;
+}
+
+@keyframes photopress-reveal {
+	to {
+		visibility: visible;
+	}
+}
+
+// Masonry: fixed-width columns positioned by src/shared/gallery-layout/masonry.js.
+// Until it runs, the images stack.
 .wp-block-gallery.has-nested-images.photopress-layout-masonry {
 	display: block;
 	position: relative;
