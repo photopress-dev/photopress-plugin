@@ -42,6 +42,7 @@ final class JobsTest extends TestCase {
 			'as_enqueue_async_action' => static function ( $hook, $args ) use ( &$queued ) { $queued[] = $args[0]; return 1; },
 			'as_has_scheduled_action' => static function ( $hook, $args ) use ( &$queued ) { return in_array( $args[0], $queued, true ); },
 			'as_unschedule_all_actions' => static function ( $hook, $args ) use ( &$queued ) { $queued = array_values( array_diff( $queued, [ $args[0] ] ) ); },
+			'as_schedule_single_action' => static function ( $when, $hook, $args ) use ( &$queued ) { $queued[] = $args[0]; return 1; },
 		] );
 
 		// Five items; item 3 fails.
@@ -104,5 +105,80 @@ final class JobsTest extends TestCase {
 	public function test_unknown_type(): void {
 
 		$this->assertSame( 'photopress_job_unknown', Jobs::start( 'nope' )->get_error_code() );
+	}
+
+	private function registerPaced( array &$finished ): void {
+
+		Jobs::register( 'test.paced', [
+			'label'       => 'Paced',
+			'count'       => static fn() => 5,
+			'items'       => static fn( $after, $limit ) => array_slice( array_values( array_filter( [ 1, 2, 3, 4, 5 ], static fn( $i ) => $i > (int) $after ) ), 0, $limit ),
+			'process'     => static fn() => true,
+			'batch_items' => 2,
+			'pace'        => true,
+			'finish'      => static function ( $job ) use ( &$finished ) { $finished[] = $job['id']; },
+		] );
+	}
+
+	public function test_a_paced_job_rests_between_batches_and_is_not_run_early(): void {
+
+		$finished = [];
+		$this->registerPaced( $finished );
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_max_load' )->andReturn( PHP_INT_MAX );
+
+		$job = Jobs::start( 'test.paced' );
+
+		$this->assertTrue( Jobs::runBatch( $job['id'] ) );
+		$job = Jobs::get( $job['id'] );
+		$this->assertSame( 2, $job['done'] );
+		$this->assertGreaterThan( time(), $job['next'], 'resting after its batch' );
+
+		// Resting: neither the scheduler nor a watching settings page runs it.
+		$this->assertFalse( Jobs::runBatch( $job['id'] ) );
+		$this->assertSame( 2, Jobs::get( $job['id'] )['done'] );
+
+		// Rested.
+		$job['next'] = time() - 1;
+		$this->options[ Jobs::OPTION_PREFIX . $job['id'] ] = $job;
+		$this->assertTrue( Jobs::runBatch( $job['id'] ) );
+		$this->assertSame( 4, Jobs::get( $job['id'] )['done'] );
+		$this->assertSame( [], $finished );
+	}
+
+	public function test_a_paced_job_waits_while_the_server_is_busy_and_finishes_once(): void {
+
+		$finished = [];
+		$this->registerPaced( $finished );
+
+		// Busy: no load is low enough.
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_max_load' )->andReturn( -1 );
+
+		$job = Jobs::start( 'test.paced' );
+
+		$this->assertFalse( Jobs::runBatch( $job['id'] ) );
+		$job = Jobs::get( $job['id'] );
+		$this->assertSame( 0, $job['done'] );
+		$this->assertSame( 'busy', $job['waiting'] );
+		$this->assertGreaterThanOrEqual( time() + Jobs::BUSY_WAIT_SECONDS - 1, $job['next'] );
+		$this->assertContains( $job['id'], $this->queued, 'checks again later' );
+	}
+
+	public function test_the_finish_callback_runs_when_a_job_is_done(): void {
+
+		$finished = [];
+		$this->registerPaced( $finished );
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_max_load' )->andReturn( PHP_INT_MAX );
+
+		$job = Jobs::start( 'test.paced' );
+
+		for ( $i = 0; $i < 5 && 'done' !== Jobs::get( $job['id'] )['status']; $i++ ) {
+			$current = Jobs::get( $job['id'] );
+			$current['next'] = 0;
+			$this->options[ Jobs::OPTION_PREFIX . $job['id'] ] = $current;
+			Jobs::runBatch( $job['id'] );
+		}
+
+		$this->assertSame( 'done', Jobs::get( $job['id'] )['status'] );
+		$this->assertSame( [ $job['id'] ], $finished );
 	}
 }

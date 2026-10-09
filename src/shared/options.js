@@ -45,7 +45,7 @@ export function saveSettings( module ) {
 			
 			const module_name = this.props.settingsGroup;
 			
-			apiFetch( {
+			return apiFetch( {
 				path: '/wp/v2/settings',
 				method: 'POST',
 				data: { [ module_name ]: this.state.settings },

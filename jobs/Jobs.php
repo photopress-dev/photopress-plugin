@@ -24,6 +24,14 @@ use WP_Error;
  *   ] );
  *
  * Items are scalars (IDs) in a stable order; the cursor is the last one done.
+ *
+ * A heavy job (image processing) can also give:
+ *
+ *   'batch_seconds' => 10,           // time budget of a batch
+ *   'batch_items'   => 5,            // items asked for per batch
+ *   'pace'          => true,         // rest between batches as long as each
+ *                                    // took, and wait while the server is busy
+ *   'finish'        => fn( $job ) => …, // when the job is done
  */
 class Jobs {
 
@@ -49,6 +57,11 @@ class Jobs {
 	 */
 	const MAX_ERRORS = 50;
 
+	/**
+	 * A paced job waiting for a busy server checks again this much later.
+	 */
+	const BUSY_WAIT_SECONDS = 60;
+
 	protected static $types = [];
 
 	public static function addHooks() {
@@ -59,7 +72,14 @@ class Jobs {
 
 	public static function register( $type, array $definition ) {
 
-		self::$types[ $type ] = $definition + [ 'label' => $type, 'description' => '' ];
+		self::$types[ $type ] = $definition + [
+			'label'         => $type,
+			'description'   => '',
+			'batch_seconds' => self::BATCH_SECONDS,
+			'batch_items'   => self::BATCH_ITEMS,
+			'pace'          => false,
+			'finish'        => null,
+		];
 	}
 
 	public static function types() {
@@ -100,6 +120,9 @@ class Jobs {
 			'updated'  => time(),
 			'finished' => null,
 			'user'     => get_current_user_id(),
+			// A paced job's next batch is not due before this.
+			'next'     => 0,
+			'waiting'  => '',
 		];
 
 		self::save( $job );
@@ -187,15 +210,34 @@ class Jobs {
 			return false;
 		}
 
+		$type = self::$types[ $job['type'] ];
+
+		// A paced job resting between batches.
+		if ( time() < (int) ( $job['next'] ?? 0 ) ) {
+			return false;
+		}
+
 		if ( ! self::lock( $id ) ) {
 			return false;
 		}
 
-		$type = self::$types[ $job['type'] ];
-		$deadline = microtime( true ) + self::BATCH_SECONDS;
+		// A paced job waits while the server is busy, rather than adding to it.
+		if ( $type['pace'] && self::busy() ) {
+			$job['next'] = time() + self::BUSY_WAIT_SECONDS;
+			$job['waiting'] = 'busy';
+			$job['updated'] = time();
+			self::save( $job );
+			self::unlock( $id );
+			self::queueBatch( $id );
+			return false;
+		}
+
+		$started = microtime( true );
+		$deadline = $started + $type['batch_seconds'];
 
 		$job['status'] = 'running';
-		$items = (array) call_user_func( $type['items'], $job['cursor'], self::BATCH_ITEMS, $job['args'] );
+		$job['waiting'] = '';
+		$items = (array) call_user_func( $type['items'], $job['cursor'], $type['batch_items'], $job['args'] );
 
 		foreach ( $items as $item ) {
 
@@ -231,12 +273,15 @@ class Jobs {
 		}
 
 		// Fewer items than asked for: none are left.
-		$finished = count( $items ) < self::BATCH_ITEMS && end( $items ) === $job['cursor'];
+		$finished = count( $items ) < $type['batch_items'] && end( $items ) === $job['cursor'];
 
 		if ( ! $items || $finished ) {
 			$job['status'] = 'done';
 			$job['finished'] = time();
 			$job['total'] = max( $job['total'], $job['done'] + $job['failed'] );
+		} elseif ( $type['pace'] ) {
+			// At most half the time at work: rest as long as the batch took.
+			$job['next'] = time() + (int) ceil( microtime( true ) - $started );
 		}
 
 		$job['updated'] = time();
@@ -245,9 +290,39 @@ class Jobs {
 
 		if ( 'running' === $job['status'] ) {
 			self::queueBatch( $id );
+		} elseif ( 'done' === $job['status'] && is_callable( $type['finish'] ) ) {
+			call_user_func( $type['finish'], $job );
 		}
 
 		return true;
+	}
+
+	/**
+	 * Whether the server is busy: its load average over the last minute is
+	 * above 70% of its processors (filterable as photopress_job_max_load).
+	 * Unknown, as on Windows, counts as not busy.
+	 */
+	public static function busy() {
+
+		$load = function_exists( 'sys_getloadavg' ) ? sys_getloadavg() : false;
+
+		if ( ! is_array( $load ) || ! isset( $load[0] ) ) {
+			return false;
+		}
+
+		$max = (float) apply_filters( 'photopress_job_max_load', 0.7 * self::processors() );
+
+		return (float) $load[0] > $max;
+	}
+
+	/**
+	 * The number of processors, from /proc/cpuinfo where there is one.
+	 */
+	protected static function processors() {
+
+		$info = @file_get_contents( '/proc/cpuinfo' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
+
+		return max( 1, $info ? preg_match_all( '/^processor\s*:/m', $info ) : 1 );
 	}
 
 	/**
@@ -267,7 +342,16 @@ class Jobs {
 
 	protected static function queueBatch( $id ) {
 
-		if ( function_exists( 'as_enqueue_async_action' ) && ! as_has_scheduled_action( self::BATCH_HOOK, [ $id ], self::GROUP ) ) {
+		if ( ! function_exists( 'as_enqueue_async_action' ) || as_has_scheduled_action( self::BATCH_HOOK, [ $id ], self::GROUP ) ) {
+			return;
+		}
+
+		$job = self::get( $id );
+		$next = (int) ( $job['next'] ?? 0 );
+
+		if ( $next > time() ) {
+			as_schedule_single_action( $next, self::BATCH_HOOK, [ $id ], self::GROUP );
+		} else {
 			as_enqueue_async_action( self::BATCH_HOOK, [ $id ], self::GROUP );
 		}
 	}
