@@ -306,9 +306,12 @@ photopress.slideshow.prototype = {
 			}
 		});
 		
-		// load the src of the image.
+		// load the src of the image. An image with one size has no srcset:
+		// set anyway, it would be the text "undefined", a URL that fails.
 		let srcset= jQuery(img).attr('srcset');
-		i.srcset = srcset;
+		if ( srcset ) {
+			i.srcset = srcset;
+		}
 		i.src = jQuery(img).attr('data-orig-file');
 		
 	},

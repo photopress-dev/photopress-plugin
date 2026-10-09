@@ -49,6 +49,16 @@ test( 'press navigation, arrow columns and arrow keys', async ( { page, made } )
 	expect( selfRequests ).toEqual( [] );
 } );
 
+test( 'gallery images say how wide they are shown, so the browser does not take them for the width of the window', async ( { page, made } ) => {
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+
+	const images = await page.locator( '.wp-block-gallery img' ).evaluateAll( ( imgs ) => imgs.map( ( img ) => ( { srcset: img.hasAttribute( 'srcset' ), sizes: img.getAttribute( 'sizes' ) } ) ) );
+
+	// All but 08-small, which has no smaller size and so no srcset.
+	expect( images.filter( ( img ) => img.srcset ) ).toHaveLength( made.images.length - 1 );
+	expect( images.filter( ( img ) => img.srcset && ! img.sizes ) ).toEqual( [] );
+} );
+
 test( 'with a mouse the arrows give way to the cursor; the caption takes its padding', async ( { page, made } ) => {
 	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
 

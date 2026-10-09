@@ -259,10 +259,11 @@ class metadata extends photopress_module {
 			$attr[ 'data-image-description' ] 	= esc_attr( htmlspecialchars( $attachment_desc ) );	
 		}
 		
-		$attr[ 'srcset']					= wp_get_attachment_image_srcset( $attachment_id );
-		
-		
-		
+		// No srcset: WordPress adds it later, with the sizes that tells the
+		// browser how wide the image is shown. Given here, it stopped
+		// WordPress adding either, and without sizes browsers take every
+		// image for the width of the window.
+
 		return $attr;
 	}
 	
