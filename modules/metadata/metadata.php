@@ -948,20 +948,30 @@ class metadata extends photopress_module {
 			return $move;
 		}
 
+		$merge = static function ( $existing ) use ( $wsr, $licensor_name, $licensor_url ) {
+			return self::mergeLicenceIntoXmp( $existing, $wsr, $licensor_name, $licensor_url );
+		};
+
+		// Written into the file's metadata block, without decoding the image,
+		// so the pixels stay as they were exported.
+		$written = XmpFile::update( $path, $merge );
+
+		if ( true === $written ) {
+			return $move;
+		}
+
 		/*
-		 * Previously this shelled out to a vendored exiftool binary. That meant a
-		 * ~12MB dependency fetched from exiftool.org (which stopped serving the
-		 * pinned 12.30 tarball, breaking every build), a chmod at runtime to make
-		 * the binary executable, and a hard requirement on exec() -- which plenty
-		 * of managed hosts disable. Imagick is already WordPress's preferred image
-		 * library and needs none of that.
+		 * Otherwise Imagick, which re-encodes the image: a format XmpFile
+		 * does not write, or a file it could not write safely.
 		 */
 		if ( ! class_exists( 'Imagick' ) ) {
 
-			photopress_util::debug( 'Imagick unavailable; skipping licence embedding.' );
+			photopress_util::debug( 'Licence not embedded: ' . $written->get_error_message() . ' Imagick is unavailable.' );
 
 			return $move;
 		}
+
+		photopress_util::debug( 'Embedding the licence with Imagick: ' . $written->get_error_message() );
 
 		try {
 
@@ -992,10 +1002,10 @@ class metadata extends photopress_module {
 	/**
 	 * Splice the licence fields into an existing XMP packet.
 	 *
-	 * Imagick's setImageProfile() REPLACES the packet rather than merging, so
-	 * writing one that contains only the licence would discard dc:title,
-	 * dc:subject keywords, xmp:Rating, creator and any Lightroom settings the
-	 * photographer had embedded. exiftool merged; this has to as well.
+	 * The packet replaces the file's packet rather than merging with it, so
+	 * one that contains only the licence would discard dc:title, dc:subject
+	 * keywords, xmp:Rating, creator and any Lightroom settings the
+	 * photographer had embedded.
 	 *
 	 * Verified against a real upload: EXIF/IPTC/ICC profiles untouched, every
 	 * XMP element preserved with the same multiplicity, no text content lost,
@@ -1054,13 +1064,26 @@ class metadata extends photopress_module {
 	        $rdf->appendChild( $desc );
 	    }
 
-	    // Drop any prior copies of just the two properties we own, wherever they
-	    // sit, so this is idempotent and re-uploading does not stack duplicates.
+	    // Drop the file's copies of the properties being written, wherever they
+	    // sit and in either form (an element, or an attribute of
+	    // rdf:Description), so re-uploading does not stack duplicates. A
+	    // property with no setting keeps the file's value.
 	    $xp->registerNamespace( 'xmpRights', 'http://ns.adobe.com/xap/1.0/rights/' );
 	    $xp->registerNamespace( 'plus', 'http://ns.useplus.org/ldf/xmp/1.0/' );
-	    foreach ( [ '//xmpRights:WebStatement', '//plus:Licensor' ] as $q ) {
-	        foreach ( iterator_to_array( $xp->query( $q ) ) as $n ) {
-	            $n->parentNode->removeChild( $n );
+	    $owned = [];
+	    if ( $web_statement ) {
+	        $owned[] = 'xmpRights:WebStatement';
+	    }
+	    if ( $licensor_name && $licensor_url ) {
+	        $owned[] = 'plus:Licensor';
+	    }
+	    foreach ( $owned as $name ) {
+	        foreach ( iterator_to_array( $xp->query( "//$name | //@$name" ) ) as $n ) {
+	            if ( $n instanceof \DOMAttr ) {
+	                $n->ownerElement->removeAttributeNode( $n );
+	            } else {
+	                $n->parentNode->removeChild( $n );
+	            }
 	        }
 	    }
 

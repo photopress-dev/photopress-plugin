@@ -166,7 +166,8 @@ class photopress_plugin {
 	public static function activate() {
 		
 		// The vendored exiftool binary is gone -- licence embedding now uses
-		// Imagick (see metadata module), so there is nothing to make executable.
+		// XmpFile, with Imagick as a fallback (see metadata module), so there is
+		// nothing to make executable.
 	}
 }
 
