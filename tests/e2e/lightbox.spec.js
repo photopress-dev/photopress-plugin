@@ -59,6 +59,26 @@ test( 'gallery images say how wide they are shown, so the browser does not take 
 	expect( images.filter( ( img ) => img.srcset && ! img.sizes ) ).toEqual( [] );
 } );
 
+test( 'an image smaller than the slide is shown at its own size, not enlarged', async ( { page, made } ) => {
+	// 02-landscape-3x2 is 1200 x 800, its largest file. The slide in this
+	// window is about 930 high, which at 3:2 would be about 1395 wide.
+	await page.setViewportSize( { width: 1600, height: 1100 } );
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+
+	const id = made.names[ '02-landscape-3x2' ];
+	const item = page.locator( `.photopress-has-slideshow .photopress-gallery-item[data-id="${ id }"]` );
+	await item.scrollIntoViewIfNeeded();
+	await item.click( { force: true } );
+
+	const full = page.locator( `.panels .center img[data-id="${ id }"]:not(.slide-preview)` );
+	await expect.poll( () => full.evaluate( ( img ) => img.complete && img.naturalWidth ) ).toBeTruthy();
+	expect( await full.getAttribute( 'srcset' ) ).toContain( '1200w' );
+
+	const box = await full.boundingBox();
+	expect( box.width ).toBeLessThanOrEqual( 1200 );
+	expect( box.height ).toBeLessThanOrEqual( 800 );
+} );
+
 test( 'with a mouse the arrows give way to the cursor; the caption takes its padding', async ( { page, made } ) => {
 	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
 
