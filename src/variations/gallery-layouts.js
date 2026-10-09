@@ -27,6 +27,7 @@ import { gallery as galleryIcon } from '@wordpress/icons';
  */
 import { createMasonry } from '../shared/gallery-layout/masonry.js';
 import { justify, release } from '../shared/gallery-layout/justify.js';
+import { keepSettingHidden } from './hidden-setting.js';
 import './style.scss';
 
 export const LAYOUTS = {
@@ -75,6 +76,23 @@ Object.entries( LAYOUTS ).forEach( ( [ layout, label ] ) => {
 		isActive: [ 'photopressLayout' ],
 		scope: [ 'inserter', 'transform' ],
 	} );
+} );
+
+/*
+ * WordPress's own gallery, in columns, for the variation switcher only: the
+ * way back from a PhotoPress layout. The switcher lists registered
+ * variations, and core's gallery is not one. Active when no layout is set,
+ * with core's own title, icon and description, so a plain gallery shows as
+ * it did.
+ */
+registerBlockVariation( 'core/gallery', {
+	name: 'photopress-columns',
+	title: __( 'Gallery' ),
+	description: __( 'Display multiple images in a rich gallery.' ),
+	icon: galleryIcon,
+	attributes: { photopressLayout: undefined },
+	isActive: ( attributes ) => ! attributes.photopressLayout,
+	scope: [ 'transform' ],
 } );
 
 /*
@@ -219,6 +237,11 @@ const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props 
 	// An empty gallery renders the media placeholder in place of the images;
 	// Masonry must leave that alone.
 	const imageCount = useSelect( ( select ) => select( blockEditorStore ).getBlockCount( clientId ), [ clientId ] );
+
+	// Core's Columns does nothing under a PhotoPress layout: hidden while
+	// this gallery is the one whose settings show.
+	const hidesColumns = !! layout && !! props.isSelected;
+	useEffect( () => ( hidesColumns ? keepSettingHidden( document, __( 'Columns' ) ) : undefined ), [ hidesColumns ] );
 
 	return (
 		<>
