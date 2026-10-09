@@ -58,15 +58,45 @@ export function createSlideshow( root ) {
 		cleanup.push( () => target.removeEventListener( type, handler, options ) );
 	};
 
+	// The width an image is shown at, worked out from its slide rather than
+	// read from the image: an image's own width follows its sizes (its CSS
+	// width is auto), so reading it would only give back the sizes it has,
+	// or, before it loads, the placeholder's. As in the CSS: the slide's
+	// width, less a caption beside the image; the height a slide allows,
+	// less a caption below it, times the image's shape; and no wider than
+	// the width WordPress gives it (its width attribute), as with
+	// WordPress's own sizes.
+	const shownWidth = ( img ) => {
+		const slide = img.closest( SLIDE );
+		const ratio = Number( img.getAttribute( 'width' ) ) / Number( img.getAttribute( 'height' ) );
+		const caption = slide.querySelector( 'figcaption' );
+		const px = ( value ) => parseFloat( value ) || 0;
+		const slideStyle = view.getComputedStyle( slide );
+		let width = slide.clientWidth;
+		let height = Math.min( px( slideStyle.maxHeight ) || Infinity, px( view.getComputedStyle( img ).maxHeight ) || Infinity );
+
+		if ( caption ) {
+			const style = view.getComputedStyle( caption );
+			const box = caption.getBoundingClientRect();
+			if ( slideStyle.flexDirection === 'row' ) {
+				width -= box.width + px( style.marginLeft ) + px( style.marginRight );
+			} else {
+				height -= box.height + px( style.marginTop ) + px( style.marginBottom );
+			}
+		}
+
+		return ratio > 0 ? Math.min( width, height * ratio, Number( img.getAttribute( 'width' ) ) ) : 0;
+	};
+
 	// Sets an image's sizes to the width it is shown at, which the browser
 	// picks its file from srcset by; changing it makes the browser pick
 	// again, a larger file if the image has grown. Slides that are not
-	// showing are laid out all the same (hidden, not removed), and each image
-	// has its shape before it loads, so any image can be measured.
+	// showing are laid out all the same (hidden, not removed), so any slide
+	// can be measured before its image loads.
 	const fit = ( img ) => {
-		const width = Math.ceil( img.getBoundingClientRect().width );
+		const width = Math.ceil( shownWidth( img ) );
 
-		if ( width > 0 && img.getAttribute( 'sizes' ) !== `${ width }px` ) {
+		if ( width > 0 && Number.isFinite( width ) && img.getAttribute( 'sizes' ) !== `${ width }px` ) {
 			img.setAttribute( 'sizes', `${ width }px` );
 		}
 	};
