@@ -41,20 +41,21 @@ test( 'the three kinds are listed, each standard taxonomy with a switch', async 
 
 test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	await page.goto( URL );
-	await page.getByRole( 'button', { name: 'Add parent keyword' } ).first().click();
+	await page.getByRole( 'button', { name: 'Add a hierarchical keyword taxonomy' } ).click();
 
 	await page.getByLabel( 'Parent keyword', { exact: true } ).fill( 'Clients › Acme' );
 	await page.getByLabel( 'Also written as (optional)' ).fill( 'acme' );
 	await page.getByLabel( 'Plural name' ).fill( 'Acme jobs' );
 	await page.getByLabel( 'Singular name' ).fill( 'Acme job' );
-	await page.getByLabel( 'Keep the levels as nested terms, each with its own archive page' ).check();
-	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( 'Clients|Acme|Subgroup|Example' );
+	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( 'Clients|Acme|Group|Example' );
+	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( '/acme-job/group/example' );
 
 	if ( process.env.PP_E2E_SHOTS ) {
 		await page.locator( '.photopress-taxonomies__editor' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/add-parent.png` } );
 	}
 
-	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Add parent keyword' } ).click();
+	await expect( page.getByRole( 'heading', { name: 'Add Hierarchical Keyword Taxonomy' } ) ).toBeVisible();
+	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Add', exact: true } ).click();
 
 	const row = page.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_acme_job"]' );
 	await expect( row ).toContainText( 'Clients › Acme' );
@@ -64,13 +65,12 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 		tag: 'dc:subject',
 		parseTagValue: true,
 		names: [ 'Clients|Acme', 'acme' ],
-		nested: true,
 	} );
 
 	await row.getByRole( 'button', { name: 'Edit' } ).click();
-	await page.getByLabel( 'Use the last keyword; the levels between go to Keywords' ).check();
+	await page.getByLabel( 'Plural name' ).fill( 'Acme projects' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();
-	await expect.poll( () => taxonomies().find( ( t ) => 'pp_acme_job' === t.id ).nested ).toBeUndefined();
+	await expect.poll( () => taxonomies().find( ( t ) => 'pp_acme_job' === t.id ).pluralLabel ).toBe( 'Acme projects' );
 
 	page.once( 'dialog', ( dialog ) => dialog.accept() );
 	await page.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_acme_job"]' ).getByRole( 'button', { name: 'Remove' } ).click();
@@ -94,12 +94,12 @@ test( 'a change that moves photos offers to reprocess just those, leaving images
 	await expect( editor.getByRole( 'checkbox', { name: 'Don’t change images whose files have no keywords' } ) ).toBeChecked();
 
 	if ( process.env.PP_E2E_SHOTS ) {
-		await editor.locator( '.photopress-taxonomies__savebar' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/save-and-reprocess.png` } );
+		await editor.locator( '.photopress-savebar' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/save-and-reprocess.png` } );
 	}
 
 	await editor.getByRole( 'button', { name: 'Cancel' } ).click();
 
-	await page.getByRole( 'button', { name: 'Add custom metadata' } ).click();
+	await page.getByRole( 'button', { name: 'Add a custom metadata taxonomy' } ).click();
 	await expect( editor.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
 	await expect( editor.getByRole( 'checkbox', { name: /^Don’t change images whose files have no .+ field$/ } ) ).toBeChecked();
 	await editor.getByRole( 'button', { name: 'Cancel' } ).click();
@@ -120,7 +120,7 @@ test( 'a standard taxonomy is turned off and on, keeping its names', async ( { p
 
 test( 'custom metadata is added for a field and deleted', async ( { page } ) => {
 	await page.goto( URL );
-	await page.getByRole( 'button', { name: 'Add custom metadata' } ).click();
+	await page.getByRole( 'button', { name: 'Add a custom metadata taxonomy' } ).click();
 
 	// Another taxonomy's archive URL is refused.
 	await page.getByLabel( 'Singular name' ).fill( 'Camera' );

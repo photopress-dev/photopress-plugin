@@ -5,13 +5,14 @@
  * already uploaded. All are kept in the custom_taxonomies setting; see
  * taxonomy-model.js and modules/metadata/TaxonomyModel.php.
  */
-import { useEffect, useRef, useState } from '@wordpress/element';
+import { Fragment, useEffect, useRef, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { Button, CheckboxControl, FormToggle, Notice, RadioControl, SelectControl, TextControl } from '@wordpress/components';
+import { Button, CheckboxControl, FormToggle, Notice, SelectControl, TextControl } from '@wordpress/components';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import JobPanel from '../shared/jobs.js';
 import SwitchRow from '../shared/switch-row.js';
+import SaveBar from '../shared/save-bar.js';
 import xmpLabels from '../shared/xmp-labels.js';
 import {
 	STANDARD,
@@ -176,42 +177,6 @@ function RowActions( { onEdit, onRemove, removeLabel } ) {
 }
 
 /**
- * Save, and when a change affects photos already uploaded, Save and
- * reprocess with whether to skip images whose files have no metadata for it.
- * reprocess: { label, missing (what a file may not have), terms (what of
- * an image's would be emptied), request }, or null.
- * onSave( reprocess ): reprocess is the request with skip, or undefined.
- */
-function SaveBar( { onSave, onCancel, saving, saveLabel = __( 'Save' ), reprocess } ) {
-	const [ skip, setSkip ] = useState( true );
-
-	return (
-		<div className="photopress-taxonomies__savebar">
-			{ reprocess && (
-				<CheckboxControl
-					__nextHasNoMarginBottom
-					label={ sprintf( __( 'Don’t change images whose files have no %s' ), reprocess.missing ) }
-					help={ skip
-						? sprintf( __( 'Each image’s file is read again. An image whose file has no %1$s keeps its %2$s as they are, in case the metadata was stripped from the file.' ), reprocess.missing, reprocess.terms )
-						: sprintf( __( 'Each image’s file is read again. An image whose file has no %1$s has its %2$s emptied.' ), reprocess.missing, reprocess.terms ) }
-					checked={ skip }
-					onChange={ setSkip }
-				/>
-			) }
-			<p className="photopress-taxonomies__buttons">
-				<Button variant={ reprocess ? 'secondary' : 'primary' } onClick={ () => onSave() } disabled={ saving }>{ saveLabel }</Button>
-				{ reprocess && (
-					<Button variant="primary" onClick={ () => onSave( { ...reprocess.request, skip } ) } disabled={ saving }>
-						{ reprocess.label }
-					</Button>
-				) }
-				{ onCancel && <Button variant="tertiary" onClick={ onCancel }>{ __( 'Cancel' ) }</Button> }
-			</p>
-		</div>
-	);
-}
-
-/**
  * An add or edit screen: a title, its fields, Save (and reprocess) and Cancel.
  */
 function Editor( { title, error, onSave, onCancel, saving, saveLabel, reprocess, children } ) {
@@ -265,15 +230,20 @@ function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 				<summary>{ __( 'Fields read, in order' ) }</summary>
 				<ol>{ standardSources( kind ).map( ( s ) => <li key={ s }>{ s }</li> ) }</ol>
 			</details>
+			{ 'keywords' === kind && (
+				<p className="description">
+					{ __( 'A keyword hierarchy keeps its levels, each under the one above with its own archive page: Places › USA › California gives California under USA under Places, at /keyword/places/usa/california. A word used both as a plain keyword and inside a hierarchy becomes two terms, one at the top and one in the hierarchy, each with its own page.' ) }
+				</p>
+			) }
 		</Editor>
 	);
 }
 
 /** What a photo with these keywords gets from a parent keyword. */
-function ParentPreview( { levels, plural, singular, nested, example, separators } ) {
+function ParentPreview( { levels, plural, singular, example, separators } ) {
 	const parent = levels.join( '|' );
 	const term = example || __( 'Example' );
-	const sub = __( 'Subgroup' );
+	const sub = __( 'Group' );
 	const tax = plural || __( 'This taxonomy' );
 	const def = { singularLabel: singular };
 
@@ -281,9 +251,7 @@ function ParentPreview( { levels, plural, singular, nested, example, separators 
 		[ `${ parent }|${ term }`, [ [ tax, term, '', archiveUrl( def, term ) ] ] ],
 		[
 			`${ parent }|${ sub }|${ term }`,
-			nested
-				? [ [ tax, sub, '', archiveUrl( def, sub ) ], [ tax, term, sub, archiveUrl( def, sub ) + '/' + slug( term ) ] ]
-				: [ [ tax, term, '', archiveUrl( def, term ) ], [ __( 'Keywords' ), sub, '', '/keyword/' + slug( sub ) ] ],
+			[ [ tax, sub, '', archiveUrl( def, sub ) ], [ tax, term, sub, archiveUrl( def, sub ) + '/' + slug( term ) ] ],
 		],
 	];
 
@@ -331,7 +299,6 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 	const [ plural, setPlural ] = useState( def ? capitalize( def.pluralLabel ) : capitalize( pluralize( prefill || '' ) ) );
 	const [ singular, setSingular ] = useState( def ? capitalize( def.singularLabel ) : capitalize( prefill || '' ) );
 	const [ named, setNamed ] = useState( !! def || !! prefill );
-	const [ nested, setNested ] = useState( !! ( def && def.nested ) );
 	const [ error, setError ] = useState( null );
 
 	const levels = asPath( parent ).split( '|' ).filter( Boolean );
@@ -354,7 +321,6 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 		tag: 'dc:subject',
 		parseTagValue: true,
 		names: all,
-		...( nested ? { nested: true } : {} ),
 		...( def && def.disabled ? { disabled: true } : {} ),
 	};
 	const scope = useScope( { custom_taxonomies: def ? list.map( ( d, i ) => ( i === def.index ? draft : d ) ) : [ ...list, draft ] } );
@@ -379,8 +345,8 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 
 	return (
 		<Editor
-			title={ def ? sprintf( __( 'Parent keyword: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add parent keyword' ) }
-			saveLabel={ def ? __( 'Save' ) : __( 'Add parent keyword' ) }
+			title={ def ? sprintf( __( 'Parent keyword: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add Hierarchical Keyword Taxonomy' ) }
+			saveLabel={ def ? __( 'Save' ) : __( 'Add' ) }
 			reprocess={ scopeChoice( scope, sprintf( __( 'Keywords and %s terms' ), capitalize( plural || __( 'parent keyword' ) ) ) ) }
 			error={ error }
 			onSave={ save }
@@ -418,25 +384,15 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 				onSingular={ ( v ) => ( setNamed( true ), setSingular( v ) ) }
 				before={ def && slug( def.singularLabel ) }
 			/>
-			<RadioControl
-				label={ __( 'Keywords more than one level down' ) }
-				selected={ nested ? 'nested' : 'last' }
-				options={ [
-					{ value: 'last', label: __( 'Use the last keyword; the levels between go to Keywords' ) },
-					{ value: 'nested', label: __( 'Keep the levels as nested terms, each with its own archive page' ) },
-				] }
-				onChange={ ( v ) => setNested( 'nested' === v ) }
-			/>
 			<h4>{ __( 'What a photo gets' ) }</h4>
 			<ParentPreview
 				levels={ levels.length ? levels : [ __( 'Parent' ) ] }
 				plural={ plural }
 				singular={ singular }
-				nested={ nested }
 				example={ found && found.examples[ 0 ] }
 				separators={ separators }
 			/>
-			<p className="description">{ __( 'The parent keyword picks the taxonomy; the keywords under it are the terms. A prefixed keyword whose first part is the parent keyword is read the same way.' ) }</p>
+			<p className="description">{ __( 'The parent keyword picks the taxonomy; the keywords under it are its terms, each level under the one above with its own archive page, as in your photo software. A prefixed keyword whose first part is the parent keyword is read the same way.' ) }</p>
 		</Editor>
 	);
 }
@@ -483,7 +439,7 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 
 	return (
 		<Editor
-			title={ def ? sprintf( __( 'Custom metadata: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add custom metadata' ) }
+			title={ def ? sprintf( __( 'Custom metadata: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add Custom Metadata Taxonomy' ) }
 			reprocess={ {
 				label: __( 'Save and reprocess all images' ),
 				missing: sprintf( __( '%s field' ), fieldLabel( tag ) ),
@@ -647,168 +603,171 @@ export default function TaxonomySettings( { component } ) {
 				onChange={ ( value ) => component.persistSetting( 'custom_taxonomies_enable', value ) }
 			/>
 
-			<Section
-				title={ __( 'Standard Metadata' ) }
-				intro={ __( 'Built in. Each knows every place its information can be stored, so you don’t need to know which fields your photo software writes. Turn off the ones you don’t want.' ) }
-			>
-				<Table
-					className="photopress-taxonomies__standard"
-					head={ [ [ __( 'Taxonomy' ) ], [ __( 'How it’s filled' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ], [ __( 'On' ), 'switch' ] ] }
-				>
-					{ STANDARD.map( ( s ) => {
-						const def = standard[ s.kind ];
-						const on = !! def && ! def.disabled;
-						return (
-							<tr key={ s.kind } data-kind={ s.kind }>
-								<td><strong>{ capitalize( ( def || s ).pluralLabel ) }</strong></td>
-								<td>{ standardHow( s.kind ) }</td>
-								<td><code>{ archiveUrl( def || s ) }</code></td>
-								<td className="num">{ def ? termCount( status, def.id ) : '—' }</td>
-								<RowActions onEdit={ () => setScreen( { type: 'standard', kind: s.kind } ) } />
-								<td className="switch">
-									<FormToggle
-										checked={ on }
-										disabled={ saving }
-										aria-label={ sprintf( __( '%s on' ), capitalize( ( def || s ).pluralLabel ) ) }
-										onChange={ ( e ) => toggleStandard( s.kind, e.target.checked ) }
-									/>
-								</td>
-							</tr>
-						);
-					} ) }
-				</Table>
-			</Section>
-
-			<Section
-				title={ __( 'Hierarchical Keyword Metadata' ) }
-				intro={ __( 'Keywords filed under a parent keyword, like People › Jane, or people: Jane, go to the parent keyword’s own taxonomy instead of Keywords.' ) }
-				action={ <Button variant="primary" onClick={ () => setScreen( { type: 'parent' } ) }>{ __( 'Add parent keyword' ) }</Button> }
-			>
-				<Table
-					className="photopress-taxonomies__parents"
-					head={ [ [ __( 'Taxonomy' ) ], [ __( 'Parent keywords' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
-				>
-					{ parents.length === 0 && <tr><td colSpan="5">{ __( 'No parent keywords yet.' ) }</td></tr> }
-					{ parents.map( ( p ) => (
-						<tr key={ p.id } data-taxonomy={ p.id }>
-							<td>
-								<strong>{ capitalize( p.pluralLabel ) }</strong>
-								{ p.nested && <span className="description"> { __( '(nested)' ) }</span> }
-							</td>
-							<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n.replace( /\|/g, ' › ' ) }</code> ) }</td>
-							<td><code>{ archiveUrl( p ) }</code></td>
-							<td className="num">{ termCount( status, p.id ) }</td>
-							<RowActions
-								onEdit={ () => setScreen( { type: 'parent', index: p.index } ) }
-								onRemove={ () => remove( p, __( 'the parent keyword' ) ) }
-								removeLabel={ __( 'Remove' ) }
-							/>
-						</tr>
-					) ) }
-				</Table>
-
-				{ unclaimed.length > 0 && (
-					<div className="photopress-taxonomies__found">
-						<h4>{ __( 'Parent keywords in your photos with no taxonomy' ) }</h4>
-						<p className="description">{ __( 'Until they have one, these keywords are filed under Keywords as written.' ) }</p>
-						<ul>
-							{ unclaimed.map( ( p ) => {
-								const typo = likelyTypoOf( p.prefix, parents );
+			{ component.getSetting( 'custom_taxonomies_enable' ) && (
+				<Fragment>
+					<Section
+						title={ __( 'Standard Metadata' ) }
+						intro={ __( 'Built in. Each knows every place its information can be stored, so you don’t need to know which fields your photo software writes. Turn off the ones you don’t want.' ) }
+					>
+						<Table
+							className="photopress-taxonomies__standard"
+							head={ [ [ __( 'Taxonomy' ) ], [ __( 'How it’s filled' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ], [ __( 'On' ), 'switch' ] ] }
+						>
+							{ STANDARD.map( ( s ) => {
+								const def = standard[ s.kind ];
+								const on = !! def && ! def.disabled;
 								return (
-									<li key={ p.prefix }>
-										<span>
-											<code>{ p.prefix }</code> <span className="description">{ sprintf( _n( 'used %1$d time, e.g. %2$s', 'used %1$d times, e.g. %2$s', p.photos ), p.photos, p.examples.join( ', ' ) ) }</span>
-										</span>
-										{ typo ? (
-											<Button variant="secondary" size="small" disabled={ saving } onClick={ () => addName( typo, p.prefix ) }>
-												{ sprintf( __( 'Add to %s' ), capitalize( typo.pluralLabel ) ) }
-											</Button>
-										) : (
-											<Button variant="secondary" size="small" onClick={ () => setScreen( { type: 'parent', prefill: p.prefix } ) }>
-												{ __( 'Add parent keyword' ) }
-											</Button>
-										) }
-									</li>
+									<tr key={ s.kind } data-kind={ s.kind }>
+										<td><strong>{ capitalize( ( def || s ).pluralLabel ) }</strong></td>
+										<td>{ standardHow( s.kind ) }</td>
+										<td><code>{ archiveUrl( def || s ) }</code></td>
+										<td className="num">{ def ? termCount( status, def.id ) : '—' }</td>
+										<RowActions onEdit={ () => setScreen( { type: 'standard', kind: s.kind } ) } />
+										<td className="switch">
+											<FormToggle
+												checked={ on }
+												disabled={ saving }
+												aria-label={ sprintf( __( '%s on' ), capitalize( ( def || s ).pluralLabel ) ) }
+												onChange={ ( e ) => toggleStandard( s.kind, e.target.checked ) }
+											/>
+										</td>
+									</tr>
 								);
 							} ) }
-						</ul>
-					</div>
-				) }
+						</Table>
+					</Section>
 
-				<div className="photopress-taxonomies__separators">
-					<TextControl
-						__nextHasNoMarginBottom
-						__next40pxDefaultSize
-						label={ __( 'Prefix separators' ) }
-						help={ __( 'What comes between a parent keyword and the rest, as in people: Jane. Several: separate them with spaces (: >). Empty: prefixes are not read. Keyword lists from Lightroom and Capture One are always read.' ) }
-						value={ delimiter }
-						onChange={ ( value ) => component.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
-					/>
-					<SaveBar
-						saving={ saving }
-						reprocess={ scopeChoice( separatorScope, __( 'Keywords and parent keyword terms' ) ) }
-						onSave={ ( reprocess ) => {
-							reprocessAfterSave.current = reprocess || null;
-							setNotice( null );
-							component.saveSettings();
-						} }
-					/>
-				</div>
-			</Section>
+					<Section
+						title={ __( 'Hierarchical Keyword Metadata' ) }
+						intro={ __( 'Keywords filed under a parent keyword, like People › Jane, or people: Jane, go to the parent keyword’s own taxonomy instead of Keywords.' ) }
+						action={ <Button variant="primary" aria-label={ __( 'Add a hierarchical keyword taxonomy' ) } onClick={ () => setScreen( { type: 'parent' } ) }>{ __( 'Add' ) }</Button> }
+					>
+						<Table
+							className="photopress-taxonomies__parents"
+							head={ [ [ __( 'Taxonomy' ) ], [ __( 'Parent keywords' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
+						>
+							{ parents.length === 0 && <tr><td colSpan="5">{ __( 'No parent keywords yet.' ) }</td></tr> }
+							{ parents.map( ( p ) => (
+								<tr key={ p.id } data-taxonomy={ p.id }>
+									<td>
+										<strong>{ capitalize( p.pluralLabel ) }</strong>
+											</td>
+									<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n.replace( /\|/g, ' › ' ) }</code> ) }</td>
+									<td><code>{ archiveUrl( p ) }</code></td>
+									<td className="num">{ termCount( status, p.id ) }</td>
+									<RowActions
+										onEdit={ () => setScreen( { type: 'parent', index: p.index } ) }
+										onRemove={ () => remove( p, __( 'the parent keyword' ) ) }
+										removeLabel={ __( 'Remove' ) }
+									/>
+								</tr>
+							) ) }
+						</Table>
 
-			<Section
-				title={ __( 'Custom Metadata' ) }
-				intro={ __( 'Any other metadata field as a taxonomy. Every value in the field becomes a term, as written.' ) }
-				action={ <Button variant="primary" onClick={ () => setScreen( { type: 'custom' } ) }>{ __( 'Add custom metadata' ) }</Button> }
-			>
-				<Table
-					className="photopress-taxonomies__custom"
-					head={ [ [ __( 'Taxonomy' ) ], [ __( 'Field' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
-				>
-					{ custom.length === 0 && <tr><td colSpan="5">{ __( 'No custom metadata yet.' ) }</td></tr> }
-					{ custom.map( ( c ) => (
-						<tr key={ c.id } data-taxonomy={ c.id }>
-							<td><strong>{ capitalize( c.pluralLabel ) }</strong></td>
-							<td>{ fieldLabel( c.tag ) } <span className="description">({ c.tag })</span></td>
-							<td><code>{ archiveUrl( c ) }</code></td>
-							<td className="num">{ termCount( status, c.id ) }</td>
-							<RowActions
-								onEdit={ () => setScreen( { type: 'custom', index: c.index } ) }
-								onRemove={ () => remove( c, __( 'the field' ) ) }
-								removeLabel={ __( 'Delete' ) }
+						{ unclaimed.length > 0 && (
+							<div className="photopress-taxonomies__found">
+								<h4>{ __( 'Parent keywords in your photos with no taxonomy' ) }</h4>
+								<p className="description">{ __( 'Until they have one, these keywords are filed under Keywords as written.' ) }</p>
+								<ul>
+									{ unclaimed.map( ( p ) => {
+										const typo = likelyTypoOf( p.prefix, parents );
+										return (
+											<li key={ p.prefix }>
+												<span>
+													<code>{ p.prefix }</code> <span className="description">{ sprintf( _n( 'used %1$d time, e.g. %2$s', 'used %1$d times, e.g. %2$s', p.photos ), p.photos, p.examples.join( ', ' ) ) }</span>
+												</span>
+												{ typo ? (
+													<Button variant="secondary" size="small" disabled={ saving } onClick={ () => addName( typo, p.prefix ) }>
+														{ sprintf( __( 'Add to %s' ), capitalize( typo.pluralLabel ) ) }
+													</Button>
+												) : (
+													<Button variant="secondary" size="small" onClick={ () => setScreen( { type: 'parent', prefill: p.prefix } ) }>
+														{ __( 'Add taxonomy' ) }
+													</Button>
+												) }
+											</li>
+										);
+									} ) }
+								</ul>
+							</div>
+						) }
+
+						<div className="photopress-taxonomies__separators">
+							<TextControl
+								__nextHasNoMarginBottom
+								__next40pxDefaultSize
+								label={ __( 'Prefix separators' ) }
+								help={ __( 'What comes between a parent keyword and the rest, as in people: Jane. Several: separate them with spaces (: >). Empty: prefixes are not read. Keyword lists from Lightroom and Capture One are always read.' ) }
+								value={ delimiter }
+								onChange={ ( value ) => component.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
 							/>
-						</tr>
-					) ) }
-				</Table>
-			</Section>
+							<SaveBar
+								saving={ saving }
+								reprocess={ scopeChoice( separatorScope, __( 'Keywords and parent keyword terms' ) ) }
+								onSave={ ( reprocess ) => {
+									reprocessAfterSave.current = reprocess || null;
+									setNotice( null );
+									component.saveSettings();
+								} }
+							/>
+						</div>
+					</Section>
 
-			<Section title={ __( 'Photos already uploaded' ) }>
-				<JobPanel
-					type="metadata.reprocess"
-					label={ __( 'Re-read image metadata' ) }
-					description={ __( 'Reads every image’s embedded metadata again, as on upload: its taxonomies, alt text and description. For after changing the alt text or description templates, or turning a standard taxonomy back on; a change to a parent keyword, the separators or custom metadata can reprocess the images it affects when you save it. It runs in the background; you can leave this page.' ) }
-					args={ { force: ! skip } }
-					refresh={ saves + jobs }
-					note={ ( job ) => {
-						if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
-							return '';
-						}
-						return job.args.ids && job.args.ids.length ? __( 'the images a change affects, image taxonomies only' ) : __( 'image taxonomies only' );
-					} }
-					confirm={ skip
-						? __( 'Re-read the metadata of every photo? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
-						: __( 'Re-read the metadata of every photo, and empty the terms of photos whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
-				/>
-				<CheckboxControl
-					__nextHasNoMarginBottom
-					label={ __( 'Don’t change images whose files have no metadata for a taxonomy' ) }
-					help={ skip
-						? __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image keeps its terms in that taxonomy as they are, in case the metadata was stripped from the file.' )
-						: __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image’s terms in that taxonomy are emptied.' ) }
-					checked={ skip }
-					onChange={ setSkip }
-				/>
-			</Section>
+					<Section
+						title={ __( 'Custom Metadata' ) }
+						intro={ __( 'Any other metadata field as a taxonomy. Every value in the field becomes a term, as written.' ) }
+						action={ <Button variant="primary" aria-label={ __( 'Add a custom metadata taxonomy' ) } onClick={ () => setScreen( { type: 'custom' } ) }>{ __( 'Add' ) }</Button> }
+					>
+						<Table
+							className="photopress-taxonomies__custom"
+							head={ [ [ __( 'Taxonomy' ) ], [ __( 'Field' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
+						>
+							{ custom.length === 0 && <tr><td colSpan="5">{ __( 'No custom metadata yet.' ) }</td></tr> }
+							{ custom.map( ( c ) => (
+								<tr key={ c.id } data-taxonomy={ c.id }>
+									<td><strong>{ capitalize( c.pluralLabel ) }</strong></td>
+									<td>{ fieldLabel( c.tag ) } <span className="description">({ c.tag })</span></td>
+									<td><code>{ archiveUrl( c ) }</code></td>
+									<td className="num">{ termCount( status, c.id ) }</td>
+									<RowActions
+										onEdit={ () => setScreen( { type: 'custom', index: c.index } ) }
+										onRemove={ () => remove( c, __( 'the field' ) ) }
+										removeLabel={ __( 'Delete' ) }
+									/>
+								</tr>
+							) ) }
+						</Table>
+					</Section>
+
+					<Section title={ __( 'Photos already uploaded' ) }>
+						<JobPanel
+							type="metadata.reprocess"
+							label={ __( 'Re-read image metadata' ) }
+							description={ __( 'Reads every image’s embedded metadata again, as on upload: its taxonomies, alt text and description. For after changing the alt text or description templates, or turning a standard taxonomy back on; a change to a parent keyword, the separators or custom metadata can reprocess the images it affects when you save it. It runs in the background; you can leave this page.' ) }
+							args={ { force: ! skip } }
+							refresh={ saves + jobs }
+							note={ ( job ) => {
+								if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
+									return '';
+								}
+								return job.args.ids && job.args.ids.length ? __( 'the images a change affects, image taxonomies only' ) : __( 'image taxonomies only' );
+							} }
+							confirm={ skip
+								? __( 'Re-read the metadata of every photo? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
+								: __( 'Re-read the metadata of every photo, and empty the terms of photos whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+						/>
+						<CheckboxControl
+							__nextHasNoMarginBottom
+							label={ __( 'Don’t change images whose files have no metadata for a taxonomy' ) }
+							help={ skip
+								? __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image keeps its terms in that taxonomy as they are, in case the metadata was stripped from the file.' )
+								: __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image’s terms in that taxonomy are emptied.' ) }
+							checked={ skip }
+							onChange={ setSkip }
+						/>
+					</Section>
+				</Fragment>
+			) }
 		</div>
 	);
 }

@@ -9,7 +9,7 @@ const LIST = [
 	{ id: 'photos_camera', pluralLabel: 'cameras', singularLabel: 'camera', tag: 'photopress:camera', parseTagValue: false },
 	{ id: 'photos_keywords', pluralLabel: 'keywords', singularLabel: 'keyword', tag: 'dc:subject', parseTagValue: false },
 	{ id: 'photos_people', pluralLabel: 'people', singularLabel: 'person', tag: 'dc:subject', parseTagValue: true },
-	{ id: 'pp_genre', pluralLabel: 'genres', singularLabel: 'genre', tag: 'dc:subject', parseTagValue: true, names: [ 'genre' ], nested: true },
+	{ id: 'pp_genre', pluralLabel: 'genres', singularLabel: 'genre', tag: 'dc:subject', parseTagValue: true, names: [ 'genre' ] },
 	{ id: 'pp_event', pluralLabel: 'events', singularLabel: 'event', tag: 'Iptc4xmpExt:Event', parseTagValue: false },
 	{ id: 'pp_more', pluralLabel: 'more', singularLabel: 'more', tag: 'dc:subject', parseTagValue: false },
 ];

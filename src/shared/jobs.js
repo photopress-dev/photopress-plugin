@@ -40,8 +40,10 @@ function statusText( job ) {
 /**
  * refresh: changing it asks for the most recent job again, as when a save
  * may have started one. note( job ): words shown with a job's progress.
+ * startable: false for a job started elsewhere (Save and reprocess), shown
+ * here only once there is one, with its progress and Cancel.
  */
-export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note } ) {
+export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note, startable = true } ) {
 	const [ job, setJob ] = useState( null );
 	const [ error, setError ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
@@ -96,6 +98,10 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 
 	const processed = job ? job.done + job.failed : 0;
 
+	if ( ! startable && ! job && ! error ) {
+		return null;
+	}
+
 	return (
 		<div className="photopress-job" data-job-type={ type }>
 			<h3>{ label }</h3>
@@ -133,7 +139,7 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 				<Button variant="secondary" onClick={ cancel } disabled={ busy }>
 					{ __( 'Cancel' ) }
 				</Button>
-			) : (
+			) : startable && (
 				<Button variant="primary" onClick={ start } disabled={ busy }>
 					{ job ? __( 'Run again' ) : __( 'Start' ) }
 				</Button>

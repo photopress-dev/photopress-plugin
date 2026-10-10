@@ -519,7 +519,7 @@ input[type="checkbox"] {
 	}
 }
 
-.photopress-taxonomies__savebar {
+.photopress-savebar {
 	margin-top: 8px;
 
 	.components-checkbox-control {
@@ -561,8 +561,15 @@ input[type="checkbox"] {
 	margin-top: -8px;
 }
 
-.photopress-taxonomies__buttons {
+.photopress-savebar__buttons {
 	display: flex;
 	gap: 8px;
 	margin-top: 24px;
+}
+
+// A section's reprocess job, below its settings and Save.
+.components-panel__body .components-base-control .photopress-job {
+	margin-top: 32px;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
 }

@@ -12,6 +12,9 @@ use photopress_util;
  */
 class metadata extends photopress_module {
 	
+	/** The taxonomies registered, [ id, slug, hierarchical ], for maybeFlushRewriteRules(). */
+	private $rewrites = [];
+	
 	public $label = 'Meta-data'; 
 	
 	public function definePublicHooks() {
@@ -21,7 +24,8 @@ class metadata extends photopress_module {
 		// add additional meta-data to images
 		add_filter( 'wp_read_image_metadata', [$this, 'storeMoreMetaData'], 10, 5);
 		
-		add_action( 'update_option_' . photopress_util::getModuleOptionKey( 'core', 'metadata' ), [ $this, 'taxonomiesChanged' ], 10, 2 );
+		// the description switch, for sites saved before it existed
+		add_action( 'init', [ self::class, 'addDescriptionSwitch' ] );
 		
 		add_action( 'rest_api_init', [ $this, 'registerRestRoutes' ] );
 		
@@ -38,17 +42,43 @@ class metadata extends photopress_module {
 			'finish'      => [ self::class, 'startQueuedReprocess' ],
 		] );
 		
+		// the alt text, description or embedded license of every image again
+		\PhotoPress\jobs\Jobs::register( 'metadata.alt_text', [
+			'label'   => __( 'Reprocess alt text' ),
+			'count'   => [ self::class, 'countImages' ],
+			'items'   => [ self::class, 'nextImages' ],
+			'process' => [ $this, 'reprocessAltText' ],
+		] );
+		
+		\PhotoPress\jobs\Jobs::register( 'metadata.description', [
+			'label'   => __( 'Reprocess descriptions' ),
+			'count'   => [ self::class, 'countImages' ],
+			'items'   => [ self::class, 'nextImages' ],
+			'process' => [ $this, 'reprocessDescription' ],
+		] );
+		
+		\PhotoPress\jobs\Jobs::register( 'metadata.license', [
+			'label'         => __( 'Reprocess licensing metadata' ),
+			'count'         => [ self::class, 'countImages' ],
+			'items'         => [ self::class, 'nextImages' ],
+			'process'       => [ $this, 'embedLicenseInImage' ],
+			'batch_seconds' => 10,
+			'batch_items'   => 5,
+			'pace'          => true,
+		] );
+		
 		// add additional attributes to images
 		//add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
 		add_filter( 'render_block', [ $this, 'addAttributesToImagesInContent' ], 11, 3 );
 		
 		// embed license meta-data in all uploaded images even if it already exists.
-		if ( pp_api::getOption('core', 'metadata', 'embed_licensor_enable') ) {
+		if ( self::licensingEnabled() ) {
 			
 			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1, 4 );
 		}
 		
-		add_filter( 'frame/attachment/image_markup', [ $this, 'addLicenseToImageMarkup'], 10, 2 );
+		// the license JSON-LD of the images an image page, search or archive shows
+		add_action( 'wp_footer', [ $this, 'printLicensingSchemaForPage' ] );
 		
 		// stop wordpress from stripping image meta from resized images.
 		add_filter ('image_strip_meta', function() {
@@ -111,25 +141,6 @@ class metadata extends photopress_module {
 		}
 	}	
 	
-	/**
-	 * A taxonomy added, renamed or made nested has new URLs, which WordPress
-	 * knows only after its rewrite rules are rebuilt. Marked when the setting
-	 * changes; rebuilt on the next request, once the taxonomies are registered.
-	 */
-	public function taxonomiesChanged( $old, $new ) {
-
-		$shape = static function ( $value ) {
-			return array_map( static function ( $tax ) {
-				$tax = (array) $tax;
-				return [ $tax['id'] ?? '', $tax['singularLabel'] ?? '', ! empty( $tax['nested'] ) && ! empty( $tax['parseTagValue'] ), ! empty( $tax['disabled'] ) ];
-			}, (array) ( ( (array) $value )['custom_taxonomies'] ?? [] ) );
-		};
-
-		if ( $shape( $old ) !== $shape( $new ) ) {
-			update_option( 'photopress_flush_rewrite_rules', 1 );
-		}
-	}
-
 	/**
 	 * What a change to the parent keywords or the prefix separators moves:
 	 * the taxonomies to fill again (the changed parent keywords and
@@ -270,6 +281,41 @@ class metadata extends photopress_module {
 		}
 	}
 
+	/**
+	 * Sites saved before the description had its own switch: on where a
+	 * description template is set, as the template alone turned it on.
+	 */
+	public static function addDescriptionSwitch() {
+
+		$key   = photopress_util::getModuleOptionKey( 'core', 'metadata' );
+		$saved = get_option( $key );
+
+		if ( is_array( $saved ) && ! array_key_exists( 'description_enable', $saved ) ) {
+			$saved['description_enable'] = '' !== trim( (string) ( $saved['description_template'] ?? '' ) );
+			update_option( $key, $saved );
+		}
+	}
+
+	/**
+	 * Whether licensing is on (embedding on upload, the reprocess job and the
+	 * JSON-LD): its switch on and all three of its settings filled in, so no
+	 * file or page gets half of the licensing information.
+	 */
+	public static function licensingEnabled() {
+
+		if ( ! pp_api::getOption( 'core', 'metadata', 'embed_licensor_enable' ) ) {
+			return false;
+		}
+
+		foreach ( [ 'licensor_name', 'licensor_url', 'web_statement_of_rights' ] as $key ) {
+			if ( '' === trim( (string) pp_api::getOption( 'core', 'metadata', $key ) ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	public function registerRestRoutes() {
 
 		register_rest_route( 'photopress/v1', '/image-taxonomies', [
@@ -385,12 +431,26 @@ class metadata extends photopress_module {
 		return array_slice( $found, 0, 20 );
 	}
 
-		private function maybeFlushRewriteRules() {
+	/**
+	 * Rebuilds the rewrite rules when the taxonomies' URLs differ from those
+	 * they were last built for: a taxonomy added, renamed or turned off in
+	 * the settings, or registered differently by an update of PhotoPress.
+	 */
+	private function maybeFlushRewriteRules() {
 
-		if ( get_option( 'photopress_flush_rewrite_rules' ) ) {
+		$built = md5( wp_json_encode( $this->rewrites ) );
+
+		if ( get_option( 'photopress_taxonomy_rewrites' ) === $built ) {
+			return;
+		}
+
+		// Once every plugin has registered its post types and taxonomies, so
+		// the rules rebuilt include theirs.
+		add_action( 'wp_loaded', static function () use ( $built ) {
+			update_option( 'photopress_taxonomy_rewrites', $built );
 			delete_option( 'photopress_flush_rewrite_rules' );
 			flush_rewrite_rules( false );
-		}
+		} );
 	}
 	
 	public function defineAdminHooks() {
@@ -484,7 +544,9 @@ class metadata extends photopress_module {
 		$content = $p->get_updated_html();
 		
 		// add licensable images
-		$content .= $this->renderLicensingSchema( $licensable_images );
+		if ( self::licensingEnabled() ) {
+			$content .= $this->renderLicensingSchema( $licensable_images );
+		}
 	
 		return $content;
 	}
@@ -555,14 +617,42 @@ class metadata extends photopress_module {
 		return $attr;
 	}
 	
-	public function addLicenseToImageMarkup( $markup, $attachment_id ) {
+	/**
+	 * wp_footer: the license JSON-LD of the image an image page shows, or of
+	 * the images in search results or an archive, from the main query, so
+	 * any theme gets it. Images in post content get theirs with their block
+	 * (addAttributesToImagesInContent).
+	 */
+	public function printLicensingSchemaForPage() {
 		
-		$markup .= $this->renderLicensingSchema( $attachment_id );
+		echo $this->renderLicensingSchema( $this->licensableImagesOfPage() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON from json_encode
+	}
+	
+	/** The images printLicensingSchemaForPage() gives JSON-LD for. @return int[] */
+	public function licensableImagesOfPage() {
 		
-		return $markup;
+		global $wp_query;
+		
+		if ( ! self::licensingEnabled() || ! ( is_attachment() || is_search() || is_archive() ) ) {
+			return [];
+		}
+		
+		$ids = [];
+		
+		foreach ( (array) ( $wp_query->posts ?? [] ) as $post ) {
+			if ( is_object( $post ) && 'attachment' === ( $post->post_type ?? '' ) && wp_attachment_is_image( $post ) ) {
+				$ids[] = $post->ID;
+			}
+		}
+		
+		return $ids;
 	}
 	
 	public function renderLicensingSchema( $attachment_ids ) {
+		
+		if ( [] === $attachment_ids ) {
+			return '';
+		}
 		
 		$licensing_schema = $this->generateLicensingSchema( $attachment_ids );
 		
@@ -820,6 +910,20 @@ class metadata extends photopress_module {
 				]
 			],
 			
+			'description_enable'	=> [
+				
+				'default_value'							=> false,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Description from metadata',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'Sets each image\'s description from the description template.',
+					'label_for'								=> 'Description from metadata.',
+					'error_message'							=> ''
+				]
+			],
+			
 			'description_template'	=> [
 				
 				'default_value'							=> '',
@@ -986,8 +1090,8 @@ class metadata extends photopress_module {
 	
 	public function registerTaxonomies() {
 	
-		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');		
-		//print_r($taxonomies);
+		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');
+		$model      = TaxonomyModel::build( (array) $taxonomies, (string) pp_api::getOption( 'core', 'metadata', 'custom_taxonomies_tag_delimiter' ) );
 		foreach ($taxonomies as $tax ) {
 			
 			// Turned off in the settings.
@@ -999,9 +1103,13 @@ class metadata extends photopress_module {
 			$upper_plural = ucwords( $tax[ 'pluralLabel' ] );
 			$upper_singular = ucwords( $tax[ 'singularLabel' ] );
 			
-			// A nested parent keyword's terms sit under one another, with
-			// URLs to match: /person/family/jane.
-			$nested = ! empty( $tax['nested'] ) && ! empty( $tax['parseTagValue'] );
+			// Keywords' and a parent keyword's terms sit under one another,
+			// with URLs to match: /person/family/jane. /person/jane still
+			// finds Jane, as WordPress reads the last part of a term path.
+			$nested = $model->isNested( $id );
+			$slug   = sanitize_title( $tax[ 'singularLabel' ] );
+			
+			$this->rewrites[] = [ $id, $slug, $nested ];
 			
 			register_taxonomy( $id, 'attachment', array(
 				
@@ -1032,7 +1140,7 @@ class metadata extends photopress_module {
 					'show_in_rest'          => true,
 					'rest_controller_class' => TermsController::class,
 					// As the settings screen shows it: "Acme job" is /acme-job/.
-					'rewrite' => array('slug' => sanitize_title( $tax[ 'singularLabel' ] ), 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ),
+					'rewrite' => array('slug' => $slug, 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ),
 					'update_count_callback'	=> '_update_generic_term_count',
 					'show_admin_column' => true,
 					'public'	=> true 
@@ -1050,6 +1158,13 @@ class metadata extends photopress_module {
 		
 		//extract metadata from file	
 		$file = get_attached_file( $id );
+		
+		// Images only (not PDFs, video or audio), and not an attachment made
+		// without a file, as some plugins make them.
+		if ( ! $file || ! is_file( $file ) || ! wp_attachment_is_image( $id ) ) {
+			return;
+		}
+		
 		$md = new XmpReader();
 		$md->loadFromFile( $file );
 		
@@ -1061,29 +1176,107 @@ class metadata extends photopress_module {
 			return;
 		}
 		
-		// set the description, when a template is configured
+		$this->applyDescription( $id, $md );
+		$this->applyAltText( $id, $md );
+	}
+	
+	/**
+	 * Sets an image's description from the description template, when the
+	 * description is on. $keep: a template whose fields the file has none
+	 * of leaves it alone, where otherwise it is emptied.
+	 */
+	public function applyDescription( $id, $md, $keep = false ) {
+		
 		$description = $this->generateDescription( $md );
+		
+		if ( $keep && '' === $description ) {
+			return;
+		}
 		
 		if ( null !== $description && $description !== get_post_field( 'post_content', $id ) ) {
 			wp_update_post( [ 'ID' => $id, 'post_content' => $description ] );
 		}
+	}
+	
+	/**
+	 * Sets an image's alt text from the alt text template, when alt text is
+	 * on. A template whose tags the file has none of leaves it alone, unless
+	 * $empty, which removes it.
+	 */
+	public function applyAltText( $id, $md, $empty = false ) {
 		
-		// set ALT text of image
-		
-		if ( pp_api::getOption('core', 'metadata', 'alt_text_enable') ) {
-		
-			$alt = $this->generateAltText( $md );
-			
-			// Nothing to say; leave any alt text that was supplied alone.
-			if ( '' === $alt ) {
-				return;
-			}
-			
-			// Adds the row if there is none. It returns false when the value is
-			// unchanged, which the add_post_meta() fallback here used to treat
-			// as missing and add a duplicate row.
-			update_post_meta( $id, '_wp_attachment_image_alt', $alt );
+		if ( ! pp_api::getOption('core', 'metadata', 'alt_text_enable') ) {
+			return;
 		}
+		
+		$alt = $this->generateAltText( $md );
+		
+		// Nothing to say; leave any alt text that was supplied alone.
+		if ( '' === $alt ) {
+			if ( $empty ) {
+				delete_post_meta( $id, '_wp_attachment_image_alt' );
+			}
+			return;
+		}
+		
+		// Adds the row if there is none. It returns false when the value is
+		// unchanged, which the add_post_meta() fallback here used to treat
+		// as missing and add a duplicate row.
+		update_post_meta( $id, '_wp_attachment_image_alt', $alt );
+	}
+	
+	/**
+	 * One image of the metadata.alt_text job. $args['force']: remove the alt
+	 * text of an image whose file has none of the template's fields.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function reprocessAltText( $id, $args = [] ) {
+		
+		$md = self::readerFor( $id );
+		
+		if ( is_wp_error( $md ) ) {
+			return $md;
+		}
+		
+		$this->applyAltText( $id, $md, ! empty( $args['force'] ) );
+		
+		return true;
+	}
+	
+	/**
+	 * One image of the metadata.description job. Without $args['force'], an
+	 * image whose file has none of the template's fields keeps its
+	 * description.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function reprocessDescription( $id, $args = [] ) {
+		
+		$md = self::readerFor( $id );
+		
+		if ( is_wp_error( $md ) ) {
+			return $md;
+		}
+		
+		$this->applyDescription( $id, $md, empty( $args['force'] ) );
+		
+		return true;
+	}
+	
+	/** The metadata of an image's file, or a WP_Error when it is missing. */
+	private static function readerFor( $id ) {
+		
+		$file = get_attached_file( $id );
+		
+		if ( ! $file || ! file_exists( $file ) ) {
+			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
+		}
+		
+		$md = new XmpReader();
+		$md->loadFromFile( $file );
+		
+		return $md;
 	}
 	
 	/**
@@ -1109,14 +1302,14 @@ class metadata extends photopress_module {
 	}
 	
 	/**
-	 * The description from the description template, or null when no
-	 * template is set (the description is then not touched).
+	 * The description from the description template, or null when the
+	 * description is off or no template is set (it is then not touched).
 	 */
 	public function generateDescription( $md ) {
 		
 		$template = trim( (string) pp_api::getOption( 'core', 'metadata', 'description_template' ) );
 		
-		if ( '' === $template ) {
+		if ( ! pp_api::getOption( 'core', 'metadata', 'description_enable' ) || '' === $template ) {
 			return null;
 		}
 		
@@ -1268,25 +1461,119 @@ class metadata extends photopress_module {
 		return trim( wp_strip_all_tags( (string) $value ) );
 	}
 	
-	public function embedLicense( $move, $file, $newfile, $type ) {
+	/**
+	 * What writes the license settings into an XMP packet, or null when
+	 * licensing is off or not all of them are set.
+	 */
+	private static function licenseMerge() {
 
-		$path = isset( $file['tmp_name'] ) ? $file['tmp_name'] : null;
+		if ( ! self::licensingEnabled() ) {
+			return null;
+		}
 
 		$wsr           = pp_api::getOption( 'core', 'metadata', 'web_statement_of_rights' );
 		$licensor_name = pp_api::getOption( 'core', 'metadata', 'licensor_name' );
 		$licensor_url  = pp_api::getOption( 'core', 'metadata', 'licensor_url' );
 
-		$has_licensor = ( $licensor_name && $licensor_url );
+		return static function ( $existing ) use ( $wsr, $licensor_name, $licensor_url ) {
+			return self::mergeLicenseIntoXmp( $existing, $wsr, $licensor_name, $licensor_url );
+		};
+	}
 
-		// Nothing configured, nothing to do.
-		if ( ! $path || ! is_readable( $path ) || ( ! $wsr && ! $has_licensor ) ) {
+	/**
+	 * One image of the metadata.license job: writes the license into the
+	 * XMP of each of its files (the original, the scaled image and every
+	 * size) without re-encoding them, then updates its metadata so plugins
+	 * that copy files elsewhere, such as WP Offload Media, upload them again.
+	 * A file that cannot be written that way is left as it is.
+	 *
+	 * @return true|\WP_Error
+	 */
+	public function embedLicenseInImage( $id ) {
+
+		$merge = self::licenseMerge();
+
+		if ( ! $merge ) {
+			return new \WP_Error( 'photopress_no_license', __( 'Licensing is off, or not all of its settings are filled in.' ) );
+		}
+
+		$files = self::imageFiles( $id );
+
+		if ( ! $files ) {
+			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
+		}
+
+		$failed = [];
+
+		foreach ( $files as $path ) {
+
+			$written = XmpFile::update( $path, $merge );
+
+			if ( true !== $written ) {
+				$failed[] = wp_basename( $path ) . ': ' . $written->get_error_message();
+			}
+		}
+
+		if ( count( $failed ) < count( $files ) ) {
+			wp_update_attachment_metadata( $id, wp_get_attachment_metadata( $id ) );
+		}
+
+		return $failed ? new \WP_Error( 'photopress_license_not_written', implode( ' ', $failed ) ) : true;
+	}
+
+	/**
+	 * The files of an image on this server: its file, the original it was
+	 * scaled from, and each size.
+	 *
+	 * @return string[]
+	 */
+	public static function imageFiles( $id ) {
+
+		$file = get_attached_file( $id );
+
+		if ( ! $file ) {
+			return [];
+		}
+
+		$dir   = dirname( $file );
+		$meta  = wp_get_attachment_metadata( $id );
+		$files = [ $file ];
+
+		if ( ! empty( $meta['original_image'] ) ) {
+			$files[] = $dir . '/' . $meta['original_image'];
+		}
+
+		foreach ( (array) ( $meta['sizes'] ?? [] ) as $size ) {
+			if ( ! empty( $size['file'] ) ) {
+				$files[] = $dir . '/' . $size['file'];
+			}
+		}
+
+		return array_values( array_filter( array_unique( $files ), 'file_exists' ) );
+	}
+
+	/** Whether a MIME type is a raster image: image/*, but not SVG. */
+	public static function isRasterImage( string $type ): bool {
+
+		return 0 === strpos( $type, 'image/' ) && 'image/svg+xml' !== $type;
+	}
+
+	public function embedLicense( $move, $file, $newfile, $type ) {
+
+		$path  = isset( $file['tmp_name'] ) ? $file['tmp_name'] : null;
+		$merge = self::licenseMerge();
+
+		// Nothing configured, nothing to do. Raster images only: the Imagick
+		// fallback below would re-encode anything else it can read, turning a
+		// PDF or an SVG into pixels.
+		if ( ! $path || ! is_readable( $path ) || ! $merge || ! self::isRasterImage( (string) $type ) ) {
 
 			return $move;
 		}
 
-		$merge = static function ( $existing ) use ( $wsr, $licensor_name, $licensor_url ) {
-			return self::mergeLicenseIntoXmp( $existing, $wsr, $licensor_name, $licensor_url );
-		};
+		$wsr           = pp_api::getOption( 'core', 'metadata', 'web_statement_of_rights' );
+		$licensor_name = pp_api::getOption( 'core', 'metadata', 'licensor_name' );
+		$licensor_url  = pp_api::getOption( 'core', 'metadata', 'licensor_url' );
 
 		// Written into the file's metadata block, without decoding the image,
 		// so the pixels stay as they were exported.

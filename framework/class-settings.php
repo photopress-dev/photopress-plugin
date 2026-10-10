@@ -179,6 +179,8 @@ class photopress_settingsPage {
 							'parseTagValue' => [ 'type' => 'boolean' ],
 							// A parent keyword's names, and whether its terms nest.
 							'names'         => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
+							// No longer used (every parent keyword is nested); accepted
+							// from settings saved before, and dropped.
 							'nested'        => [ 'type' => 'boolean' ],
 							// Turned off: not registered or filled, its names kept.
 							'disabled'      => [ 'type' => 'boolean' ],
@@ -267,10 +269,6 @@ class photopress_settingsPage {
 					
 					if ( $names ) {
 						$clean['names'] = $names;
-					}
-					
-					if ( ! empty( $item['nested'] ) ) {
-						$clean['nested'] = true;
 					}
 					
 					if ( ! empty( $item['disabled'] ) ) {

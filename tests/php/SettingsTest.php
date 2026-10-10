@@ -100,7 +100,7 @@ final class SettingsTest extends TestCase {
 		$this->assertLessThanOrEqual( 32, strlen( $ids[4] ) );
 	}
 
-		public function test_taxonomy_names_nesting_and_turning_off_are_kept_where_set(): void {
+		public function test_taxonomy_names_and_turning_off_are_kept_where_set_and_nesting_dropped(): void {
 
 		Functions\when( 'get_option' )->justReturn( [] );
 
@@ -113,7 +113,7 @@ final class SettingsTest extends TestCase {
 		] );
 
 		$this->assertSame( [ 'People', 'person' ], $clean['custom_taxonomies'][0]['names'] );
-		$this->assertTrue( $clean['custom_taxonomies'][0]['nested'] );
+		$this->assertArrayNotHasKey( 'nested', $clean['custom_taxonomies'][0], 'every parent keyword is nested' );
 		$this->assertTrue( $clean['custom_taxonomies'][1]['disabled'] );
 		$this->assertSame( [ 'id', 'pluralLabel', 'singularLabel', 'tag', 'parseTagValue' ], array_keys( $clean['custom_taxonomies'][2] ) );
 	}

@@ -24,7 +24,7 @@ export function standardHow( kind ) {
 		city: __( 'The city in the photo’s location' ),
 		state: __( 'The state or province in the photo’s location' ),
 		country: __( 'The country in the photo’s location' ),
-		keywords: __( 'Every keyword not under a parent keyword' ),
+		keywords: __( 'Every keyword not under a parent keyword, a keyword hierarchy keeping its levels' ),
 	}[ kind ];
 }
 

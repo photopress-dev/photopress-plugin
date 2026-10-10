@@ -16,10 +16,10 @@ namespace PhotoPress\modules\metadata;
  * Photoshop's File Info, leaves the other as it was); the image gets the
  * keywords of both, since neither can be told to be the newer.
  *
- * A path under a parent keyword goes to the parent's taxonomy: all of its
- * levels below the parent as nested terms, when the parent is nested, else
- * its last level, the levels between going to Keywords. Every level of any
- * other path goes to Keywords.
+ * A path under a parent keyword goes to the parent's taxonomy, its levels
+ * below the parent as nested terms (People|Family|Jane: Jane under Family).
+ * Any other path goes to Keywords, nested the same way (Places|USA|California:
+ * California under USA under Places); a plain keyword is a path of one.
  */
 final class TermRouter {
 
@@ -31,8 +31,8 @@ final class TermRouter {
 	];
 
 	/**
-	 * Taxonomy id => its terms: names, or for a nested taxonomy paths (lists
-	 * of names, parent first). Every taxonomy of the model is present, so one
+	 * Taxonomy id => its terms: names, or for a nested taxonomy (Keywords
+	 * and the parent keywords') paths, lists of names, parent first. Every taxonomy of the model is present, so one
 	 * the image has nothing for is emptied.
 	 */
 	public static function route( XmpReader $md, TaxonomyModel $model ): array {
@@ -66,25 +66,18 @@ final class TermRouter {
 				$match = self::parentOf( $path, $tag_parents );
 
 				if ( ! $match ) {
-					foreach ( $path as $level ) {
-						self::add( $terms, $tag_takers, $level );
+					foreach ( $tag_takers as $id ) {
+						if ( $model->isNested( $id ) ) {
+							$terms[ $id ][] = $path;
+						} else {
+							array_push( $terms[ $id ], ...$path );
+						}
 					}
 					continue;
 				}
 
 				[ $parent, $depth ] = $match;
-				$under = array_slice( $path, $depth );
-
-				if ( $parent['nested'] ) {
-					$terms[ $parent['id'] ][] = $under;
-					continue;
-				}
-
-				$terms[ $parent['id'] ][] = array_pop( $under );
-
-				foreach ( $under as $level ) {
-					self::add( $terms, $tag_takers, $level );
-				}
+				$terms[ $parent['id'] ][] = array_slice( $path, $depth );
 			}
 		}
 
@@ -271,13 +264,6 @@ final class TermRouter {
 	private static function trimmed( array $parts ): array {
 
 		return array_values( array_filter( array_map( 'trim', $parts ), 'strlen' ) );
-	}
-
-	private static function add( array &$terms, array $ids, string $term ): void {
-
-		foreach ( $ids as $id ) {
-			$terms[ $id ][] = $term;
-		}
 	}
 
 	/** Each term once; names compared without case, as WordPress does. */
