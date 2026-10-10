@@ -3,7 +3,7 @@
  * taxonomy can take as they are, and none of Standard Metadata's.
  */
 import { describe, expect, it } from 'vitest';
-import { FIELD_GROUPS, COMMON_FIELDS, fieldOf, guideUrl } from '../../src/shared/metadata-fields.js';
+import { FIELD_GROUPS, fieldOf, guideUrl } from '../../src/shared/metadata-fields.js';
 import { STANDARD } from '../../src/options/taxonomy-model.js';
 
 const fields = FIELD_GROUPS.flatMap( ( group ) => group.fields );
@@ -26,11 +26,14 @@ describe( 'metadata fields', () => {
 		expect( fieldOf( 'Iptc4xmpExt:PersonInImage' ) ).toMatchObject( { singular: 'Person', plural: 'People' } );
 	} );
 
-	it( 'lists the common fields among the rest, and names a field it does not list by its tag', () => {
-		for ( const tag of COMMON_FIELDS ) {
-			expect( fields.map( ( f ) => f.tag ) ).toContain( tag );
+	it( 'says where each field is set, and names a field it does not list by its tag', () => {
+		expect( fieldOf( 'Iptc4xmpExt:Event' ).note ).toBe( 'Set in Lightroom Classic and Photoshop, not Capture One.' );
+		expect( fieldOf( 'photoshop:Headline' ).note ).toBe( 'Set in Lightroom Classic, Photoshop and Capture One.' );
+		expect( fieldOf( 'GettyImagesGIFT:Personality' ).note ).toBe( 'Set in Capture One, not Lightroom Classic or Photoshop.' );
+		for ( const group of FIELD_GROUPS ) {
+			expect( group.setIn && group.note, group.label ).toBeTruthy();
 		}
-		expect( fieldOf( 'xap:Nickname' ) ).toMatchObject( { label: 'xap:Nickname', example: '' } );
+		expect( fieldOf( 'xap:Nickname' ) ).toMatchObject( { label: 'xap:Nickname', example: '', note: '' } );
 	} );
 } );
 

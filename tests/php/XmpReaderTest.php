@@ -299,4 +299,16 @@ final class XmpReaderTest extends TestCase {
 
 		$this->assertInstanceOf( \__PHP_Incomplete_Class::class, $md->getAllXmp()['dc:title'] );
 	}
+
+	public function test_getty_images_fields_capture_one_writes_are_read(): void {
+
+		$packet = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+			. '<rdf:Description rdf:about="" xmlns:GettyImagesGIFT="http://xmp.gettyimages.com/gift/1.0/">'
+			. '<GettyImagesGIFT:Personality><rdf:Bag><rdf:li>Jane Smith</rdf:li><rdf:li>John Doe</rdf:li></rdf:Bag></GettyImagesGIFT:Personality>'
+			. '</rdf:Description></rdf:RDF></x:xmpmeta>';
+
+		$md = ( new XmpReader() )->parsePacket( $packet );
+
+		$this->assertSame( [ 'Jane Smith', 'John Doe' ], $md['GettyImagesGIFT:Personality'] );
+	}
 }

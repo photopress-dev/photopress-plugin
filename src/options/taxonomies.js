@@ -13,7 +13,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
 import { useAdvanced } from '../shared/advanced-options.js';
-import { FIELD_GROUPS, COMMON_FIELDS, GUIDE_URL, fieldOf, guideUrl } from '../shared/metadata-fields.js';
+import { FIELD_GROUPS, GUIDE_URL, fieldOf, guideUrl } from '../shared/metadata-fields.js';
 import {
 	STANDARD,
 	archiveUrl,
@@ -401,8 +401,7 @@ function CustomPreview( { tag, plural, singular } ) {
 function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	const used = new Set( list.filter( ( d ) => ! d.parseTagValue && ( ! def || d.id !== def.id ) ).map( ( d ) => d.tag ) );
 	const available = ( tag ) => ! standardTags.has( tag ) && ( ! used.has( tag ) || ( def && def.tag === tag ) );
-	const common = COMMON_FIELDS.filter( available );
-	const groups = FIELD_GROUPS.map( ( group ) => ( { ...group, fields: group.fields.filter( ( f ) => available( f.tag ) && ! COMMON_FIELDS.includes( f.tag ) ) } ) ).filter( ( group ) => group.fields.length );
+	const groups = FIELD_GROUPS.map( ( group ) => ( { ...group, fields: group.fields.filter( ( f ) => available( f.tag ) ) } ) ).filter( ( group ) => group.fields.length );
 	// A field not listed, saved by an earlier version.
 	const other = def && ! FIELD_GROUPS.some( ( group ) => group.fields.some( ( f ) => f.tag === def.tag ) ) ? def.tag : null;
 
@@ -469,7 +468,7 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				hideLabelFromVision
 				help={ tag && fieldOf( tag ).about && (
 					<Fragment>
-						{ fieldOf( tag ).about }
+						{ fieldOf( tag ).about } { fieldOf( tag ).note }
 						{ guideUrl( fieldOf( tag ) ) && (
 							<Fragment>
 								{ ' ' }
@@ -482,9 +481,8 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				onChange={ pick }
 			>
 				{ ! tag && <option value="" disabled>{ __( 'Select…' ) }</option> }
-				<optgroup label={ __( 'Common fields' ) }>{ common.map( ( t ) => <option key={ t } value={ t }>{ option( t ).label }</option> ) }</optgroup>
 				{ groups.map( ( group ) => (
-					<optgroup key={ group.label } label={ group.label }>{ group.fields.map( ( f ) => <option key={ f.tag } value={ f.tag }>{ option( f.tag ).label }</option> ) }</optgroup>
+					<optgroup key={ group.label } label={ `${ group.label } · ${ group.setIn }` }>{ group.fields.map( ( f ) => <option key={ f.tag } value={ f.tag }>{ option( f.tag ).label }</option> ) }</optgroup>
 				) ) }
 				{ other && <optgroup label={ __( 'Other' ) }><option value={ other }>{ other }</option></optgroup> }
 			</SelectControl>
