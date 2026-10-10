@@ -110,24 +110,20 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [ 'Clients' ], $terms['photos_keywords'], 'the parent keyword alone is a keyword' );
 	}
 
-	public function test_the_plain_keywords_say_which_keywords_the_image_has(): void {
+	public function test_an_image_gets_the_keywords_of_both_lists_when_they_disagree(): void {
 
-		// Edited by software that kept the plain list up to date only.
+		// Jim Gettys (peteradamsphoto.com): keywords edited in Photoshop's
+		// File Info, which leaves the hierarchy Capture One shows as it was.
 		$terms = self::route( [
-			'lr:hierarchicalSubject' => [ 'People|Jane', 'People|Bob', 'removed' ],
-			'dc:subject'             => [ 'Jane', 'lake' ],
+			'lr:hierarchicalSubject' => [ 'faces of open source', 'high key', 'portrait', 'People|Jim Gettys' ],
+			'dc:subject'             => [ 'faces of open source', 'unix', 'portrait' ],
 		] );
 
-		$this->assertSame( [ 'Jane' ], $terms['photos_people'] );
-		$this->assertSame( [ 'lake' ], $terms['photos_keywords'] );
-
-		$terms = self::route( [ 'lr:hierarchicalSubject' => [ 'People|Jane', 'lake' ] ] );
-
-		$this->assertSame( [ 'Jane' ], $terms['photos_people'], 'without a plain list, the hierarchy is all' );
-		$this->assertSame( [ 'lake' ], $terms['photos_keywords'] );
+		$this->assertSame( [ 'faces of open source', 'high key', 'portrait', 'unix' ], $terms['photos_keywords'] );
+		$this->assertSame( [ 'Jim Gettys' ], $terms['photos_people'] );
 	}
 
-		public function test_other_keyword_hierarchies_when_there_is_no_lightroom_one(): void {
+	public function test_other_keyword_hierarchies_when_there_is_no_lightroom_one(): void {
 
 		$terms = self::route( [ 'digiKam:TagsList' => [ 'People/Jane' ], 'dc:subject' => [ 'Jane' ] ] );
 

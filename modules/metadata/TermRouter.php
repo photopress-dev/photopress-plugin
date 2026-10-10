@@ -12,9 +12,9 @@ namespace PhotoPress\modules\metadata;
  * with a parent keyword and a separator ("people: Jane"). The plain keyword
  * list repeats the hierarchy's keywords, often with their parents ("Family"),
  * so a plain keyword that is a level of a hierarchy path is not read again.
- * The plain list says which keywords the image has: software that edits only
- * it leaves the hierarchy out of date, so a hierarchy path whose keyword is
- * not in the list is not read. Without a plain list, the hierarchy is all.
+ * The two lists can disagree (software that edits only one of them, such as
+ * Photoshop's File Info, leaves the other as it was); the image gets the
+ * keywords of both, since neither can be told to be the newer.
  *
  * A path under a parent keyword goes to the parent's taxonomy: all of its
  * levels below the parent as nested terms, when the parent is nested, else
@@ -105,14 +105,6 @@ final class TermRouter {
 		$hierarchy = 'dc:subject' === $tag ? self::hierarchy( $md ) : [];
 		$levels    = [];
 		$paths     = [];
-
-		if ( $values && $hierarchy ) {
-
-			$listed    = array_flip( array_map( [ TaxonomyModel::class, 'lower' ], $values ) );
-			$hierarchy = array_filter( $hierarchy, static function ( $path ) use ( $listed ) {
-				return isset( $listed[ TaxonomyModel::lower( end( $path ) ) ] );
-			} );
-		}
 
 		foreach ( $hierarchy as $path ) {
 
