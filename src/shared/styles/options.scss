@@ -692,3 +692,8 @@ input[type="checkbox"] {
 .photopress-savebar .components-checkbox-control {
 	margin-top: 4px;
 }
+
+// Cancel at the right end of the buttons.
+.photopress-savebar__cancel.components-button {
+	margin-left: auto;
+}

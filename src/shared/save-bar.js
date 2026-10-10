@@ -27,8 +27,8 @@ export default function SaveBar( { onSave, onCancel, saving, saveLabel = __( 'Sa
 						{ reprocess.label }
 					</Button>
 				) }
-				{ onCancel && <Button variant="tertiary" onClick={ onCancel }>{ __( 'Cancel' ) }</Button> }
 				{ canEmpty && advanced.link }
+				{ onCancel && <Button variant="tertiary" className="photopress-savebar__cancel" onClick={ onCancel }>{ __( 'Cancel' ) }</Button> }
 			</p>
 			{ canEmpty && advanced.open && (
 				<CheckboxControl

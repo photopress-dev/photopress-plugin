@@ -117,6 +117,8 @@ test( 'a change that moves photos offers to reprocess just those, emptying nothi
 	await editor.getByRole( 'button', { name: 'Cancel' } ).click();
 
 	await page.getByRole( 'button', { name: 'Add a custom metadata taxonomy' } ).click();
+	await expect( editor.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toHaveCount( 0 );
+	await page.getByLabel( 'Metadata field' ).selectOption( 'Iptc4xmpExt:Event' );
 	await expect( editor.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
 	await editor.getByRole( 'button', { name: 'Advanced options' } ).click();
 	await expect( editor.getByRole( 'checkbox', { name: /^Empty the .+ terms of images whose files have no .+ field$/ } ) ).not.toBeChecked();
@@ -140,7 +142,16 @@ test( 'custom metadata is added for a field and deleted', async ( { page } ) => 
 	await page.goto( URL );
 	await page.getByRole( 'button', { name: 'Add a custom metadata taxonomy' } ).click();
 
+	// No field chosen yet.
+	await expect( page.getByLabel( 'Metadata field' ) ).toHaveValue( '' );
+	await expect( page.getByLabel( 'Metadata field' ) ).toContainText( 'Select…' );
+	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();
+	await expect( page.locator( '.photopress-taxonomies__editor .components-notice' ) ).toContainText( 'Choose the metadata field' );
+
 	// Another taxonomy's archive URL is refused.
+	await page.getByLabel( 'Metadata field' ).selectOption( 'Iptc4xmpExt:Event' );
+	await expect( page.getByLabel( 'Singular name' ) ).toHaveValue( 'Event' );
+	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( '/event/maker-faire' );
 	await page.getByLabel( 'Singular name' ).fill( 'Camera' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();
 	await expect( page.locator( '.photopress-taxonomies__editor .components-notice' ) ).toContainText( 'Cameras already uses /camera/' );

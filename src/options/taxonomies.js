@@ -398,16 +398,51 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 	);
 }
 
+/** A likely value of each common field, for the example. */
+const FIELD_EXAMPLES = {
+	'Iptc4xmpExt:Event': 'Maker Faire',
+	'Iptc4xmpExt:PersonInImage': 'Jane Smith',
+	'photoshop:Category': 'Travel',
+	'photoshop:SupplementalCategories': 'Landscape',
+	'photoshop:Credit': 'Jane Smith Photography',
+	'photoshop:Source': 'Acme Agency',
+	'Iptc4xmpCore:Location': 'Golden Gate Park',
+	'dc:creator': 'Jane Smith',
+	'dc:publisher': 'Acme Press',
+	'dc:contributor': 'John Doe',
+};
+
+/** What a photo with a value in the field gets: a term in the taxonomy, with its page. */
+function CustomPreview( { tag, plural, singular } ) {
+	const value = FIELD_EXAMPLES[ tag ] || __( 'Example' );
+	const def = { singularLabel: singular };
+
+	return (
+		<Fragment>
+			<h4>{ __( 'What a photo gets' ) }</h4>
+			<Table className="photopress-taxonomies__preview" head={ [ [ sprintf( __( '%s in the photo' ), fieldLabel( tag ) ) ], [ __( 'Taxonomy' ) ], [ __( 'Term' ) ], [ __( 'Archive page' ) ] ] }>
+				<tr>
+					<td><code>{ value }</code></td>
+					<td>{ plural || __( 'This taxonomy' ) }</td>
+					<td><strong>{ value }</strong></td>
+					<td><code>{ archiveUrl( def, value ) }</code></td>
+				</tr>
+			</Table>
+			<p className="description">{ __( 'Each value in the field becomes a term, as written. A field with several values gives the photo a term for each.' ) }</p>
+		</Fragment>
+	);
+}
+
 function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	const used = new Set( list.filter( ( d ) => ! d.parseTagValue && ( ! def || d.id !== def.id ) ).map( ( d ) => d.tag ) );
 	const available = ( tag ) => ! standardTags.has( tag ) && ( ! used.has( tag ) || ( def && def.tag === tag ) );
 	const common = COMMON_FIELDS.filter( available );
 	const rest = Object.keys( xmpLabels ).filter( ( tag ) => available( tag ) && ! COMMON_FIELDS.includes( tag ) );
 
-	const first = def ? def.tag : common[ 0 ];
-	const [ tag, setTag ] = useState( first );
-	const [ plural, setPlural ] = useState( def ? capitalize( def.pluralLabel ) : capitalize( pluralize( fieldLabel( first ) ) ) );
-	const [ singular, setSingular ] = useState( def ? capitalize( def.singularLabel ) : capitalize( fieldLabel( first ) ) );
+	// A new one starts with no field chosen, and its names from the field.
+	const [ tag, setTag ] = useState( def ? def.tag : '' );
+	const [ plural, setPlural ] = useState( def ? capitalize( def.pluralLabel ) : '' );
+	const [ singular, setSingular ] = useState( def ? capitalize( def.singularLabel ) : '' );
 	const [ named, setNamed ] = useState( !! def );
 	const [ error, setError ] = useState( null );
 
@@ -422,6 +457,9 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	const id = def ? def.id : newId( singular, list );
 
 	const save = ( reprocess ) => {
+		if ( ! tag ) {
+			return setError( __( 'Choose the metadata field to make a taxonomy of.' ) );
+		}
 		const problem = namesProblem( plural, singular, list, def ? def.index : -1 );
 		if ( problem ) {
 			return setError( problem );
@@ -441,12 +479,12 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	return (
 		<Editor
 			title={ def ? sprintf( __( 'Custom metadata: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add Custom Metadata Taxonomy' ) }
-			reprocess={ {
+			reprocess={ tag ? {
 				label: __( 'Save and reprocess all images' ),
 				missing: sprintf( __( '%s field' ), fieldLabel( tag ) ),
 				terms: sprintf( __( '%s terms' ), capitalize( plural || fieldLabel( tag ) ) ),
 				request: { all: true, taxonomies: [ id ] },
-			} }
+			} : null }
 			error={ error }
 			onSave={ save }
 			onCancel={ onCancel }
@@ -460,6 +498,7 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				value={ tag }
 				onChange={ pick }
 			>
+				{ ! tag && <option value="" disabled>{ __( 'Select…' ) }</option> }
 				<optgroup label={ __( 'Common fields' ) }>{ common.map( ( t ) => <option key={ t } value={ t }>{ option( t ).label }</option> ) }</optgroup>
 				<optgroup label={ __( 'All fields' ) }>{ rest.map( ( t ) => <option key={ t } value={ t }>{ option( t ).label }</option> ) }</optgroup>
 			</SelectControl>
@@ -470,8 +509,7 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				onSingular={ ( v ) => ( setNamed( true ), setSingular( v ) ) }
 				before={ def && slug( def.singularLabel ) }
 			/>
-			<h4>{ __( 'What a photo gets' ) }</h4>
-			<p>{ sprintf( __( 'Every value in %1$s becomes a %2$s term, as written.' ), fieldLabel( tag ), singular || __( 'taxonomy' ) ) }</p>
+			{ tag && <CustomPreview tag={ tag } plural={ plural } singular={ singular } /> }
 		</Editor>
 	);
 }
