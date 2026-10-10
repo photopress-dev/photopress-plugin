@@ -152,7 +152,7 @@ test( 'custom metadata is added for a field and deleted', async ( { page } ) => 
 	await page.getByLabel( 'Metadata field' ).selectOption( 'Iptc4xmpExt:Event' );
 	await expect( page.getByLabel( 'Singular name' ) ).toHaveValue( 'Event' );
 	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( '/event/maker-faire' );
-	await expect( page.locator( '.photopress-taxonomies__field-about' ) ).toContainText( 'The event the photo was taken at' );
+	await expect( page.locator( '.photopress-taxonomies__editor .components-base-control__help' ).first() ).toContainText( 'The event the photo was taken at' );
 	await expect( page.getByRole( 'link', { name: /About this field/ } ) ).toHaveAttribute( 'href', /userguide\/#_event$/ );
 	await page.getByLabel( 'Singular name' ).fill( 'Camera' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();

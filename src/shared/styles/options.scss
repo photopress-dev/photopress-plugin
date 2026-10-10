@@ -698,10 +698,15 @@ input[type="checkbox"] {
 	margin-left: auto;
 }
 
-// What a chosen metadata field is, under the field.
-.photopress-taxonomies__field-about {
-	margin: -8px 0 16px;
-	padding: 8px 12px;
-	background: #f6f7f7;
-	border-left: 3px solid #dcdcde;
+// The metadata field's label, with a link to what the fields mean at the right.
+.photopress-taxonomies__field-label {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+
+	.components-base-control__label {
+		margin: 0;
+	}
 }

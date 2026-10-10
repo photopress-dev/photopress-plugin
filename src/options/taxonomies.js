@@ -457,14 +457,25 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 			onCancel={ onCancel }
 			saving={ saving }
 		>
+			<div className="photopress-taxonomies__field-label">
+				<label className="components-base-control__label" htmlFor="photopress-metadata-field">{ __( 'Metadata field' ) }</label>
+				<ExternalLink href={ GUIDE_URL }>{ __( 'What these fields mean' ) }</ExternalLink>
+			</div>
 			<SelectControl
 				__nextHasNoMarginBottom
 				__next40pxDefaultSize
+				id="photopress-metadata-field"
 				label={ __( 'Metadata field' ) }
-				help={ (
+				hideLabelFromVision
+				help={ tag && fieldOf( tag ).about && (
 					<Fragment>
-						{ __( 'Camera, lens, location and keywords aren’t listed: they are Standard Metadata.' ) }{ ' ' }
-						<ExternalLink href={ GUIDE_URL }>{ __( 'What these fields mean' ) }</ExternalLink>
+						{ fieldOf( tag ).about }
+						{ guideUrl( fieldOf( tag ) ) && (
+							<Fragment>
+								{ ' ' }
+								<ExternalLink href={ guideUrl( fieldOf( tag ) ) }>{ __( 'About this field' ) }</ExternalLink>
+							</Fragment>
+						) }
 					</Fragment>
 				) }
 				value={ tag }
@@ -477,17 +488,6 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				) ) }
 				{ other && <optgroup label={ __( 'Other' ) }><option value={ other }>{ other }</option></optgroup> }
 			</SelectControl>
-			{ tag && fieldOf( tag ).about && (
-				<p className="photopress-taxonomies__field-about">
-					{ fieldOf( tag ).about }
-					{ guideUrl( fieldOf( tag ) ) && (
-						<Fragment>
-							{ ' ' }
-							<ExternalLink href={ guideUrl( fieldOf( tag ) ) }>{ __( 'About this field' ) }</ExternalLink>
-						</Fragment>
-					) }
-				</p>
-			) }
 			<Names
 				plural={ plural }
 				singular={ singular }
