@@ -53,7 +53,54 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [ ':', '>' ], $model->separators );
 	}
 
-	public function test_prefixed_keywords_go_to_their_parent_keyword_and_the_rest_to_keywords(): void {
+	public function test_a_taxonomy_turned_off_is_neither_read_nor_filled(): void {
+
+		$definitions = self::DEFINITIONS;
+		$definitions[1]['disabled'] = true;
+		$definitions[4]['disabled'] = true;
+
+		$terms = self::route( [ 'aux:Lens' => '35.0 mm f/2.0', 'dc:subject' => [ 'people: Jane' ] ], $definitions );
+
+		$this->assertArrayNotHasKey( 'photos_lens', $terms );
+		$this->assertArrayNotHasKey( 'photos_people', $terms );
+		$this->assertSame( [ 'people: Jane' ], $terms['photos_keywords'], 'with People off, its prefix is a keyword' );
+	}
+
+	public function test_prefixes_in_keywords_no_parent_keyword_takes(): void {
+
+		global $wpdb;
+
+		$wpdb = new class {
+			public $terms = 'wp_terms';
+			public $term_taxonomy = 'wp_term_taxonomy';
+			public $args;
+			public function esc_like( $text ) { return addcslashes( $text, '_%\\' ); }
+			public function prepare( $query, $args ) { $this->args = $args; return $query; }
+			public function get_results() {
+				return [
+					(object) [ 'name' => 'organization: Automattic', 'count' => 3 ],
+					(object) [ 'name' => 'Organization: Baidu', 'count' => 2 ],
+					(object) [ 'name' => 'genre: reportage', 'count' => 9 ],
+					(object) [ 'name' => 'publication: IEEE Spectrum', 'count' => 1 ],
+					(object) [ 'name' => 'penre: science &amp; technology', 'count' => 1 ],
+					(object) [ 'name' => 'people:', 'count' => 4 ],
+				];
+			}
+		};
+
+		$found = metadata::unclaimedPrefixes( TaxonomyModel::build( self::DEFINITIONS, ':' ) );
+
+		$this->assertSame( 'photos_keywords', $wpdb->args[0] );
+		$this->assertSame( [
+			[ 'prefix' => 'organization', 'photos' => 5, 'examples' => [ 'Automattic', 'Baidu' ] ],
+			[ 'prefix' => 'publication', 'photos' => 1, 'examples' => [ 'IEEE Spectrum' ] ],
+			[ 'prefix' => 'penre', 'photos' => 1, 'examples' => [ 'science & technology' ] ],
+		], $found );
+
+		$wpdb = null;
+	}
+
+		public function test_prefixed_keywords_go_to_their_parent_keyword_and_the_rest_to_keywords(): void {
 
 		$terms = self::route( [ 'dc:subject' => [ 'Silicon Valley', 'people: Parisa Tabriz', 'Genre:reportage', 'organization: Automattic' ] ] );
 

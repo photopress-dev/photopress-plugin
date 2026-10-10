@@ -69,7 +69,7 @@ final class TaxonomyModel {
 			$id  = (string) ( $def['id'] ?? '' );
 			$tag = (string) ( $def['tag'] ?? '' );
 
-			if ( '' === $id || '' === $tag ) {
+			if ( '' === $id || '' === $tag || ! empty( $def['disabled'] ) ) {
 				continue;
 			}
 

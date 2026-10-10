@@ -390,3 +390,173 @@ input[type="checkbox"] {
 		color: #d63638;
 	}
 }
+
+// An on/off setting: label and help on the left, the switch in the far
+// right column (src/shared/switch-row.js), as in the settings tables.
+.photopress-switch-row {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 12px 0;
+
+	label {
+		font-weight: 600;
+	}
+
+	.components-form-toggle {
+		flex: none;
+		margin-top: 2px;
+	}
+}
+
+.photopress-switch-row__help {
+	margin: 4px 0 0;
+	color: #646970;
+}
+
+// The Image Taxonomies section (src/options/taxonomies.js).
+.photopress-taxonomies {
+	max-width: 1100px;
+
+	code {
+		font-size: 12px;
+	}
+
+	.num {
+		text-align: right;
+	}
+
+	th.switch,
+	td.switch {
+		width: 40px;
+		text-align: right;
+	}
+}
+
+.photopress-taxonomies__intro {
+	max-width: 760px;
+	font-size: 14px;
+}
+
+.photopress-taxonomies__section {
+	margin-top: 28px;
+
+	h3 {
+		margin: 0 0 4px;
+	}
+}
+
+.photopress-taxonomies__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+
+	.description {
+		max-width: 760px;
+		margin: 0;
+	}
+}
+
+.photopress-taxonomies__scroll {
+	overflow-x: auto;
+}
+
+.photopress-taxonomies__actions {
+	white-space: nowrap;
+	text-align: right;
+}
+
+.photopress-taxonomies__chip {
+	display: inline-block;
+	margin: 0 6px 4px 0;
+	padding: 1px 8px;
+	border: 1px solid #c5d9ed;
+	border-radius: 10px;
+	background: #f0f6fc;
+}
+
+.photopress-taxonomies__found {
+	margin-top: 16px;
+	padding: 12px 16px;
+	border: 1px solid #c5d9ed;
+	background: #f0f6fc;
+
+	h4 {
+		margin: 0;
+	}
+
+	ul {
+		margin: 8px 0 0;
+	}
+
+	li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 6px 0;
+		border-top: 1px solid #dcdcde;
+	}
+}
+
+.photopress-taxonomies__separators {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 16px;
+
+	.components-base-control {
+		flex: 1 1 360px;
+		max-width: 560px;
+	}
+
+	.components-button {
+		margin-top: 24px;
+	}
+}
+
+.photopress-taxonomies__editor {
+	max-width: 760px;
+
+	h3 {
+		margin: 12px 0 16px;
+	}
+
+	h4 {
+		margin: 24px 0 8px;
+	}
+
+	.components-base-control {
+		margin-bottom: 16px;
+	}
+}
+
+.photopress-taxonomies__pair {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+
+	@media (max-width: 600px) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.photopress-taxonomies__chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin-top: -8px;
+}
+
+.photopress-taxonomies__buttons {
+	display: flex;
+	gap: 8px;
+	margin-top: 24px;
+}

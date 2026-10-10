@@ -180,6 +180,8 @@ class photopress_settingsPage {
 							// A parent keyword's names, and whether its terms nest.
 							'names'         => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
 							'nested'        => [ 'type' => 'boolean' ],
+							// Turned off: not registered or filled, its names kept.
+							'disabled'      => [ 'type' => 'boolean' ],
 						],
 					],
 				];
@@ -258,6 +260,10 @@ class photopress_settingsPage {
 					
 					if ( ! empty( $item['nested'] ) ) {
 						$clean['nested'] = true;
+					}
+					
+					if ( ! empty( $item['disabled'] ) ) {
+						$clean['disabled'] = true;
 					}
 					
 					$list[] = $clean;

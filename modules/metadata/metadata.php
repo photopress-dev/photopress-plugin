@@ -23,6 +23,8 @@ class metadata extends photopress_module {
 		
 		add_action( 'update_option_' . photopress_util::getModuleOptionKey( 'core', 'metadata' ), [ $this, 'taxonomiesChanged' ], 10, 2 );
 		
+		add_action( 'rest_api_init', [ $this, 'registerRestRoutes' ] );
+		
 		// the description of an image whose file was replaced (see MediaRest)
 		add_filter( 'photopress_attachment_description', [ $this, 'descriptionForReplacedFile' ], 10, 3 );
 		
@@ -118,7 +120,7 @@ class metadata extends photopress_module {
 		$shape = static function ( $value ) {
 			return array_map( static function ( $tax ) {
 				$tax = (array) $tax;
-				return [ $tax['id'] ?? '', $tax['singularLabel'] ?? '', ! empty( $tax['nested'] ) && ! empty( $tax['parseTagValue'] ) ];
+				return [ $tax['id'] ?? '', $tax['singularLabel'] ?? '', ! empty( $tax['nested'] ) && ! empty( $tax['parseTagValue'] ), ! empty( $tax['disabled'] ) ];
 			}, (array) ( ( (array) $value )['custom_taxonomies'] ?? [] ) );
 		};
 
@@ -127,7 +129,103 @@ class metadata extends photopress_module {
 		}
 	}
 
-	private function maybeFlushRewriteRules() {
+	public function registerRestRoutes() {
+
+		register_rest_route( 'photopress/v1', '/image-taxonomies', [
+			'methods'             => 'GET',
+			'callback'            => [ self::class, 'taxonomyStatus' ],
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+		] );
+	}
+
+	/**
+	 * For the Image Taxonomies settings: each taxonomy's number of terms, and
+	 * the prefixes in Keywords no parent keyword takes ("organization:
+	 * Automattic"), with how many photos have them and a few of their values.
+	 */
+	public static function taxonomyStatus() {
+
+		$model  = TaxonomyModel::fromSettings();
+		$counts = [];
+
+		foreach ( $model->taxonomyIds() as $id ) {
+			if ( taxonomy_exists( $id ) ) {
+				$counts[ $id ] = (int) wp_count_terms( [ 'taxonomy' => $id, 'hide_empty' => false ] );
+			}
+		}
+
+		return [
+			'counts'   => $counts,
+			'prefixes' => isset( $model->standard['keywords'] ) ? self::unclaimedPrefixes( $model ) : [],
+		];
+	}
+
+	/**
+	 * Keywords terms written "prefix: value" whose prefix is no parent
+	 * keyword, by prefix, most photos first.
+	 */
+	public static function unclaimedPrefixes( TaxonomyModel $model ) {
+
+		global $wpdb;
+
+		$separators = $model->separators;
+
+		if ( ! $separators ) {
+			return [];
+		}
+
+		$like = implode( ' OR ', array_fill( 0, count( $separators ), 't.name LIKE %s' ) );
+		$args = array_merge( [ $model->standard['keywords']['id'] ], array_map( static function ( $s ) use ( $wpdb ) {
+			return '%' . $wpdb->esc_like( $s ) . '%';
+		}, $separators ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT t.name, tt.count FROM {$wpdb->terms} t JOIN {$wpdb->term_taxonomy} tt ON tt.term_id = t.term_id WHERE tt.taxonomy = %s AND ( $like )", $args ) );
+
+		$taken = [];
+
+		foreach ( $model->parents as $parent ) {
+			foreach ( $parent['names'] as $name ) {
+				$taken[ implode( '|', $name ) ] = true;
+			}
+		}
+
+		$found = [];
+
+		foreach ( (array) $rows as $row ) {
+
+			$name = html_entity_decode( $row->name, ENT_QUOTES, 'UTF-8' );
+
+			foreach ( $separators as $separator ) {
+
+				$pos = strpos( $name, $separator );
+
+				if ( ! $pos ) {
+					continue;
+				}
+
+				$prefix = TaxonomyModel::lower( trim( substr( $name, 0, $pos ) ) );
+				$value  = trim( substr( $name, $pos + strlen( $separator ) ) );
+
+				if ( '' !== $value && ! isset( $taken[ $prefix ] ) ) {
+					$found[ $prefix ]['prefix'] = $prefix;
+					$found[ $prefix ]['photos'] = ( $found[ $prefix ]['photos'] ?? 0 ) + (int) $row->count;
+					$found[ $prefix ]['examples'][] = $value;
+				}
+				break;
+			}
+		}
+
+		foreach ( $found as $prefix => $item ) {
+			$found[ $prefix ]['examples'] = array_slice( array_values( array_unique( $item['examples'] ) ), 0, 3 );
+		}
+
+		usort( $found, static fn( $a, $b ) => $b['photos'] <=> $a['photos'] );
+
+		return array_slice( $found, 0, 20 );
+	}
+
+		private function maybeFlushRewriteRules() {
 
 		if ( get_option( 'photopress_flush_rewrite_rules' ) ) {
 			delete_option( 'photopress_flush_rewrite_rules' );
@@ -706,6 +804,11 @@ class metadata extends photopress_module {
 		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');		
 		//print_r($taxonomies);
 		foreach ($taxonomies as $tax ) {
+			
+			// Turned off in the settings.
+			if ( ! empty( $tax['disabled'] ) ) {
+				continue;
+			}
 			
 			$id = $tax[ 'id' ];
 			$upper_plural = ucwords( $tax[ 'pluralLabel' ] );
