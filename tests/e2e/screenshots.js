@@ -255,7 +255,7 @@ test.describe( 'settings', () => {
 	} );
 
 	test( 'screenshot-10 to 12: the Meta-data tab\'s panels', async ( { page } ) => {
-		await tab( page, 'Meta-data' );
+		await tab( page, 'Metadata' );
 		await expect( panel( page, 'Custom Taxonomies' ) ).toBeVisible();
 		await panel( page, 'Custom Taxonomies' ).screenshot( { path: path.join( OUT, 'screenshot-10.png' ) } );
 
@@ -278,7 +278,7 @@ test.describe( 'settings', () => {
 	} );
 
 	test( 'screenshot-13: re-reading image metadata, on the Meta-data tab', async ( { page } ) => {
-		await tab( page, 'Meta-data' );
+		await tab( page, 'Metadata' );
 
 		// The fixture images only, never the whole library.
 		const started = await page.evaluate( async ( ids ) => {
@@ -293,7 +293,7 @@ test.describe( 'settings', () => {
 		expect( started ).toBe( 200 );
 
 		try {
-			await tab( page, 'Meta-data' );
+			await tab( page, 'Metadata' );
 			const job = page.locator( '.photopress-job[data-job-type="metadata.reprocess"]' );
 			await expect( job.locator( '.photopress-job__progress' ) ).toHaveAttribute( 'data-status', 'done', { timeout: 90000 } );
 

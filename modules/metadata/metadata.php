@@ -15,7 +15,7 @@ class metadata extends photopress_module {
 	/** The taxonomies registered, [ id, slug, hierarchical ], for maybeFlushRewriteRules(). */
 	private $rewrites = [];
 	
-	public $label = 'Meta-data'; 
+	public $label = 'Metadata'; 
 	
 	public function definePublicHooks() {
 		
