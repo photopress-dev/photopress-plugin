@@ -79,7 +79,28 @@ final class SettingsTest extends TestCase {
 		$this->assertArrayNotHasKey( 'not_a_field', $clean );
 	}
 
-	public function test_taxonomy_names_nesting_and_turning_off_are_kept_where_set(): void {
+	public function test_each_taxonomy_id_once(): void {
+
+		Functions\when( 'get_option' )->justReturn( [] );
+
+		$long  = str_repeat( 'x', 32 );
+		$clean = $this->page()->sanitizeOptions( [
+			'custom_taxonomies' => [
+				[ 'id' => 'pp_genre' ],
+				[ 'id' => 'pp_genre' ],
+				[ 'id' => 'PP_Genre' ],
+				[ 'id' => $long ],
+				[ 'id' => $long ],
+			],
+		] );
+
+		$ids = array_column( $clean['custom_taxonomies'], 'id' );
+
+		$this->assertSame( [ 'pp_genre', 'pp_genre_2', 'pp_genre_3', $long, str_repeat( 'x', 30 ) . '_2' ], $ids );
+		$this->assertLessThanOrEqual( 32, strlen( $ids[4] ) );
+	}
+
+		public function test_taxonomy_names_nesting_and_turning_off_are_kept_where_set(): void {
 
 		Functions\when( 'get_option' )->justReturn( [] );
 

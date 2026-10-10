@@ -846,7 +846,8 @@ class metadata extends photopress_module {
 					// who can edit posts; see ImageTaxonomyRest.
 					'show_in_rest'          => true,
 					'rest_controller_class' => TermsController::class,
-					'rewrite' => array('slug' => strtolower( $tax[ 'singularLabel' ] ), 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ),
+					// As the settings screen shows it: "Acme job" is /acme-job/.
+					'rewrite' => array('slug' => sanitize_title( $tax[ 'singularLabel' ] ), 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ),
 					'update_count_callback'	=> '_update_generic_term_count',
 					'show_admin_column' => true,
 					'public'	=> true 

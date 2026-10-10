@@ -94,8 +94,14 @@ test( 'custom metadata is added for a field and deleted', async ( { page } ) => 
 	await page.goto( URL );
 	await page.getByRole( 'button', { name: 'Add custom metadata' } ).click();
 
+	// Another taxonomy's archive URL is refused.
+	await page.getByLabel( 'Singular name' ).fill( 'Camera' );
+	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save' } ).click();
+	await expect( page.locator( '.photopress-taxonomies__editor .components-notice' ) ).toContainText( 'Cameras already uses /camera/' );
+
 	await page.getByLabel( 'Metadata field' ).selectOption( 'Iptc4xmpExt:Event' );
-	await expect( page.getByLabel( 'Plural name' ) ).toHaveValue( 'Events' );
+	await page.getByLabel( 'Plural name' ).fill( 'Events' );
+	await page.getByLabel( 'Singular name' ).fill( 'Event' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save' } ).click();
 
 	await expect.poll( () => taxonomies().find( ( t ) => 'Iptc4xmpExt:Event' === t.tag ) ).toMatchObject( { id: 'pp_event', parseTagValue: false, singularLabel: 'Event' } );

@@ -66,7 +66,32 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [ 'people: Jane' ], $terms['photos_keywords'], 'with People off, its prefix is a keyword' );
 	}
 
-	public function test_prefixes_in_keywords_no_parent_keyword_takes(): void {
+	public function test_taxonomies_are_registered_with_clean_urls_and_nesting(): void {
+
+		if ( ! defined( 'EP_PERMALINK' ) ) {
+			define( 'EP_PERMALINK', 1 );
+		}
+
+		\pp_api::$options['core/metadata/custom_taxonomies'] = [
+			[ 'id' => 'pp_acme_job', 'pluralLabel' => 'Acme jobs', 'singularLabel' => 'Acme job', 'tag' => 'dc:subject', 'parseTagValue' => true, 'nested' => true ],
+			[ 'id' => 'photos_lens', 'pluralLabel' => 'lenses', 'singularLabel' => 'lens', 'tag' => 'aux:Lens', 'parseTagValue' => false, 'disabled' => true ],
+		];
+
+		$registered = [];
+		Functions\when( 'sanitize_title' )->alias( static fn( $text ) => strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', trim( $text ) ) ) );
+		Functions\when( 'register_taxonomy' )->alias( static function ( $id, $type, $args ) use ( &$registered ) {
+			$registered[ $id ] = $args;
+		} );
+
+		( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor()->registerTaxonomies();
+
+		$this->assertSame( [ 'pp_acme_job' ], array_keys( $registered ), 'a taxonomy turned off is not registered' );
+		$this->assertSame( 'acme-job', $registered['pp_acme_job']['rewrite']['slug'] );
+		$this->assertTrue( $registered['pp_acme_job']['rewrite']['hierarchical'] );
+		$this->assertTrue( $registered['pp_acme_job']['hierarchical'] );
+	}
+
+		public function test_prefixes_in_keywords_no_parent_keyword_takes(): void {
 
 		global $wpdb;
 

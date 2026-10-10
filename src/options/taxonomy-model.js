@@ -88,6 +88,16 @@ export function slug( text ) {
 		.replace( /^-+|-+$/g, '' );
 }
 
+/**
+ * The taxonomy, other than the one at index self, whose archive pages would
+ * be at the same URL as a taxonomy with this singular name, or undefined.
+ */
+export function slugTakenBy( singular, list, self = -1 ) {
+	const wanted = slug( singular );
+
+	return ( list || [] ).find( ( def, index ) => index !== self && slug( def.singularLabel ) === wanted );
+}
+
 /** The archive URL of a term of a taxonomy: /person/jane. */
 export function archiveUrl( def, term = '…' ) {
 	return '/' + slug( def.singularLabel ) + '/' + ( '…' === term ? term : slug( term ) );

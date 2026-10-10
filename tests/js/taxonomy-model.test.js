@@ -3,7 +3,7 @@
  * which must agree with modules/metadata/TaxonomyModel.php.
  */
 import { describe, expect, test } from 'vitest';
-import { archiveUrl, classify, likelyTypoOf, namesFrom, newId, parentNames, pluralize, slug } from '../../src/options/taxonomy-model.js';
+import { archiveUrl, classify, likelyTypoOf, namesFrom, newId, parentNames, pluralize, slug, slugTakenBy } from '../../src/options/taxonomy-model.js';
 
 const LIST = [
 	{ id: 'photos_camera', pluralLabel: 'cameras', singularLabel: 'camera', tag: 'photopress:camera', parseTagValue: false },
@@ -59,4 +59,11 @@ test( 'a prefix one letter off a parent keyword is likely a typo of it', () => {
 
 test( 'names from a comma-separated list', () => {
 	expect( namesFrom( ' person, People ,, person ' ) ).toEqual( [ 'person', 'People' ] );
+} );
+
+test( 'a singular name whose archive URL another taxonomy has', () => {
+	expect( slugTakenBy( 'Genre', LIST ).id ).toBe( 'pp_genre' );
+	expect( slugTakenBy( ' genre ', LIST ).id ).toBe( 'pp_genre' );
+	expect( slugTakenBy( 'Genre', LIST, 3 ), 'its own URL' ).toBeUndefined();
+	expect( slugTakenBy( 'Style', LIST ) ).toBeUndefined();
 } );

@@ -24,6 +24,7 @@ import {
 	parentNames,
 	pluralize,
 	slug,
+	slugTakenBy,
 	standardHow,
 	standardSources,
 } from './taxonomy-model.js';
@@ -151,14 +152,15 @@ function Names( { plural, singular, onPlural, onSingular, urlTerm, before } ) {
 	);
 }
 
-function StandardEditor( { kind, def, onSave, onCancel, saving } ) {
+function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 	const [ plural, setPlural ] = useState( capitalize( def.pluralLabel ) );
 	const [ singular, setSingular ] = useState( capitalize( def.singularLabel ) );
 	const [ error, setError ] = useState( null );
 
 	const save = () => {
-		if ( ! plural.trim() || ! slug( singular ) ) {
-			return setError( __( 'Give the taxonomy a plural and a singular name.' ) );
+		const problem = namesProblem( plural, singular, list, def.index );
+		if ( problem ) {
+			return setError( problem );
 		}
 		onSave( { ...def, pluralLabel: plural.trim(), singularLabel: singular.trim() } );
 	};
@@ -212,6 +214,22 @@ function ParentPreview( { levels, plural, singular, nested, example, separators 
 	);
 }
 
+/**
+ * Why these names can't be saved, or null: both are needed, and no other
+ * taxonomy may have its archive pages at the same URL.
+ */
+function namesProblem( plural, singular, list, self ) {
+	if ( ! plural.trim() || ! slug( singular ) ) {
+		return __( 'Give the taxonomy a plural and a singular name.' );
+	}
+
+	const other = slugTakenBy( singular, list, self );
+
+	return other
+		? sprintf( __( '%1$s already uses /%2$s/ for its archive pages. Choose another singular name.' ), capitalize( other.pluralLabel ), slug( singular ) )
+		: null;
+}
+
 /** "Clients › Acme", "Clients > Acme" and "Clients|Acme" are one path. */
 const asPath = ( name ) => name.split( /\s*[›>|]\s*/ ).filter( Boolean ).join( '|' );
 
@@ -247,8 +265,9 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 		if ( taken ) {
 			return setError( sprintf( __( '“%s” is already a parent keyword.' ), taken.replace( /\|/g, ' › ' ) ) );
 		}
-		if ( ! plural.trim() || ! slug( singular ) ) {
-			return setError( __( 'Give the taxonomy a plural and a singular name.' ) );
+		const problem = namesProblem( plural, singular, list, def ? def.index : -1 );
+		if ( problem ) {
+			return setError( problem );
 		}
 
 		onSave( {
@@ -348,8 +367,9 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	};
 
 	const save = () => {
-		if ( ! plural.trim() || ! slug( singular ) ) {
-			return setError( __( 'Give the taxonomy a plural and a singular name.' ) );
+		const problem = namesProblem( plural, singular, list, def ? def.index : -1 );
+		if ( problem ) {
+			return setError( problem );
 		}
 		onSave( {
 			id: def ? def.id : newId( singular, list ),
@@ -427,7 +447,7 @@ export default function TaxonomySettings( { component } ) {
 					const { kind, index, ...clean } = d; // eslint-disable-line no-unused-vars
 					return index < 0 ? save( [ ...list, { ...clean, parseTagValue: false } ] ) : replace( index, clean );
 				};
-				return <StandardEditor kind={ screen.kind } def={ def } onSave={ done( apply ) } onCancel={ close } saving={ saving } />;
+				return <StandardEditor kind={ screen.kind } def={ def } list={ list } onSave={ done( apply ) } onCancel={ close } saving={ saving } />;
 			}
 			case 'parent': {
 				const def = parents.find( ( p ) => p.index === screen.index );
