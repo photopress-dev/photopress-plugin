@@ -7,13 +7,13 @@
  */
 import { Fragment, useEffect, useRef, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { Button, CheckboxControl, FormToggle, Notice, SelectControl, TextControl } from '@wordpress/components';
+import { Button, CheckboxControl, ExternalLink, FormToggle, Notice, SelectControl, TextControl } from '@wordpress/components';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
 import { useAdvanced } from '../shared/advanced-options.js';
-import { FIELD_GROUPS, COMMON_FIELDS, fieldOf } from '../shared/metadata-fields.js';
+import { FIELD_GROUPS, COMMON_FIELDS, GUIDE_URL, fieldOf, guideUrl } from '../shared/metadata-fields.js';
 import {
 	STANDARD,
 	archiveUrl,
@@ -461,7 +461,12 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				__nextHasNoMarginBottom
 				__next40pxDefaultSize
 				label={ __( 'Metadata field' ) }
-				help={ __( 'Camera, lens, location and keywords aren’t listed: they are Standard Metadata.' ) }
+				help={ (
+					<Fragment>
+						{ __( 'Camera, lens, location and keywords aren’t listed: they are Standard Metadata.' ) }{ ' ' }
+						<ExternalLink href={ GUIDE_URL }>{ __( 'What these fields mean' ) }</ExternalLink>
+					</Fragment>
+				) }
 				value={ tag }
 				onChange={ pick }
 			>
@@ -472,6 +477,17 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				) ) }
 				{ other && <optgroup label={ __( 'Other' ) }><option value={ other }>{ other }</option></optgroup> }
 			</SelectControl>
+			{ tag && fieldOf( tag ).about && (
+				<p className="photopress-taxonomies__field-about">
+					{ fieldOf( tag ).about }
+					{ guideUrl( fieldOf( tag ) ) && (
+						<Fragment>
+							{ ' ' }
+							<ExternalLink href={ guideUrl( fieldOf( tag ) ) }>{ __( 'About this field' ) }</ExternalLink>
+						</Fragment>
+					) }
+				</p>
+			) }
 			<Names
 				plural={ plural }
 				singular={ singular }
