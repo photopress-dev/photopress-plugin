@@ -13,7 +13,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
 import { useAdvanced } from '../shared/advanced-options.js';
-import xmpLabels from '../shared/xmp-labels.js';
+import { FIELD_GROUPS, COMMON_FIELDS, fieldOf } from '../shared/metadata-fields.js';
 import {
 	STANDARD,
 	archiveUrl,
@@ -31,28 +31,7 @@ import {
 } from './taxonomy-model.js';
 
 /** Fields most worth mapping, listed first. */
-const COMMON_FIELDS = [
-	'Iptc4xmpExt:Event',
-	'Iptc4xmpExt:PersonInImage',
-	'photoshop:Category',
-	'photoshop:SupplementalCategories',
-	'photoshop:Credit',
-	'photoshop:Source',
-	'Iptc4xmpCore:Location',
-	'dc:creator',
-	'dc:publisher',
-	'dc:contributor',
-];
-
-const FIELD_LABELS = {
-	...xmpLabels,
-	'Iptc4xmpExt:Event': __( 'Event' ),
-	'Iptc4xmpExt:PersonInImage': __( 'Person shown' ),
-	'Iptc4xmpCore:Location': __( 'Sublocation' ),
-	'photoshop:SupplementalCategories': __( 'Supplemental categories' ),
-};
-
-const fieldLabel = ( tag ) => FIELD_LABELS[ tag ] || tag;
+const fieldLabel = ( tag ) => fieldOf( tag ).label;
 
 /** How many times the settings have finished saving, to refresh what the server says. */
 function useSaves( saving ) {
@@ -398,23 +377,9 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 	);
 }
 
-/** A likely value of each common field, for the example. */
-const FIELD_EXAMPLES = {
-	'Iptc4xmpExt:Event': 'Maker Faire',
-	'Iptc4xmpExt:PersonInImage': 'Jane Smith',
-	'photoshop:Category': 'Travel',
-	'photoshop:SupplementalCategories': 'Landscape',
-	'photoshop:Credit': 'Jane Smith Photography',
-	'photoshop:Source': 'Acme Agency',
-	'Iptc4xmpCore:Location': 'Golden Gate Park',
-	'dc:creator': 'Jane Smith',
-	'dc:publisher': 'Acme Press',
-	'dc:contributor': 'John Doe',
-};
-
 /** What a photo with a value in the field gets: a term in the taxonomy, with its page. */
 function CustomPreview( { tag, plural, singular } ) {
-	const value = FIELD_EXAMPLES[ tag ] || __( 'Example' );
+	const value = fieldOf( tag ).example || __( 'Example' );
 	const def = { singularLabel: singular };
 
 	return (
@@ -437,7 +402,9 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	const used = new Set( list.filter( ( d ) => ! d.parseTagValue && ( ! def || d.id !== def.id ) ).map( ( d ) => d.tag ) );
 	const available = ( tag ) => ! standardTags.has( tag ) && ( ! used.has( tag ) || ( def && def.tag === tag ) );
 	const common = COMMON_FIELDS.filter( available );
-	const rest = Object.keys( xmpLabels ).filter( ( tag ) => available( tag ) && ! COMMON_FIELDS.includes( tag ) );
+	const groups = FIELD_GROUPS.map( ( group ) => ( { ...group, fields: group.fields.filter( ( f ) => available( f.tag ) && ! COMMON_FIELDS.includes( f.tag ) ) } ) ).filter( ( group ) => group.fields.length );
+	// A field not listed, saved by an earlier version.
+	const other = def && ! FIELD_GROUPS.some( ( group ) => group.fields.some( ( f ) => f.tag === def.tag ) ) ? def.tag : null;
 
 	// A new one starts with no field chosen, and its names from the field.
 	const [ tag, setTag ] = useState( def ? def.tag : '' );
@@ -449,8 +416,8 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	const pick = ( value ) => {
 		setTag( value );
 		if ( ! named ) {
-			setPlural( capitalize( pluralize( fieldLabel( value ) ) ) );
-			setSingular( capitalize( fieldLabel( value ) ) );
+			setPlural( capitalize( fieldOf( value ).plural ) );
+			setSingular( capitalize( fieldOf( value ).singular ) );
 		}
 	};
 
@@ -500,7 +467,10 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 			>
 				{ ! tag && <option value="" disabled>{ __( 'Select…' ) }</option> }
 				<optgroup label={ __( 'Common fields' ) }>{ common.map( ( t ) => <option key={ t } value={ t }>{ option( t ).label }</option> ) }</optgroup>
-				<optgroup label={ __( 'All fields' ) }>{ rest.map( ( t ) => <option key={ t } value={ t }>{ option( t ).label }</option> ) }</optgroup>
+				{ groups.map( ( group ) => (
+					<optgroup key={ group.label } label={ group.label }>{ group.fields.map( ( f ) => <option key={ f.tag } value={ f.tag }>{ option( f.tag ).label }</option> ) }</optgroup>
+				) ) }
+				{ other && <optgroup label={ __( 'Other' ) }><option value={ other }>{ other }</option></optgroup> }
 			</SelectControl>
 			<Names
 				plural={ plural }
