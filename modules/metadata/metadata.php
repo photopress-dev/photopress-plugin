@@ -733,30 +733,27 @@ class metadata extends photopress_module {
 	}
 	
 	/**
-	 * The id of the default People taxonomy: pp_person, or photos_people,
-	 * its id before 1.10, on a site whose People terms are stored under that
-	 * and that never saved its taxonomy settings (so runs on these defaults).
-	 * Worked out once and remembered.
+	 * Whether the site has terms in photos_people, the People parent keyword
+	 * of the defaults before 1.10. Worked out once and remembered.
 	 */
-	public static function peopleId() {
+	public static function hasOldPeople() {
 
-		$id = get_option( 'photopress_people_id' );
+		$known = get_option( 'photopress_old_people' );
 
-		if ( ! $id ) {
+		if ( ! $known ) {
 
 			global $wpdb;
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
-			$old = $wpdb->get_var( $wpdb->prepare( "SELECT term_taxonomy_id FROM {$wpdb->term_taxonomy} WHERE taxonomy = %s LIMIT 1", 'photos_people' ) );
-			$id  = $old ? 'photos_people' : 'pp_person';
+			$known = $wpdb->get_var( $wpdb->prepare( "SELECT term_taxonomy_id FROM {$wpdb->term_taxonomy} WHERE taxonomy = %s LIMIT 1", 'photos_people' ) ) ? 'yes' : 'no';
 
-			update_option( 'photopress_people_id', $id );
+			update_option( 'photopress_old_people', $known );
 		}
 
-		return $id;
+		return 'yes' === $known;
 	}
 
-		public function getDefaultTaxonomyDefinitions() {
+	public function getDefaultTaxonomyDefinitions() {
 		
 		$taxonomies = [
 			
@@ -801,17 +798,6 @@ class metadata extends photopress_module {
 			],
 			
 			[
-				// pp_ and its singular name, as for any taxonomy added in the
-				// settings; see peopleId().
-				'id'			=> self::peopleId(),
-				'pluralLabel' 	=> 'people',
-				'singularLabel'	=> 'person',
-				'tag'			=> 'dc:subject',
-				'parseTagValue'	=> true,
-				'names'			=> [ 'people', 'person' ]
-			],
-			
-			[
 				'id'			=> 'photos_keywords',
 				'pluralLabel' 	=> 'keywords',
 				'singularLabel'	=> 'keyword',
@@ -820,6 +806,19 @@ class metadata extends photopress_module {
 			],
 			
 		];	
+		
+		// Before 1.10 the defaults had a People parent keyword. A site that
+		// never saved its taxonomy settings, so runs on these, keeps it while
+		// it has People terms; new sites start with the standard ones only.
+		if ( self::hasOldPeople() ) {
+			array_splice( $taxonomies, -1, 0, [ [
+				'id'			=> 'photos_people',
+				'pluralLabel' 	=> 'people',
+				'singularLabel'	=> 'person',
+				'tag'			=> 'dc:subject',
+				'parseTagValue'	=> true
+			] ] );
+		}
 		
 		return apply_filters( 'photopress/taxonomies/defaultDefinitions', $taxonomies );
 

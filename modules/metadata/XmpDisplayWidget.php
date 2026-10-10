@@ -10,7 +10,7 @@ class XmpDisplayWidget extends WP_Widget {
 	/**
 	 * Default taxonomies of a widget saved without a list.
 	 */
-	const DEFAULT_TAXONOMIES = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people, pp_person';
+	const DEFAULT_TAXONOMIES = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people';
 
 	function __construct() {
 				

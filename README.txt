@@ -83,7 +83,7 @@ A taxonomy's ID is the name WordPress stores its terms under. Themes (taxonomy-{
 
 The six Standard Metadata taxonomies always have these IDs: photos_camera, photos_lens, photos_city, photos_state, photos_country and photos_keywords.
 
-Every other taxonomy gets pp_ and its singular name: pp_genre for Genre, pp_person for the default People parent keyword. Taxonomies made by earlier versions keep the IDs they have, such as photos_people for People.
+Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_genre for Genre, pp_person for a People parent keyword. Taxonomies made by earlier versions keep the IDs they have, such as photos_people for People.
 
 == Screenshots ==
 
