@@ -14,10 +14,8 @@ import {
 	PanelRow,
 	Placeholder,
 	Spinner,
-	ToggleControl,
 	Notice,
 	Disabled,
-	CheckboxControl,
 	SelectControl,
 	TextControl,
 	RangeControl
@@ -35,6 +33,7 @@ import {
 	sanitize
 	
 } from '../shared/options.js';
+import SwitchRow from '../shared/switch-row.js';
 /**
  * Metadata Options Component class
  */
@@ -125,110 +124,106 @@ class SlideshowSettings extends Component {
 				}
 				
 			
-				<ToggleControl
-					id={'slideshow_enable'}
-					label={ __( 'Enable Slideshows' ) }
-					help={ 'Display image slideshow when gallery images are clicked.' }
-					checked={ this.getSetting('enable') || false }
+				<SwitchRow
+					label={ __( 'Slideshows' ) }
+					help={ __( 'Opens a slideshow when an image in a gallery is clicked.' ) }
+					checked={ this.getSetting( 'enable' ) }
 					onChange={ ( value ) => this.persistSetting( 'enable', value ) }
 				/>
-				<hr/>
-				<ToggleControl
-					id={'showThumbnails'}
-					label={ __( 'Show Thumbnails' ) }
-					help={ 'Display image thumbnails along bottom of slideshow lightbox.' }
-					checked={ this.getSetting('showThumbnails') || false }
-					onChange={ ( value ) => this.persistSetting( 'showThumbnails', value ) }
-				/>
-				<hr/>
-				
-				<RangeControl
-					label={ __( 'Thumbnail Height' ) }
-					value={ this.getSetting('thumbnailHeight') }
-					onChange={ ( value ) => this.persistSetting( 'thumbnailHeight', value ) }
-					min={ 75 }
-					max={ 200 }
-					step={ 10 }		
-				/>
-				<hr/>
-				<ToggleControl
-					id={'showCaptions'}
-					label={ __( 'Show Caption Info' ) }
-					help={ 'Display image thumbnails along bottom of slideshow lightbox.' }
-					checked={ this.getSetting('showCaptions') || false }
-					onChange={ ( value ) => this.persistSetting( 'showCaptions', value ) }
-				/>
-				
-				<SelectControl
-					label={ __( 'Caption Info Box Position' ) }
-					value={ this.getSetting('detail_position') }
-					onChange={ ( value ) => this.persistSetting( 'detail_position', value ) }
-					options={ 
-						[			
-							{ value: 'bottom', label: __( 'Bottom of image' ) },
-							{ value: 'right', label: __( 'Right of image' ) }
-						]
-					}
-					help={"Controls where the caption/info box is displayed."}
-				/>
-				
-				<RangeControl
-					label={ __( 'Caption Padding (px)' ) }
-					help={ __( 'Space around the caption area.' ) }
-					value={ this.getSetting( 'captionPadding' ) || 0 }
-					onChange={ ( value ) => this.persistSetting( 'captionPadding', value ?? 0 ) }
-					min={ 0 }
-					max={ 100 }
-					step={ 1 }
-				/>
-							
-				<CheckboxControl
-		            heading=""
-		            label="Display image title in caption info"
-		            help=""
-		            checked={ this.getSetting('showTitleInCaption') }
-		            onChange={ ( value ) => this.persistSetting( 'showTitleInCaption', value ) }
-		        />
-		    
-				<CheckboxControl
-		            heading=""
-		            label="Display image description in caption info"
-		            help=""
-		            checked={ this.getSetting('showDescriptionInCaption') }
-		            onChange={ ( value ) => this.persistSetting( 'showDescriptionInCaption', value ) }
-		        />
-		        
-		        <CheckboxControl
-		            heading=""
-		            label="Display link to attachment page"
-		            help=""
-		            checked={ this.getSetting('showAttachmentLink') }
-		            onChange={ ( value ) => this.persistSetting( 'showAttachmentLink', value ) }
-		        />
 
-				
-				<TextControl
-					id={'attachment_link_text'}
-					label={ __('Attachment Link Text') }
-					value={ this.getSetting( 'attachmentLinkText' ) } 
-					className=" right-pad"
-					help={"The text to display in the attachment link."}
-					onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value ) }
-					onBlur={ ( event ) => this.setSetting( 'attachmentLinkText', sanitize( event.target.value, 'string' ) ) }
-				/>
+				{ this.getSetting( 'enable' ) && (
+					<Fragment>
+						<hr />
+						<SwitchRow
+							label={ __( 'Thumbnails' ) }
+							help={ __( 'A row of thumbnails along the bottom of the slideshow.' ) }
+							checked={ this.getSetting( 'showThumbnails' ) }
+							onChange={ ( value ) => this.persistSetting( 'showThumbnails', value ) }
+						/>
+						{ this.getSetting( 'showThumbnails' ) && (
+							<RangeControl
+								label={ __( 'Thumbnail Height' ) }
+								value={ this.getSetting( 'thumbnailHeight' ) }
+								onChange={ ( value ) => this.persistSetting( 'thumbnailHeight', value ) }
+								min={ 75 }
+								max={ 200 }
+								step={ 10 }
+							/>
+						) }
 
-				<Button
-					isPrimary
-					disabled={ this.state.isAPISaving }
-					onClick={ this.saveSettings }
-					className="components-base-control__field"
-				>
-					{ __( 'Save' ) }
-				</Button>
-		
-				
-				
-				
+						<hr />
+						<SwitchRow
+							label={ __( 'Caption info' ) }
+							help={ __( 'A box with the image’s caption and details, below or beside it.' ) }
+							checked={ this.getSetting( 'showCaptions' ) }
+							onChange={ ( value ) => this.persistSetting( 'showCaptions', value ) }
+						/>
+						{ this.getSetting( 'showCaptions' ) && (
+							<Fragment>
+								<SelectControl
+									label={ __( 'Caption Info Box Position' ) }
+									value={ this.getSetting( 'detail_position' ) }
+									onChange={ ( value ) => this.persistSetting( 'detail_position', value ) }
+									options={ [
+										{ value: 'bottom', label: __( 'Bottom of image' ) },
+										{ value: 'right', label: __( 'Right of image' ) },
+									] }
+								/>
+
+								<RangeControl
+									label={ __( 'Caption Padding (px)' ) }
+									help={ __( 'Space around the caption area.' ) }
+									value={ this.getSetting( 'captionPadding' ) || 0 }
+									onChange={ ( value ) => this.persistSetting( 'captionPadding', value ?? 0 ) }
+									min={ 0 }
+									max={ 100 }
+									step={ 1 }
+								/>
+
+								<SwitchRow
+									label={ __( 'Title' ) }
+									help={ __( 'The image’s title in the caption info.' ) }
+									checked={ this.getSetting( 'showTitleInCaption' ) }
+									onChange={ ( value ) => this.persistSetting( 'showTitleInCaption', value ) }
+								/>
+								<SwitchRow
+									label={ __( 'Description' ) }
+									help={ __( 'The image’s description in the caption info.' ) }
+									checked={ this.getSetting( 'showDescriptionInCaption' ) }
+									onChange={ ( value ) => this.persistSetting( 'showDescriptionInCaption', value ) }
+								/>
+								<SwitchRow
+									label={ __( 'Link to the image’s page' ) }
+									help={ __( 'A link to the image’s attachment page in the caption info.' ) }
+									checked={ this.getSetting( 'showAttachmentLink' ) }
+									onChange={ ( value ) => this.persistSetting( 'showAttachmentLink', value ) }
+								/>
+								{ this.getSetting( 'showAttachmentLink' ) && (
+									<Fragment>
+										<TextControl
+											id={ 'attachment_link_text' }
+											label={ __( 'Attachment Link Text' ) }
+											value={ this.getSetting( 'attachmentLinkText' ) }
+											className=" right-pad"
+											help={ __( 'The text of the link.' ) }
+											onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value ) }
+											onBlur={ ( event ) => this.setSetting( 'attachmentLinkText', sanitize( event.target.value, 'string' ) ) }
+										/>
+
+										<Button
+											isPrimary
+											disabled={ this.state.isAPISaving }
+											onClick={ this.saveSettings }
+											className="components-base-control__field"
+										>
+											{ __( 'Save' ) }
+										</Button>
+									</Fragment>
+								) }
+							</Fragment>
+						) }
+					</Fragment>
+				) }
 			</BaseControl>	
 
 		);
