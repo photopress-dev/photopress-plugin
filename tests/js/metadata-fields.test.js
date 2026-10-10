@@ -48,7 +48,7 @@ describe( 'the IPTC guide', () => {
 } );
 
 describe( 'the legacy categories', () => {
-	it( 'are not said to be set in Photoshop, which has no such fields', () => {
-		expect( fieldOf( 'photoshop:Category' ).note ).toBe( 'Set in Lightroom Classic and Capture One, not Photoshop.' );
+	it( 'are said to be set in Capture One only', () => {
+		expect( fieldOf( 'photoshop:Category' ).note ).toBe( 'Set in Capture One, not Lightroom Classic or Photoshop.' );
 	} );
 } );

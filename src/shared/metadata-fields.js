@@ -51,8 +51,8 @@ export const FIELD_GROUPS = [
 	},
 	{
 		label: __( 'IPTC legacy' ),
-		setIn: __( 'Lightroom Classic and Capture One' ),
-		note: __( 'Set in Lightroom Classic and Capture One, not Photoshop.' ),
+		setIn: __( 'Capture One' ),
+		note: __( 'Set in Capture One, not Lightroom Classic or Photoshop.' ),
 		fields: [
 			field( 'photoshop:Category', __( 'Category' ), __( 'Category' ), __( 'Categories' ), 'Travel', __( 'A category code from older newswire workflows, often three letters.' ) ),
 			field( 'photoshop:SupplementalCategories', __( 'Supplemental Categories' ), __( 'Supplemental category' ), __( 'Supplemental categories' ), 'Landscape', __( 'Further categories from older newswire workflows.' ) ),
