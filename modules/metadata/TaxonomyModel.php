@@ -130,7 +130,19 @@ final class TaxonomyModel {
 		) ) );
 	}
 
-	public function isNested( string $id ): bool {
+	/** The field a taxonomy is filled from. */
+	public function tagOf( string $id ): ?string {
+
+		foreach ( array_merge( array_values( $this->standard ), $this->parents, $this->custom ) as $tax ) {
+			if ( $tax['id'] === $id ) {
+				return $tax['tag'];
+			}
+		}
+
+		return null;
+	}
+
+		public function isNested( string $id ): bool {
 
 		foreach ( $this->parents as $parent ) {
 			if ( $parent['id'] === $id && $parent['nested'] ) {

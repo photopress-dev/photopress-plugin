@@ -247,7 +247,7 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( '', $m->generateDescription( $md ), 'nothing in the file: cleared' );
 	}
 
-	public function test_a_taxonomy_the_file_has_nothing_for_is_emptied(): void {
+	public function test_a_keyword_taxonomy_is_emptied_when_the_file_has_other_keywords(): void {
 
 		\pp_api::$options['core/metadata/custom_taxonomies'] = [
 			[ 'id' => 'photos_keywords', 'tag' => 'dc:subject', 'parseTagValue' => false ],
@@ -269,7 +269,9 @@ final class MetadataTest extends TestCase {
 		$md->loadFromArray( [ 'xmp' => [ 'dc:subject' => [ 'lake' ] ] ] );
 		$m->setTaxonomyTerms( 42, $md );
 
-		$this->assertSame( [ 'photos_keywords' => [ 'lake' ], 'photos_city' => [], 'photos_people' => [] ], $set );
+		// People is emptied (the file has keywords, none of them people); the
+		// city is kept, as the file has no location at all.
+		$this->assertSame( [ 'photos_keywords' => [ 'lake' ], 'photos_people' => [] ], $set );
 	}
 }
 

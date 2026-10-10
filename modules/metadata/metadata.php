@@ -753,7 +753,11 @@ class metadata extends photopress_module {
 
 	}
 	
-	public function addAttachment( $id ) {
+	/**
+	 * Reads an image's metadata into its terms, description and alt text.
+	 * $force: empty terms the file has nothing for (see setTaxonomyTerms).
+	 */
+	public function addAttachment( $id, $force = false ) {
 		
 		//extract metadata from file	
 		$file = get_attached_file( $id );
@@ -761,7 +765,7 @@ class metadata extends photopress_module {
 		$md->loadFromFile( $file );
 		
 		// set the taxonomy terms
-		$this->setTaxonomyTerms( $id, $md );
+		$this->setTaxonomyTerms( $id, $md, $force );
 		
 		// set the description, when a template is configured
 		$description = $this->generateDescription( $md );
@@ -877,11 +881,12 @@ class metadata extends photopress_module {
 	}
 	
 	/**
-	 * One image of the metadata.reprocess job.
+	 * One image of the metadata.reprocess job. $args['force']: empty terms
+	 * the file has nothing for.
 	 *
 	 * @return true|\WP_Error
 	 */
-	public function reprocessImage( $id ) {
+	public function reprocessImage( $id, $args = [] ) {
 		
 		$file = get_attached_file( $id );
 		
@@ -889,7 +894,7 @@ class metadata extends photopress_module {
 			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
 		}
 		
-		$this->addAttachment( $id );
+		$this->addAttachment( $id, ! empty( $args['force'] ) );
 		
 		return true;
 	}
@@ -1154,18 +1159,21 @@ class metadata extends photopress_module {
 
 	/**
 	 * Gives an image the terms its metadata calls for (TermRouter), in place
-	 * of those it had: a taxonomy the file has nothing for is emptied, so a
-	 * keyword removed from the file goes.
+	 * of those it had, so a keyword removed from the file goes. Where the
+	 * file has nothing at all for a taxonomy (no keywords, no location), its
+	 * terms are kept, as the file may have had its metadata stripped, unless
+	 * $force.
 	 */
-	public function setTaxonomyTerms( $id, $md ) {
+	public function setTaxonomyTerms( $id, $md, $force = false ) {
 
-		$model = TaxonomyModel::fromSettings();
+		$model   = TaxonomyModel::fromSettings();
+		$present = $force ? [] : TermRouter::present( $md, $model );
 
 		wp_defer_term_counting( true );
 
 		foreach ( TermRouter::route( $md, $model ) as $tax_id => $terms ) {
 
-			if ( ! taxonomy_exists( $tax_id ) ) {
+			if ( ! taxonomy_exists( $tax_id ) || ( ! $force && empty( $present[ $tax_id ] ) ) ) {
 				continue;
 			}
 

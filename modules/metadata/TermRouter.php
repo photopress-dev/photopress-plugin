@@ -95,7 +95,49 @@ final class TermRouter {
 		return $terms;
 	}
 
+	/** Fields read together: a file with any of them has a location. */
+	const SOURCES = [
+		'photoshop:City'    => 'location',
+		'photoshop:State'   => 'location',
+		'photoshop:Country' => 'location',
+	];
+
 	/**
+	 * Whether the file has anything for each taxonomy's source: its keywords
+	 * (both lists), its location (city, state or country), camera, lens, or
+	 * custom field. A file with nothing for a source may have had its
+	 * metadata stripped, so its terms there are better left as they are.
+	 */
+	public static function present( XmpReader $md, TaxonomyModel $model ): array {
+
+		$has     = [];
+		$present = [];
+
+		foreach ( $model->taxonomyIds() as $id ) {
+
+			$tag    = (string) $model->tagOf( $id );
+			$source = self::SOURCES[ $tag ] ?? $tag;
+
+			if ( ! isset( $has[ $source ] ) ) {
+
+				$tags = 'location' === $source ? array_keys( self::SOURCES ) : [ $tag ];
+				$has[ $source ] = false;
+
+				foreach ( $tags as $one ) {
+					if ( self::values( $md, $one ) || ( 'dc:subject' === $one && self::hierarchy( $md ) ) ) {
+						$has[ $source ] = true;
+						break;
+					}
+				}
+			}
+
+			$present[ $id ] = $has[ $source ];
+		}
+
+		return $present;
+	}
+
+		/**
 	 * A field's values as paths. Keywords (dc:subject) come with the image's
 	 * keyword hierarchy.
 	 */

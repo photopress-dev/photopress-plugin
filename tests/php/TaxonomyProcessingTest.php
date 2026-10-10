@@ -222,7 +222,66 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( '', StandardMetadata::lens( self::reader( [ 'exifEX:LensModel' => '----' ] ) ) );
 	}
 
-	public function test_nested_terms_are_made_level_by_level_and_the_image_gets_every_level(): void {
+	public function test_what_the_file_has_for_each_taxonomy(): void {
+
+		$model = TaxonomyModel::build( self::DEFINITIONS, ':' );
+
+		// Death Valley (peteradamsphoto.com): stripped of keywords and
+		// location, its lens left.
+		$present = TermRouter::present( self::reader( [ 'aux:Lens' => 'Schneider LS 80mm f/2.8' ] ), $model );
+
+		$this->assertSame( [ 'photos_camera' => false, 'photos_lens' => true, 'photos_city' => false, 'photos_keywords' => false, 'photos_people' => false, 'pp_genre' => false ], $present );
+
+		// A state is a location; a keyword hierarchy alone is keywords.
+		$present = TermRouter::present( self::reader( [ 'photoshop:State' => 'California', 'lr:hierarchicalSubject' => [ 'People|Jane' ] ] ), $model );
+
+		$this->assertTrue( $present['photos_city'] );
+		$this->assertTrue( $present['photos_keywords'] );
+		$this->assertTrue( $present['photos_people'] );
+	}
+
+	public function test_terms_a_file_has_nothing_for_are_kept_unless_forced(): void {
+
+		\pp_api::$options['core/metadata/custom_taxonomies'] = self::DEFINITIONS;
+		\pp_api::$options['core/metadata/custom_taxonomies_tag_delimiter'] = ':';
+
+		$set = [];
+		Functions\when( 'taxonomy_exists' )->justReturn( true );
+		Functions\when( 'wp_defer_term_counting' )->justReturn( true );
+		Functions\when( 'wp_set_object_terms' )->alias( static function ( $id, $terms, $taxonomy ) use ( &$set ) {
+			$set[ $taxonomy ] = $terms;
+		} );
+
+		$m  = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$md = self::reader( [ 'aux:Lens' => 'Schneider LS 80mm f/2.8', 'dc:subject' => [] ] );
+
+		$m->setTaxonomyTerms( 42, $md );
+		$this->assertSame( [ 'photos_lens' => [ 'Schneider LS 80mm f/2.8' ] ], $set, 'only what the file has' );
+
+		$set = [];
+		$m->setTaxonomyTerms( 42, $md, true );
+		$this->assertSame( [], $set['photos_keywords'], 'forced: emptied' );
+		$this->assertSame( [], $set['photos_city'] );
+		$this->assertCount( 6, $set );
+	}
+
+	public function test_the_reread_job_passes_force_on(): void {
+
+		$file = $this->tempFile( 'not an image' );
+		Functions\when( 'get_attached_file' )->justReturn( $file );
+
+		$m = $this->getMockBuilder( metadata::class )->disableOriginalConstructor()->onlyMethods( [ 'addAttachment' ] )->getMock();
+		$m->expects( $this->exactly( 2 ) )->method( 'addAttachment' )->willReturnCallback( function ( $id, $force ) use ( &$calls ) {
+			$calls[] = [ $id, $force ];
+		} );
+
+		$m->reprocessImage( 7, [] );
+		$m->reprocessImage( 7, [ 'force' => true ] );
+
+		$this->assertSame( [ [ 7, false ], [ 7, true ] ], $calls );
+	}
+
+		public function test_nested_terms_are_made_level_by_level_and_the_image_gets_every_level(): void {
 
 		$terms = [ 'Family' => [ 'term_id' => 11, 'parent' => 0 ] ];
 		$made  = [];
