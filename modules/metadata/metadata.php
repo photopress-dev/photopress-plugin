@@ -732,7 +732,31 @@ class metadata extends photopress_module {
 		return $pages;
 	}
 	
-	public function getDefaultTaxonomyDefinitions() {
+	/**
+	 * The id of the default People taxonomy: pp_person, or photos_people,
+	 * its id before 1.10, on a site whose People terms are stored under that
+	 * and that never saved its taxonomy settings (so runs on these defaults).
+	 * Worked out once and remembered.
+	 */
+	public static function peopleId() {
+
+		$id = get_option( 'photopress_people_id' );
+
+		if ( ! $id ) {
+
+			global $wpdb;
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$old = $wpdb->get_var( $wpdb->prepare( "SELECT term_taxonomy_id FROM {$wpdb->term_taxonomy} WHERE taxonomy = %s LIMIT 1", 'photos_people' ) );
+			$id  = $old ? 'photos_people' : 'pp_person';
+
+			update_option( 'photopress_people_id', $id );
+		}
+
+		return $id;
+	}
+
+		public function getDefaultTaxonomyDefinitions() {
 		
 		$taxonomies = [
 			
@@ -777,7 +801,9 @@ class metadata extends photopress_module {
 			],
 			
 			[
-				'id'			=> 'photos_people',
+				// pp_ and its singular name, as for any taxonomy added in the
+				// settings; see peopleId().
+				'id'			=> self::peopleId(),
 				'pluralLabel' 	=> 'people',
 				'singularLabel'	=> 'person',
 				'tag'			=> 'dc:subject',

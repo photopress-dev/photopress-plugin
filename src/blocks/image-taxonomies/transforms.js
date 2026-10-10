@@ -9,7 +9,7 @@ import { createBlock } from '@wordpress/blocks';
 import metadata from '../../../modules/metadata/blocks/image-taxonomies/block.json';
 
 // XmpDisplayWidget::DEFAULT_TAXONOMIES: a widget saved without a list showed these.
-export const WIDGET_DEFAULT_TAXONOMIES = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people';
+export const WIDGET_DEFAULT_TAXONOMIES = 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people, pp_person';
 
 export const parseList = ( list ) =>
 	String( list || '' ).split( ',' ).map( ( name ) => name.trim() ).filter( Boolean );

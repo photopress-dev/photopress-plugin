@@ -31,5 +31,5 @@ test( 'a widget without a title or list gets the widget defaults', () => {
 	const block = fromWidget( { instance: { raw: { title: '', taxonomies: '' } } } );
 
 	expect( block.name ).toBe( 'photopress/image-taxonomies' );
-	expect( block.attributes.taxonomies ).toEqual( parseList( 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people' ) );
+	expect( block.attributes.taxonomies ).toEqual( parseList( 'photos_keywords, photos_camera, photos_lens, photos_city, photos_state, photos_country, photos_people, pp_person' ) );
 } );

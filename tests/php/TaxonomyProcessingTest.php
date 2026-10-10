@@ -91,6 +91,33 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertTrue( $registered['pp_acme_job']['hierarchical'] );
 	}
 
+		public function test_the_default_people_id_is_pp_person_unless_its_terms_are_under_the_old_one(): void {
+
+		global $wpdb;
+
+		$stored  = [];
+		$queries = 0;
+		Functions\when( 'get_option' )->alias( static function ( $key ) use ( &$stored ) { return $stored[ $key ] ?? false; } );
+		Functions\when( 'update_option' )->alias( static function ( $key, $value ) use ( &$stored ) { $stored[ $key ] = $value; } );
+
+		foreach ( [ [ null, 'pp_person' ], [ '17', 'photos_people' ] ] as [ $found, $id ] ) {
+
+			$stored = [];
+			$wpdb   = new class( $found, $queries ) {
+				public $term_taxonomy = 'wp_term_taxonomy';
+				public function __construct( private $found, private &$queries ) {}
+				public function prepare( $query ) { return $query; }
+				public function get_var() { $this->queries++; return $this->found; }
+			};
+
+			$this->assertSame( $id, metadata::peopleId() );
+			$this->assertSame( $id, metadata::peopleId(), 'remembered' );
+		}
+
+		$this->assertSame( 2, $queries, 'one query each' );
+		$wpdb = null;
+	}
+
 		public function test_prefixes_in_keywords_no_parent_keyword_takes(): void {
 
 		global $wpdb;

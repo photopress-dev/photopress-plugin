@@ -67,9 +67,10 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 ### Meta-Data
 
-- Define unlimited custom image taxonomies
-- Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonomies
-- Create and extract "child taxonomies" from embedded meta-data fields
+- Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload
+- Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up
+- Hierarchical Keyword Metadata: keywords under a parent keyword (People › Jane in Lightroom or Capture One, or people: Jane) go to the parent keyword's own taxonomy, optionally as nested terms
+- Custom Metadata: any other metadata field as a taxonomy
 - Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 - Display Exif Widget
 - Display Image Taxonomy Terms Widget
