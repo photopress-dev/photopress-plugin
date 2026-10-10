@@ -4,33 +4,32 @@
  *
  * reprocess: { label, request, missing, terms }, or null. With missing (what
  * a file may not have) and terms (what of an image's would be emptied), a
- * checkbox asks whether to leave images whose files have none unchanged.
- * onSave( reprocess ): reprocess is the request with skip, or undefined.
+ * checkbox, unchecked, asks whether to empty them in images whose files have
+ * none. onSave( reprocess ): reprocess is the request with skip (not
+ * emptying them), or undefined.
  */
 import { useState } from '@wordpress/element';
 import { Button, CheckboxControl } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 
 export default function SaveBar( { onSave, onCancel, saving, saveLabel = __( 'Save' ), reprocess } ) {
-	const [ skip, setSkip ] = useState( true );
+	const [ empty, setEmpty ] = useState( false );
 
 	return (
 		<div className="photopress-savebar">
 			{ reprocess && reprocess.missing && (
 				<CheckboxControl
 					__nextHasNoMarginBottom
-					label={ sprintf( __( 'Don’t change images whose files have no %s' ), reprocess.missing ) }
-					help={ skip
-						? sprintf( __( 'Each image’s file is read again. An image whose file has no %1$s keeps its %2$s as they are, in case the metadata was stripped from the file.' ), reprocess.missing, reprocess.terms )
-						: sprintf( __( 'Each image’s file is read again. An image whose file has no %1$s has its %2$s emptied.' ), reprocess.missing, reprocess.terms ) }
-					checked={ skip }
-					onChange={ setSkip }
+					label={ sprintf( __( 'Empty the %1$s of images whose files have no %2$s' ), reprocess.terms, reprocess.missing ) }
+					help={ __( 'Unchecked, they keep what they have, in case the metadata was stripped from their files.' ) }
+					checked={ empty }
+					onChange={ setEmpty }
 				/>
 			) }
 			<p className="photopress-savebar__buttons">
 				<Button variant={ reprocess ? 'secondary' : 'primary' } onClick={ () => onSave() } disabled={ saving }>{ saveLabel }</Button>
 				{ reprocess && (
-					<Button variant="primary" onClick={ () => onSave( { ...reprocess.request, skip } ) } disabled={ saving }>
+					<Button variant="primary" onClick={ () => onSave( { ...reprocess.request, skip: ! empty } ) } disabled={ saving }>
 						{ reprocess.label }
 					</Button>
 				) }

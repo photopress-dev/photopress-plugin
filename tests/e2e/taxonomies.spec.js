@@ -93,7 +93,7 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	await expect.poll( () => taxonomies().some( ( t ) => 'pp_acme_job' === t.id ) ).toBe( false );
 } );
 
-test( 'a change that moves photos offers to reprocess just those, leaving images whose files have no keywords', async ( { page } ) => {
+test( 'a change that moves photos offers to reprocess just those, emptying nothing unless asked', async ( { page } ) => {
 	// A People parent keyword written people: or person:, as on the test site.
 	const list = taxonomies().filter( ( t ) => ! t.parseTagValue );
 	list.push( { id: 'pp_e2e_person', pluralLabel: 'E2E people', singularLabel: 'E2E person', tag: 'dc:subject', parseTagValue: true, names: [ 'person' ] } );
@@ -107,7 +107,7 @@ test( 'a change that moves photos offers to reprocess just those, leaving images
 
 	await page.getByLabel( 'Parent keyword', { exact: true } ).fill( 'nobody' );
 	await expect( editor.getByRole( 'button', { name: /^Save and reprocess \d+ affected images?$/ } ) ).toBeVisible( { timeout: 10000 } );
-	await expect( editor.getByRole( 'checkbox', { name: 'Don’t change images whose files have no keywords' } ) ).toBeChecked();
+	await expect( editor.getByRole( 'checkbox', { name: 'Empty the Keywords and E2E people terms of images whose files have no keywords' } ) ).not.toBeChecked();
 
 	if ( process.env.PP_E2E_SHOTS ) {
 		await editor.locator( '.photopress-savebar' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/save-and-reprocess.png` } );
@@ -117,7 +117,7 @@ test( 'a change that moves photos offers to reprocess just those, leaving images
 
 	await page.getByRole( 'button', { name: 'Add a custom metadata taxonomy' } ).click();
 	await expect( editor.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
-	await expect( editor.getByRole( 'checkbox', { name: /^Don’t change images whose files have no .+ field$/ } ) ).toBeChecked();
+	await expect( editor.getByRole( 'checkbox', { name: /^Empty the .+ terms of images whose files have no .+ field$/ } ) ).not.toBeChecked();
 	await editor.getByRole( 'button', { name: 'Cancel' } ).click();
 } );
 

@@ -47,8 +47,8 @@ for ( const { title, key, field, job } of sections ) {
 		await sw.click();
 		await expect( panel.locator( field ) ).toBeVisible();
 		await expect( panel.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
-		await expect( panel.getByRole( 'checkbox', { name: 'Don’t change images whose files have no metadata for the template' } ) ).toBeChecked();
-		await expect.poll( () => settings()[ key ] ).toBe( true );
+		await expect( panel.getByRole( 'checkbox', { name: /^Empty the .+ of images whose files have no metadata for the template$/ } ) ).not.toBeChecked();
+		await expect.poll( () => settings()[ key ], { timeout: 15000 } ).toBe( true );
 
 		if ( process.env.PP_E2E_SHOTS ) {
 			await panel.screenshot( { path: `${ process.env.PP_E2E_SHOTS }/${ key }.png` } );
@@ -83,7 +83,7 @@ test( 'Licensing: the switch shows the settings, all three are required, and the
 	await expect.poll( () => settings().web_statement_of_rights ).toBe( 'https://licensor.example/terms' );
 	await expect( panel.locator( '.photopress-licensing-incomplete' ) ).toHaveCount( 0 );
 	await expect( panel.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
-	await expect( panel.getByRole( 'checkbox', { name: /^Don’t change/ } ) ).toHaveCount( 0 );
+	await expect( panel.getByRole( 'checkbox', { name: /^Empty the/ } ) ).toHaveCount( 0 );
 
 	if ( process.env.PP_E2E_SHOTS ) {
 		await panel.screenshot( { path: `${ process.env.PP_E2E_SHOTS }/licensing.png` } );

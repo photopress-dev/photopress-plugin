@@ -506,7 +506,7 @@ export default function TaxonomySettings( { component, route } ) {
 	const saves = useSaves( saving );
 	const status = useStatus( saves );
 	const screen = screenOf( route );
-	const [ skip, setSkip ] = useState( true );
+	const [ empty, setEmpty ] = useState( false );
 	const [ separatorNotice, setSeparatorNotice ] = useState( null );
 	// The prefix separators, shown under Advanced settings, open when changed.
 	const [ advanced, setAdvanced ] = useState( false );
@@ -636,7 +636,7 @@ export default function TaxonomySettings( { component, route } ) {
 						type="metadata.reprocess"
 						compact
 						startLabel={ __( 'Reprocess all images' ) }
-						args={ { force: ! skip } }
+						args={ { force: empty } }
 						refresh={ saves + component.state.jobs }
 						note={ ( job ) => {
 							if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
@@ -644,18 +644,16 @@ export default function TaxonomySettings( { component, route } ) {
 							}
 							return job.args.ids && job.args.ids.length ? __( 'the images a change affects, image taxonomies only' ) : __( 'image taxonomies only' );
 						} }
-						confirm={ skip
-							? __( 'Reprocess every image, reading its metadata again as on upload? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
-							: __( 'Reprocess every image, reading its metadata again as on upload, and empty the terms of images whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+						confirm={ empty
+							? __( 'Reprocess every image, reading its metadata again as on upload, and empty the terms of images whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
+							: __( 'Reprocess every image, reading its metadata again as on upload? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
 					/>
 					<CheckboxControl
 						__nextHasNoMarginBottom
-						label={ __( 'Don’t change images whose files have no metadata for a taxonomy' ) }
-						help={ skip
-							? __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image keeps its terms in that taxonomy as they are, in case the metadata was stripped from the file.' )
-							: __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image’s terms in that taxonomy are emptied.' ) }
-						checked={ skip }
-						onChange={ setSkip }
+						label={ __( 'Empty the terms of images whose files have no metadata for a taxonomy' ) }
+						help={ __( 'As when every keyword, or the location, camera or lens, was removed from a file. Unchecked, those images keep their terms, in case the metadata was stripped from their files.' ) }
+						checked={ empty }
+						onChange={ setEmpty }
 					/>
 				</div>
 
