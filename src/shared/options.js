@@ -200,14 +200,15 @@ export function	setSetting ( key, value, persist ) {
 	
 	if (persist) {
 		
-		this.setState( 
+		// Settled once the setting is saved (or not: see getError( 'save' )).
+		return new Promise( ( resolve ) => this.setState( 
 			{ 
 				settings: new_settings,
 				dirtyFields: df
 				
 			},
-			() => saveSetting.call( this, key, value )
-		);
+			() => saveSetting.call( this, key, value ).then( resolve )
+		) );
 		
 	} else {
 		

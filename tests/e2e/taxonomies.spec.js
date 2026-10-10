@@ -42,6 +42,9 @@ test( 'the three kinds are listed, each standard taxonomy with a switch', async 
 test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	await page.goto( URL );
 	await page.getByRole( 'button', { name: 'Add a hierarchical keyword taxonomy' } ).click();
+	// A page of its own, at the top of the window.
+	await expect( page ).toHaveURL( /#photopress_core_metadata\/taxonomy\/parent\/new$/ );
+	await expect( page.locator( '.photopress-taxonomies__intro' ) ).toHaveCount( 0 );
 
 	await page.getByLabel( 'Parent keyword', { exact: true } ).fill( 'Clients › Acme' );
 	await page.getByLabel( 'Also written as (optional)' ).fill( 'acme' );
@@ -57,6 +60,11 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	await expect( page.getByRole( 'heading', { name: 'Add Hierarchical Keyword Taxonomy' } ) ).toBeVisible();
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Add', exact: true } ).click();
 
+	// Back on the tab, at its top, where it says so.
+	await expect( page ).toHaveURL( /#photopress_core_metadata$/ );
+	await expect( page.locator( '.photopress-flash' ) ).toContainText( 'Acme jobs added.' );
+	await expect( page.locator( '.photopress-flash' ) ).toBeInViewport();
+
 	const row = page.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_acme_job"]' );
 	await expect( row ).toContainText( 'Clients › Acme' );
 	await expect.poll( () => taxonomies().find( ( t ) => 'pp_acme_job' === t.id ) ).toMatchObject( {
@@ -68,9 +76,17 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	} );
 
 	await row.getByRole( 'button', { name: 'Edit' } ).click();
+	await expect( page ).toHaveURL( /taxonomy\/parent\/pp_acme_job$/ );
 	await page.getByLabel( 'Plural name' ).fill( 'Acme projects' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();
 	await expect.poll( () => taxonomies().find( ( t ) => 'pp_acme_job' === t.id ).pluralLabel ).toBe( 'Acme projects' );
+	await expect( page.locator( '.photopress-flash' ) ).toContainText( 'Acme projects saved.' );
+
+	// The browser's Back returns to the screen it left.
+	await page.goBack();
+	await expect( page ).toHaveURL( /taxonomy\/parent\/pp_acme_job$/ );
+	await expect( page.getByLabel( 'Plural name' ) ).toHaveValue( 'Acme projects' );
+	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Cancel' } ).click();
 
 	page.once( 'dialog', ( dialog ) => dialog.accept() );
 	await page.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_acme_job"]' ).getByRole( 'button', { name: 'Remove' } ).click();

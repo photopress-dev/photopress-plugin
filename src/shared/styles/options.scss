@@ -573,3 +573,35 @@ input[type="checkbox"] {
 	padding-top: 16px;
 	border-top: 1px solid #dcdcde;
 }
+
+// A job's button with its progress beside it (Reprocess all images).
+.photopress-job--compact .photopress-job__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px 16px;
+
+	.photopress-job__progress {
+		flex: 1 1 280px;
+
+		progress {
+			width: 100%;
+		}
+
+		p {
+			margin: 4px 0 0;
+		}
+	}
+}
+
+.photopress-taxonomies__reprocess {
+	margin: 16px 0 24px;
+
+	.components-checkbox-control {
+		margin-top: 12px;
+	}
+}
+
+.photopress-flash {
+	margin: 0 0 16px;
+}

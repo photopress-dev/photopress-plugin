@@ -51,6 +51,7 @@ class MetadataSettings extends Component {
 		this.setError = setError.bind( this );
 		this.saveLicensing = this.saveLicensing.bind( this );
 		this.saveThen = this.saveThen.bind( this );
+		this.navigate = this.navigate.bind( this );
 		
 		this.state = {
 			isAPILoaded: false,
@@ -74,6 +75,8 @@ class MetadataSettings extends Component {
 			dirtyFields: [],
 			// Jobs started here, so the job panels ask for the latest again.
 			jobs: 0,
+			// What a page within the tab, closing, says: { status, text }.
+			flash: null,
 		};
 		
 		
@@ -170,6 +173,16 @@ class MetadataSettings extends Component {
 		);
 	}
 
+	/**
+	 * Goes to a page within the tab (taxonomy/parent/new), or with none back
+	 * to the tab, at the top of the window, where flash is shown.
+	 */
+	navigate( route = '', flash = null ) {
+		this.setState( { flash } );
+		window.location.hash = this.settingsGroup + ( route ? '/' + route : '' );
+		window.scrollTo( 0, 0 );
+	}
+
 	/** Whether all three licensing settings are filled in and saved. */
 	licensingSaved() {
 		const keys = [ 'licensor_name', 'web_statement_of_rights', 'licensor_url' ];
@@ -179,13 +192,32 @@ class MetadataSettings extends Component {
 
 	render() {
 		
+		const saveError = this.getError( 'save' ) && (
+			<Notice status="error" isDismissible={ false }>
+				<p>{ __( 'The settings were not saved:' ) } { this.getError( 'save' ) }</p>
+			</Notice>
+		);
+		
+		// A page within the tab: adding or editing an image taxonomy.
+		if ( ( this.props.route || '' ).startsWith( 'taxonomy/' ) ) {
+			return (
+				<Fragment>
+					{ saveError }
+					<PanelBody>
+						<TaxonomySettings component={ this } route={ this.props.route } />
+					</PanelBody>
+				</Fragment>
+			);
+		}
+		
 		return (
 			<Fragment>
-			{ this.getError( 'save' ) &&
-				<Notice status="error" isDismissible={ false }>
-					<p>{ __( 'The settings were not saved:' ) } { this.getError( 'save' ) }</p>
+			{ saveError }
+			{ this.state.flash && (
+				<Notice status={ this.state.flash.status } onRemove={ () => this.setState( { flash: null } ) } className="photopress-flash">
+					{ this.state.flash.text }
 				</Notice>
-			}
+			) }
 			<PanelBody title={ __( 'Image Taxonomies' ) }>
 				<TaxonomySettings component={ this } />
 			</PanelBody>

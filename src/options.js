@@ -61,12 +61,18 @@ class SettingsPage extends Component {
 		this.state = {
 			isAPILoaded: false,
 			isAPISaving: false,
+			// The tab, and a page within it: photopress_core_metadata/taxonomy/parent/new.
+			hash: window.location.hash.substring( 1 ),
 		};
+
+		this.onHashChange = () => this.setState( { hash: window.location.hash.substring( 1 ) } );
 		
 		//console.log(this.props);
 	}
 
 	componentDidMount() {
+		
+		window.addEventListener( 'hashchange', this.onHashChange );
 			
 		// load site settings
 		apiFetch( { path: '/wp/v2/settings' } ).then( response => {
@@ -80,6 +86,11 @@ class SettingsPage extends Component {
 				isAPILoaded: true
 			});
 		});
+	}
+	
+	componentWillUnmount() {
+		
+		window.removeEventListener( 'hashchange', this.onHashChange );
 	}
 	
 	getSettingsModuleNames() {
@@ -140,6 +151,7 @@ class SettingsPage extends Component {
 				key = {"metadataoptionspage'"}
 				data= {this.state.photopress_core_metadata}
 				settingsGroup={"photopress_core_metadata"}
+				route={ this.state.hash.split( '/' ).slice( 1 ).join( '/' ) }
 			/>	
 		);
 		
@@ -173,7 +185,7 @@ class SettingsPage extends Component {
 		const renderTab = (tab) => { 
 			//console.log(tab);
 			let rf = function() {};
-			let anchor = window.location.hash ? window.location.hash.substring(1) : tab.name;
+			let anchor = this.state.hash.split( '/' )[ 0 ] || tab.name;
 			
 			switch( anchor ) {
 				
@@ -232,8 +244,14 @@ class SettingsPage extends Component {
 					
 						<TabPanel className="tab-navigation row"
 					        activeClass="active-tab"
-					        initialTabName={window.location.hash.substring(1) || null} 
-					        onSelect={ (tabName) => { window.location.hash = tabName } }
+					        initialTabName={ this.state.hash.split( '/' )[ 0 ] || null } 
+					        onSelect={ ( tabName ) => {
+					        	// Not when it is the tab already shown, as on load: that
+					        	// would drop the page within it.
+					        	if ( tabName !== this.state.hash.split( '/' )[ 0 ] ) {
+					        		window.location.hash = tabName;
+					        	}
+					        } }
 					        tabs={ this.generateNavTabs() }
 					    >
 					        {

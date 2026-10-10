@@ -41,9 +41,10 @@ function statusText( job ) {
  * refresh: changing it asks for the most recent job again, as when a save
  * may have started one. note( job ): words shown with a job's progress.
  * startable: false for a job started elsewhere (Save and reprocess), shown
- * here only once there is one, with its progress and Cancel.
+ * here only once there is one, with its progress and Cancel. compact: the
+ * button (startLabel) with the progress beside it, no heading.
  */
-export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note, startable = true } ) {
+export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note, startable = true, compact = false, startLabel } ) {
 	const [ job, setJob ] = useState( null );
 	const [ error, setError ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
@@ -102,6 +103,51 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 		return null;
 	}
 
+	const progress = job && (
+		<div className="photopress-job__progress" data-status={ job.status }>
+			<progress max={ Math.max( job.total, 1 ) } value={ processed } />
+			<p>
+				{ sprintf( __( '%1$d of %2$d' ), processed, job.total ) }
+				{ note && note( job ) && ' · ' + note( job ) }
+				{ job.failed > 0 && ' · ' + sprintf( __( '%d failed' ), job.failed ) }
+				{ ' · ' + statusText( job ) }
+			</p>
+			{ job.errors.length > 0 && (
+				<details>
+					<summary>{ __( 'Errors' ) }</summary>
+					<ul>
+						{ job.errors.map( ( e, i ) => (
+							<li key={ i }>{ `${ e.item }: ${ e.message }` }</li>
+						) ) }
+					</ul>
+				</details>
+			) }
+		</div>
+	);
+
+	const button = isRunning( job ) ? (
+		<Button variant="secondary" onClick={ cancel } disabled={ busy }>
+			{ __( 'Cancel' ) }
+		</Button>
+	) : startable && (
+		<Button variant="primary" onClick={ start } disabled={ busy }>
+			{ startLabel || ( job ? __( 'Run again' ) : __( 'Start' ) ) }
+		</Button>
+	);
+
+	// The button, with the progress beside it.
+	if ( compact ) {
+		return (
+			<div className="photopress-job photopress-job--compact" data-job-type={ type }>
+				{ error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
+				<div className="photopress-job__row">
+					{ button }
+					{ progress }
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className="photopress-job" data-job-type={ type }>
 			<h3>{ label }</h3>
@@ -113,37 +159,9 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 				</Notice>
 			) }
 
-			{ job && (
-				<div className="photopress-job__progress" data-status={ job.status }>
-					<progress max={ Math.max( job.total, 1 ) } value={ processed } />
-					<p>
-						{ sprintf( __( '%1$d of %2$d' ), processed, job.total ) }
-						{ note && note( job ) && ' · ' + note( job ) }
-						{ job.failed > 0 && ' · ' + sprintf( __( '%d failed' ), job.failed ) }
-						{ ' · ' + statusText( job ) }
-					</p>
-					{ job.errors.length > 0 && (
-						<details>
-							<summary>{ __( 'Errors' ) }</summary>
-							<ul>
-								{ job.errors.map( ( e, i ) => (
-									<li key={ i }>{ `${ e.item }: ${ e.message }` }</li>
-								) ) }
-							</ul>
-						</details>
-					) }
-				</div>
-			) }
+			{ progress }
 
-			{ isRunning( job ) ? (
-				<Button variant="secondary" onClick={ cancel } disabled={ busy }>
-					{ __( 'Cancel' ) }
-				</Button>
-			) : startable && (
-				<Button variant="primary" onClick={ start } disabled={ busy }>
-					{ job ? __( 'Run again' ) : __( 'Start' ) }
-				</Button>
-			) }
+			{ button }
 		</div>
 	);
 }
