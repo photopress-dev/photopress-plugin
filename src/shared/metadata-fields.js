@@ -33,8 +33,6 @@ export const FIELD_GROUPS = [
 		fields: [
 			field( 'photoshop:Headline', __( 'Headline' ), __( 'Headline' ), __( 'Headlines' ), 'Sunset over the bay', __( 'A short synopsis of what the photo shows.' ), '_headline' ),
 			field( 'dc:title', __( 'Title' ), __( 'Title' ), __( 'Titles' ), 'Golden Hour', __( 'A short name for the photo.' ), '_title' ),
-			field( 'photoshop:Category', __( 'Category' ), __( 'Category' ), __( 'Categories' ), 'Travel', __( 'A category code from older newswire workflows, often three letters.' ) ),
-			field( 'photoshop:SupplementalCategories', __( 'Supplemental Categories' ), __( 'Supplemental category' ), __( 'Supplemental categories' ), 'Landscape', __( 'Further categories from older newswire workflows.' ) ),
 			field( 'Iptc4xmpCore:IntellectualGenre', __( 'Intellectual Genre' ), __( 'Genre' ), __( 'Genres' ), 'Profile', __( 'The nature of the photo’s content, such as profile, interview or obituary.' ), '_intellectual_genre_legacy' ),
 			field( 'Iptc4xmpCore:Scene', __( 'Scene Code' ), __( 'Scene' ), __( 'Scenes' ), '011900', __( 'IPTC codes for the kind of scene, such as 011900 for action.' ), '_iptc_scene_code' ),
 			field( 'Iptc4xmpCore:SubjectCode', __( 'Subject Code' ), __( 'Subject' ), __( 'Subjects' ), '15000000', __( 'IPTC codes for the photo’s subject, such as 15000000 for sport.' ), '_iptc_subject_code_legacy' ),
@@ -49,6 +47,15 @@ export const FIELD_GROUPS = [
 			field( 'xmpRights:UsageTerms', __( 'Rights Usage Terms' ), __( 'Usage terms' ), __( 'Usage terms' ), 'Editorial use only', __( 'How the photo may be used, such as editorial use only.' ), '_rights_usage_terms' ),
 			field( 'photoshop:Instructions', __( 'Instructions' ), __( 'Instruction' ), __( 'Instructions' ), 'Embargoed until June 1', __( 'Instructions for whoever receives the photo, such as an embargo.' ), '_instructions' ),
 			field( 'photoshop:TransmissionReference', __( 'Job Identifier' ), __( 'Job' ), __( 'Jobs' ), '2024-0612', __( 'An identifier of the job or assignment the photo is from.' ), '_job_identifier' ),
+		],
+	},
+	{
+		label: __( 'IPTC legacy' ),
+		setIn: __( 'Lightroom Classic and Capture One' ),
+		note: __( 'Set in Lightroom Classic and Capture One, not Photoshop.' ),
+		fields: [
+			field( 'photoshop:Category', __( 'Category' ), __( 'Category' ), __( 'Categories' ), 'Travel', __( 'A category code from older newswire workflows, often three letters.' ) ),
+			field( 'photoshop:SupplementalCategories', __( 'Supplemental Categories' ), __( 'Supplemental category' ), __( 'Supplemental categories' ), 'Landscape', __( 'Further categories from older newswire workflows.' ) ),
 		],
 	},
 	{

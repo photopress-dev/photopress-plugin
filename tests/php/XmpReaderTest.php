@@ -311,4 +311,33 @@ final class XmpReaderTest extends TestCase {
 
 		$this->assertSame( [ 'Jane Smith', 'John Doe' ], $md['GettyImagesGIFT:Personality'] );
 	}
+
+	/**
+	 * Every field Photoshop's File Info writes, filled in: each one the
+	 * Custom Metadata list offers is read as text, or a list of text.
+	 */
+	public function test_every_listed_field_photoshop_writes_is_read(): void {
+
+		$md = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/photoshop-file-info.xmp' ) );
+
+		$listed = [
+			'photoshop:Headline', 'dc:title', 'Iptc4xmpCore:IntellectualGenre', 'Iptc4xmpCore:Scene', 'Iptc4xmpCore:SubjectCode',
+			'Iptc4xmpCore:Location', 'Iptc4xmpCore:CountryCode', 'dc:creator', 'photoshop:AuthorsPosition', 'photoshop:CaptionWriter',
+			'photoshop:Credit', 'photoshop:Source', 'dc:rights', 'xmpRights:UsageTerms', 'photoshop:Instructions',
+			'photoshop:TransmissionReference', 'Iptc4xmpExt:Event', 'Iptc4xmpExt:PersonInImage', 'Iptc4xmpExt:OrganisationInImageName',
+			'Iptc4xmpExt:OrganisationInImageCode', 'Iptc4xmpExt:ModelAge', 'Iptc4xmpExt:AddlModelInfo', 'xmp:Rating', 'xmp:CreatorTool',
+		];
+
+		foreach ( $listed as $tag ) {
+			$value = $md[ $tag ] ?? null;
+			$this->assertNotEmpty( $value, $tag );
+			foreach ( (array) $value as $item ) {
+				$this->assertIsString( $item, $tag );
+			}
+		}
+
+		$this->assertSame( [ '18', '24' ], $md['Iptc4xmpExt:ModelAge'] );
+		$this->assertSame( 'foo', $md['Iptc4xmpExt:Event'], 'one language of a language alternative' );
+		$this->assertSame( 'bar', $md['Iptc4xmpExt:LocationShown'][0]['Iptc4xmpExt:City'], 'structures keep their parts' );
+	}
 }
