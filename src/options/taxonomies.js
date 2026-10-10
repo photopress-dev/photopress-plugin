@@ -11,7 +11,6 @@ import { Button, CheckboxControl, FormToggle, Notice, SelectControl, TextControl
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import JobPanel from '../shared/jobs.js';
-import SwitchRow from '../shared/switch-row.js';
 import SaveBar from '../shared/save-bar.js';
 import xmpLabels from '../shared/xmp-labels.js';
 import {
@@ -357,7 +356,8 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 				__nextHasNoMarginBottom
 				__next40pxDefaultSize
 				label={ __( 'Parent keyword' ) }
-				help={ __( 'The keyword your photos’ keywords sit under, as named in Lightroom or Capture One. For a parent further down, write its path: Clients › Acme.' ) }
+				help={ __( 'The top-level keyword whose sub-keywords become this taxonomy’s terms, such as Genre for Genre › Portraiture.' ) }
+				placeholder={ __( 'Genre, or a path such as Clients › Acme' ) }
 				value={ parent }
 				onChange={ choose }
 			/>
@@ -508,6 +508,8 @@ export default function TaxonomySettings( { component, route } ) {
 	const screen = screenOf( route );
 	const [ skip, setSkip ] = useState( true );
 	const [ separatorNotice, setSeparatorNotice ] = useState( null );
+	// The prefix separators, shown under Advanced settings, open when changed.
+	const [ advanced, setAdvanced ] = useState( false );
 	const delimiter = component.getSetting( 'custom_taxonomies_tag_delimiter' ) ?? '';
 	const separatorScope = useScope( { custom_taxonomies_tag_delimiter: delimiter }, saves );
 	const setScreen = ( next ) => component.navigate( next ? routeFor( next ) : '' );
@@ -628,200 +630,193 @@ export default function TaxonomySettings( { component, route } ) {
 
 	return (
 		<div className="photopress-taxonomies">
-			<p className="photopress-taxonomies__intro">
-				{ __( 'Image taxonomies let visitors browse your photos by camera, place, person and so on, each with its own archive pages. PhotoPress fills them from the metadata embedded in each photo when it is uploaded.' ) }
-			</p>
+			<Fragment>
+				<div className="photopress-taxonomies__reprocess" id="photopress-reprocess">
+					<JobPanel
+						type="metadata.reprocess"
+						compact
+						startLabel={ __( 'Reprocess all images' ) }
+						args={ { force: ! skip } }
+						refresh={ saves + component.state.jobs }
+						note={ ( job ) => {
+							if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
+								return '';
+							}
+							return job.args.ids && job.args.ids.length ? __( 'the images a change affects, image taxonomies only' ) : __( 'image taxonomies only' );
+						} }
+						confirm={ skip
+							? __( 'Reprocess every image, reading its metadata again as on upload? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
+							: __( 'Reprocess every image, reading its metadata again as on upload, and empty the terms of images whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+					/>
+					<CheckboxControl
+						__nextHasNoMarginBottom
+						label={ __( 'Don’t change images whose files have no metadata for a taxonomy' ) }
+						help={ skip
+							? __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image keeps its terms in that taxonomy as they are, in case the metadata was stripped from the file.' )
+							: __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image’s terms in that taxonomy are emptied.' ) }
+						checked={ skip }
+						onChange={ setSkip }
+					/>
+				</div>
 
-			<SwitchRow
-				label={ __( 'Image taxonomies' ) }
-				help={ __( 'Registers the taxonomies below and fills them from each photo’s metadata on upload.' ) }
-				checked={ component.getSetting( 'custom_taxonomies_enable' ) }
-				onChange={ ( value ) => component.persistSetting( 'custom_taxonomies_enable', value ) }
-			/>
+				<Section
+					title={ __( 'Standard Metadata' ) }
+					intro={ __( 'Built in. Each knows every place its information can be stored, so you don’t need to know which fields your photo software writes. Turn off the ones you don’t want.' ) }
+				>
+					<Table
+						className="photopress-taxonomies__standard"
+						head={ [ [ __( 'Taxonomy' ) ], [ __( 'How it’s filled' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ], [ __( 'On' ), 'switch' ] ] }
+					>
+						{ STANDARD.map( ( s ) => {
+							const def = standard[ s.kind ];
+							const on = !! def && ! def.disabled;
+							return (
+								<tr key={ s.kind } data-kind={ s.kind }>
+									<td><strong>{ capitalize( ( def || s ).pluralLabel ) }</strong></td>
+									<td>{ standardHow( s.kind ) }</td>
+									<td><code>{ archiveUrl( def || s ) }</code></td>
+									<td className="num">{ def ? termCount( status, def.id ) : '—' }</td>
+									<RowActions onEdit={ () => setScreen( { type: 'standard', kind: s.kind } ) } />
+									<td className="switch">
+										<FormToggle
+											checked={ on }
+											disabled={ saving }
+											aria-label={ sprintf( __( '%s on' ), capitalize( ( def || s ).pluralLabel ) ) }
+											onChange={ ( e ) => toggleStandard( s.kind, e.target.checked ) }
+										/>
+									</td>
+								</tr>
+							);
+						} ) }
+					</Table>
+				</Section>
 
-			{ component.getSetting( 'custom_taxonomies_enable' ) && (
-				<Fragment>
-					<div className="photopress-taxonomies__reprocess" id="photopress-reprocess">
-						<JobPanel
-							type="metadata.reprocess"
-							compact
-							startLabel={ __( 'Reprocess all images' ) }
-							args={ { force: ! skip } }
-							refresh={ saves + component.state.jobs }
-							note={ ( job ) => {
-								if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
-									return '';
-								}
-								return job.args.ids && job.args.ids.length ? __( 'the images a change affects, image taxonomies only' ) : __( 'image taxonomies only' );
-							} }
-							confirm={ skip
-								? __( 'Reprocess every image, reading its metadata again as on upload? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
-								: __( 'Reprocess every image, reading its metadata again as on upload, and empty the terms of images whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
-						/>
-						<CheckboxControl
-							__nextHasNoMarginBottom
-							label={ __( 'Don’t change images whose files have no metadata for a taxonomy' ) }
-							help={ skip
-								? __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image keeps its terms in that taxonomy as they are, in case the metadata was stripped from the file.' )
-								: __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image’s terms in that taxonomy are emptied.' ) }
-							checked={ skip }
-							onChange={ setSkip }
-						/>
+				<Section
+					title={ __( 'Hierarchical Keyword Metadata' ) }
+					intro={ __( 'Map specific keyword hierarchies set in Lightroom or Capture One into their own image taxonomies. For example, an image file containing Genre › Portraiture will be tagged Portraiture in a Genres taxonomy, with its own archive page at /genre/portraiture.' ) }
+					action={ <Button variant="primary" aria-label={ __( 'Add a hierarchical keyword taxonomy' ) } onClick={ () => setScreen( { type: 'parent' } ) }>{ __( 'Add' ) }</Button> }
+				>
+					<Table
+						className="photopress-taxonomies__parents"
+						head={ [ [ __( 'Taxonomy' ) ], [ __( 'Parent keywords' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
+					>
+						{ parents.length === 0 && <tr><td colSpan="5">{ __( 'No parent keywords yet.' ) }</td></tr> }
+						{ parents.map( ( p ) => (
+							<tr key={ p.id } data-taxonomy={ p.id }>
+								<td>
+									<strong>{ capitalize( p.pluralLabel ) }</strong>
+										</td>
+								<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n.replace( /\|/g, ' › ' ) }</code> ) }</td>
+								<td><code>{ archiveUrl( p ) }</code></td>
+								<td className="num">{ termCount( status, p.id ) }</td>
+								<RowActions
+									onEdit={ () => setScreen( { type: 'parent', id: p.id } ) }
+									onRemove={ () => remove( p, __( 'the parent keyword' ) ) }
+									removeLabel={ __( 'Remove' ) }
+								/>
+							</tr>
+						) ) }
+					</Table>
+
+					{ unclaimed.length > 0 && (
+						<div className="photopress-taxonomies__found">
+							<h4>{ __( 'Parent keywords in your photos with no taxonomy' ) }</h4>
+							<p className="description">{ __( 'Until they have one, these keywords are filed under Keywords as written.' ) }</p>
+							<ul>
+								{ unclaimed.map( ( p ) => {
+									const typo = likelyTypoOf( p.prefix, parents );
+									return (
+										<li key={ p.prefix }>
+											<span>
+												<code>{ p.prefix }</code> <span className="description">{ sprintf( _n( 'used %1$d time, e.g. %2$s', 'used %1$d times, e.g. %2$s', p.photos ), p.photos, p.examples.join( ', ' ) ) }</span>
+											</span>
+											{ typo ? (
+												<Button variant="secondary" size="small" disabled={ saving } onClick={ () => addName( typo, p.prefix ) }>
+													{ sprintf( __( 'Add to %s' ), capitalize( typo.pluralLabel ) ) }
+												</Button>
+											) : (
+												<Button variant="secondary" size="small" onClick={ () => setScreen( { type: 'parent', prefill: p.prefix } ) }>
+													{ __( 'Add taxonomy' ) }
+												</Button>
+											) }
+										</li>
+									);
+								} ) }
+							</ul>
+						</div>
+					) }
+
+					<div className="photopress-advanced">
+						<Button variant="link" aria-expanded={ advanced } onClick={ () => setAdvanced( ! advanced ) }>
+							{ advanced ? __( 'Hide advanced settings' ) : __( 'Advanced settings' ) }
+						</Button>
 					</div>
 
-					<Section
-						title={ __( 'Standard Metadata' ) }
-						intro={ __( 'Built in. Each knows every place its information can be stored, so you don’t need to know which fields your photo software writes. Turn off the ones you don’t want.' ) }
+					{ advanced && <div className="photopress-taxonomies__separators">
+						<TextControl
+							__nextHasNoMarginBottom
+							__next40pxDefaultSize
+							label={ __( 'Prefix separators' ) }
+							help={ __( 'What comes between a parent keyword and the rest, as in people: Jane. Several: separate them with spaces (: >). Empty: prefixes are not read. Keyword lists from Lightroom and Capture One are always read.' ) }
+							value={ delimiter }
+							onChange={ ( value ) => component.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
+						/>
+						<SaveBar
+							saving={ saving }
+							reprocess={ scopeChoice( separatorScope, __( 'Keywords and parent keyword terms' ) ) }
+							onSave={ ( reprocess ) => {
+								setSeparatorNotice( null );
+								Promise.resolve( component.saveSettings() ).then( () => {
+									if ( component.getError( 'save' ) ) {
+										return;
+									}
+									if ( ! reprocess ) {
+										return setSeparatorNotice( { status: 'success', text: __( 'Separators saved.' ) } );
+									}
+									startReprocess( reprocess ).then( ( then ) => setSeparatorNotice( { status: then.status, text: __( 'Separators saved.' ) + ' ' + then.text.replace( __( 'the progress is below.' ), __( 'the progress is at the top of Image Taxonomies.' ) ), progress: true } ) );
+								} );
+							} }
+						/>
+					</div> }
+					{ separatorNotice && (
+						<Notice status={ separatorNotice.status } onRemove={ () => setSeparatorNotice( null ) }>
+							{ separatorNotice.text }
+							{ separatorNotice.progress && (
+								<Fragment>
+									{ ' ' }
+									<Button variant="link" onClick={ () => document.getElementById( 'photopress-reprocess' )?.scrollIntoView( { behavior: 'smooth' } ) }>{ __( 'View progress' ) }</Button>
+								</Fragment>
+							) }
+						</Notice>
+					) }
+				</Section>
+
+				<Section
+					title={ __( 'Custom Metadata' ) }
+					intro={ __( 'Any other metadata field as a taxonomy. Every value in the field becomes a term, as written.' ) }
+					action={ <Button variant="primary" aria-label={ __( 'Add a custom metadata taxonomy' ) } onClick={ () => setScreen( { type: 'custom' } ) }>{ __( 'Add' ) }</Button> }
+				>
+					<Table
+						className="photopress-taxonomies__custom"
+						head={ [ [ __( 'Taxonomy' ) ], [ __( 'Field' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
 					>
-						<Table
-							className="photopress-taxonomies__standard"
-							head={ [ [ __( 'Taxonomy' ) ], [ __( 'How it’s filled' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ], [ __( 'On' ), 'switch' ] ] }
-						>
-							{ STANDARD.map( ( s ) => {
-								const def = standard[ s.kind ];
-								const on = !! def && ! def.disabled;
-								return (
-									<tr key={ s.kind } data-kind={ s.kind }>
-										<td><strong>{ capitalize( ( def || s ).pluralLabel ) }</strong></td>
-										<td>{ standardHow( s.kind ) }</td>
-										<td><code>{ archiveUrl( def || s ) }</code></td>
-										<td className="num">{ def ? termCount( status, def.id ) : '—' }</td>
-										<RowActions onEdit={ () => setScreen( { type: 'standard', kind: s.kind } ) } />
-										<td className="switch">
-											<FormToggle
-												checked={ on }
-												disabled={ saving }
-												aria-label={ sprintf( __( '%s on' ), capitalize( ( def || s ).pluralLabel ) ) }
-												onChange={ ( e ) => toggleStandard( s.kind, e.target.checked ) }
-											/>
-										</td>
-									</tr>
-								);
-							} ) }
-						</Table>
-					</Section>
-
-					<Section
-						title={ __( 'Hierarchical Keyword Metadata' ) }
-						intro={ __( 'Map specific keyword hierarchies set in Lightroom or Capture One into their own image taxonomies. For example, an image file containing Genre › Portraiture will be tagged Portraiture in a Genres taxonomy, with its own archive page at /genre/portraiture.' ) }
-						action={ <Button variant="primary" aria-label={ __( 'Add a hierarchical keyword taxonomy' ) } onClick={ () => setScreen( { type: 'parent' } ) }>{ __( 'Add' ) }</Button> }
-					>
-						<Table
-							className="photopress-taxonomies__parents"
-							head={ [ [ __( 'Taxonomy' ) ], [ __( 'Parent keywords' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
-						>
-							{ parents.length === 0 && <tr><td colSpan="5">{ __( 'No parent keywords yet.' ) }</td></tr> }
-							{ parents.map( ( p ) => (
-								<tr key={ p.id } data-taxonomy={ p.id }>
-									<td>
-										<strong>{ capitalize( p.pluralLabel ) }</strong>
-											</td>
-									<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n.replace( /\|/g, ' › ' ) }</code> ) }</td>
-									<td><code>{ archiveUrl( p ) }</code></td>
-									<td className="num">{ termCount( status, p.id ) }</td>
-									<RowActions
-										onEdit={ () => setScreen( { type: 'parent', id: p.id } ) }
-										onRemove={ () => remove( p, __( 'the parent keyword' ) ) }
-										removeLabel={ __( 'Remove' ) }
-									/>
-								</tr>
-							) ) }
-						</Table>
-
-						{ unclaimed.length > 0 && (
-							<div className="photopress-taxonomies__found">
-								<h4>{ __( 'Parent keywords in your photos with no taxonomy' ) }</h4>
-								<p className="description">{ __( 'Until they have one, these keywords are filed under Keywords as written.' ) }</p>
-								<ul>
-									{ unclaimed.map( ( p ) => {
-										const typo = likelyTypoOf( p.prefix, parents );
-										return (
-											<li key={ p.prefix }>
-												<span>
-													<code>{ p.prefix }</code> <span className="description">{ sprintf( _n( 'used %1$d time, e.g. %2$s', 'used %1$d times, e.g. %2$s', p.photos ), p.photos, p.examples.join( ', ' ) ) }</span>
-												</span>
-												{ typo ? (
-													<Button variant="secondary" size="small" disabled={ saving } onClick={ () => addName( typo, p.prefix ) }>
-														{ sprintf( __( 'Add to %s' ), capitalize( typo.pluralLabel ) ) }
-													</Button>
-												) : (
-													<Button variant="secondary" size="small" onClick={ () => setScreen( { type: 'parent', prefill: p.prefix } ) }>
-														{ __( 'Add taxonomy' ) }
-													</Button>
-												) }
-											</li>
-										);
-									} ) }
-								</ul>
-							</div>
-						) }
-
-						<div className="photopress-taxonomies__separators">
-							<TextControl
-								__nextHasNoMarginBottom
-								__next40pxDefaultSize
-								label={ __( 'Prefix separators' ) }
-								help={ __( 'What comes between a parent keyword and the rest, as in people: Jane. Several: separate them with spaces (: >). Empty: prefixes are not read. Keyword lists from Lightroom and Capture One are always read.' ) }
-								value={ delimiter }
-								onChange={ ( value ) => component.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
-							/>
-							<SaveBar
-								saving={ saving }
-								reprocess={ scopeChoice( separatorScope, __( 'Keywords and parent keyword terms' ) ) }
-								onSave={ ( reprocess ) => {
-									setSeparatorNotice( null );
-									Promise.resolve( component.saveSettings() ).then( () => {
-										if ( component.getError( 'save' ) ) {
-											return;
-										}
-										if ( ! reprocess ) {
-											return setSeparatorNotice( { status: 'success', text: __( 'Separators saved.' ) } );
-										}
-										startReprocess( reprocess ).then( ( then ) => setSeparatorNotice( { status: then.status, text: __( 'Separators saved.' ) + ' ' + then.text.replace( __( 'the progress is below.' ), __( 'the progress is at the top of Image Taxonomies.' ) ), progress: true } ) );
-									} );
-								} }
-							/>
-						</div>
-						{ separatorNotice && (
-							<Notice status={ separatorNotice.status } onRemove={ () => setSeparatorNotice( null ) }>
-								{ separatorNotice.text }
-								{ separatorNotice.progress && (
-									<Fragment>
-										{ ' ' }
-										<Button variant="link" onClick={ () => document.getElementById( 'photopress-reprocess' )?.scrollIntoView( { behavior: 'smooth' } ) }>{ __( 'View progress' ) }</Button>
-									</Fragment>
-								) }
-							</Notice>
-						) }
-					</Section>
-
-					<Section
-						title={ __( 'Custom Metadata' ) }
-						intro={ __( 'Any other metadata field as a taxonomy. Every value in the field becomes a term, as written.' ) }
-						action={ <Button variant="primary" aria-label={ __( 'Add a custom metadata taxonomy' ) } onClick={ () => setScreen( { type: 'custom' } ) }>{ __( 'Add' ) }</Button> }
-					>
-						<Table
-							className="photopress-taxonomies__custom"
-							head={ [ [ __( 'Taxonomy' ) ], [ __( 'Field' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
-						>
-							{ custom.length === 0 && <tr><td colSpan="5">{ __( 'No custom metadata yet.' ) }</td></tr> }
-							{ custom.map( ( c ) => (
-								<tr key={ c.id } data-taxonomy={ c.id }>
-									<td><strong>{ capitalize( c.pluralLabel ) }</strong></td>
-									<td>{ fieldLabel( c.tag ) } <span className="description">({ c.tag })</span></td>
-									<td><code>{ archiveUrl( c ) }</code></td>
-									<td className="num">{ termCount( status, c.id ) }</td>
-									<RowActions
-										onEdit={ () => setScreen( { type: 'custom', id: c.id } ) }
-										onRemove={ () => remove( c, __( 'the field' ) ) }
-										removeLabel={ __( 'Delete' ) }
-									/>
-								</tr>
-							) ) }
-						</Table>
-					</Section>
-				</Fragment>
-			) }
+						{ custom.length === 0 && <tr><td colSpan="5">{ __( 'No custom metadata yet.' ) }</td></tr> }
+						{ custom.map( ( c ) => (
+							<tr key={ c.id } data-taxonomy={ c.id }>
+								<td><strong>{ capitalize( c.pluralLabel ) }</strong></td>
+								<td>{ fieldLabel( c.tag ) } <span className="description">({ c.tag })</span></td>
+								<td><code>{ archiveUrl( c ) }</code></td>
+								<td className="num">{ termCount( status, c.id ) }</td>
+								<RowActions
+									onEdit={ () => setScreen( { type: 'custom', id: c.id } ) }
+									onRemove={ () => remove( c, __( 'the field' ) ) }
+									removeLabel={ __( 'Delete' ) }
+								/>
+							</tr>
+						) ) }
+					</Table>
+				</Section>
+			</Fragment>
 		</div>
 	);
 }

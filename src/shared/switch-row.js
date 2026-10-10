@@ -1,6 +1,7 @@
 /**
- * An on/off setting as a row: its label and help on the left, the switch in
- * the far right column, as every on/off on the settings pages is shown.
+ * An on/off option within a feature: the switch at the left, its label and
+ * help beside it, as the feature's own switch is. (A switch turning a row of
+ * a table on or off sits in the table's last column instead.)
  */
 import { FormToggle } from '@wordpress/components';
 import { useInstanceId } from '@wordpress/compose';
@@ -10,10 +11,6 @@ export default function SwitchRow( { label, help, checked, onChange, disabled = 
 
 	return (
 		<div className="photopress-switch-row">
-			<div className="photopress-switch-row__text">
-				<label htmlFor={ id }>{ label }</label>
-				{ help && <p id={ id + '-help' } className="photopress-switch-row__help">{ help }</p> }
-			</div>
 			<FormToggle
 				id={ id }
 				checked={ !! checked }
@@ -21,6 +18,10 @@ export default function SwitchRow( { label, help, checked, onChange, disabled = 
 				aria-describedby={ help ? id + '-help' : undefined }
 				onChange={ ( event ) => onChange( event.target.checked ) }
 			/>
+			<div className="photopress-switch-row__text">
+				<label htmlFor={ id }>{ label }</label>
+				{ help && <p id={ id + '-help' } className="photopress-switch-row__help">{ help }</p> }
+			</div>
 		</div>
 	);
 }

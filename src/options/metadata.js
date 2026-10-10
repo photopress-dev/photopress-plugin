@@ -27,7 +27,7 @@ import {
 } from '../shared/options.js';
 
 import TaxonomySettings from './taxonomies.js';
-import SwitchRow from '../shared/switch-row.js';
+import FeatureSection from '../shared/feature-section.js';
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
 import apiFetch from '@wordpress/api-fetch';
@@ -218,146 +218,156 @@ class MetadataSettings extends Component {
 					{ this.state.flash.text }
 				</Notice>
 			) }
-			<PanelBody title={ __( 'Image Taxonomies' ) }>
+			<FeatureSection
+				title={ __( 'Image Taxonomies' ) }
+				description={ __( 'Let visitors browse your photos by camera, place, person and more.' ) }
+				info={ [
+					<p key="0">{ __( 'Each image taxonomy has its own archive pages, and PhotoPress fills them from the metadata embedded in each photo when it is uploaded.' ) }</p>,
+					<p key="1">{ __( 'Standard Metadata is built in. Map the keyword hierarchies and other metadata fields you use to taxonomies of their own below.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'custom_taxonomies_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'custom_taxonomies_enable', value ) }
+				className="photopress-feature--taxonomies"
+			>
 				<TaxonomySettings component={ this } />
-			</PanelBody>
+			</FeatureSection>
 			
-			<PanelBody title={ __( 'Alt Text' ) }>
-				<SwitchRow
-					label={ __( 'Alt text from metadata' ) }
-					help={ __( 'Sets each image’s alt text from its metadata on upload, with the template below.' ) }
-					checked={ this.getSetting( 'alt_text_enable' ) }
-					onChange={ ( value ) => this.persistSetting( 'alt_text_enable', value ) }
-				/>
+			<FeatureSection
+				title={ __( 'Alt Text' ) }
+				description={ __( 'Set each image’s alt text from its metadata when it is uploaded.' ) }
+				info={ [
+					<p key="0">{ __( 'The template’s fields, in square brackets, are filled from the metadata embedded in the image’s file, e.g. [photoshop:Headline]. An image whose file has none of them keeps the alt text it has.' ) }</p>,
+					<p key="1">{ __( 'Save and reprocess all images applies a new template to the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'alt_text_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'alt_text_enable', value ) }
+			>
+				<BaseControl>
+					<TextControl
+						id={ 'alt_text_template' }
+						label={ __( 'Alt Text Template' ) }
+						value={ this.getSetting( 'alt_text_template' ) }
+						className="small-input right-pad"
+						help={ __( 'Metadata fields go in square brackets, e.g. [photoshop:Headline].' ) }
+						onChange={ ( value ) => this.setSetting( 'alt_text_template', value ) }
+						onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
+					/>
 
-				{ this.getSetting( 'alt_text_enable' ) && (
-					<BaseControl>
-						<TextControl
-							id={ 'alt_text_template' }
-							label={ __( 'Alt Text Template' ) }
-							value={ this.getSetting( 'alt_text_template' ) }
-							className="small-input right-pad"
-							help={ __( 'Metadata fields go in square brackets, e.g. [photoshop:Headline].' ) }
-							onChange={ ( value ) => this.setSetting( 'alt_text_template', value ) }
-							onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
-						/>
+					<SaveBar
+						saving={ this.state.isAPISaving }
+						reprocess={ {
+							label: __( 'Save and reprocess all images' ),
+							missing: __( 'metadata for the template' ),
+							terms: __( 'alt text' ),
+							request: {},
+						} }
+						onSave={ ( reprocess ) => this.saveThen( 'metadata.alt_text', reprocess, __( 'Save, and set the alt text of every image from its metadata? Alt text written by hand is replaced.' ) ) }
+					/>
 
-						<SaveBar
-							saving={ this.state.isAPISaving }
-							reprocess={ {
-								label: __( 'Save and reprocess all images' ),
-								missing: __( 'metadata for the template' ),
-								terms: __( 'alt text' ),
-								request: {},
-							} }
-							onSave={ ( reprocess ) => this.saveThen( 'metadata.alt_text', reprocess, __( 'Save, and set the alt text of every image from its metadata? Alt text written by hand is replaced.' ) ) }
-						/>
+					{ this.jobPanel( 'metadata.alt_text', __( 'Reprocessing alt text' ) ) }
+				</BaseControl>
+			</FeatureSection>
 
-						{ this.jobPanel( 'metadata.alt_text', __( 'Reprocessing alt text' ) ) }
-					</BaseControl>
-				) }
-			</PanelBody>
+			<FeatureSection
+				title={ __( 'Description' ) }
+				description={ __( 'Set each image’s description from its metadata when it is uploaded or its file is replaced.' ) }
+				info={ [
+					<p key="0">{ __( 'The template’s fields, in square brackets, are filled from the metadata embedded in the image’s file, e.g. [dc:description].' ) }</p>,
+					<p key="1">{ __( 'Save and reprocess all images applies a new template to the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'description_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'description_enable', value ) }
+			>
+				<BaseControl>
+					<TextControl
+						id={ 'description_template' }
+						label={ __( 'Description Template' ) }
+						value={ this.getSetting( 'description_template' ) || '' }
+						className="small-input right-pad"
+						help={ __( 'Metadata fields go in square brackets, e.g. [dc:description].' ) }
+						onChange={ ( value ) => this.setSetting( 'description_template', value ) }
+						onBlur={ ( event ) => this.setSetting( 'description_template', sanitize( event.target.value, 'string' ) ) }
+					/>
 
-			<PanelBody title={ __( 'Description' ) }>
-				<SwitchRow
-					label={ __( 'Description from metadata' ) }
-					help={ __( 'Sets each image’s description from its metadata on upload and when its file is replaced, with the template below.' ) }
-					checked={ this.getSetting( 'description_enable' ) }
-					onChange={ ( value ) => this.persistSetting( 'description_enable', value ) }
-				/>
+					<SaveBar
+						saving={ this.state.isAPISaving }
+						reprocess={ {
+							label: __( 'Save and reprocess all images' ),
+							missing: __( 'metadata for the template' ),
+							terms: __( 'description' ),
+							request: {},
+						} }
+						onSave={ ( reprocess ) => this.saveThen( 'metadata.description', reprocess, __( 'Save, and set the description of every image from its metadata? Descriptions written by hand are replaced.' ) ) }
+					/>
 
-				{ this.getSetting( 'description_enable' ) && (
-					<BaseControl>
-						<TextControl
-							id={ 'description_template' }
-							label={ __( 'Description Template' ) }
-							value={ this.getSetting( 'description_template' ) || '' }
-							className="small-input right-pad"
-							help={ __( 'Metadata fields go in square brackets, e.g. [dc:description].' ) }
-							onChange={ ( value ) => this.setSetting( 'description_template', value ) }
-							onBlur={ ( event ) => this.setSetting( 'description_template', sanitize( event.target.value, 'string' ) ) }
-						/>
+					{ this.jobPanel( 'metadata.description', __( 'Reprocessing descriptions' ) ) }
+				</BaseControl>
+			</FeatureSection>
 
-						<SaveBar
-							saving={ this.state.isAPISaving }
-							reprocess={ {
-								label: __( 'Save and reprocess all images' ),
-								missing: __( 'metadata for the template' ),
-								terms: __( 'description' ),
-								request: {},
-							} }
-							onSave={ ( reprocess ) => this.saveThen( 'metadata.description', reprocess, __( 'Save, and set the description of every image from its metadata? Descriptions written by hand are replaced.' ) ) }
-						/>
+			<FeatureSection
+				title={ __( 'Licensing' ) }
+				description={ __( 'Add your licensing information to your images and the pages that show them.' ) }
+				info={ [
+					<p key="0">{ __( 'The Web Statement of Rights and the licensor are written into each image file’s metadata on upload, where search engines such as Google Images read them, and added as structured data (JSON-LD) with each image on the pages that show it, with any theme.' ) }</p>,
+					<p key="1">{ __( 'All three settings are needed. Save and reprocess all images writes them into the files of the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'embed_licensor_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'embed_licensor_enable', value ) }
+			>
+				<BaseControl>
+					{ this.getError( 'licensor' ) && (
+						<Notice status="error" isDismissible={ false }>
+							<p><b>{ __( 'An error occurred:' ) }</b> <code>{ this.getError( 'licensor' ) }</code></p>
+						</Notice>
+					) }
 
-						{ this.jobPanel( 'metadata.description', __( 'Reprocessing descriptions' ) ) }
-					</BaseControl>
-				) }
-			</PanelBody>
+					<TextControl
+						id={ 'licensor_name' }
+						label={ __( 'Licensor Name' ) }
+						value={ this.getSetting( 'licensor_name' ) }
+						className=" right-pad"
+						help={ __( 'The name of the person or organization that licenses your images.' ) }
+						onChange={ ( value ) => this.setSetting( 'licensor_name', value ) }
+						onBlur={ ( event ) => this.setSetting( 'licensor_name', sanitize( event.target.value, 'string' ) ) }
+					/>
 
-			<PanelBody title={ __( 'Licensing' ) }>
-				<SwitchRow
-					label={ __( 'Licensing metadata' ) }
-					help={ __( 'Adds your licensing information to your images: written into each image’s file on upload, and as structured data (JSON-LD) on the pages that show them, which search engines read.' ) }
-					checked={ this.getSetting( 'embed_licensor_enable' ) }
-					onChange={ ( value ) => this.persistSetting( 'embed_licensor_enable', value ) }
-				/>
+					<TextControl
+						id={ 'web_statement_of_rights' }
+						label={ __( 'Web Statement of Rights URL' ) }
+						value={ this.getSetting( 'web_statement_of_rights' ) }
+						className=" right-pad"
+						help={ __( 'Used by search engines to display a link to the license statement of your images.' ) }
+						onChange={ ( value ) => this.setSetting( 'web_statement_of_rights', value.trim() ) }
+					/>
 
-				{ this.getSetting( 'embed_licensor_enable' ) && (
-					<BaseControl>
-						{ this.getError( 'licensor' ) && (
-							<Notice status="error" isDismissible={ false }>
-								<p><b>{ __( 'An error occurred:' ) }</b> <code>{ this.getError( 'licensor' ) }</code></p>
-							</Notice>
-						) }
+					<TextControl
+						id={ 'licensor_url' }
+						label={ __( 'Licensing URL' ) }
+						value={ this.getSetting( 'licensor_url' ) }
+						className=" right-pad"
+						help={ __( 'The URL where people can obtain a license for your images.' ) }
+						onChange={ ( value ) => this.setSetting( 'licensor_url', value.trim() ) }
+					/>
 
-						<TextControl
-							id={ 'licensor_name' }
-							label={ __( 'Licensor Name' ) }
-							value={ this.getSetting( 'licensor_name' ) }
-							className=" right-pad"
-							help={ __( 'The name of the person or organization that licenses your images.' ) }
-							onChange={ ( value ) => this.setSetting( 'licensor_name', value ) }
-							onBlur={ ( event ) => this.setSetting( 'licensor_name', sanitize( event.target.value, 'string' ) ) }
-						/>
+					<SaveBar
+						saving={ this.state.isAPISaving }
+						reprocess={ {
+							label: __( 'Save and reprocess all images' ),
+							request: {},
+						} }
+						onSave={ ( reprocess ) => this.saveThen( 'metadata.license', reprocess, __( 'Save, and write the licensing information into the files of every image? Each image’s files are rewritten, and copied again wherever they are stored.' ), this.saveLicensing ) }
+					/>
+					<p className="description">{ __( 'Reprocessing writes the licensing information into the files of every image already uploaded: the original and each size, without re-encoding them. Images whose files are stored elsewhere, as with WP Offload Media, are uploaded there again. It runs in the background, pausing while the server is busy.' ) }</p>
 
-						<TextControl
-							id={ 'web_statement_of_rights' }
-							label={ __( 'Web Statement of Rights URL' ) }
-							value={ this.getSetting( 'web_statement_of_rights' ) }
-							className=" right-pad"
-							help={ __( 'Used by search engines to display a link to the license statement of your images.' ) }
-							onChange={ ( value ) => this.setSetting( 'web_statement_of_rights', value.trim() ) }
-						/>
+					{ ! this.licensingSaved() && (
+						<Notice status="warning" isDismissible={ false } className="photopress-licensing-incomplete">
+							{ __( 'Licensing is not applied until all three settings are filled in and saved: nothing is written into files and no structured data is added to pages.' ) }
+						</Notice>
+					) }
 
-						<TextControl
-							id={ 'licensor_url' }
-							label={ __( 'Licensing URL' ) }
-							value={ this.getSetting( 'licensor_url' ) }
-							className=" right-pad"
-							help={ __( 'The URL where people can obtain a license for your images.' ) }
-							onChange={ ( value ) => this.setSetting( 'licensor_url', value.trim() ) }
-						/>
-
-						<SaveBar
-							saving={ this.state.isAPISaving }
-							reprocess={ {
-								label: __( 'Save and reprocess all images' ),
-								request: {},
-							} }
-							onSave={ ( reprocess ) => this.saveThen( 'metadata.license', reprocess, __( 'Save, and write the licensing information into the files of every image? Each image’s files are rewritten, and copied again wherever they are stored.' ), this.saveLicensing ) }
-						/>
-						<p className="description">{ __( 'Reprocessing writes the licensing information into the files of every image already uploaded: the original and each size, without re-encoding them. Images whose files are stored elsewhere, as with WP Offload Media, are uploaded there again. It runs in the background, pausing while the server is busy.' ) }</p>
-
-						{ ! this.licensingSaved() && (
-							<Notice status="warning" isDismissible={ false } className="photopress-licensing-incomplete">
-								{ __( 'Licensing is not applied until all three settings are filled in and saved: nothing is written into files and no structured data is added to pages.' ) }
-							</Notice>
-						) }
-
-						{ this.jobPanel( 'metadata.license', __( 'Reprocessing licensing metadata' ) ) }
-					</BaseControl>
-				) }
-			</PanelBody>
+					{ this.jobPanel( 'metadata.license', __( 'Reprocessing licensing metadata' ) ) }
+				</BaseControl>
+			</FeatureSection>
 
 			</Fragment>
 		

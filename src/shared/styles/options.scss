@@ -396,8 +396,7 @@ input[type="checkbox"] {
 .photopress-switch-row {
 	display: flex;
 	align-items: flex-start;
-	justify-content: space-between;
-	gap: 16px;
+	gap: 12px;
 	padding: 12px 0;
 
 	label {
@@ -604,4 +603,81 @@ input[type="checkbox"] {
 
 .photopress-flash {
 	margin: 0 0 16px;
+}
+
+// A feature as a card (src/shared/feature-section.js).
+.photopress-feature {
+	max-width: 1100px;
+	margin: 0 0 24px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.photopress-feature__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 16px 24px;
+	border-bottom: 1px solid #f0f0f1;
+
+	h2 {
+		margin: 0;
+		font-size: 18px;
+		font-weight: 400;
+	}
+}
+
+.photopress-feature__info {
+	padding: 12px 24px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #f0f0f1;
+	color: #3c434a;
+
+	p {
+		margin: 0 0 8px;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+	}
+}
+
+.photopress-feature__switch {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 18px 24px;
+
+	label {
+		font-size: 14px;
+	}
+
+	// Larger than an option's switch: it turns a whole feature on.
+	.components-form-toggle {
+		flex: none;
+		transform: scale(1.3);
+		transform-origin: left center;
+		margin-right: 8px;
+	}
+}
+
+.photopress-feature__settings {
+	padding: 16px 24px 24px;
+	border-top: 1px solid #f0f0f1;
+}
+
+// Settings behind an Advanced settings link.
+.photopress-advanced {
+	margin-top: 16px;
+
+	> .components-button.is-link {
+		text-decoration: none;
+	}
+}
+
+// An option's own settings, under its switch.
+.photopress-subsettings {
+	margin: 0 0 8px 48px;
 }
