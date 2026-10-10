@@ -155,6 +155,75 @@ final class TaxonomyProcessingTest extends TestCase {
 		$wpdb = null;
 	}
 
+	/** A $wpdb that records the query changeScope() makes and returns these ids. */
+	private static function refileDb( array $ids ) {
+
+		return new class( $ids ) {
+			public $terms = 'wp_terms';
+			public $term_taxonomy = 'wp_term_taxonomy';
+			public $term_relationships = 'wp_term_relationships';
+			public $query;
+			public $args;
+			private $ids;
+			public function __construct( $ids ) { $this->ids = $ids; }
+			public function esc_like( $text ) { return addcslashes( $text, '_%\\' ); }
+			public function prepare( $query, $args ) { $this->query = $query; $this->args = $args; return $query; }
+			public function get_col() { return $this->ids; }
+		};
+	}
+
+	public function test_a_name_added_to_a_parent_keyword_re_reads_the_photos_it_takes_and_its_own(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [ '12', '40' ] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+		$new  = $old;
+		$new['custom_taxonomies'][4]['names'] = [ 'people', 'Person' ];
+
+		$this->assertSame( [ 'ids' => [ 12, 40 ], 'taxonomies' => [ 'photos_people', 'photos_keywords' ] ], metadata::changeScope( $old, $new ) );
+		$this->assertSame( [ 'photos_people', 'photos_keywords', 'people%', 'person%' ], $wpdb->args, 'pp_genre did not change' );
+
+		$wpdb = null;
+	}
+
+	public function test_a_removed_parent_keyword_re_reads_its_photos(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+		$new  = $old;
+		unset( $new['custom_taxonomies'][5] );
+
+		$this->assertSame( [ 'photos_keywords' ], metadata::changeScope( $old, $new )['taxonomies'], 'its photos get their genre: keywords back' );
+		$this->assertSame( [ 'pp_genre', 'photos_keywords', 'genre%' ], $wpdb->args );
+
+		$wpdb = null;
+	}
+
+	public function test_new_separators_re_read_every_parent_keyword_and_other_changes_none(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+
+		metadata::changeScope( $old, [ 'custom_taxonomy_tag_delimiter' => ': >' ] + $old );
+		$this->assertNull( $wpdb->args, 'a key that is not the separators' );
+
+		$custom = $old;
+		$custom['custom_taxonomies'][] = [ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event', 'parseTagValue' => false ];
+		$this->assertSame( [ 'ids' => [], 'taxonomies' => [] ], metadata::changeScope( $old, $custom ) );
+		$this->assertNull( $wpdb->args );
+
+		$scope = metadata::changeScope( $old, [ 'custom_taxonomies_tag_delimiter' => ': >' ] + $old );
+		$this->assertSame( [ 'photos_people', 'pp_genre', 'photos_keywords' ], $scope['taxonomies'] );
+		$this->assertSame( [ 'photos_people', 'pp_genre', 'photos_keywords', 'people%', 'genre%' ], $wpdb->args );
+
+		$wpdb = null;
+	}
+
 		public function test_prefixed_keywords_go_to_their_parent_keyword_and_the_rest_to_keywords(): void {
 
 		$terms = self::route( [ 'dc:subject' => [ 'Silicon Valley', 'people: Parisa Tabriz', 'Genre:reportage', 'organization: Automattic' ] ] );
@@ -365,22 +434,27 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [], $set['photos_keywords'], 'forced: emptied' );
 		$this->assertSame( [], $set['photos_city'] );
 		$this->assertCount( 6, $set );
+
+		$set = [];
+		$m->setTaxonomyTerms( 42, $md, true, [ 'photos_keywords' ] );
+		$this->assertSame( [ 'photos_keywords' => [] ], $set, 'only the taxonomies asked for' );
 	}
 
-	public function test_the_reread_job_passes_force_on(): void {
+	public function test_the_reread_job_passes_force_and_its_taxonomies_on(): void {
 
 		$file = $this->tempFile( 'not an image' );
 		Functions\when( 'get_attached_file' )->justReturn( $file );
 
 		$m = $this->getMockBuilder( metadata::class )->disableOriginalConstructor()->onlyMethods( [ 'addAttachment' ] )->getMock();
-		$m->expects( $this->exactly( 2 ) )->method( 'addAttachment' )->willReturnCallback( function ( $id, $force ) use ( &$calls ) {
-			$calls[] = [ $id, $force ];
+		$m->expects( $this->exactly( 3 ) )->method( 'addAttachment' )->willReturnCallback( function ( $id, $force, $only ) use ( &$calls ) {
+			$calls[] = [ $id, $force, $only ];
 		} );
 
 		$m->reprocessImage( 7, [] );
 		$m->reprocessImage( 7, [ 'force' => true ] );
+		$m->reprocessImage( 7, [ 'taxonomies' => [ 'photos_people', 'photos_keywords' ] ] );
 
-		$this->assertSame( [ [ 7, false ], [ 7, true ] ], $calls );
+		$this->assertSame( [ [ 7, false, null ], [ 7, true, null ], [ 7, false, [ 'photos_people', 'photos_keywords' ] ] ], $calls );
 	}
 
 		public function test_nested_terms_are_made_level_by_level_and_the_image_gets_every_level(): void {

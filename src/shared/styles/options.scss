@@ -511,13 +511,19 @@ input[type="checkbox"] {
 	gap: 12px;
 	margin-top: 16px;
 
+	flex-direction: column;
+
 	.components-base-control {
-		flex: 1 1 360px;
+		width: 100%;
 		max-width: 560px;
 	}
+}
 
-	.components-button {
-		margin-top: 24px;
+.photopress-taxonomies__savebar {
+	margin-top: 8px;
+
+	.components-checkbox-control {
+		margin-bottom: 12px;
 	}
 }
 

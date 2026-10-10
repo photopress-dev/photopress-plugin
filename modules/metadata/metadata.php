@@ -35,6 +35,7 @@ class metadata extends photopress_module {
 			'count'       => [ self::class, 'countImages' ],
 			'items'       => [ self::class, 'nextImages' ],
 			'process'     => [ $this, 'reprocessImage' ],
+			'finish'      => [ self::class, 'startQueuedReprocess' ],
 		] );
 		
 		// add additional attributes to images
@@ -129,12 +130,171 @@ class metadata extends photopress_module {
 		}
 	}
 
+	/**
+	 * What a change to the parent keywords or the prefix separators moves:
+	 * the taxonomies to fill again (the changed parent keywords and
+	 * Keywords), and the images with terms in a changed parent keyword's
+	 * taxonomy or Keywords terms starting with one of its names ("person:
+	 * Jane", or "People" from an unmatched People|Jane), before and after the
+	 * change. All parent keywords when the separators changed.
+	 *
+	 * @return array{ids: int[], taxonomies: string[]}
+	 */
+	public static function changeScope( $old, $new ): array {
+
+		global $wpdb;
+
+		$model = static function ( $value ) {
+			$value = (array) $value;
+			return TaxonomyModel::build( (array) ( $value['custom_taxonomies'] ?? [] ), (string) ( $value['custom_taxonomies_tag_delimiter'] ?? '' ) );
+		};
+
+		$before = $model( $old );
+		$after  = $model( $new );
+		$all    = $before->separators !== $after->separators;
+		$byId   = static fn( TaxonomyModel $m ) => array_column( $m->parents, null, 'id' );
+		$then   = $byId( $before );
+		$now    = $byId( $after );
+
+		$changed = [];
+		$names   = [];
+
+		foreach ( array_unique( array_merge( array_keys( $then ), array_keys( $now ) ) ) as $id ) {
+
+			if ( ! $all && ( $then[ $id ] ?? null ) === ( $now[ $id ] ?? null ) ) {
+				continue;
+			}
+
+			$changed[] = $id;
+
+			foreach ( [ $then[ $id ] ?? null, $now[ $id ] ?? null ] as $parent ) {
+				foreach ( $parent['names'] ?? [] as $name ) {
+					$names[ $name[0] ] = true;
+				}
+			}
+		}
+
+		if ( ! $changed ) {
+			return [ 'ids' => [], 'taxonomies' => [] ];
+		}
+
+		$keywords   = $after->standard['keywords']['id'] ?? null;
+		$taxonomies = array_values( array_intersect( $changed, array_keys( $now ) ) );
+
+		if ( $keywords ) {
+			$taxonomies[] = $keywords;
+		}
+
+		$where = [ 'tt.taxonomy IN (' . implode( ',', array_fill( 0, count( $changed ), '%s' ) ) . ')' ];
+		$args  = $changed;
+		$from  = $keywords ?? $before->standard['keywords']['id'] ?? null;
+
+		if ( $from && $names ) {
+			$where[] = '( tt.taxonomy = %s AND ( ' . implode( ' OR ', array_fill( 0, count( $names ), 't.name LIKE %s' ) ) . ' ) )';
+			$args[]  = $from;
+			foreach ( array_keys( $names ) as $name ) {
+				$args[] = $wpdb->esc_like( $name ) . '%';
+			}
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tr.object_id FROM {$wpdb->term_relationships} tr JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id JOIN {$wpdb->terms} t ON t.term_id = tt.term_id WHERE " . implode( ' OR ', $where ) . ' ORDER BY tr.object_id', $args ) );
+
+		return [ 'ids' => array_map( 'intval', (array) $ids ), 'taxonomies' => $taxonomies ];
+	}
+
+	/**
+	 * For the Image Taxonomies settings, before saving a change: the images
+	 * it would move and the taxonomies to fill again (changeScope), against
+	 * the saved settings.
+	 */
+	public static function restChangeScope( \WP_REST_Request $request ) {
+
+		$saved    = (array) get_option( photopress_util::getModuleOptionKey( 'core', 'metadata' ), [] );
+		$proposed = (array) $request['settings'] + $saved;
+
+		return self::changeScope( $saved, $proposed );
+	}
+
+	/**
+	 * Re-reads image taxonomies from the files, in the background: of the
+	 * images in ids, or of every image (all). taxonomies: only these;
+	 * alt text and descriptions stay. skip (the default): images whose files
+	 * have nothing for a taxonomy keep their terms there. While a re-read
+	 * runs, this one waits for it (startQueuedReprocess).
+	 */
+	public static function restReprocess( \WP_REST_Request $request ) {
+
+		$ids = array_values( array_filter( array_map( 'intval', (array) $request['ids'] ) ) );
+
+		if ( ! $ids && ! $request['all'] ) {
+			return [ 'job' => null, 'queued' => false ];
+		}
+
+		return self::reprocess( [
+			'ids'        => $ids,
+			'taxonomies' => array_values( array_map( 'sanitize_key', (array) $request['taxonomies'] ) ),
+			'force'      => ! $request['skip'],
+		] );
+	}
+
+	/** Starts a re-read, or queues it while another runs. */
+	public static function reprocess( array $args ) {
+
+		$job = \PhotoPress\jobs\Jobs::start( 'metadata.reprocess', $args );
+
+		if ( is_wp_error( $job ) && 'photopress_job_running' === $job->get_error_code() ) {
+			$queue   = (array) get_option( 'photopress_reprocess_queue', [] );
+			$queue[] = $args;
+			update_option( 'photopress_reprocess_queue', $queue, false );
+			return [ 'job' => null, 'queued' => true ];
+		}
+
+		return is_wp_error( $job ) ? $job : [ 'job' => $job, 'queued' => false ];
+	}
+
+	/** When a re-read finishes, the next one queued. */
+	public static function startQueuedReprocess() {
+
+		$queue = (array) get_option( 'photopress_reprocess_queue', [] );
+		$next  = array_shift( $queue );
+
+		if ( $queue ) {
+			update_option( 'photopress_reprocess_queue', $queue, false );
+		} else {
+			delete_option( 'photopress_reprocess_queue' );
+		}
+
+		if ( $next ) {
+			self::reprocess( (array) $next );
+		}
+	}
+
 	public function registerRestRoutes() {
 
 		register_rest_route( 'photopress/v1', '/image-taxonomies', [
 			'methods'             => 'GET',
 			'callback'            => [ self::class, 'taxonomyStatus' ],
 			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+		] );
+
+		register_rest_route( 'photopress/v1', '/image-taxonomies/scope', [
+			'methods'             => 'POST',
+			'callback'            => [ self::class, 'restChangeScope' ],
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'args'                => [ 'settings' => [ 'type' => 'object', 'required' => true ] ],
+		] );
+
+		register_rest_route( 'photopress/v1', '/image-taxonomies/reprocess', [
+			'methods'             => 'POST',
+			'callback'            => [ self::class, 'restReprocess' ],
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'args'                => [
+				'ids'        => [ 'type' => 'array', 'items' => [ 'type' => 'integer' ], 'default' => [] ],
+				'all'        => [ 'type' => 'boolean', 'default' => false ],
+				'taxonomies' => [ 'type' => 'array', 'items' => [ 'type' => 'string' ], 'default' => [] ],
+				'skip'       => [ 'type' => 'boolean', 'default' => true ],
+			],
 		] );
 	}
 
@@ -886,7 +1046,7 @@ class metadata extends photopress_module {
 	 * Reads an image's metadata into its terms, description and alt text.
 	 * $force: empty terms the file has nothing for (see setTaxonomyTerms).
 	 */
-	public function addAttachment( $id, $force = false ) {
+	public function addAttachment( $id, $force = false, $only = null ) {
 		
 		//extract metadata from file	
 		$file = get_attached_file( $id );
@@ -894,7 +1054,12 @@ class metadata extends photopress_module {
 		$md->loadFromFile( $file );
 		
 		// set the taxonomy terms
-		$this->setTaxonomyTerms( $id, $md, $force );
+		$this->setTaxonomyTerms( $id, $md, $force, $only );
+		
+		// Only some taxonomies: the alt text and description stay.
+		if ( $only ) {
+			return;
+		}
 		
 		// set the description, when a template is configured
 		$description = $this->generateDescription( $md );
@@ -1011,7 +1176,8 @@ class metadata extends photopress_module {
 	
 	/**
 	 * One image of the metadata.reprocess job. $args['force']: empty terms
-	 * the file has nothing for.
+	 * the file has nothing for. $args['taxonomies']: fill only these, and
+	 * leave its alt text and description as they are.
 	 *
 	 * @return true|\WP_Error
 	 */
@@ -1023,7 +1189,7 @@ class metadata extends photopress_module {
 			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
 		}
 		
-		$this->addAttachment( $id, ! empty( $args['force'] ) );
+		$this->addAttachment( $id, ! empty( $args['force'] ), ! empty( $args['taxonomies'] ) ? (array) $args['taxonomies'] : null );
 		
 		return true;
 	}
@@ -1291,9 +1457,9 @@ class metadata extends photopress_module {
 	 * of those it had, so a keyword removed from the file goes. Where the
 	 * file has nothing at all for a taxonomy (no keywords, no location), its
 	 * terms are kept, as the file may have had its metadata stripped, unless
-	 * $force.
+	 * $force. $only: just these taxonomies.
 	 */
-	public function setTaxonomyTerms( $id, $md, $force = false ) {
+	public function setTaxonomyTerms( $id, $md, $force = false, $only = null ) {
 
 		$model   = TaxonomyModel::fromSettings();
 		$present = $force ? [] : TermRouter::present( $md, $model );
@@ -1302,7 +1468,7 @@ class metadata extends photopress_module {
 
 		foreach ( TermRouter::route( $md, $model ) as $tax_id => $terms ) {
 
-			if ( ! taxonomy_exists( $tax_id ) || ( ! $force && empty( $present[ $tax_id ] ) ) ) {
+			if ( ! taxonomy_exists( $tax_id ) || ( $only && ! in_array( $tax_id, $only, true ) ) || ( ! $force && empty( $present[ $tax_id ] ) ) ) {
 				continue;
 			}
 

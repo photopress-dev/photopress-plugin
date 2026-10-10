@@ -5,9 +5,9 @@
  * already uploaded. All are kept in the custom_taxonomies setting; see
  * taxonomy-model.js and modules/metadata/TaxonomyModel.php.
  */
-import { useEffect, useState } from '@wordpress/element';
+import { useEffect, useRef, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { Button, FormToggle, Notice, RadioControl, SelectControl, TextControl } from '@wordpress/components';
+import { Button, CheckboxControl, FormToggle, Notice, RadioControl, SelectControl, TextControl } from '@wordpress/components';
 import { __, _n, sprintf } from '@wordpress/i18n';
 
 import JobPanel from '../shared/jobs.js';
@@ -53,18 +53,76 @@ const FIELD_LABELS = {
 
 const fieldLabel = ( tag ) => FIELD_LABELS[ tag ] || tag;
 
+/** How many times the settings have finished saving, to refresh what the server says. */
+function useSaves( saving ) {
+	const [ saves, setSaves ] = useState( 0 );
+	const was = useRef( saving );
+
+	useEffect( () => {
+		if ( was.current && ! saving ) {
+			setSaves( ( n ) => n + 1 );
+		}
+		was.current = saving;
+	}, [ saving ] );
+
+	return saves;
+}
+
 /** Each taxonomy's term count and the prefixes nobody takes, from the server. */
-function useStatus( list ) {
+function useStatus( saves ) {
 	const [ status, setStatus ] = useState( { counts: {}, prefixes: [] } );
-	const key = JSON.stringify( list );
 
 	useEffect( () => {
 		apiFetch( { path: '/photopress/v1/image-taxonomies' } )
 			.then( setStatus )
 			.catch( () => {} );
-	}, [ key ] );
+	}, [ saves ] );
 
 	return status;
+}
+
+/**
+ * What saving these settings would change for photos already uploaded
+ * (metadata::changeScope): { ids, taxonomies }, or null while it is asked.
+ * Asked again when refresh changes, as after a save.
+ */
+function useScope( settings, refresh = 0 ) {
+	const [ scope, setScope ] = useState( null );
+	const key = JSON.stringify( settings ) + refresh;
+
+	useEffect( () => {
+		// An answer for settings since changed is dropped.
+		let current = true;
+		setScope( null );
+		const timer = setTimeout( () => {
+			apiFetch( { path: '/photopress/v1/image-taxonomies/scope', method: 'POST', data: { settings } } )
+				.then( ( answer ) => current && setScope( answer ) )
+				.catch( () => current && setScope( { ids: [], taxonomies: [] } ) );
+		}, 400 );
+		return () => {
+			current = false;
+			clearTimeout( timer );
+		};
+	}, [ key ] ); // eslint-disable-line react-hooks/exhaustive-deps
+
+	return scope;
+}
+
+/**
+ * The reprocess choice for a change to parent keywords or separators: its
+ * images. None while they are counted or when there are none. terms: what
+ * an image whose file has no keywords would have emptied.
+ */
+function scopeChoice( scope, terms ) {
+	if ( ! scope || ! scope.ids.length ) {
+		return null;
+	}
+	return {
+		label: sprintf( _n( 'Save and reprocess %s affected image', 'Save and reprocess %s affected images', scope.ids.length ), scope.ids.length.toLocaleString() ),
+		missing: __( 'keywords' ),
+		terms,
+		request: { ids: scope.ids, taxonomies: scope.taxonomies },
+	};
 }
 
 const termCount = ( status, id ) => ( id in status.counts ? status.counts[ id ].toLocaleString() : '—' );
@@ -118,19 +176,52 @@ function RowActions( { onEdit, onRemove, removeLabel } ) {
 }
 
 /**
- * An add or edit screen: a title, its fields, Save and Cancel.
+ * Save, and when a change affects photos already uploaded, Save and
+ * reprocess with whether to skip images whose files have no metadata for it.
+ * reprocess: { label, missing (what a file may not have), terms (what of
+ * an image's would be emptied), request }, or null.
+ * onSave( reprocess ): reprocess is the request with skip, or undefined.
  */
-function Editor( { title, error, onSave, onCancel, saving, saveLabel = __( 'Save' ), children } ) {
+function SaveBar( { onSave, onCancel, saving, saveLabel = __( 'Save' ), reprocess } ) {
+	const [ skip, setSkip ] = useState( true );
+
+	return (
+		<div className="photopress-taxonomies__savebar">
+			{ reprocess && (
+				<CheckboxControl
+					__nextHasNoMarginBottom
+					label={ sprintf( __( 'Don’t change images whose files have no %s' ), reprocess.missing ) }
+					help={ skip
+						? sprintf( __( 'Each image’s file is read again. An image whose file has no %1$s keeps its %2$s as they are, in case the metadata was stripped from the file.' ), reprocess.missing, reprocess.terms )
+						: sprintf( __( 'Each image’s file is read again. An image whose file has no %1$s has its %2$s emptied.' ), reprocess.missing, reprocess.terms ) }
+					checked={ skip }
+					onChange={ setSkip }
+				/>
+			) }
+			<p className="photopress-taxonomies__buttons">
+				<Button variant={ reprocess ? 'secondary' : 'primary' } onClick={ () => onSave() } disabled={ saving }>{ saveLabel }</Button>
+				{ reprocess && (
+					<Button variant="primary" onClick={ () => onSave( { ...reprocess.request, skip } ) } disabled={ saving }>
+						{ reprocess.label }
+					</Button>
+				) }
+				{ onCancel && <Button variant="tertiary" onClick={ onCancel }>{ __( 'Cancel' ) }</Button> }
+			</p>
+		</div>
+	);
+}
+
+/**
+ * An add or edit screen: a title, its fields, Save (and reprocess) and Cancel.
+ */
+function Editor( { title, error, onSave, onCancel, saving, saveLabel, reprocess, children } ) {
 	return (
 		<div className="photopress-taxonomies__editor">
 			<Button variant="link" onClick={ onCancel }>{ __( '← Image taxonomies' ) }</Button>
 			<h3>{ title }</h3>
 			{ error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
 			{ children }
-			<p className="photopress-taxonomies__buttons">
-				<Button variant="primary" onClick={ onSave } disabled={ saving }>{ saveLabel }</Button>
-				<Button variant="secondary" onClick={ onCancel }>{ __( 'Cancel' ) }</Button>
-			</p>
+			<SaveBar onSave={ onSave } onCancel={ onCancel } saving={ saving } saveLabel={ saveLabel } reprocess={ reprocess } />
 		</div>
 	);
 }
@@ -254,8 +345,21 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 		}
 	};
 
-	const save = () => {
-		const all = [ asPath( parent ), ...namesFrom( aka ).map( asPath ) ].filter( Boolean );
+	const all = [ asPath( parent ), ...namesFrom( aka ).map( asPath ) ].filter( Boolean );
+	const id = def ? def.id : newId( singular, list );
+	const draft = {
+		id,
+		pluralLabel: plural.trim(),
+		singularLabel: singular.trim(),
+		tag: 'dc:subject',
+		parseTagValue: true,
+		names: all,
+		...( nested ? { nested: true } : {} ),
+		...( def && def.disabled ? { disabled: true } : {} ),
+	};
+	const scope = useScope( { custom_taxonomies: def ? list.map( ( d, i ) => ( i === def.index ? draft : d ) ) : [ ...list, draft ] } );
+
+	const save = ( reprocess ) => {
 		const others = parents.filter( ( p ) => ! def || p.index !== def.index );
 		const taken = all.find( ( n ) => others.some( ( p ) => parentNames( p ).some( ( m ) => m.toLowerCase() === n.toLowerCase() ) ) );
 
@@ -270,22 +374,14 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 			return setError( problem );
 		}
 
-		onSave( {
-			id: def ? def.id : newId( singular, list ),
-			pluralLabel: plural.trim(),
-			singularLabel: singular.trim(),
-			tag: 'dc:subject',
-			parseTagValue: true,
-			names: all,
-			...( nested ? { nested: true } : {} ),
-			...( def && def.disabled ? { disabled: true } : {} ),
-		} );
+		onSave( draft, reprocess );
 	};
 
 	return (
 		<Editor
 			title={ def ? sprintf( __( 'Parent keyword: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add parent keyword' ) }
 			saveLabel={ def ? __( 'Save' ) : __( 'Add parent keyword' ) }
+			reprocess={ scopeChoice( scope, sprintf( __( 'Keywords and %s terms' ), capitalize( plural || __( 'parent keyword' ) ) ) ) }
 			error={ error }
 			onSave={ save }
 			onCancel={ onCancel }
@@ -366,19 +462,21 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 		}
 	};
 
-	const save = () => {
+	const id = def ? def.id : newId( singular, list );
+
+	const save = ( reprocess ) => {
 		const problem = namesProblem( plural, singular, list, def ? def.index : -1 );
 		if ( problem ) {
 			return setError( problem );
 		}
 		onSave( {
-			id: def ? def.id : newId( singular, list ),
+			id,
 			pluralLabel: plural.trim(),
 			singularLabel: singular.trim(),
 			tag,
 			parseTagValue: false,
 			...( def && def.disabled ? { disabled: true } : {} ),
-		} );
+		}, reprocess );
 	};
 
 	const option = ( t ) => ( { value: t, label: `${ fieldLabel( t ) } (${ t })` } );
@@ -386,6 +484,12 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	return (
 		<Editor
 			title={ def ? sprintf( __( 'Custom metadata: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add custom metadata' ) }
+			reprocess={ {
+				label: __( 'Save and reprocess all images' ),
+				missing: sprintf( __( '%s field' ), fieldLabel( tag ) ),
+				terms: sprintf( __( '%s terms' ), capitalize( plural || fieldLabel( tag ) ) ),
+				request: { all: true, taxonomies: [ id ] },
+			} }
 			error={ error }
 			onSave={ save }
 			onCancel={ onCancel }
@@ -419,21 +523,49 @@ export default function TaxonomySettings( { component } ) {
 	const list = component.getSetting( 'custom_taxonomies' ) || [];
 	const separators = String( component.getSetting( 'custom_taxonomies_tag_delimiter' ) ?? '' ).trim().split( /\s+/ ).filter( Boolean );
 	const { standard, parents, custom } = classify( list );
-	const status = useStatus( list );
-	const [ screen, setScreen ] = useState( null );
-	const [ force, setForce ] = useState( false );
 	const saving = component.state.isAPISaving;
+	const saves = useSaves( saving );
+	const status = useStatus( saves );
+	const [ screen, setScreen ] = useState( null );
+	const [ skip, setSkip ] = useState( true );
+	const [ notice, setNotice ] = useState( null );
+	const [ jobs, setJobs ] = useState( 0 );
+	const reprocessAfterSave = useRef( null );
+	const delimiter = component.getSetting( 'custom_taxonomies_tag_delimiter' ) ?? '';
+	const separatorScope = useScope( { custom_taxonomies_tag_delimiter: delimiter }, saves );
 
-	const save = ( next ) => component.setSetting( 'custom_taxonomies', next, true );
-	const replace = ( index, def ) => save( list.map( ( d, i ) => ( i === index ? def : d ) ) );
+	// Save and reprocess: once the settings are saved, the re-read starts.
+	useEffect( () => {
+		const request = reprocessAfterSave.current;
+		reprocessAfterSave.current = null;
+
+		if ( ! request || component.getError( 'save' ) ) {
+			return;
+		}
+		apiFetch( { path: '/photopress/v1/image-taxonomies/reprocess', method: 'POST', data: request } )
+			.then( ( result ) => {
+				setNotice( result.queued
+					? { status: 'info', text: __( 'Saved. The images will be reprocessed when the re-read now running finishes.' ) }
+					: { status: 'success', text: __( 'Saved. The images are being reprocessed in the background; progress is under Photos already uploaded.' ) } );
+				setJobs( ( n ) => n + 1 );
+			} )
+			.catch( ( e ) => setNotice( { status: 'error', text: e.message || __( 'Saved, but the images could not be reprocessed.' ) } ) );
+	}, [ saves ] ); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const save = ( next, reprocess ) => {
+		reprocessAfterSave.current = reprocess || null;
+		setNotice( null );
+		component.setSetting( 'custom_taxonomies', next, true );
+	};
+	const replace = ( index, def, reprocess ) => save( list.map( ( d, i ) => ( i === index ? def : d ) ), reprocess );
 	const remove = ( def, what ) => {
 		// eslint-disable-next-line no-alert
 		if ( window.confirm( sprintf( __( 'Remove %1$s? Its archive pages go. Its terms stay in the database and come back if you add %2$s again.' ), capitalize( def.pluralLabel ), what ) ) ) {
 			save( list.filter( ( d, i ) => i !== def.index ) );
 		}
 	};
-	const done = ( apply ) => ( def ) => {
-		apply( def );
+	const done = ( apply ) => ( def, reprocess ) => {
+		apply( def, reprocess );
 		setScreen( null );
 	};
 
@@ -459,7 +591,7 @@ export default function TaxonomySettings( { component } ) {
 						parents={ parents }
 						status={ status }
 						separators={ separators }
-						onSave={ done( ( d ) => ( def ? replace( def.index, d ) : save( [ ...list, d ] ) ) ) }
+						onSave={ done( ( d, reprocess ) => ( def ? replace( def.index, d, reprocess ) : save( [ ...list, d ], reprocess ) ) ) }
 						onCancel={ close }
 						saving={ saving }
 					/>
@@ -472,7 +604,7 @@ export default function TaxonomySettings( { component } ) {
 						def={ def }
 						list={ list }
 						standardTags={ new Set( STANDARD.map( ( s ) => s.tag ) ) }
-						onSave={ done( ( d ) => ( def ? replace( def.index, d ) : save( [ ...list, d ] ) ) ) }
+						onSave={ done( ( d, reprocess ) => ( def ? replace( def.index, d, reprocess ) : save( [ ...list, d ], reprocess ) ) ) }
 						onCancel={ close }
 						saving={ saving }
 					/>
@@ -503,6 +635,7 @@ export default function TaxonomySettings( { component } ) {
 
 	return (
 		<div className="photopress-taxonomies">
+			{ notice && <Notice status={ notice.status } onRemove={ () => setNotice( null ) }>{ notice.text }</Notice> }
 			<p className="photopress-taxonomies__intro">
 				{ __( 'Image taxonomies let visitors browse your photos by camera, place, person and so on, each with its own archive pages. PhotoPress fills them from the metadata embedded in each photo when it is uploaded.' ) }
 			</p>
@@ -608,10 +741,18 @@ export default function TaxonomySettings( { component } ) {
 						__next40pxDefaultSize
 						label={ __( 'Prefix separators' ) }
 						help={ __( 'What comes between a parent keyword and the rest, as in people: Jane. Several: separate them with spaces (: >). Empty: prefixes are not read. Keyword lists from Lightroom and Capture One are always read.' ) }
-						value={ component.getSetting( 'custom_taxonomies_tag_delimiter' ) ?? '' }
+						value={ delimiter }
 						onChange={ ( value ) => component.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
 					/>
-					<Button variant="secondary" disabled={ saving } onClick={ () => component.saveSettings() }>{ __( 'Save' ) }</Button>
+					<SaveBar
+						saving={ saving }
+						reprocess={ scopeChoice( separatorScope, __( 'Keywords and parent keyword terms' ) ) }
+						onSave={ ( reprocess ) => {
+							reprocessAfterSave.current = reprocess || null;
+							setNotice( null );
+							component.saveSettings();
+						} }
+					/>
 				</div>
 			</Section>
 
@@ -645,17 +786,27 @@ export default function TaxonomySettings( { component } ) {
 				<JobPanel
 					type="metadata.reprocess"
 					label={ __( 'Re-read image metadata' ) }
-					description={ __( 'Changes here apply to photos uploaded from now on. This reads every photo’s embedded metadata again, as on upload: its taxonomies, alt text and description. A photo whose file has no keywords at all, or no location, camera or lens, keeps its terms there, since its file may have had its metadata stripped. It runs in the background; you can leave this page.' ) }
-					args={ { force } }
-					confirm={ force
-						? __( 'Re-read the metadata of every photo, and empty the terms of photos whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
-						: __( 'Re-read the metadata of every photo? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+					description={ __( 'Reads every image’s embedded metadata again, as on upload: its taxonomies, alt text and description. For after changing the alt text or description templates, or turning a standard taxonomy back on; a change to a parent keyword, the separators or custom metadata can reprocess the images it affects when you save it. It runs in the background; you can leave this page.' ) }
+					args={ { force: ! skip } }
+					refresh={ saves + jobs }
+					note={ ( job ) => {
+						if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
+							return '';
+						}
+						return job.args.ids && job.args.ids.length ? __( 'the images a change affects, image taxonomies only' ) : __( 'image taxonomies only' );
+					} }
+					confirm={ skip
+						? __( 'Re-read the metadata of every photo? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
+						: __( 'Re-read the metadata of every photo, and empty the terms of photos whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
 				/>
-				<SwitchRow
-					label={ __( 'Also empty terms a file has nothing for' ) }
-					help={ __( 'Removes the keywords, location, camera or lens terms of photos whose files have none, as when every keyword was removed from a file.' ) }
-					checked={ force }
-					onChange={ setForce }
+				<CheckboxControl
+					__nextHasNoMarginBottom
+					label={ __( 'Don’t change images whose files have no metadata for a taxonomy' ) }
+					help={ skip
+						? __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image keeps its terms in that taxonomy as they are, in case the metadata was stripped from the file.' )
+						: __( 'Every image’s file is read again. Where a file has no keywords, location, camera, lens or custom field, the image’s terms in that taxonomy are emptied.' ) }
+					checked={ skip }
+					onChange={ setSkip }
 				/>
 			</Section>
 		</div>
