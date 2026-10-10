@@ -22,8 +22,9 @@ export const guideUrl = ( f ) => ( f.anchor ? GUIDE_URL + '#' + f.anchor : '' );
 /**
  * The fields by where photo software shows them: Lightroom Classic,
  * Photoshop and Capture One all have the IPTC Core fields, Lightroom Classic
- * and Photoshop the IPTC Extension ones too, only Capture One Getty Images'. setIn and note say where
- * they are set, from the apps' documentation.
+ * and Photoshop the IPTC Extension ones too, only Capture One the legacy
+ * categories and Getty Images'. setIn and note say where they are set, as
+ * records written by Photoshop and Capture One show (tests/fixtures/xmp).
  */
 export const FIELD_GROUPS = [
 	{
