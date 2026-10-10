@@ -154,6 +154,14 @@ test( 'custom metadata is added for a field and deleted', async ( { page } ) => 
 	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( '/event/maker-faire' );
 	await expect( page.locator( '.photopress-taxonomies__editor .components-base-control__help' ).first() ).toContainText( 'The event the photo was taken at' );
 	await expect( page.getByRole( 'link', { name: /About this field/ } ) ).toHaveAttribute( 'href', /userguide\/#_event$/ );
+
+	// A part of a structured field.
+	await page.getByLabel( 'Metadata field' ).selectOption( 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:City' );
+	await expect( page.getByLabel( 'Singular name' ) ).toHaveValue( 'City shown' );
+	await expect( page.locator( '.photopress-taxonomies__preview' ) ).toContainText( '/city-shown/san-francisco' );
+	await page.getByLabel( 'Metadata field' ).selectOption( 'Iptc4xmpExt:Event' );
+	await page.getByLabel( 'Plural name' ).fill( 'Events' );
+	await page.getByLabel( 'Singular name' ).fill( 'Event' );
 	await page.getByLabel( 'Singular name' ).fill( 'Camera' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();
 	await expect( page.locator( '.photopress-taxonomies__editor .components-notice' ) ).toContainText( 'Cameras already uses /camera/' );

@@ -896,6 +896,20 @@ class metadata extends photopress_module {
 				]	
 			],
 			
+			'alt_text_from_file'	=> [
+				
+				'default_value'							=> true,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Alt text written in the file',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'Use the alt text written in the file, when it has one, in place of the template.',
+					'label_for'								=> 'Use the alt text written in the file.',
+					'error_message'							=> ''
+				]
+			],
+			
 			'alt_text_template'	=> [
 				
 				'default_value'							=> '[photoshop:Headline]. [photopress:stringOfKeywords].',
@@ -1393,6 +1407,17 @@ class metadata extends photopress_module {
 	 * $md	object	XmpReader Meta-data object
 	 */
 	public function generateAltText( $md ) {
+		
+		// The alt text written in the file (IPTC Alt Text (Accessibility), as
+		// Lightroom Classic and Photoshop write it), in place of the template.
+		if ( pp_api::getOption( 'core', 'metadata', 'alt_text_from_file' ) ) {
+			
+			$alt = self::altTextValue( $md->getXmp( 'Iptc4xmpCore:AltTextAccessibility' ) );
+			
+			if ( '' !== $alt ) {
+				return $alt;
+			}
+		}
 		
 		$template = (string) pp_api::getOption('core', 'metadata', 'alt_text_template');
 		

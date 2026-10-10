@@ -60,7 +60,7 @@ export const FIELD_GROUPS = [
 		],
 	},
 	{
-		label: __( 'IPTC Extension' ),
+		label: __( 'IPTC Extension: people and events' ),
 		setIn: __( 'Lightroom Classic and Photoshop' ),
 		note: __( 'Set in Lightroom Classic and Photoshop, not Capture One.' ),
 		fields: [
@@ -70,6 +70,44 @@ export const FIELD_GROUPS = [
 			field( 'Iptc4xmpExt:OrganisationInImageCode', __( 'Code of Organization Featured in the Image' ), __( 'Organization code' ), __( 'Organization codes' ), 'ACME', __( 'Codes of the organizations featured in the photo, such as stock tickers.' ), '_organisations_including_companies_featured_by_the_image' ),
 			field( 'Iptc4xmpExt:ModelAge', __( 'Model Age' ), __( 'Model age' ), __( 'Model ages' ), '25', __( 'The age of each model shown, when the photo was taken.' ), '_model_age' ),
 			field( 'Iptc4xmpExt:AddlModelInfo', __( 'Additional Model Information' ), __( 'Model information' ), __( 'Model information' ), 'Professional model', __( 'Further information about the models shown.' ), '_additional_model_information' ),
+		],
+	},
+	{
+		label: __( 'IPTC Extension: places shown' ),
+		setIn: __( 'Lightroom Classic and Photoshop' ),
+		note: __( 'Set in Lightroom Classic and Photoshop, not Capture One.' ),
+		fields: [
+			field( 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:Sublocation', __( 'Location Shown: Sublocation' ), __( 'Place shown' ), __( 'Places shown' ), 'Golden Gate Bridge', __( 'Places within a city shown in the photo, wherever it was taken from.' ), '_location_shown_in_image' ),
+			field( 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:City', __( 'Location Shown: City' ), __( 'City shown' ), __( 'Cities shown' ), 'San Francisco', __( 'The cities shown in the photo.' ), '_location_shown_in_image' ),
+			field( 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:ProvinceState', __( 'Location Shown: Province/State' ), __( 'State shown' ), __( 'States shown' ), 'California', __( 'The provinces or states shown in the photo.' ), '_location_shown_in_image' ),
+			field( 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:CountryName', __( 'Location Shown: Country' ), __( 'Country shown' ), __( 'Countries shown' ), 'United States', __( 'The countries shown in the photo.' ), '_location_shown_in_image' ),
+			field( 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:WorldRegion', __( 'Location Shown: World Region' ), __( 'Region shown' ), __( 'Regions shown' ), 'North America', __( 'The world regions shown in the photo, such as a continent.' ), '_location_shown_in_image' ),
+			field( 'Iptc4xmpExt:LocationCreated/Iptc4xmpExt:WorldRegion', __( 'Location Created: World Region' ), __( 'World region' ), __( 'World regions' ), 'North America', __( 'The world region the photo was taken in, such as a continent.' ), '_location_created' ),
+		],
+	},
+	{
+		label: __( 'IPTC Extension: artwork' ),
+		setIn: __( 'Lightroom Classic and Photoshop' ),
+		note: __( 'Set in Lightroom Classic and Photoshop, not Capture One.' ),
+		fields: [
+			field( 'Iptc4xmpExt:ArtworkOrObject/Iptc4xmpExt:AOTitle', __( 'Artwork or Object: Title' ), __( 'Artwork' ), __( 'Artworks' ), 'Water Lilies', __( 'The titles of the artworks or objects shown in the photo.' ), '_artwork_or_object_in_the_image' ),
+			field( 'Iptc4xmpExt:ArtworkOrObject/Iptc4xmpExt:AOCreator', __( 'Artwork or Object: Creator' ), __( 'Artist' ), __( 'Artists' ), 'Claude Monet', __( 'Who made the artworks or objects shown in the photo.' ), '_artwork_or_object_in_the_image' ),
+			field( 'Iptc4xmpExt:ArtworkOrObject/Iptc4xmpExt:AOSource', __( 'Artwork or Object: Source' ), __( 'Collection' ), __( 'Collections' ), 'Musée de l’Orangerie', __( 'Who holds the artworks or objects shown, such as a museum.' ), '_artwork_or_object_in_the_image' ),
+		],
+	},
+	{
+		label: __( 'IPTC Extension: rights and releases' ),
+		setIn: __( 'Lightroom Classic and Photoshop' ),
+		note: __( 'Set in Lightroom Classic and Photoshop, not Capture One.' ),
+		fields: [
+			field( 'plus:ImageCreator/plus:ImageCreatorName', __( 'Image Creator' ), __( 'Image creator' ), __( 'Image creators' ), 'Jane Smith', __( 'The people who created the photo, as named for licensing.' ), '_image_creator_structure' ),
+			field( 'plus:CopyrightOwner/plus:CopyrightOwnerName', __( 'Copyright Owner' ), __( 'Copyright owner' ), __( 'Copyright owners' ), 'Jane Smith', __( 'Who owns the photo’s copyright.' ), '_copyright_owner' ),
+			field( 'plus:ImageSupplier/plus:ImageSupplierName', __( 'Image Supplier' ), __( 'Supplier' ), __( 'Suppliers' ), 'Acme Agency', __( 'Who supplied the photo, such as an agency.' ), '_image_supplier' ),
+			field( 'plus:Licensor/plus:LicensorName', __( 'Licensor' ), __( 'Licensor' ), __( 'Licensors' ), 'Jane Smith Photography', __( 'Who licenses the photo.' ), '_licensor' ),
+			field( 'plus:ModelReleaseStatus', __( 'Model Release Status' ), __( 'Model release' ), __( 'Model releases' ), 'Unlimited Model Releases', __( 'Whether the people shown have signed model releases.' ), '_model_release_status' ),
+			field( 'plus:PropertyReleaseStatus', __( 'Property Release Status' ), __( 'Property release' ), __( 'Property releases' ), 'Unlimited Property Releases', __( 'Whether the property shown is covered by property releases.' ), '_property_release_status' ),
+			field( 'plus:MinorModelAgeDisclosure', __( 'Minor Model Age Disclosure' ), __( 'Youngest model age' ), __( 'Youngest model ages' ), 'Age 25 or Over', __( 'The age of the youngest model shown, when the photo was taken.' ), '_minor_model_age_disclosure' ),
+			field( 'Iptc4xmpExt:DigitalSourceType', __( 'Digital Source Type' ), __( 'Source type' ), __( 'Source types' ), 'Digital capture sampled from real life', __( 'How the photo was made: captured, scanned from film, edited, or generated with AI.' ), '_digital_source_type' ),
 		],
 	},
 	{

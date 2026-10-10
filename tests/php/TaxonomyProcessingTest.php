@@ -340,6 +340,44 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [ [ 'people: Jane' ] ], $terms['photos_keywords'] );
 	}
 
+	public function test_a_part_of_a_structured_field_is_taken_from_each_entry(): void {
+
+		$md    = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/photoshop-file-info.xmp' ) );
+		$parts = [
+			[ 'id' => 'pp_city_shown', 'tag' => 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:City', 'parseTagValue' => false ],
+			[ 'id' => 'pp_artist', 'tag' => 'Iptc4xmpExt:ArtworkOrObject/Iptc4xmpExt:AOCreator', 'parseTagValue' => false ],
+			[ 'id' => 'pp_creator_city', 'tag' => 'Iptc4xmpCore:CreatorContactInfo/Iptc4xmpCore:CiAdrCity', 'parseTagValue' => false ],
+			[ 'id' => 'pp_owner', 'tag' => 'plus:CopyrightOwner/plus:CopyrightOwnerName', 'parseTagValue' => false ],
+		];
+
+		$terms = self::route( $md, array_merge( self::DEFINITIONS, $parts ) );
+
+		$this->assertSame( [ 'bar', 'foo' ], $terms['pp_city_shown'], 'the city of each location' );
+		$this->assertSame( [ 'foo', 'bar' ], $terms['pp_artist'], 'a list within each entry' );
+		$this->assertSame( [ 'foo' ], $terms['pp_creator_city'], 'one structure, not a list of them' );
+		$this->assertSame( [ 'foo', 'bar' ], $terms['pp_owner'] );
+	}
+
+	public function test_coded_values_are_their_names(): void {
+
+		$md    = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/photoshop-file-info.xmp' ) );
+		$coded = [
+			[ 'id' => 'pp_model_release', 'tag' => 'plus:ModelReleaseStatus', 'parseTagValue' => false ],
+			[ 'id' => 'pp_property_release', 'tag' => 'plus:PropertyReleaseStatus', 'parseTagValue' => false ],
+			[ 'id' => 'pp_source_type', 'tag' => 'Iptc4xmpExt:DigitalSourceType', 'parseTagValue' => false ],
+			[ 'id' => 'pp_youngest', 'tag' => 'plus:MinorModelAgeDisclosure', 'parseTagValue' => false ],
+		];
+
+		$terms = self::route( $md, array_merge( self::DEFINITIONS, $coded ) );
+
+		$this->assertSame( [ 'Unlimited Model Releases' ], $terms['pp_model_release'] );
+		$this->assertSame( [ 'Unlimited Property Releases' ], $terms['pp_property_release'] );
+		$this->assertSame( [ 'Digitized from a transparent negative' ], $terms['pp_source_type'] );
+		$this->assertSame( [ 'Age Unknown' ], $terms['pp_youngest'] );
+		$this->assertSame( 'Age 18', TermRouter::named( 'plus:MinorModelAgeDisclosure', 'http://ns.useplus.org/ldf/vocab/AG-A18' ) );
+		$this->assertSame( 'Some new kind', TermRouter::named( 'Iptc4xmpExt:DigitalSourceType', 'http://cv.iptc.org/newscodes/digitalsourcetype/someNewKind' ), 'an unknown code, in words' );
+	}
+
 	public function test_personality_as_capture_one_writes_it_is_one_term_per_name(): void {
 
 		$definitions = array_merge( self::DEFINITIONS, [ [ 'id' => 'pp_personality', 'tag' => 'GettyImagesGIFT:Personality', 'parseTagValue' => false ] ] );

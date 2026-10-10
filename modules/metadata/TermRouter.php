@@ -89,6 +89,52 @@ final class TermRouter {
 	}
 
 	/**
+	 * Fields whose values are codes, by code: the vocabularies' own names,
+	 * in US English.
+	 */
+	const CODED = [
+		'plus:ModelReleaseStatus'      => [
+			'MR-NON' => 'None',
+			'MR-NAP' => 'Not Applicable',
+			'MR-UMR' => 'Unlimited Model Releases',
+			'MR-LMR' => 'Limited or Incomplete Model Releases',
+		],
+		'plus:PropertyReleaseStatus'   => [
+			'PR-NON' => 'None',
+			'PR-NAP' => 'Not Applicable',
+			'PR-UPR' => 'Unlimited Property Releases',
+			'PR-LPR' => 'Limited or Incomplete Property Releases',
+		],
+		'plus:MinorModelAgeDisclosure' => [
+			'AG-UNK' => 'Age Unknown',
+			'AG-A25' => 'Age 25 or Over',
+			'AG-U14' => 'Age 14 or Under',
+		],
+		'Iptc4xmpExt:DigitalSourceType' => [
+			'digitalCapture'                      => 'Digital capture sampled from real life',
+			'computationalCapture'                => 'Multi-frame computational capture sampled from real life',
+			'negativeFilm'                        => 'Digitized from a transparent negative',
+			'positiveFilm'                        => 'Digitized from a transparent positive',
+			'print'                               => 'Digitized from a non-transparent medium',
+			'minorHumanEdits'                     => 'Original media with minor human edits',
+			'humanEdits'                          => 'Human-edited media',
+			'compositeWithTrainedAlgorithmicMedia' => 'Edited using Generative AI',
+			'algorithmicallyEnhanced'             => 'Algorithmically-altered media',
+			'softwareImage'                       => 'Created by software',
+			'digitalArt'                          => 'Digital art',
+			'digitalCreation'                     => 'Digital creation',
+			'dataDrivenMedia'                     => 'Data-driven media',
+			'trainedAlgorithmicMedia'             => 'Created using Generative AI',
+			'algorithmicMedia'                    => 'Pure algorithmic media',
+			'screenCapture'                       => 'Screen capture',
+			'virtualRecording'                    => 'Virtual event recording',
+			'composite'                           => 'Composite of elements',
+			'compositeCapture'                    => 'Composite of captured elements',
+			'compositeSynthetic'                  => 'Composite including generative AI elements',
+		],
+	];
+
+	/**
 	 * Fields written as one text with their values separated, not as a
 	 * list: Capture One writes Getty Images' Personality as "Jane;John".
 	 */
@@ -252,7 +298,11 @@ final class TermRouter {
 				return self::strings( StandardMetadata::lens( $md ) );
 
 			default:
-				$values = self::strings( $md->getXmp( $tag ) );
+				$values = false !== strpos( $tag, '/' ) ? self::part( $md, $tag ) : self::strings( $md->getXmp( $tag ) );
+
+				if ( isset( self::CODED[ $tag ] ) ) {
+					$values = array_map( static fn( $v ) => self::named( $tag, $v ), $values );
+				}
 
 				if ( isset( self::SEPARATED[ $tag ] ) ) {
 					$values = self::trimmed( array_merge( [], ...array_map( static fn( $v ) => explode( self::SEPARATED[ $tag ], $v ), $values ) ) );
@@ -260,6 +310,53 @@ final class TermRouter {
 
 				return $values;
 		}
+	}
+
+	/**
+	 * One part of a structured field, from each of its entries: the city of
+	 * each Location Shown, as Iptc4xmpExt:LocationShown/Iptc4xmpExt:City.
+	 */
+	private static function part( XmpReader $md, string $tag ): array {
+
+		[ $field, $name ] = explode( '/', $tag, 2 );
+		$value            = $md->getXmp( $field );
+
+		if ( ! is_array( $value ) ) {
+			return [];
+		}
+
+		// One structure (the creator's contact details) or a list of them.
+		$entries = array_key_exists( $name, $value ) ? [ $value ] : $value;
+		$out     = [];
+
+		foreach ( $entries as $entry ) {
+			if ( is_array( $entry ) && isset( $entry[ $name ] ) ) {
+				array_push( $out, ...self::strings( $entry[ $name ] ) );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The name of a field's code: PLUS release statuses and IPTC digital
+	 * source types are written as URLs (.../MR-UMR). A code not known is
+	 * written out from its own words.
+	 */
+	public static function named( string $tag, string $value ): string {
+
+		$code  = basename( rtrim( $value, '/' ) );
+		$names = self::CODED[ $tag ];
+
+		if ( isset( $names[ $code ] ) ) {
+			return $names[ $code ];
+		}
+
+		if ( 'plus:MinorModelAgeDisclosure' === $tag && preg_match( '/^AG-A(\d\d)$/', $code, $m ) ) {
+			return 'Age ' . (int) $m[1];
+		}
+
+		return ucfirst( strtolower( trim( preg_replace( '/([a-z])([A-Z])/', '$1 $2', $code ) ) ) );
 	}
 
 	private static function strings( $value ): array {

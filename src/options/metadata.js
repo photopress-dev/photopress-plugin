@@ -7,6 +7,7 @@ import { Component, Fragment } from '@wordpress/element';
 import {
 	BaseControl,
 	Button,
+	CheckboxControl,
 	PanelBody,
 	Notice,
 	TextControl
@@ -68,6 +69,7 @@ class MetadataSettings extends Component {
 				custom_taxonomies: [],
 				custom_taxonomies_tag_delimiter: ':',
 				alt_text_enable: true,
+				alt_text_from_file: true,
 				alt_text_template: '[photoshop:Headline]. [photopress:stringOfKeywords].',
 				description_template: '',
 				strip_metadata_from_resized_image: false
@@ -236,19 +238,29 @@ class MetadataSettings extends Component {
 				title={ __( 'Alt Text' ) }
 				description={ __( 'Set each image’s alt text from its metadata when it is uploaded.' ) }
 				info={ [
-					<p key="0">{ __( 'The template’s fields, in square brackets, are filled from the metadata embedded in the image’s file, e.g. [photoshop:Headline]. An image whose file has none of them keeps the alt text it has.' ) }</p>,
+					<p key="0">{ __( 'The alt text written in the image’s file is used when it has one: the Alt Text (Accessibility) field that Lightroom Classic and Photoshop write. Otherwise the template’s fields, in square brackets, are filled from the file’s metadata, e.g. [photoshop:Headline]; with none of them, its description or title.' ) }</p>,
 					<p key="1">{ __( 'Save and reprocess all images applies a new template to the images already uploaded.' ) }</p>,
 				] }
 				checked={ this.getSetting( 'alt_text_enable' ) }
 				onChange={ ( value ) => this.persistSetting( 'alt_text_enable', value ) }
 			>
 				<BaseControl>
+					<CheckboxControl
+						__nextHasNoMarginBottom
+						label={ __( 'Use the alt text written in the file, when it has one' ) }
+						help={ __( 'Lightroom Classic and Photoshop write it as Alt Text (Accessibility). It takes the place of the template.' ) }
+						checked={ !! this.getSetting( 'alt_text_from_file' ) }
+						onChange={ ( value ) => this.setSetting( 'alt_text_from_file', value ) }
+					/>
+
 					<TextControl
 						id={ 'alt_text_template' }
 						label={ __( 'Alt Text Template' ) }
 						value={ this.getSetting( 'alt_text_template' ) }
 						className="small-input right-pad"
-						help={ __( 'Metadata fields go in square brackets, e.g. [photoshop:Headline].' ) }
+						help={ this.getSetting( 'alt_text_from_file' )
+							? __( 'For images whose files have no alt text of their own. Metadata fields go in square brackets, e.g. [photoshop:Headline].' )
+							: __( 'Metadata fields go in square brackets, e.g. [photoshop:Headline].' ) }
 						onChange={ ( value ) => this.setSetting( 'alt_text_template', value ) }
 						onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
 					/>

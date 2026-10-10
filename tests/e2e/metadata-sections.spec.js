@@ -46,6 +46,9 @@ for ( const { title, key, field, job } of sections ) {
 
 		await sw.click();
 		await expect( panel.locator( field ) ).toBeVisible();
+		if ( 'alt_text_enable' === key ) {
+			await expect( panel.getByRole( 'checkbox', { name: 'Use the alt text written in the file, when it has one' } ) ).toBeChecked();
+		}
 		await expect( panel.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
 		// Behind Advanced options, unchecked.
 		await expect( panel.getByRole( 'checkbox', { name: /^Empty the / } ) ).toHaveCount( 0 );

@@ -44,6 +44,23 @@ final class MetadataTest extends TestCase {
 		return ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
 	}
 
+	public function test_alt_text_written_in_the_file_is_used_in_place_of_the_template(): void {
+
+		$m  = $this->metadataWithTemplate( '[photoshop:Headline]' );
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'photoshop:Headline' => 'At the lake', 'Iptc4xmpCore:AltTextAccessibility' => 'A man rowing a red boat on a lake' ] ] );
+
+		\pp_api::$options['core/metadata/alt_text_from_file'] = true;
+		$this->assertSame( 'A man rowing a red boat on a lake', $m->generateAltText( $md ) );
+
+		\pp_api::$options['core/metadata/alt_text_from_file'] = false;
+		$this->assertSame( 'At the lake', $m->generateAltText( $md ), 'off: the template' );
+
+		\pp_api::$options['core/metadata/alt_text_from_file'] = true;
+		$md->loadFromArray( [ 'xmp' => [ 'photoshop:Headline' => 'At the lake' ] ] );
+		$this->assertSame( 'At the lake', $m->generateAltText( $md ), 'none in the file: the template' );
+	}
+
 	public function test_alt_text_falls_back_to_description_then_title(): void {
 
 		$md = new XmpReader();
