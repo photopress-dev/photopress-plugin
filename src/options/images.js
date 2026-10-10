@@ -29,7 +29,7 @@ const dimensions = ( size ) => {
 };
 
 /**
- * Every registered size, with a switch for whether WordPress makes it.
+ * Every registered size, with a switch to turn it on or off.
  */
 function SizeList( { sizes, disabled, onChange } ) {
 	return (
@@ -38,7 +38,7 @@ function SizeList( { sizes, disabled, onChange } ) {
 				<tr>
 					<th>{ __( 'Size' ) }</th>
 					<th>{ __( 'Largest dimensions' ) }</th>
-					<th>{ __( 'Made' ) }</th>
+					<th>{ __( 'On' ) }</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -52,7 +52,7 @@ function SizeList( { sizes, disabled, onChange } ) {
 						<td>
 							<ToggleControl
 								__nextHasNoMarginBottom
-								label={ sprintf( __( 'Make %s' ), size.name ) }
+								label={ size.name }
 								hideLabelFromVision
 								checked={ ! disabled.includes( size.name ) }
 								onChange={ ( on ) => onChange( on ? disabled.filter( ( n ) => n !== size.name ) : [ ...disabled, size.name ] ) }
