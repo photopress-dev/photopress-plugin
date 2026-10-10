@@ -758,7 +758,7 @@ export default function TaxonomySettings( { component, route } ) {
 							__nextHasNoMarginBottom
 							__next40pxDefaultSize
 							label={ __( 'Prefix separators' ) }
-							help={ __( 'What comes between a parent keyword and the rest, as in people: Jane. Several: separate them with spaces (: >). Empty: prefixes are not read. Keyword lists from Lightroom and Capture One are always read.' ) }
+							help={ __( 'For keywords written as one word with a prefix, such as genre: Portraiture, instead of as a hierarchy. The character between the prefix and the rest; separate several with spaces, such as : >. Leave empty to ignore prefixes. Hierarchies from Lightroom and Capture One are read either way.' ) }
 							value={ delimiter }
 							onChange={ ( value ) => component.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
 						/>
