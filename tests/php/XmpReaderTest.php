@@ -340,4 +340,28 @@ final class XmpReaderTest extends TestCase {
 		$this->assertSame( 'foo', $md['Iptc4xmpExt:Event'], 'one language of a language alternative' );
 		$this->assertSame( 'bar', $md['Iptc4xmpExt:LocationShown'][0]['Iptc4xmpExt:City'], 'structures keep their parts' );
 	}
+
+	/**
+	 * Every field Capture One's Metadata tool writes, filled in: each one the
+	 * Custom Metadata list offers is read, and none of IPTC Extension's, which
+	 * Capture One does not have, is there.
+	 */
+	public function test_every_listed_field_capture_one_writes_is_read(): void {
+
+		$md = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/capture-one.xmp' ) );
+
+		$listed = [
+			'photoshop:Headline', 'dc:title', 'photoshop:Category', 'photoshop:SupplementalCategories', 'Iptc4xmpCore:IntellectualGenre',
+			'Iptc4xmpCore:Scene', 'Iptc4xmpCore:SubjectCode', 'Iptc4xmpCore:Location', 'Iptc4xmpCore:CountryCode', 'dc:creator',
+			'photoshop:AuthorsPosition', 'photoshop:CaptionWriter', 'photoshop:Credit', 'photoshop:Source', 'dc:rights',
+			'xmpRights:UsageTerms', 'photoshop:Instructions', 'photoshop:TransmissionReference', 'GettyImagesGIFT:Personality',
+			'xmp:Rating', 'xmp:Label', 'xmp:CreatorTool',
+		];
+
+		foreach ( $listed as $tag ) {
+			$this->assertNotEmpty( $md[ $tag ] ?? null, $tag );
+		}
+
+		$this->assertSame( [], preg_grep( '/^Iptc4xmpExt:/', array_keys( $md ) ) );
+	}
 }

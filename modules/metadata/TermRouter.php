@@ -88,6 +88,14 @@ final class TermRouter {
 		return $terms;
 	}
 
+	/**
+	 * Fields written as one text with their values separated, not as a
+	 * list: Capture One writes Getty Images' Personality as "Jane;John".
+	 */
+	const SEPARATED = [
+		'GettyImagesGIFT:Personality' => ';',
+	];
+
 	/** Fields read together: a file with any of them has a location. */
 	const SOURCES = [
 		'photoshop:City'    => 'location',
@@ -244,7 +252,13 @@ final class TermRouter {
 				return self::strings( StandardMetadata::lens( $md ) );
 
 			default:
-				return self::strings( $md->getXmp( $tag ) );
+				$values = self::strings( $md->getXmp( $tag ) );
+
+				if ( isset( self::SEPARATED[ $tag ] ) ) {
+					$values = self::trimmed( array_merge( [], ...array_map( static fn( $v ) => explode( self::SEPARATED[ $tag ], $v ), $values ) ) );
+				}
+
+				return $values;
 		}
 	}
 

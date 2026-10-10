@@ -340,6 +340,13 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [ [ 'people: Jane' ] ], $terms['photos_keywords'] );
 	}
 
+	public function test_personality_as_capture_one_writes_it_is_one_term_per_name(): void {
+
+		$definitions = array_merge( self::DEFINITIONS, [ [ 'id' => 'pp_personality', 'tag' => 'GettyImagesGIFT:Personality', 'parseTagValue' => false ] ] );
+
+		$this->assertSame( [ 'Jane Smith', 'John Doe' ], self::route( [ 'GettyImagesGIFT:Personality' => 'Jane Smith; John Doe' ], $definitions )['pp_personality'] );
+	}
+
 	public function test_custom_metadata_takes_every_value_as_written(): void {
 
 		$definitions = array_merge( self::DEFINITIONS, [ [ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event', 'parseTagValue' => false ] ] );
