@@ -84,6 +84,7 @@ class MetadataSettings extends Component {
 				strip_metadata_from_resized_image: false
 			},
 			isNewTaxPresent: false,
+			reprocessForce: false,
 			modalOpen: false,
 			newTaxDefinition: {
 				id: '',
@@ -709,8 +710,19 @@ class MetadataSettings extends Component {
 				<JobPanel
 					type="metadata.reprocess"
 					label={ __( 'Re-read image metadata' ) }
-					description={ __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. Run it after changing the taxonomies or templates above. It runs in the background; you can leave this page.' ) }
-					confirm={ __( 'Re-read the metadata of every image? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+					description={ __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. Run it after changing the taxonomies or templates above. A photo whose file has no keywords at all, or no location, camera or lens, keeps its terms there, since its file may have had its metadata stripped. It runs in the background; you can leave this page.' ) }
+					args={ { force: this.state.reprocessForce } }
+					confirm={ this.state.reprocessForce
+						? __( 'Re-read the metadata of every image, and empty the terms of photos whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
+						: __( 'Re-read the metadata of every image? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
+				/>
+				
+				<ToggleControl
+					__nextHasNoMarginBottom
+					label={ __( 'Also empty terms a file has nothing for' ) }
+					help={ __( 'Removes the keywords, location, camera or lens terms of photos whose files have none, as when every keyword was removed from a file.' ) }
+					checked={ !! this.state.reprocessForce }
+					onChange={ ( value ) => this.setState( { reprocessForce: value } ) }
 				/>
 				
 			</PanelBody>

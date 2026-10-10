@@ -146,9 +146,9 @@ test( 'screenshot-4: the full-screen slideshow, opened from a gallery', async ( 
 	test.setTimeout( 180000 );
 	const figure = await front( page, draftUrl( pages.lightbox ), { width: 1100, height: 700 }, '#lightbox' );
 	const rec = recorder( page, { x: 0, y: 0, width: 1100, height: 700 } );
-	const centre = page.locator( '.panels .center img' );
+	const center = page.locator( '.panels .center img' );
 	const settle = async () => {
-		await centre.evaluate( ( img ) => img.decode() );
+		await center.evaluate( ( img ) => img.decode() );
 		await page.waitForTimeout( 600 );
 		await rec.frame( 160 );
 	};
@@ -159,7 +159,7 @@ test( 'screenshot-4: the full-screen slideshow, opened from a gallery', async ( 
 	const target = await figure.locator( `img.wp-image-${ made.names[ '02-landscape-3x2' ] }` ).boundingBox();
 	let at = { x: target.x + target.width / 2, y: target.y + target.height / 2 };
 	await page.mouse.click( at.x, at.y );
-	await expect( centre ).toBeVisible( { timeout: 30000 } );
+	await expect( center ).toBeVisible( { timeout: 30000 } );
 	await settle();
 
 	const panels = await page.locator( '.photopress-slideshow .panels' ).boundingBox();

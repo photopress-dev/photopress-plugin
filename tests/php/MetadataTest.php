@@ -93,11 +93,11 @@ final class MetadataTest extends TestCase {
 		$this->upload( '[photoshop:Headline].', [] );
 	}
 
-	public function test_the_licence_is_written_into_a_jpeg_without_re_encoding_it(): void {
+	public function test_the_license_is_written_into_a_jpeg_without_re_encoding_it(): void {
 
 		Functions\stubs( [ 'is_wp_error' => static fn( $thing ) => $thing instanceof \WP_Error ] );
 		\pp_api::$options = [
-			'core/metadata/web_statement_of_rights' => 'https://example.test/licence',
+			'core/metadata/web_statement_of_rights' => 'https://example.test/license',
 			'core/metadata/licensor_name'           => 'Alice Photography',
 			'core/metadata/licensor_url'            => 'https://alice.example',
 		];
@@ -121,15 +121,15 @@ final class MetadataTest extends TestCase {
 
 		$md = new XmpReader();
 		$md->loadFromFile( $file );
-		$this->assertSame( 'https://example.test/licence', $md->getXmp( 'xmpRights:WebStatement' ) );
+		$this->assertSame( 'https://example.test/license', $md->getXmp( 'xmpRights:WebStatement' ) );
 		$this->assertSame( [ 'plus:LicensorName' => 'Alice Photography', 'plus:LicensorURL' => 'https://alice.example' ], $md->getXmp( 'plus:Licensor' ) );
 		$this->assertSame( 'Bob', $md->getXmp( 'dc:title' ), 'the packet it had is kept' );
 		$this->assertSame( 'IQ4 150MP', $md->getXmp( 'tiff:Model' ) );
 	}
 
-	private static function mergeLicence( string $existing, string $statement, string $name = '', string $url = '' ): string {
+	private static function mergeLicense( string $existing, string $statement, string $name = '', string $url = '' ): string {
 
-		$merge = new \ReflectionMethod( metadata::class, 'mergeLicenceIntoXmp' );
+		$merge = new \ReflectionMethod( metadata::class, 'mergeLicenseIntoXmp' );
 		$merge->setAccessible( true );
 
 		return $merge->invoke( null, $existing, $statement, $name, $url );
@@ -141,11 +141,11 @@ final class MetadataTest extends TestCase {
 			. '<rdf:Description rdf:about="" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmpRights:Marked="True" xmpRights:WebStatement="https://old.example"/>'
 			. '</rdf:RDF></x:xmpmeta>';
 
-		$packet = self::mergeLicence( $existing, 'https://example.test/licence' );
+		$packet = self::mergeLicense( $existing, 'https://example.test/license' );
 
 		$this->assertSame( 1, substr_count( $packet, 'WebStatement' ) - substr_count( $packet, '</xmpRights:WebStatement' ) );
 		$this->assertStringNotContainsString( 'old.example', $packet );
-		$this->assertSame( 'https://example.test/licence', ( new XmpReader() )->parsePacket( $packet )['xmpRights:WebStatement'] );
+		$this->assertSame( 'https://example.test/license', ( new XmpReader() )->parsePacket( $packet )['xmpRights:WebStatement'] );
 		$this->assertSame( 'True', ( new XmpReader() )->parsePacket( $packet )['xmpRights:Marked'] );
 	}
 
@@ -155,7 +155,7 @@ final class MetadataTest extends TestCase {
 			. '<rdf:Description rdf:about="" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmpRights:WebStatement="https://photographer.example"/>'
 			. '</rdf:RDF></x:xmpmeta>';
 
-		$md = ( new XmpReader() )->parsePacket( self::mergeLicence( $existing, '', 'Alice Photography', 'https://alice.example' ) );
+		$md = ( new XmpReader() )->parsePacket( self::mergeLicense( $existing, '', 'Alice Photography', 'https://alice.example' ) );
 
 		$this->assertSame( 'https://photographer.example', $md['xmpRights:WebStatement'] );
 		$this->assertSame( [ [ 'plus:LicensorName' => 'Alice Photography', 'plus:LicensorURL' => 'https://alice.example' ] ], $md['plus:Licensor'] );
@@ -219,18 +219,6 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( $html, $m->addAttributesToImagesInContent( $html, [ 'blockName' => 'core/paragraph' ] ) );
 	}
 
-	public function test_terms_for_hierarchical_and_plain_keywords(): void {
-
-		\pp_api::$options['core/metadata/custom_taxonomies_tag_delimiter'] = ':';
-		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
-		$family = [ 'parents' => [ 'photos_keywords' ], 'children' => [ 'pp_person' ] ];
-
-		$this->assertSame( [ 'pp_person' => [ 'Bob' ] ], $m->matchTermToTaxonomy( 'person:Bob', $family ) );
-		$this->assertSame( [ 'photos_keywords' => [ 'portrait' ] ], $m->matchTermToTaxonomy( 'portrait', $family ) );
-		// A child taxonomy the family does not have: the keyword goes to the parent as is.
-		$this->assertSame( [ 'photos_keywords' => [ 'genre:portrait' ] ], $m->matchTermToTaxonomy( 'genre:portrait', $family ) );
-	}
-
 	public function test_xmp_gives_the_title_and_caption_when_iptc_does_not(): void {
 
 		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
@@ -259,7 +247,7 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( '', $m->generateDescription( $md ), 'nothing in the file: cleared' );
 	}
 
-	public function test_a_taxonomy_the_file_has_nothing_for_is_emptied(): void {
+	public function test_a_keyword_taxonomy_is_emptied_when_the_file_has_other_keywords(): void {
 
 		\pp_api::$options['core/metadata/custom_taxonomies'] = [
 			[ 'id' => 'photos_keywords', 'tag' => 'dc:subject', 'parseTagValue' => false ],
@@ -268,11 +256,7 @@ final class MetadataTest extends TestCase {
 		];
 		\pp_api::$options['core/metadata/custom_taxonomies_tag_delimiter'] = ':';
 
-		$m = $this->getMockBuilder( metadata::class )
-			->disableOriginalConstructor()
-			->onlyMethods( [ 'matchTermToTaxonomy' ] )
-			->getMock();
-		$m->method( 'matchTermToTaxonomy' )->willReturn( [ 'photos_keywords' => [ 'lake' ] ] );
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
 
 		$set = [];
 		Functions\when( 'taxonomy_exists' )->justReturn( true );
@@ -285,7 +269,9 @@ final class MetadataTest extends TestCase {
 		$md->loadFromArray( [ 'xmp' => [ 'dc:subject' => [ 'lake' ] ] ] );
 		$m->setTaxonomyTerms( 42, $md );
 
-		$this->assertSame( [ 'photos_keywords' => [ 'lake' ], 'photos_people' => [], 'photos_city' => [] ], $set );
+		// People is emptied (the file has keywords, none of them people); the
+		// city is kept, as the file has no location at all.
+		$this->assertSame( [ 'photos_keywords' => [ 'lake' ], 'photos_people' => [] ], $set );
 	}
 }
 

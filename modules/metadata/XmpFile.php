@@ -23,7 +23,7 @@ use WP_Error;
  * hold the new packet, have everything else of the original unchanged (each
  * format says what that means; see xmp\Format::unchanged()), read back with
  * the new packet through XmpReader, and give the same type and size to
- * getimagesize(). Anything this does not recognise, or a result that fails
+ * getimagesize(). Anything this does not recognize, or a result that fails
  * a check, leaves the file untouched and returns a WP_Error, so the caller
  * can fall back to another way of writing it.
  */

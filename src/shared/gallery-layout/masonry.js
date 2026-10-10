@@ -73,12 +73,12 @@ function place( figure, columnWidth ) {
 }
 
 /*
- * Centres the columns in the gallery: the images are shifted by half the
+ * Centers the columns in the gallery: the images are shifted by half the
  * space left over, through --pp-masonry-offset. Columns are counted from the
  * gallery's own width, which in a constrained layout is narrower than its
  * parent's.
  */
-function centre( figure, placed ) {
+function center( figure, placed ) {
 	const used = placed.cols * ( placed.column + placed.gutter ) - placed.gutter;
 	const offset = Math.max( 0, Math.floor( ( figure.clientWidth - used ) / 2 ) );
 
@@ -133,7 +133,7 @@ export function createMasonry( figure, columnWidth ) {
 		const placed = place( figure, columnWidth );
 
 		if ( placed ) {
-			centre( figure, placed );
+			center( figure, placed );
 			placeOthers( figure );
 		}
 	};

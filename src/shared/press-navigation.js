@@ -22,7 +22,7 @@ const PATHS = {
  * @param {Function}    options.prev   Goes back one slide.
  * @param {Function}    options.next   Goes forward one slide.
  * @param {string}      [options.ignore] Selector of controls inside `area` that
- *                                     keep their own behaviour and the normal cursor.
+ *                                     keep their own behavior and the normal cursor.
  * @return {Function} Removes the handlers and the cursor.
  */
 export function pressNavigation( area, { prev, next, ignore = '' } ) {

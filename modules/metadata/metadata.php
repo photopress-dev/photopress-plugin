@@ -21,6 +21,8 @@ class metadata extends photopress_module {
 		// add additional meta-data to images
 		add_filter( 'wp_read_image_metadata', [$this, 'storeMoreMetaData'], 10, 5);
 		
+		add_action( 'update_option_' . photopress_util::getModuleOptionKey( 'core', 'metadata' ), [ $this, 'taxonomiesChanged' ], 10, 2 );
+		
 		// the description of an image whose file was replaced (see MediaRest)
 		add_filter( 'photopress_attachment_description', [ $this, 'descriptionForReplacedFile' ], 10, 3 );
 		
@@ -66,6 +68,7 @@ class metadata extends photopress_module {
 			
 			// registers the actual taxonomies
 			 $this->registerTaxonomies();
+			 $this->maybeFlushRewriteRules();
 			
 			//registers the attachment page sidebar
 			register_sidebar(
@@ -104,6 +107,33 @@ class metadata extends photopress_module {
 			
 		}
 	}	
+	
+	/**
+	 * A taxonomy added, renamed or made nested has new URLs, which WordPress
+	 * knows only after its rewrite rules are rebuilt. Marked when the setting
+	 * changes; rebuilt on the next request, once the taxonomies are registered.
+	 */
+	public function taxonomiesChanged( $old, $new ) {
+
+		$shape = static function ( $value ) {
+			return array_map( static function ( $tax ) {
+				$tax = (array) $tax;
+				return [ $tax['id'] ?? '', $tax['singularLabel'] ?? '', ! empty( $tax['nested'] ) && ! empty( $tax['parseTagValue'] ) ];
+			}, (array) ( ( (array) $value )['custom_taxonomies'] ?? [] ) );
+		};
+
+		if ( $shape( $old ) !== $shape( $new ) ) {
+			update_option( 'photopress_flush_rewrite_rules', 1 );
+		}
+	}
+
+	private function maybeFlushRewriteRules() {
+
+		if ( get_option( 'photopress_flush_rewrite_rules' ) ) {
+			delete_option( 'photopress_flush_rewrite_rules' );
+			flush_rewrite_rules( false );
+		}
+	}
 	
 	public function defineAdminHooks() {
 		
@@ -653,7 +683,8 @@ class metadata extends photopress_module {
 				'pluralLabel' 	=> 'people',
 				'singularLabel'	=> 'person',
 				'tag'			=> 'dc:subject',
-				'parseTagValue'	=> true
+				'parseTagValue'	=> true,
+				'names'			=> [ 'people', 'person' ]
 			],
 			
 			[
@@ -680,9 +711,13 @@ class metadata extends photopress_module {
 			$upper_plural = ucwords( $tax[ 'pluralLabel' ] );
 			$upper_singular = ucwords( $tax[ 'singularLabel' ] );
 			
+			// A nested parent keyword's terms sit under one another, with
+			// URLs to match: /person/family/jane.
+			$nested = ! empty( $tax['nested'] ) && ! empty( $tax['parseTagValue'] );
+			
 			register_taxonomy( $id, 'attachment', array(
 				
-					'hierarchical' => false, 
+					'hierarchical' => $nested, 
 					'labels' => array(
 						
 						'name'             				=> __( $upper_plural , 'taxonomy general name' ),
@@ -708,7 +743,7 @@ class metadata extends photopress_module {
 					// who can edit posts; see ImageTaxonomyRest.
 					'show_in_rest'          => true,
 					'rest_controller_class' => TermsController::class,
-					'rewrite' => array('slug' => strtolower( $tax[ 'singularLabel' ] ), 'ep_mask' => EP_PERMALINK  ),
+					'rewrite' => array('slug' => strtolower( $tax[ 'singularLabel' ] ), 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ),
 					'update_count_callback'	=> '_update_generic_term_count',
 					'show_admin_column' => true,
 					'public'	=> true 
@@ -718,7 +753,11 @@ class metadata extends photopress_module {
 
 	}
 	
-	public function addAttachment( $id ) {
+	/**
+	 * Reads an image's metadata into its terms, description and alt text.
+	 * $force: empty terms the file has nothing for (see setTaxonomyTerms).
+	 */
+	public function addAttachment( $id, $force = false ) {
 		
 		//extract metadata from file	
 		$file = get_attached_file( $id );
@@ -726,7 +765,7 @@ class metadata extends photopress_module {
 		$md->loadFromFile( $file );
 		
 		// set the taxonomy terms
-		$this->setTaxonomyTerms( $id, $md );
+		$this->setTaxonomyTerms( $id, $md, $force );
 		
 		// set the description, when a template is configured
 		$description = $this->generateDescription( $md );
@@ -842,11 +881,12 @@ class metadata extends photopress_module {
 	}
 	
 	/**
-	 * One image of the metadata.reprocess job.
+	 * One image of the metadata.reprocess job. $args['force']: empty terms
+	 * the file has nothing for.
 	 *
 	 * @return true|\WP_Error
 	 */
-	public function reprocessImage( $id ) {
+	public function reprocessImage( $id, $args = [] ) {
 		
 		$file = get_attached_file( $id );
 		
@@ -854,7 +894,7 @@ class metadata extends photopress_module {
 			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
 		}
 		
-		$this->addAttachment( $id );
+		$this->addAttachment( $id, ! empty( $args['force'] ) );
 		
 		return true;
 	}
@@ -950,7 +990,7 @@ class metadata extends photopress_module {
 		}
 
 		$merge = static function ( $existing ) use ( $wsr, $licensor_name, $licensor_url ) {
-			return self::mergeLicenceIntoXmp( $existing, $wsr, $licensor_name, $licensor_url );
+			return self::mergeLicenseIntoXmp( $existing, $wsr, $licensor_name, $licensor_url );
 		};
 
 		// Written into the file's metadata block, without decoding the image,
@@ -967,12 +1007,12 @@ class metadata extends photopress_module {
 		 */
 		if ( ! class_exists( 'Imagick' ) ) {
 
-			photopress_util::debug( 'Licence not embedded: ' . $written->get_error_message() . ' Imagick is unavailable.' );
+			photopress_util::debug( 'License not embedded: ' . $written->get_error_message() . ' Imagick is unavailable.' );
 
 			return $move;
 		}
 
-		photopress_util::debug( 'Embedding the licence with Imagick: ' . $written->get_error_message() );
+		photopress_util::debug( 'Embedding the license with Imagick: ' . $written->get_error_message() );
 
 		try {
 
@@ -981,14 +1021,14 @@ class metadata extends photopress_module {
 			$profiles = $im->getImageProfiles( '*', false );
 			$existing = in_array( 'xmp', $profiles, true ) ? $im->getImageProfile( 'xmp' ) : '';
 
-			$im->setImageProfile( 'xmp', self::mergeLicenceIntoXmp( $existing, $wsr, $licensor_name, $licensor_url ) );
+			$im->setImageProfile( 'xmp', self::mergeLicenseIntoXmp( $existing, $wsr, $licensor_name, $licensor_url ) );
 			$im->writeImage( $path );
 			$im->clear();
 
 		} catch ( \Exception $e ) {
 
 			// Never let a metadata problem block the upload itself.
-			photopress_util::debug( 'Could not embed licence meta-data: ' . $e->getMessage() );
+			photopress_util::debug( 'Could not embed license meta-data: ' . $e->getMessage() );
 		}
 
 		/*
@@ -1001,10 +1041,10 @@ class metadata extends photopress_module {
 	}
 
 	/**
-	 * Splice the licence fields into an existing XMP packet.
+	 * Splice the license fields into an existing XMP packet.
 	 *
 	 * The packet replaces the file's packet rather than merging with it, so
-	 * one that contains only the licence would discard dc:title, dc:subject
+	 * one that contains only the license would discard dc:title, dc:subject
 	 * keywords, xmp:Rating, creator and any Lightroom settings the
 	 * photographer had embedded.
 	 *
@@ -1012,7 +1052,7 @@ class metadata extends photopress_module {
 	 * XMP element preserved with the same multiplicity, no text content lost,
 	 * idempotent on re-upload, and safe on a malformed or absent packet.
 	 */
-	protected static function mergeLicenceIntoXmp( $existing, $web_statement, $licensor_name, $licensor_url ) {
+	protected static function mergeLicenseIntoXmp( $existing, $web_statement, $licensor_name, $licensor_url ) {
 
 	    $doc = new \DOMDocument();
 	    $doc->preserveWhiteSpace = false;
@@ -1117,126 +1157,78 @@ class metadata extends photopress_module {
 	         . "\n<?xpacket end=\"w\"?>";
 	}
 
-	public function setTaxonomyTerms( $id, $md ) {
-		
-		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');
-	
-		$c = [];
-		$toInsert = [];
-		
-		// transform the tax definitions into a control array structured by tag
-		// families can have multiple children and parent taxonomies
-		foreach ( $taxonomies as $tax ) {
-			
-			if ( ! $tax['parseTagValue'] ) {
-				
-				$c[ $tax['tag'] ]['parents'][] = $tax['id'];
-			} else {
-				
-				$c[ $tax['tag'] ]['children'][] = $tax['id'];
-			}	
-		}
-		
-		foreach( $c as $tag => $family) {
-			
-			// get value from xmp tag
-			
-			$value = $md->getXmp( $tag );
-			
-			// The image does not carry this tag (getXmp() returns null when
-			// the image has no XMP at all). Nothing to assign.
-			if ( null === $value || '' === $value || [] === $value ) {
+	/**
+	 * Gives an image the terms its metadata calls for (TermRouter), in place
+	 * of those it had, so a keyword removed from the file goes. Where the
+	 * file has nothing at all for a taxonomy (no keywords, no location), its
+	 * terms are kept, as the file may have had its metadata stripped, unless
+	 * $force.
+	 */
+	public function setTaxonomyTerms( $id, $md, $force = false ) {
+
+		$model   = TaxonomyModel::fromSettings();
+		$present = $force ? [] : TermRouter::present( $md, $model );
+
+		wp_defer_term_counting( true );
+
+		foreach ( TermRouter::route( $md, $model ) as $tax_id => $terms ) {
+
+			if ( ! taxonomy_exists( $tax_id ) || ( ! $force && empty( $present[ $tax_id ] ) ) ) {
 				continue;
 			}
-			
-				// maybe parse the value
-				
-			if ( is_array( $value ) ) {
-				
-				$d = [];
-				
-				// loop through the value array
-				foreach ( $value as $v ) {
-					
-					$ret = $this->matchTermToTaxonomy( $v, $family );
-					$toInsert = array_merge_recursive($toInsert, $ret);
+
+			if ( $model->isNested( $tax_id ) ) {
+
+				$ids = [];
+
+				foreach ( $terms as $path ) {
+					$ids = array_merge( $ids, self::termPath( $tax_id, $path ) );
 				}
-				
-			} else {
-				
-				$ret = $this->matchTermToTaxonomy( $value, $family );
-				$toInsert = array_merge_recursive($toInsert, $ret);			
+
+				$terms = array_values( array_unique( $ids ) );
 			}
+
+			wp_set_object_terms( $id, $terms, $tax_id, false );
 		}
-		
-		// Every configured taxonomy matches the file: one the file has
-		// nothing for is emptied, so a keyword removed from the file goes.
-		foreach ( $c as $family ) {
-			foreach ( array_merge( $family['parents'] ?? [], $family['children'] ?? [] ) as $tax_id ) {
-				if ( ! isset( $toInsert[ $tax_id ] ) && taxonomy_exists( $tax_id ) ) {
-					$toInsert[ $tax_id ] = [];
-				}
-			}
-		}
-		
-		// loop through all the taxonomies and insert the terms
-		foreach ( $toInsert as $tax_id => $terms ) {
-			wp_defer_term_counting(true);
-			wp_set_object_terms($id, $terms, $tax_id, $append = false);
-			wp_defer_term_counting(false);
-		}
+
+		wp_defer_term_counting( false );
 	}
-	
-	function matchTermToTaxonomy( $value, $family ) {
-		
-		$toInsert = [];
-		$delim = pp_api::getOption('core', 'metadata', 'custom_taxonomies_tag_delimiter');
-		$term_inserted = false;
-		
-		// if children and delimiter
-		if ( array_key_exists('children', $family ) && ! empty( $family['children'] ) && $delim && is_string( $value ) && strpos( $value, $delim ) ) {
-	
-			// check to see that there is a matching child tax
-			$pair = explode( $delim, $value, 2 ); 
-			
-			// trim
-			$child_label = trim( $pair[0] );
-			$child_value = trim( $pair[1] );
-			$child_key = 'pp_'.$child_label;
-			$child_old_key = 'photos_'.$child_label;
-			
-			// if the child is part of the family insert it as the term can only we associated with one child.
-			if ( in_array( $child_key, $family['children'] )  ) {
-				
-				$toInsert[ $child_key ][] = $child_value;
-				//wp_set_object_terms($id, $child_value, $child_id, $append = false);
-				$term_inserted = true;
-			} 
-			
-			// if the child is part of the family insert it as the term can only we associated with one child.
-			if (  in_array( $child_old_key, $family['children'] ) ) {
-				
-				$toInsert[ $child_old_key ][] = $child_value;
-				//wp_set_object_terms($id, $child_value, $child_id, $append = false);
-				$term_inserted = true;
-			} 
-		}
-		
-		if (! $term_inserted ) {
-			
-			// check for parents
-			if ( array_key_exists('parents', $family ) && ! empty( $family['parents'] ) ) {
-				
-				// insert for each parent
-				foreach ( $family['parents']  as $parent_id ) {
-					
-					$toInsert[ $parent_id ][] = $value;
-					//wp_set_object_terms($id, $value, $parent_id, $append = false);
+
+	/**
+	 * The ids of a path of nested terms (Family, then Jane under it), each
+	 * made if it does not exist. The image gets every level, so a search for
+	 * any of them finds it.
+	 */
+	public static function termPath( $taxonomy, array $path ) {
+
+		$parent = 0;
+		$ids    = [];
+
+		foreach ( $path as $name ) {
+
+			$term = term_exists( $name, $taxonomy, $parent );
+
+			if ( ! $term ) {
+
+				$term = wp_insert_term( $name, $taxonomy, [ 'parent' => $parent ] );
+
+				if ( is_wp_error( $term ) ) {
+
+					$existing = $term->get_error_data( 'term_exists' );
+
+					if ( ! $existing ) {
+						break;
+					}
+
+					$term = [ 'term_id' => $existing ];
 				}
 			}
+
+			$parent = (int) $term['term_id'];
+			$ids[]  = $parent;
 		}
-		
-		return $toInsert;			
+
+		return $ids;
 	}
 
 	public function makeImagesVisibleToTaxQueries( $query ) {

@@ -1,6 +1,6 @@
 /**
- * Licence embedding on upload, with the licence settings on: an uploaded
- * JPEG or PNG gets the licence in its XMP, keeps the XMP it had, and is not
+ * License embedding on upload, with the license settings on: an uploaded
+ * JPEG or PNG gets the license in its XMP, keeps the XMP it had, and is not
  * re-encoded, sent as a raw body (wp_handle_sideload) or multipart
  * (wp_handle_upload, through move_uploaded_file).
  */
@@ -20,7 +20,7 @@ test.beforeAll( () => {
 	wp( 'option', 'update', KEY, JSON.stringify( {
 		...JSON.parse( saved ),
 		embed_licensor_enable: true,
-		web_statement_of_rights: 'https://example.test/licence',
+		web_statement_of_rights: 'https://example.test/license',
 		licensor_name: 'Test Licensor',
 		licensor_url: 'https://licensor.example',
 	} ), '--format=json' );
@@ -56,7 +56,7 @@ const uploads = [
 ];
 
 for ( const { name, type, multipart, title } of uploads ) {
-	test( `${ name }, ${ multipart ? 'multipart' : 'raw' }: the licence is written without re-encoding`, async ( { page } ) => {
+	test( `${ name }, ${ multipart ? 'multipart' : 'raw' }: the license is written without re-encoding`, async ( { page } ) => {
 		await page.goto( '/' );
 		const uploaded = await rest( page, { method: 'POST', route: '/wp/v2/media', file: file( name, `pp-fixture-upload-${ Date.now() }-${ name }`, type ), multipart } );
 		expect( uploaded.status, JSON.stringify( uploaded.data ) ).toBe( 201 );
@@ -64,7 +64,7 @@ for ( const { name, type, multipart, title } of uploads ) {
 		try {
 			const file = stored( uploaded.data.id, path.join( IMAGES, name ) );
 
-			expect( file.statement ).toBe( 'https://example.test/licence' );
+			expect( file.statement ).toBe( 'https://example.test/license' );
 			expect( file.licensor ).toEqual( { 'plus:LicensorName': 'Test Licensor', 'plus:LicensorURL': 'https://licensor.example' } );
 			expect( file.pixels ).toBe( true );
 

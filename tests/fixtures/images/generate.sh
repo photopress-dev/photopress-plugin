@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds the test images in this directory: flat colours in a range of shapes,
+# Builds the test images in this directory: flat colors in a range of shapes,
 # each labelled with its name and shape, with known XMP metadata. The images
 # are committed, so the tests do not need ImageMagick; run this to change or
 # add one. The people and places are fictional.
@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# name  width  height  colour  title  person  genre
+# name  width  height  color  title  person  genre
 IMAGES=(
 	"01-portrait-2x3   800 1200 #c0504d Alice    Alice portrait"
 	"02-landscape-3x2 1200  800 #4f81bd Bob      Bob   landscape"
@@ -53,9 +53,9 @@ tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 
 for row in "${IMAGES[@]}"; do
-	read -r name w h colour title person genre <<<"$row"
+	read -r name w h color title person genre <<<"$row"
 	point=$(( (w < h ? w : h) / 8 ))
-	args=( -size "${w}x${h}" "xc:$colour" -fill white -gravity center -pointsize "$point" -annotate 0 "${name%%-*}\n${w}×${h}" -strip -quality 70 )
+	args=( -size "${w}x${h}" "xc:$color" -fill white -gravity center -pointsize "$point" -annotate 0 "${name%%-*}\n${w}×${h}" -strip -quality 70 )
 
 	if [ "$title" != "-" ]; then
 		xmp "$title" "$person" "$genre" "$w" "$h" > "$tmp/$name.xmp"

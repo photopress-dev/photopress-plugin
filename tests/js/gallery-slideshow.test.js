@@ -150,8 +150,8 @@ test( 'a touch tap uses the buttons', () => {
 
 test( 'a gallery click jumps to its image without animation and scrolls at once', () => {
 	document.documentElement.style.scrollBehavior = 'smooth';
-	let behaviourDuringScroll;
-	window.scrollTo.mockImplementation( () => ( behaviourDuringScroll = document.documentElement.style.scrollBehavior ) );
+	let behaviorDuringScroll;
+	window.scrollTo.mockImplementation( () => ( behaviorDuringScroll = document.documentElement.style.scrollBehavior ) );
 
 	const link = gallery.querySelectorAll( 'a' )[ 2 ];
 	const event = click( link.querySelector( 'img' ) );
@@ -160,7 +160,7 @@ test( 'a gallery click jumps to its image without animation and scrolls at once'
 	expect( slideshow.current() ).toBe( 2 );
 	expect( root.querySelector( '.is-leaving' ) ).toBeNull();
 	expect( window.scrollTo ).toHaveBeenCalledWith( 0, 500 );
-	expect( behaviourDuringScroll ).toBe( 'auto' );
+	expect( behaviorDuringScroll ).toBe( 'auto' );
 	expect( document.documentElement.style.scrollBehavior ).toBe( 'smooth' );
 	expect( root.querySelector( '.photopress-gallery-slideshow__slide.is-current img' ).getAttribute( 'src' ) ).toBe( 's12.jpg' );
 } );

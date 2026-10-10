@@ -229,7 +229,7 @@ class MediaRest {
 
 		// 3. The file, written next to the old ones under a temporary name.
 		// Through wp_handle_sideload() so the upload checks and the filters
-		// other plugins hook (licence embedding among them) run as for any
+		// other plugins hook (license embedding among them) run as for any
 		// upload.
 		$subdir = self::uploadSubdir( $original );
 		$pin_dir = static function ( $uploads ) use ( $subdir ) {

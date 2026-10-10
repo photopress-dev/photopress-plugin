@@ -150,7 +150,7 @@ const xmpLabels = {
 	"exif:SensingMethod" 				: "Sensing Method",
 	"exif:FileSource" 					: "File Source",
 	"exif:SceneType" 					: "Scene Type",
-	"exif:CFAPattern" 					: "Colour Filter Array Pattern",
+	"exif:CFAPattern" 					: "Color Filter Array Pattern",
 	"exif:CustomRendered"				: "Custom Rendered",
 	"exif:ExposureMode" 				: "Exposure Mode",
 	"exif:WhiteBalance" 				: "White Balance",

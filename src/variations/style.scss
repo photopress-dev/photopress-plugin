@@ -42,7 +42,7 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 		width: var(--pp-column-width, 300px);
 		max-width: 100%;
 		margin: 0 0 $gap;
-		// Centres the columns; set by src/shared/gallery-layout/masonry.js.
+		// Centers the columns; set by src/shared/gallery-layout/masonry.js.
 		translate: var(--pp-masonry-offset, 0) 0;
 	}
 

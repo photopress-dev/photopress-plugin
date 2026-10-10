@@ -18,7 +18,7 @@ final class XmpFileTest extends TestCase {
 		Functions\stubs( [ 'is_wp_error' => static fn( $thing ) => $thing instanceof \WP_Error ] );
 	}
 
-	private static function packet( string $statement = 'https://example.test/licence' ): string {
+	private static function packet( string $statement = 'https://example.test/license' ): string {
 
 		return "<?xpacket begin=\"\xEF\xBB\xBF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n"
 			. '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
@@ -122,7 +122,7 @@ final class XmpFileTest extends TestCase {
 
 		$after = file_get_contents( $file );
 		$this->assertSame( $jpeg, self::withoutJpegXmp( $after ) );
-		$this->assertSame( 'https://example.test/licence', self::readXmp( $file )['xmpRights:WebStatement'] );
+		$this->assertSame( 'https://example.test/license', self::readXmp( $file )['xmpRights:WebStatement'] );
 
 		// Straight after JFIF.
 		$jfif = 4 + unpack( 'n', substr( $jpeg, 4, 2 ) )[1];
@@ -142,7 +142,7 @@ final class XmpFileTest extends TestCase {
 
 		$after = file_get_contents( $file );
 		$this->assertSame( self::withoutJpegXmp( $jpeg ), self::withoutJpegXmp( $after ) );
-		$this->assertSame( 'https://example.test/licence', self::readXmp( $file )['xmpRights:WebStatement'] );
+		$this->assertSame( 'https://example.test/license', self::readXmp( $file )['xmpRights:WebStatement'] );
 		$this->assertSame( 1, substr_count( $after, self::STANDARD ) );
 
 		// After the ICC segment, where the old one was.
@@ -256,7 +256,7 @@ final class XmpFileTest extends TestCase {
 
 		$after = file_get_contents( $file );
 		$this->assertSame( 'iTXt', substr( $after, 33 + 4, 4 ), 'straight after the signature and IHDR' );
-		$this->assertSame( 'https://example.test/licence', self::readXmp( $file )['xmpRights:WebStatement'] );
+		$this->assertSame( 'https://example.test/license', self::readXmp( $file )['xmpRights:WebStatement'] );
 
 		// The new chunk taken out again gives the original.
 		$length = 12 + unpack( 'N', substr( $after, 33, 4 ) )[1];
@@ -306,7 +306,7 @@ final class XmpFileTest extends TestCase {
 		$this->assertSame( 0x04 | $flags, ord( $after[20] ) );
 		$this->assertSame( strlen( $after ) - 8, unpack( 'V', substr( $after, 4, 4 ) )[1] );
 		$this->assertSame( [ 40, 30 ], array_slice( getimagesize( $file ), 0, 2 ) );
-		$this->assertSame( 'https://example.test/licence', self::readXmp( $file )['xmpRights:WebStatement'] );
+		$this->assertSame( 'https://example.test/license', self::readXmp( $file )['xmpRights:WebStatement'] );
 
 		// The image chunk as it was, after VP8X.
 		$this->assertSame( substr( $webp, 12 ), substr( $after, 30, strlen( $webp ) - 12 ) );
@@ -366,11 +366,11 @@ final class XmpFileTest extends TestCase {
 
 		$this->assertTrue( $this->update( $file, null, $existing ) );
 		$this->assertSame( $had, str_contains( $existing, 'Capture One' ), 'the packet it had is given to merge' );
-		$this->assertSame( 'https://example.test/licence', self::readXmp( $file )['xmpRights:WebStatement'] );
+		$this->assertSame( 'https://example.test/license', self::readXmp( $file )['xmpRights:WebStatement'] );
 
 		// Again, as a replacement: one packet, and no stale copy of the last.
 		$this->assertTrue( $this->update( $file, self::packet( 'https://example.test/second' ), $existing ) );
-		$this->assertStringContainsString( 'https://example.test/licence', $existing );
+		$this->assertStringContainsString( 'https://example.test/license', $existing );
 		$after = file_get_contents( $file );
 		$this->assertSame( 1, substr_count( $after, '<x:xmpmeta' ) );
 		$this->assertStringNotContainsString( 'Capture One', $after );
@@ -466,7 +466,7 @@ final class XmpFileTest extends TestCase {
 
 	/**
 	 * ExifTool, when installed (CI installs it), as a reader written by
-	 * someone else: it must find the licence, and find nothing wrong with the
+	 * someone else: it must find the license, and find nothing wrong with the
 	 * file that it did not find with the original.
 	 *
 	 * @return array<string, array{string}>
@@ -480,7 +480,7 @@ final class XmpFileTest extends TestCase {
 
 	#[\PHPUnit\Framework\Attributes\DataProvider( 'exiftoolFiles' )]
 	#[RequiresFunction( 'shell_exec' )]
-	public function test_exiftool_reads_the_licence_and_finds_nothing_new_wrong( string $source ): void {
+	public function test_exiftool_reads_the_license_and_finds_nothing_new_wrong( string $source ): void {
 
 		$exiftool = trim( (string) shell_exec( 'command -v exiftool 2>/dev/null' ) );
 
@@ -504,7 +504,7 @@ final class XmpFileTest extends TestCase {
 		$this->assertTrue( $this->update( $file ) );
 		$after = $validate( $file );
 
-		$this->assertSame( 'https://example.test/licence', $after['WebStatement'] ?? null );
+		$this->assertSame( 'https://example.test/license', $after['WebStatement'] ?? null );
 		$this->assertArrayNotHasKey( 'Error', $after );
 		$this->assertSame( (array) ( $before['Warning'] ?? [] ), (array) ( $after['Warning'] ?? [] ), json_encode( $after ) );
 	}
