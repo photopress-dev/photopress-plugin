@@ -639,7 +639,7 @@ export default function TaxonomySettings( { component } ) {
 
 					<Section
 						title={ __( 'Hierarchical Keyword Metadata' ) }
-						intro={ __( 'Map hierarchical keywords from Lightroom or Capture One into their own image taxonomies. For example, an image file containing Genre › Portraiture will be tagged Portraiture in a Genres taxonomy, with its own archive page at /genre/portraiture.' ) }
+						intro={ __( 'Map specific keyword hierarchies set in Lightroom or Capture One into their own image taxonomies. For example, an image file containing Genre › Portraiture will be tagged Portraiture in a Genres taxonomy, with its own archive page at /genre/portraiture.' ) }
 						action={ <Button variant="primary" aria-label={ __( 'Add a hierarchical keyword taxonomy' ) } onClick={ () => setScreen( { type: 'parent' } ) }>{ __( 'Add' ) }</Button> }
 					>
 						<Table
