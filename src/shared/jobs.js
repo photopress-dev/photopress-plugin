@@ -31,7 +31,7 @@ function statusText( job ) {
 		case 'done':
 			return sprintf( __( 'Finished %s' ), when );
 		case 'cancelled':
-			return sprintf( __( 'Cancelled %s' ), when );
+			return sprintf( __( 'Canceled %s' ), when );
 		default:
 			return job.status;
 	}

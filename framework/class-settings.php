@@ -177,6 +177,9 @@ class photopress_settingsPage {
 							'singularLabel' => [ 'type' => 'string' ],
 							'tag'           => [ 'type' => 'string' ],
 							'parseTagValue' => [ 'type' => 'boolean' ],
+							// A parent keyword's names, and whether its terms nest.
+							'names'         => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
+							'nested'        => [ 'type' => 'boolean' ],
 						],
 					],
 				];
@@ -238,13 +241,26 @@ class photopress_settingsPage {
 				$list = [];
 				foreach ( (array) $value as $item ) {
 					$item = (array) $item;
-					$list[] = [
+					$clean = [
 						'id'            => sanitize_key( $item['id'] ?? '' ),
 						'pluralLabel'   => sanitize_text_field( $item['pluralLabel'] ?? '' ),
 						'singularLabel' => sanitize_text_field( $item['singularLabel'] ?? '' ),
 						'tag'           => sanitize_text_field( $item['tag'] ?? '' ),
 						'parseTagValue' => ! empty( $item['parseTagValue'] ),
 					];
+					
+					// Only on parent keywords that use them.
+					$names = array_values( array_filter( array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $item['names'] ?? [] ) ) ), 'strlen' ) );
+					
+					if ( $names ) {
+						$clean['names'] = $names;
+					}
+					
+					if ( ! empty( $item['nested'] ) ) {
+						$clean['nested'] = true;
+					}
+					
+					$list[] = $clean;
 				}
 				return $list;
 			
@@ -495,7 +511,7 @@ class photopress_settingsPage {
 							create: function(event, ui) {
 								
 								// CSS hackery to match up with WP built in tab styles.
-								jQuery(this).find("li a").css({"text-decoration": "none", color: "grey"});
+								jQuery(this).find("li a").css({"text-decoration": "none", color: "gray"});
 								ui.tab.find("a").css({color: "black"});
 								ui.tab.addClass("nav-tab-active");
 								// properly set the form action to correspond to active tab
@@ -509,7 +525,7 @@ class photopress_settingsPage {
 								
 								// CSS hackery to match up with WP built in tab styles.
 								ui.oldTab.removeClass("nav-tab-active");
-								ui.oldTab.find("a").css({color: "grey"});
+								ui.oldTab.find("a").css({color: "gray"});
 								ui.newTab.addClass("nav-tab-active");
 								ui.newTab.find("a").css({color: "black"});
 								

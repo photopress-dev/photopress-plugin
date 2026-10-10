@@ -241,7 +241,7 @@ class Jobs {
 
 		foreach ( $items as $item ) {
 
-			// Cancelled from elsewhere while this batch runs.
+			// Canceled from elsewhere while this batch runs.
 			$current = self::get( $id );
 
 			if ( ! $current || 'cancelled' === $current['status'] ) {

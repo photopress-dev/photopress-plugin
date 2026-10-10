@@ -61,7 +61,7 @@ test( 'as many columns as fit the gallery, and one at most its width', () => {
 	expect( positions( narrow ) ).toEqual( [ [ '0px', '0px' ], [ '0px', '120px' ] ] );
 } );
 
-test( 'centres the columns in the gallery', () => {
+test( 'centers the columns in the gallery', () => {
 	// Two 300px columns and a 20px gutter use 620 of 700px: 40px either side.
 	const figure = gallery( [ 100, 100 ], { width: 700 } );
 

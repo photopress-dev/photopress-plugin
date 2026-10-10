@@ -102,11 +102,11 @@ With WP Offload Media installed, the Offload Media settings tab shows:
   with a switch to stop making it. "Regenerate image sizes" makes every
   image's sizes again from its original in the background, a few images at
   a time, resting between batches and waiting while the server is busy.
-* Licence embedding writes the licence into an image's metadata without
+* License embedding writes the license into an image's metadata without
   re-encoding the image, for JPEG, PNG, WebP, GIF, TIFF, HEIC and AVIF, so
   uploads keep the pixels they were exported with. Imagick is used only
   where that is not possible, and is no longer required.
-* Licence embedding replaces a Web Statement the file already has, rather
+* License embedding replaces a Web Statement the file already has, rather
   than adding a second, and keeps the file's Web Statement or Licensor when
   no setting replaces it.
 * Masonry and Mosaic galleries no longer move as a page loads: they are
@@ -154,7 +154,7 @@ With WP Offload Media installed, the Offload Media settings tab shows:
   as its tallest image at full width, so the page below does not move. That
   height, caption included, now stays within the visible window (on phones,
   the height visible with the browser bars shown). Shorter images are
-  centred in it.
+  centered in it.
 * Fixed: the full-screen slideshow's Caption Padding setting had no field on
   the Slideshow settings tab.
 
@@ -220,24 +220,24 @@ With WP Offload Media installed, the Offload Media settings tab shows:
 = 1.5.2 =
 
 * Fixed: uploads failed with "The server cannot process the image" whenever
-  licence information was configured. This was a 1.5.1 regression; images that
+  license information was configured. This was a 1.5.1 regression; images that
   failed to upload can simply be uploaded again.
 
 = 1.5.1 =
 
-* Licence embedding no longer requires the ExifTool binary. It now uses Imagick,
+* License embedding no longer requires the ExifTool binary. It now uses Imagick,
   which WordPress already relies on for image handling. This removes about 26MB
-  from the plugin and means licence embedding works on hosts that disable exec().
-* Existing metadata is preserved when licence information is written. Titles,
+  from the plugin and means license embedding works on hosts that disable exec().
+* Existing metadata is preserved when license information is written. Titles,
   captions, keywords, ratings and any other XMP a photographer had embedded are
-  kept intact; previously the licence fields were the only thing that could be
+  kept intact; previously the license fields were the only thing that could be
   written without risking the rest.
 * Fixed: the Web Statement of Rights setting was ignored and a placeholder value
   was embedded instead. If you have that setting configured, re-upload affected
   images to correct them.
 * Fixed: a settings field using the "none" control registered without a valid
   type.
-* Fixed: a PHP 8 deprecation notice raised when embedding licence metadata.
+* Fixed: a PHP 8 deprecation notice raised when embedding license metadata.
 
 == Development ==
 

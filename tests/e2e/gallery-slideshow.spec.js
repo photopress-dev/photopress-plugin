@@ -348,7 +348,7 @@ test.describe( 'caption position', () => {
 		expect( ( await layout( page ) ).map( ( l ) => l.side ) ).toEqual( [ 'below', 'below' ] );
 	} );
 
-	// Set to 50%: half the slideshow's width, centred, but never narrower
+	// Set to 50%: half the slideshow's width, centered, but never narrower
 	// than 24em, or the full width where that is less.
 	test( 'max width: a share of the slideshow, the full width on a phone', async ( { page, made } ) => {
 		const widths = () => page.locator( ROOT ).evaluate( ( root ) => {

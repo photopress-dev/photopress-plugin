@@ -6,7 +6,7 @@ use WP_REST_Request;
 use WP_REST_Server;
 
 /**
- * /photopress/v1/jobs: the job types, starting and cancelling jobs, and their
+ * /photopress/v1/jobs: the job types, starting and canceling jobs, and their
  * progress, for administrators.
  */
 class JobsRest {

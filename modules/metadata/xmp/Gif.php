@@ -43,7 +43,7 @@ class Gif extends Format {
 			return self::error( 'unrecognised', 'The GIF is cut short.' );
 		}
 
-		// The version, rewritten; the screen descriptor and global colour table.
+		// The version, rewritten; the screen descriptor and global color table.
 		$packed = ord( $screen[4] );
 		$table = ( $packed & 0x80 ) ? 3 * ( 2 << ( $packed & 7 ) ) : 0;
 		$blocks = [
@@ -74,7 +74,7 @@ class Gif extends Format {
 				$packed = ord( $descriptor[9] );
 				$table = ( $packed & 0x80 ) ? 3 * ( 2 << ( $packed & 7 ) ) : 0;
 
-				// The descriptor, local colour table and LZW code size, then the data.
+				// The descriptor, local color table and LZW code size, then the data.
 				$end = self::subBlocksEnd( $in, $pos + 10 + $table + 1 );
 				$type = 'image';
 

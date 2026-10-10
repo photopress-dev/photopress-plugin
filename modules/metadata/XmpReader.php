@@ -43,6 +43,7 @@ class XmpReader {
 		'http://ns.useplus.org/ldf/xmp/1.0/'                   => 'plus',
 		'http://www.metadataworkinggroup.com/schemas/regions/' => 'mwg-rs',
 		'http://ns.microsoft.com/photo/1.0/'                   => 'MicrosoftPhoto',
+		'http://www.digikam.org/ns/1.0/'                       => 'digiKam',
 		'http://ns.google.com/photos/1.0/panorama/'            => 'GPano',
 	];
 	
@@ -81,6 +82,8 @@ class XmpReader {
 		'FNumber',
 		'Make',
 		'Model',
+		// LensModel, which PHP's EXIF reader does not name.
+		'UndefinedTag:0xA434',
 		'DateTimeDigitized',
 		'FocalLength',
 		'ISOSpeedRatings',
@@ -119,18 +122,27 @@ class XmpReader {
 				// A single keyword comes back unwrapped.
 				$keywords = (array) $this->getXmp('dc:subject');
 				$nkeywords = [];
-				$child_taxonomy_delimiter = pp_api::getOption('core', 'metadata', 'custom_taxonomies_tag_delimiter') ?: ':';
+				$separators = TaxonomyModel::separators( (string) pp_api::getOption('core', 'metadata', 'custom_taxonomies_tag_delimiter') ) ?: [ ':' ];
 				
 				foreach ( $keywords as $v ) {
 					
 					$v = trim( (string) $v );
-					$pos = strpos( $v, $child_taxonomy_delimiter );
 					
-					// A hierarchical keyword ("person:Bob") contributes
-					// its value. These used to be dropped, which left nothing
-					// when every keyword is hierarchical.
-					if ( $pos ) {
-						$v = trim( substr( $v, $pos + strlen( $child_taxonomy_delimiter ) ) );
+					// A prefixed keyword ("person:Bob") contributes its
+					// value, after the first separator in it. These used to be
+					// dropped, which left nothing when every keyword is
+					// prefixed.
+					$found = null;
+					
+					foreach ( $separators as $separator ) {
+						$pos = strpos( $v, $separator );
+						if ( $pos && ( ! $found || $pos < $found[0] ) ) {
+							$found = [ $pos, $separator ];
+						}
+					}
+					
+					if ( $found ) {
+						$v = trim( substr( $v, $found[0] + strlen( $found[1] ) ) );
 					}
 					
 					if ( '' !== $v ) {
@@ -353,26 +365,16 @@ class XmpReader {
 		return $rights;
 	}
 	
+	/** The camera, from wherever it is recorded, cleaned up (StandardMetadata). */
 	function getCamera() {
 		
-		$camera = '';
-		
-		if ( $this->getExif('Make') && $this->getExif('Model') ) {
-		
-			$camera = $this->getExif('Make') . ' ' . $this->getExif('Model');
-		}
-		
-		if (! $camera ) {
-			
-			$camera = $this->getXmp('tiff:Model');
-		}
-		
-		return $camera;
+		return StandardMetadata::camera( $this );
 	}
 	
+	/** The lens model, from wherever it is recorded (StandardMetadata). */
 	function getLens() {
 
-		return $this->getXmp('aux:Lens');
+		return StandardMetadata::lens( $this );
 	}
 	
 	function getAllXmp() {
@@ -728,7 +730,7 @@ class XmpReader {
 	/**
 	 * Finds the first XMP packet in a file of any other format (TIFF, DNG,
 	 * PNG, WebP, HEIC ...) by reading 64KB chunks until the packet ends, rather
-	 * than loading the whole file. Recognises x:xmpmeta, the older x:xapmeta,
+	 * than loading the whole file. Recognizes x:xmpmeta, the older x:xapmeta,
 	 * and a bare rdf:RDF.
 	 */
 	private function scanForPacket( $fh ) {
@@ -1181,7 +1183,7 @@ class XmpReader {
 		"exif:SensingMethod" 				=> "Sensing Method",
 		"exif:FileSource" 					=> "File Source",
 		"exif:SceneType" 					=> "Scene Type",
-		"exif:CFAPattern" 					=> "Colour Filter Array Pattern",
+		"exif:CFAPattern" 					=> "Color Filter Array Pattern",
 		"exif:CustomRendered"				=> "Custom Rendered",
 		"exif:ExposureMode" 				=> "Exposure Mode",
 		"exif:WhiteBalance" 				=> "White Balance",

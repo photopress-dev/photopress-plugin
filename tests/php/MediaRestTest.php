@@ -8,7 +8,7 @@ use PhotoPress\modules\media\MediaRest;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * Recognising an image by file name, and pointing content at its new files
+ * Recognizing an image by file name, and pointing content at its new files
  * after MediaRest gives it one.
  */
 final class MediaRestTest extends TestCase {

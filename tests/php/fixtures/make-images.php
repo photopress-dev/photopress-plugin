@@ -1,6 +1,6 @@
 <?php
 /**
- * Makes the test images in fixtures/images with ImageMagick: two colours,
+ * Makes the test images in fixtures/images with ImageMagick: two colors,
  * 40x30, in each format XmpFile writes that GD cannot make, without XMP and
  * with an XMP packet written by ImageMagick (which writes none to GIF).
  *
@@ -50,9 +50,9 @@ $im->writeImage( "$dir/imagick-xmp-big-endian.tiff" );
 // graphic control extension.
 $frames = new Imagick();
 
-foreach ( [ 'rgb(30,120,200)', 'rgb(200,40,40)' ] as $colour ) {
+foreach ( [ 'rgb(30,120,200)', 'rgb(200,40,40)' ] as $color ) {
 	$frame = new Imagick();
-	$frame->newImage( 40, 30, new ImagickPixel( $colour ) );
+	$frame->newImage( 40, 30, new ImagickPixel( $color ) );
 	$frame->setImageFormat( 'gif' );
 	$frame->setImageDelay( 50 );
 	$frames->addImage( $frame );

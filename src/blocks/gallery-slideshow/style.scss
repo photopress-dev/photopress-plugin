@@ -1,5 +1,5 @@
 // Gallery Slideshow block. Markup: modules/gallery/GallerySlideshow.php;
-// behaviour: src/frontend/gallery-slideshow.js.
+// behavior: src/frontend/gallery-slideshow.js.
 
 $return: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M20 26 L32 40 L44 26' fill='none' stroke='black' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 $speed: 0.3s;
@@ -87,7 +87,7 @@ $speed: 0.3s;
 
 	// The Caption max width setting, a share of the slideshow's width, but
 	// never narrower than about 50 characters (24em), or the full width where
-	// that is less, so phones keep full-width captions. Centred.
+	// that is less, so phones keep full-width captions. Centered.
 	.photopress-gallery-slideshow__caption {
 		box-sizing: border-box;
 		width: 100%;

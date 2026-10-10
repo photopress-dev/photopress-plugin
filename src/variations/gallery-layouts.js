@@ -71,7 +71,7 @@ Object.entries( LAYOUTS ).forEach( ( [ layout, label ] ) => {
 		icon: galleryIcon,
 		keywords: [ 'photopress', label.toLowerCase() ],
 		attributes: { photopressLayout: layout },
-		// Recognised by this attribute alone, so editing the CSS classes or
+		// Recognized by this attribute alone, so editing the CSS classes or
 		// the block style cannot turn it back into a plain gallery.
 		isActive: [ 'photopressLayout' ],
 		scope: [ 'inserter', 'transform' ],
