@@ -681,3 +681,14 @@ input[type="checkbox"] {
 .photopress-subsettings {
 	margin: 0 0 8px 48px;
 }
+
+// An Advanced options link beside buttons.
+.photopress-advanced-link.components-button.is-link {
+	align-self: center;
+	margin-left: 4px;
+	text-decoration: none;
+}
+
+.photopress-savebar .components-checkbox-control {
+	margin-top: 4px;
+}

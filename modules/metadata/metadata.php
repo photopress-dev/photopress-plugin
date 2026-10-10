@@ -198,7 +198,7 @@ class metadata extends photopress_module {
 
 		$where = [ 'tt.taxonomy IN (' . implode( ',', array_fill( 0, count( $changed ), '%s' ) ) . ')' ];
 		$args  = $changed;
-		$from  = $keywords ?? $before->standard['keywords']['id'] ?? null;
+		$from  = $after->keywordsId ?? $before->keywordsId;
 
 		if ( $from && $names ) {
 			$where[] = '( tt.taxonomy = %s AND ( ' . implode( ' OR ', array_fill( 0, count( $names ), 't.name LIKE %s' ) ) . ' ) )';
@@ -362,7 +362,7 @@ class metadata extends photopress_module {
 
 		return [
 			'counts'   => $counts,
-			'prefixes' => isset( $model->standard['keywords'] ) ? self::unclaimedPrefixes( $model ) : [],
+			'prefixes' => $model->keywordsId ? self::unclaimedPrefixes( $model ) : [],
 		];
 	}
 
@@ -381,7 +381,7 @@ class metadata extends photopress_module {
 		}
 
 		$like = implode( ' OR ', array_fill( 0, count( $separators ), 't.name LIKE %s' ) );
-		$args = array_merge( [ $model->standard['keywords']['id'] ], array_map( static function ( $s ) use ( $wpdb ) {
+		$args = array_merge( [ $model->keywordsId ], array_map( static function ( $s ) use ( $wpdb ) {
 			return '%' . $wpdb->esc_like( $s ) . '%';
 		}, $separators ) );
 

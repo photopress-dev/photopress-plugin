@@ -207,6 +207,24 @@ final class TaxonomyProcessingTest extends TestCase {
 		$wpdb = null;
 	}
 
+	public function test_keywords_turned_off_are_still_searched_for_photos_a_parent_keyword_takes(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [ 5 ] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+		$old['custom_taxonomies'][3]['disabled'] = true;
+		$new  = $old;
+		$new['custom_taxonomies'][5]['names'] = [ 'genre', 'style' ];
+
+		$scope = metadata::changeScope( $old, $new );
+		$this->assertSame( [ 'pp_genre' ], $scope['taxonomies'], 'Keywords is not filled while it is off' );
+		$this->assertSame( [ 'pp_genre', 'photos_keywords', 'genre%', 'style%' ], $wpdb->args, 'but its terms are searched' );
+		$this->assertSame( 'photos_keywords', TaxonomyModel::build( $old['custom_taxonomies'], ':' )->keywordsId );
+
+		$wpdb = null;
+	}
+
 	public function test_new_separators_re_read_every_parent_keyword_and_other_changes_none(): void {
 
 		global $wpdb;

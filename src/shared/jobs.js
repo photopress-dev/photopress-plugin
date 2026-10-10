@@ -42,9 +42,10 @@ function statusText( job ) {
  * may have started one. note( job ): words shown with a job's progress.
  * startable: false for a job started elsewhere (Save and reprocess), shown
  * here only once there is one, with its progress and Cancel. compact: the
- * button (startLabel) with the progress beside it, no heading.
+ * button (startLabel) with the progress beside it, no heading. after: shown
+ * right after the button, as an Advanced options link.
  */
-export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note, startable = true, compact = false, startLabel } ) {
+export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note, startable = true, compact = false, startLabel, after } ) {
 	const [ job, setJob ] = useState( null );
 	const [ error, setError ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
@@ -142,6 +143,7 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 				{ error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
 				<div className="photopress-job__row">
 					{ button }
+					{ after }
 					{ progress }
 				</div>
 			</div>

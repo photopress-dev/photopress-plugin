@@ -4,28 +4,22 @@
  *
  * reprocess: { label, request, missing, terms }, or null. With missing (what
  * a file may not have) and terms (what of an image's would be emptied), a
- * checkbox, unchecked, asks whether to empty them in images whose files have
- * none. onSave( reprocess ): reprocess is the request with skip (not
+ * checkbox under Advanced options asks whether to empty them in images whose
+ * files have none. onSave( reprocess ): reprocess is the request with skip (not
  * emptying them), or undefined.
  */
 import { useState } from '@wordpress/element';
 import { Button, CheckboxControl } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
+import { useAdvanced } from './advanced-options.js';
 
 export default function SaveBar( { onSave, onCancel, saving, saveLabel = __( 'Save' ), reprocess } ) {
 	const [ empty, setEmpty ] = useState( false );
+	const advanced = useAdvanced( () => setEmpty( false ) );
+	const canEmpty = reprocess && reprocess.missing;
 
 	return (
 		<div className="photopress-savebar">
-			{ reprocess && reprocess.missing && (
-				<CheckboxControl
-					__nextHasNoMarginBottom
-					label={ sprintf( __( 'Empty the %1$s of images whose files have no %2$s' ), reprocess.terms, reprocess.missing ) }
-					help={ __( 'Unchecked, they keep what they have, in case the metadata was stripped from their files.' ) }
-					checked={ empty }
-					onChange={ setEmpty }
-				/>
-			) }
 			<p className="photopress-savebar__buttons">
 				<Button variant={ reprocess ? 'secondary' : 'primary' } onClick={ () => onSave() } disabled={ saving }>{ saveLabel }</Button>
 				{ reprocess && (
@@ -34,7 +28,17 @@ export default function SaveBar( { onSave, onCancel, saving, saveLabel = __( 'Sa
 					</Button>
 				) }
 				{ onCancel && <Button variant="tertiary" onClick={ onCancel }>{ __( 'Cancel' ) }</Button> }
+				{ canEmpty && advanced.link }
 			</p>
+			{ canEmpty && advanced.open && (
+				<CheckboxControl
+					__nextHasNoMarginBottom
+					label={ sprintf( __( 'Empty the %1$s of images whose files have no %2$s' ), reprocess.terms, reprocess.missing ) }
+					help={ __( 'Unchecked, they keep what they have, in case the metadata was stripped from their files.' ) }
+					checked={ empty }
+					onChange={ setEmpty }
+				/>
+			) }
 		</div>
 	);
 }

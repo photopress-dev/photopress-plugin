@@ -47,6 +47,9 @@ for ( const { title, key, field, job } of sections ) {
 		await sw.click();
 		await expect( panel.locator( field ) ).toBeVisible();
 		await expect( panel.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
+		// Behind Advanced options, unchecked.
+		await expect( panel.getByRole( 'checkbox', { name: /^Empty the / } ) ).toHaveCount( 0 );
+		await panel.getByRole( 'button', { name: 'Advanced options' } ).click();
 		await expect( panel.getByRole( 'checkbox', { name: /^Empty the .+ of images whose files have no metadata for the template$/ } ) ).not.toBeChecked();
 		await expect.poll( () => settings()[ key ], { timeout: 15000 } ).toBe( true );
 
@@ -135,7 +138,7 @@ test( 'Slideshow: each switch hides what it governs', async ( { page } ) => {
 	}
 } );
 
-test( 'a feature explains itself behind its info button, and the separators are under Advanced settings', async ( { page } ) => {
+test( 'a feature explains itself behind its info button, and the separators are under Advanced options', async ( { page } ) => {
 	await page.goto( URL );
 	const panel = card( page, 'Image Taxonomies' );
 	await expect( featureSwitch( panel, 'Image Taxonomies' ) ).toBeChecked( { timeout: 30000 } );
@@ -145,7 +148,7 @@ test( 'a feature explains itself behind its info button, and the separators are 
 	await expect( panel.locator( '.photopress-feature__info' ) ).toContainText( 'archive pages' );
 
 	await expect( panel.getByLabel( 'Prefix separators' ) ).toHaveCount( 0 );
-	await panel.getByRole( 'button', { name: 'Advanced settings' } ).click();
+	await panel.getByRole( 'button', { name: 'Advanced options' } ).last().click();
 	await expect( panel.getByLabel( 'Prefix separators' ) ).toBeVisible();
 
 	if ( process.env.PP_E2E_SHOTS ) {

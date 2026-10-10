@@ -45,6 +45,12 @@ final class TaxonomyModel {
 	/** What separates a prefix from the rest of a keyword ("people: Jane"). */
 	public array $separators = [];
 
+	/**
+	 * The Keywords taxonomy's id, also when it is turned off: its terms stay,
+	 * and are where keywords no parent keyword took were filed.
+	 */
+	public ?string $keywordsId = null;
+
 	public static function fromSettings(): self {
 
 		return self::build(
@@ -68,6 +74,10 @@ final class TaxonomyModel {
 			$def = (array) $def;
 			$id  = (string) ( $def['id'] ?? '' );
 			$tag = (string) ( $def['tag'] ?? '' );
+
+			if ( 'dc:subject' === $tag && empty( $def['parseTagValue'] ) && null === $model->keywordsId ) {
+				$model->keywordsId = $id;
+			}
 
 			if ( '' === $id || '' === $tag || ! empty( $def['disabled'] ) ) {
 				continue;

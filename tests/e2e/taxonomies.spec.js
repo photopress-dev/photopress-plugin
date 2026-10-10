@@ -107,6 +107,7 @@ test( 'a change that moves photos offers to reprocess just those, emptying nothi
 
 	await page.getByLabel( 'Parent keyword', { exact: true } ).fill( 'nobody' );
 	await expect( editor.getByRole( 'button', { name: /^Save and reprocess \d+ affected images?$/ } ) ).toBeVisible( { timeout: 10000 } );
+	await editor.getByRole( 'button', { name: 'Advanced options' } ).click();
 	await expect( editor.getByRole( 'checkbox', { name: 'Empty the Keywords and E2E people terms of images whose files have no keywords' } ) ).not.toBeChecked();
 
 	if ( process.env.PP_E2E_SHOTS ) {
@@ -117,6 +118,7 @@ test( 'a change that moves photos offers to reprocess just those, emptying nothi
 
 	await page.getByRole( 'button', { name: 'Add a custom metadata taxonomy' } ).click();
 	await expect( editor.getByRole( 'button', { name: 'Save and reprocess all images' } ) ).toBeVisible();
+	await editor.getByRole( 'button', { name: 'Advanced options' } ).click();
 	await expect( editor.getByRole( 'checkbox', { name: /^Empty the .+ terms of images whose files have no .+ field$/ } ) ).not.toBeChecked();
 	await editor.getByRole( 'button', { name: 'Cancel' } ).click();
 } );

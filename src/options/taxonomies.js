@@ -12,6 +12,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
+import { useAdvanced } from '../shared/advanced-options.js';
 import xmpLabels from '../shared/xmp-labels.js';
 import {
 	STANDARD,
@@ -507,6 +508,7 @@ export default function TaxonomySettings( { component, route } ) {
 	const status = useStatus( saves );
 	const screen = screenOf( route );
 	const [ empty, setEmpty ] = useState( false );
+	const emptyOption = useAdvanced( () => setEmpty( false ) );
 	const [ separatorNotice, setSeparatorNotice ] = useState( null );
 	// The prefix separators, shown under Advanced settings, open when changed.
 	const [ advanced, setAdvanced ] = useState( false );
@@ -637,6 +639,7 @@ export default function TaxonomySettings( { component, route } ) {
 						compact
 						startLabel={ __( 'Reprocess all images' ) }
 						args={ { force: empty } }
+						after={ emptyOption.link }
 						refresh={ saves + component.state.jobs }
 						note={ ( job ) => {
 							if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
@@ -648,13 +651,13 @@ export default function TaxonomySettings( { component, route } ) {
 							? __( 'Reprocess every image, reading its metadata again as on upload, and empty the terms of images whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
 							: __( 'Reprocess every image, reading its metadata again as on upload? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
 					/>
-					<CheckboxControl
+					{ emptyOption.open && <CheckboxControl
 						__nextHasNoMarginBottom
 						label={ __( 'Empty the terms of images whose files have no metadata for a taxonomy' ) }
 						help={ __( 'As when every keyword, or the location, camera or lens, was removed from a file. Unchecked, those images keep their terms, in case the metadata was stripped from their files.' ) }
 						checked={ empty }
 						onChange={ setEmpty }
-					/>
+					/> }
 				</div>
 
 				<Section
@@ -746,7 +749,7 @@ export default function TaxonomySettings( { component, route } ) {
 
 					<div className="photopress-advanced">
 						<Button variant="link" aria-expanded={ advanced } onClick={ () => setAdvanced( ! advanced ) }>
-							{ advanced ? __( 'Hide advanced settings' ) : __( 'Advanced settings' ) }
+							{ advanced ? __( 'Hide advanced options' ) : __( 'Advanced options' ) }
 						</Button>
 					</div>
 
