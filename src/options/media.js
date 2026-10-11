@@ -270,8 +270,8 @@ class MediaSettings extends Component {
 
 						<DurationControl
 							id="stale_seconds"
-							label={ __( 'Then serve the old copy while checking, for' ) }
-							help={ __( 'So nobody waits on the check. 0 to always wait.' ) }
+							label={ __( 'Refresh in the background for up to' ) }
+							help={ __( 'Once an image’s cache time is up, browsers and the CDN can keep showing the copy they have while they fetch a fresh one, so the page doesn’t wait. Past this time, it waits. 0 to always wait.' ) }
 							seconds={ Number( this.getSetting( 'stale_seconds' ) ?? HOUR ) }
 							onChange={ ( value ) => this.setSetting( 'stale_seconds', value ) }
 						/>
