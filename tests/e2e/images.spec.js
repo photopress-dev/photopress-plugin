@@ -183,3 +183,59 @@ test( 'a size turned off leaves images as they are, and turned on is made alone'
 	expect( now.files.medium_large ).toBe( false );
 	expect( Object.entries( now.files ).filter( ( [ name ] ) => 'medium_large' !== name ).every( ( [ , old ] ) => old ) ).toBe( true );
 } );
+
+test( 'large uploads are scaled to the longest side set, and back when it changes', async ( { page, made } ) => {
+	const IMAGES = 'PhotoPress\\modules\\images\\images';
+	// The 1500 × 500 panorama.
+	const id = Number( lastLine( wp( 'eval', `foreach ( ${ JSON.stringify( made.images ) } as $id ) { if ( 1500 === (int) ( wp_get_attachment_metadata( $id )['width'] ?? 0 ) || str_contains( (string) get_attached_file( $id ), 'panorama' ) ) { echo $id; break; } }` ) ) );
+	expect( id ).toBeGreaterThan( 0 );
+	const image = () => JSON.parse( lastLine( wp( 'eval', `
+		$meta = wp_get_attachment_metadata( ${ id } );
+		echo wp_json_encode( [ 'file' => basename( $meta['file'] ), 'width' => $meta['width'], 'work' => ${ IMAGES }::work( $meta, get_post_mime_type( ${ id } ), ${ IMAGES }::qualityOf( ${ id } ), ${ IMAGES }::settings() ) ] );
+	` ) ) );
+
+	// Never less than the largest size turned on.
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	await page.goto( '/wp-admin/admin.php?page=photopress-core-base#photopress_core_images' );
+	const field = page.getByLabel( 'Longest side of the full-size image, in pixels' );
+	const save = page.getByRole( 'button', { name: 'Save', exact: true } );
+	await expect( field ).toHaveValue( '2560', { timeout: 30000 } );
+	await field.fill( '0' );
+	await expect( save ).toBeDisabled();
+	await field.fill( '1200' );
+	await expect( page.locator( '.photopress-images-threshold-error' ) ).toContainText( 'At least 2,048 px: the largest size turned on, 2048x2048' );
+	await expect( save ).toBeDisabled();
+
+	if ( process.env.PP_E2E_SHOTS ) {
+		await page.locator( '.photopress-images-settings' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/image-sizes.png` } );
+	}
+
+	// The sizes longer than 1200 px turned off: 1200 px.
+	const largest = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_keys( array_filter( wp_get_registered_image_subsizes(), static fn( $s ) => max( $s['width'], $s['height'] ) > 1200 ) ) );` ) ) );
+	for ( const name of largest ) {
+		await page.locator( `.photopress-image-sizes tr[data-size="${ name }"]` ).getByRole( 'checkbox' ).click();
+	}
+	await expect( page.locator( '.photopress-images-threshold-error' ) ).toHaveCount( 0 );
+	await save.click();
+	await expect.poll( () => JSON.parse( lastLine( wp( 'option', 'get', KEY, '--format=json' ) ) ) ).toMatchObject( { big_image_threshold: 1200, disabled_sizes: largest.join( ',' ) } );
+
+	expect( image().work ).toBe( 'full' );
+	wp( 'eval', `${ IMAGES }::regenerate( ${ id } );` );
+	expect( image() ).toMatchObject( { width: 1200, work: null } );
+	expect( image().file ).toMatch( /-scaled\.jpg$/ );
+
+	// Off: shown at the size uploaded.
+	await page.reload();
+	await page.getByRole( 'checkbox', { name: 'Scale down large uploads' } ).click();
+	await expect( field ).toHaveCount( 0 );
+	await page.getByRole( 'button', { name: 'Save', exact: true } ).click();
+	await expect.poll( () => JSON.parse( lastLine( wp( 'option', 'get', KEY, '--format=json' ) ) ).scale_large_uploads ).toBe( false );
+
+	expect( image().work ).toBe( 'full' );
+	wp( 'eval', `${ IMAGES }::regenerate( ${ id } );` );
+	expect( image() ).toMatchObject( { width: 1500, work: null } );
+	expect( image().file ).not.toMatch( /-scaled\.jpg$/ );
+
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	expect( image().work ).toBeNull();
+} );

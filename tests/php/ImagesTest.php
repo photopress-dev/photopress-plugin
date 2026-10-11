@@ -114,6 +114,39 @@ final class ImagesTest extends TestCase {
 		$this->assertSame( [ 'medium' ], array_keys( $given['sizes'] ) );
 	}
 
+	public function test_large_uploads_are_scaled_to_the_longest_side_set_or_not_at_all(): void {
+
+		// Never saved: WordPress's own.
+		$this->assertSame( 2560, images::threshold( 2560 ) );
+
+		\pp_api::$options['core/images/big_image_threshold'] = 3200;
+		$this->assertSame( 3200, images::threshold( 2560 ) );
+
+		\pp_api::$options['core/images/scale_large_uploads'] = false;
+		$this->assertFalse( images::threshold( 2560 ) );
+	}
+
+	public function test_the_threshold_is_never_less_than_the_largest_size_made(): void {
+
+		$this->settings();
+		\pp_api::$options['core/images/big_image_threshold'] = 500;
+		$this->assertSame( 800, images::threshold( 2560 ) );
+
+		// 800x800 turned off: medium, 300, is the largest.
+		$this->settings( 92, '800x800' );
+		$this->assertSame( 500, images::threshold( 2560 ) );
+		$this->assertSame( 800, images::settings( [ 'disabled_sizes' => '', 'scale_large_uploads' => true, 'big_image_threshold' => 500 ] )['threshold'] );
+	}
+
+	public function test_the_threshold_given_is_the_one_saved_once_saved(): void {
+
+		$this->settings();
+
+		$this->assertSame( 4000, images::settings( [ 'scale_large_uploads' => true, 'big_image_threshold' => '4000' ] )['threshold'] );
+		$this->assertSame( 0, images::settings( [ 'scale_large_uploads' => false, 'big_image_threshold' => 4000 ] )['threshold'] );
+		$this->assertSame( 2560, images::settings( [ 'big_image_threshold' => 0 ] )['threshold'] );
+	}
+
 	public function test_an_image_with_every_size_at_the_quality_needs_nothing(): void {
 
 		$this->settings();

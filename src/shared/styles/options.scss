@@ -715,3 +715,15 @@ input[type="checkbox"] {
 .photopress-images-regenerate-note {
 	color: #646970;
 }
+
+.photopress-images-threshold input {
+	max-width: 8em;
+}
+
+.photopress-images-settings h3 {
+	margin-top: 32px;
+
+	&:first-child {
+		margin-top: 0;
+	}
+}

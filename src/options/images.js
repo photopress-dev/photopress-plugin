@@ -1,12 +1,13 @@
 /**
  * The Image Sizes settings tab: the quality WordPress saves JPEG and WebP
- * sizes at, which registered sizes it makes, and making every image's sizes
- * again after either changes (modules/images/images.php).
+ * sizes at, the size large uploads are scaled down to, which registered
+ * sizes it makes, and regenerating images after any of them changes
+ * (modules/images/images.php).
  */
 const { __, _n, sprintf } = wp.i18n;
 import { Component, useEffect, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { BaseControl, Notice, PanelBody, RangeControl, ToggleControl } from '@wordpress/components';
+import { BaseControl, FormToggle, Notice, PanelBody, RangeControl, TextControl } from '@wordpress/components';
 
 import {
 	setSetting,
@@ -19,8 +20,10 @@ import {
 } from '../shared/options.js';
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
+import SwitchRow from '../shared/switch-row.js';
 
 const DEFAULT_QUALITY = 92;
+const DEFAULT_THRESHOLD = 2560;
 
 const listOf = ( value ) => String( value || '' ).split( ',' ).map( ( s ) => s.trim() ).filter( Boolean );
 
@@ -51,12 +54,10 @@ function SizeList( { sizes, disabled, onChange } ) {
 						</td>
 						<td>{ dimensions( size ) }</td>
 						<td>
-							<ToggleControl
-								__nextHasNoMarginBottom
-								label={ size.name }
-								hideLabelFromVision
+							<FormToggle
+								aria-label={ size.name }
 								checked={ ! disabled.includes( size.name ) }
-								onChange={ ( on ) => onChange( on ? disabled.filter( ( n ) => n !== size.name ) : [ ...disabled, size.name ] ) }
+								onChange={ ( event ) => onChange( event.target.checked ? disabled.filter( ( n ) => n !== size.name ) : [ ...disabled, size.name ] ) }
 							/>
 						</td>
 					</tr>
@@ -113,10 +114,29 @@ function ImagesPanel( { component } ) {
 	const [ jobError, setJobError ] = useState( null );
 	const disabled = listOf( component.getSetting( 'disabled_sizes' ) );
 	const quality = Number( component.getSetting( 'quality' ) ?? DEFAULT_QUALITY );
-	const affected = useAffected( { quality, disabled_sizes: disabled.join( ',' ) }, saves );
+	const scale = component.getSetting( 'scale_large_uploads' ) ?? true;
+	// The largest size turned on: large uploads are scaled to no less.
+	const largest = ( status ? status.sizes : [] )
+		.filter( ( size ) => ! disabled.includes( size.name ) )
+		.reduce( ( most, size ) => ( Math.max( size.width, size.height ) > ( most ? Math.max( most.width, most.height ) : 0 ) ? size : most ), null );
+	const minimum = largest ? Math.max( largest.width, largest.height ) : 1;
+	const longest = Number( component.getSetting( 'big_image_threshold' ) ?? DEFAULT_THRESHOLD );
+	// What is typed; the setting only takes a whole number of pixels.
+	const [ longestText, setLongestText ] = useState( null );
+	const typed = null === longestText || /^[1-9]\d*$/.test( longestText );
+	const longestValid = typed && longest >= minimum;
+	const affected = useAffected( {
+		quality,
+		disabled_sizes: disabled.join( ',' ),
+		scale_large_uploads: !! scale,
+		big_image_threshold: longest,
+	}, saves );
 
 	const saved = component.savedSettings || component.state.settings;
-	const changed = quality !== Number( saved.quality ?? DEFAULT_QUALITY ) || disabled.join( ',' ) !== listOf( saved.disabled_sizes ).join( ',' );
+	const changed = quality !== Number( saved.quality ?? DEFAULT_QUALITY ) ||
+		disabled.join( ',' ) !== listOf( saved.disabled_sizes ).join( ',' ) ||
+		!! scale !== !! ( saved.scale_large_uploads ?? true ) ||
+		longest !== Number( saved.big_image_threshold ?? DEFAULT_THRESHOLD );
 
 	// Offload Media removes the originals from the server: nothing to make
 	// sizes from.
@@ -178,6 +198,40 @@ function ImagesPanel( { component } ) {
 					onChange={ ( value ) => component.setSetting( 'quality', value ) }
 				/>
 
+				<h3>{ __( 'Full-size image' ) }</h3>
+				<SwitchRow
+					label={ __( 'Scale down large uploads' ) }
+					help={ scale
+						? __( 'An upload longer than this on a side gets a copy scaled down to it, used wherever the full-size image is: linked as the media file, shown by themes and blocks asking for full size, and the largest offered to large screens. The original is kept, and the sizes are made from it.' )
+						: __( 'The full-size image is the upload as it is, however large.' ) }
+					checked={ scale }
+					onChange={ ( on ) => component.setSetting( 'scale_large_uploads', on ) }
+				/>
+				{ scale && (
+					<TextControl
+						__nextHasNoMarginBottom
+						type="number"
+						min={ minimum }
+						className="photopress-images-threshold"
+						label={ __( 'Longest side of the full-size image, in pixels' ) }
+						help={ __( "WordPress's own is 2560. Larger suits big, high-density screens, at larger files." ) }
+						value={ longestText ?? String( longest ) }
+						onChange={ ( value ) => {
+							setLongestText( value );
+							if ( /^[1-9]\d*$/.test( value ) ) {
+								component.setSetting( 'big_image_threshold', Number( value ) );
+							}
+						} }
+					/>
+				) }
+				{ scale && ! longestValid && (
+					<Notice status="error" isDismissible={ false } className="photopress-images-threshold-error">
+						{ typed
+							? sprintf( __( 'At least %1$s px: the largest size turned on, %2$s, is that long, and sizes are made from the original. Turn off the larger sizes below for less.' ), minimum.toLocaleString(), largest.name )
+							: __( 'Enter the longest side as a whole number of pixels.' ) }
+					</Notice>
+				) }
+
 				<h3>{ __( 'Sizes' ) }</h3>
 				<p>{ __( 'Every image size registered by WordPress, the theme and plugins. WordPress makes each one for every image uploaded; turn off the ones nothing uses. Turning a size off applies to images uploaded from now on: those already uploaded keep theirs. A size turned on can be made for them too, with Save and regenerate.' ) }</p>
 				{ status ? (
@@ -189,8 +243,8 @@ function ImagesPanel( { component } ) {
 				{ status && ! changed && ! blocked && (
 					<p className="photopress-images-outdated" data-outdated={ status.outdated }>
 						{ status.outdated > 0
-							? sprintf( __( '%1$s of %2$s images lack sizes turned on here, or were made at another quality.' ), status.outdated.toLocaleString(), status.images.toLocaleString() )
-							: __( 'Every image has the sizes turned on here, at this quality.' ) }
+							? sprintf( __( '%1$s of %2$s images lack sizes turned on here, or were made at another quality or scaled otherwise.' ), status.outdated.toLocaleString(), status.images.toLocaleString() )
+							: __( 'Every image has the sizes turned on here, at this quality and scale.' ) }
 					</p>
 				) }
 
@@ -200,11 +254,11 @@ function ImagesPanel( { component } ) {
 					</Notice>
 				) }
 
-				<SaveBar saving={ component.state.isAPISaving } reprocess={ reprocess } onSave={ save } />
+				<SaveBar saving={ component.state.isAPISaving || ( scale && ! longestValid ) } reprocess={ reprocess } onSave={ save } />
 
 				{ ! blocked && (
 					<p className="photopress-images-regenerate-note">
-						{ __( 'Regenerating does only what each image needs: a size turned on is made alone; a new quality makes every size again from the original upload. It runs in the background, a few images at a time, waiting while the server is busy; you can leave this page.' ) }
+						{ __( 'Regenerating does only what each image needs: a size turned on is made alone; a new quality, or a new longest side for an image it scales, makes every size again from the original upload. It runs in the background, a few images at a time, waiting while the server is busy; you can leave this page.' ) }
 					</p>
 				) }
 
@@ -240,6 +294,8 @@ class ImagesSettings extends Component {
 			errors: {},
 			settings: {
 				quality: DEFAULT_QUALITY,
+				scale_large_uploads: true,
+				big_image_threshold: DEFAULT_THRESHOLD,
 				disabled_sizes: '',
 				...this.props.data,
 			},
