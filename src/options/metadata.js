@@ -31,6 +31,7 @@ import TaxonomySettings from './taxonomies.js';
 import FeatureSection from '../shared/feature-section.js';
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
+import TemplateEditor from '../shared/template-editor.js';
 import apiFetch from '@wordpress/api-fetch';
 /**
  * Metadata Options Component class
@@ -280,16 +281,14 @@ class MetadataSettings extends Component {
 						onChange={ ( value ) => this.setSetting( 'alt_text_from_file', value ) }
 					/>
 
-					<TextControl
-						id={ 'alt_text_template' }
+					<TemplateEditor
+						id="alt_text_template"
 						label={ __( 'Alt Text Template' ) }
-						value={ this.getSetting( 'alt_text_template' ) }
-						className="small-input right-pad"
+						value={ this.getSetting( 'alt_text_template' ) || '' }
 						help={ this.getSetting( 'alt_text_from_file' )
-							? __( 'For images whose files have no alt text of their own. Metadata fields go in square brackets, e.g. [photoshop:Headline].' )
-							: __( 'Metadata fields go in square brackets, e.g. [photoshop:Headline].' ) }
+							? __( 'For images whose files have no alt text of their own. Type the words around the fields; a field an image doesn’t have is left out.' )
+							: __( 'Type the words around the fields; a field an image doesn’t have is left out.' ) }
 						onChange={ ( value ) => this.setSetting( 'alt_text_template', value ) }
-						onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
 					/>
 
 					<SaveBar
@@ -318,14 +317,12 @@ class MetadataSettings extends Component {
 				onChange={ ( value ) => this.persistSetting( 'description_enable', value ) }
 			>
 				<BaseControl>
-					<TextControl
-						id={ 'description_template' }
+					<TemplateEditor
+						id="description_template"
 						label={ __( 'Description Template' ) }
 						value={ this.getSetting( 'description_template' ) || '' }
-						className="small-input right-pad"
-						help={ __( 'Metadata fields go in square brackets, e.g. [dc:description].' ) }
+						help={ __( 'Type the words around the fields; a field an image doesn’t have is left out.' ) }
 						onChange={ ( value ) => this.setSetting( 'description_template', value ) }
-						onBlur={ ( event ) => this.setSetting( 'description_template', sanitize( event.target.value, 'string' ) ) }
 					/>
 
 					<SaveBar

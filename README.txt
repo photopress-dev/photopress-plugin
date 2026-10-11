@@ -65,8 +65,8 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 * Display Exif Widget
 * Display Image Taxonomy Terms Widget
-* Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a metadata template
-* Image descriptions from a metadata template
+* Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a template of words and metadata fields
+* Image descriptions from a template of words and metadata fields
 * Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
 * Save and reprocess all images: applies a new template or licensing to the images already uploaded, in the background
 
@@ -141,6 +141,9 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Saving a taxonomy change offers to reprocess just the images it affects.
   Terms of images whose files have nothing for a taxonomy are kept unless
   Empty the terms is checked under Advanced options.
+* Alt text and description templates: words typed around the photo's
+  metadata fields, each shown as a pill and added from a list, with an
+  example of what a photo gets.
 * Alt text: the Alt Text (Accessibility) that Lightroom Classic and
   Photoshop write into the file is used when it has one, in place of the
   template.

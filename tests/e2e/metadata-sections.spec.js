@@ -1,7 +1,8 @@
 /**
  * The Alt Text, Description and Licensing sections of the Metadata settings
  * tab: each switch at the top shows the section's settings and its
- * reprocess job only when on. And the license JSON-LD on an image's page,
+ * reprocess job only when on, and a template is typed with its fields as
+ * pills. And the license JSON-LD on an image's page,
  * printed by the plugin whatever the theme, only with licensing on. The
  * settings are put back afterwards, and the image made here is deleted.
  */
@@ -61,6 +62,44 @@ for ( const { title, key, field, job } of sections ) {
 		}
 	} );
 }
+
+test( 'a template is typed with its fields as pills, and saved with them in brackets', async ( { page } ) => {
+	patch( { alt_text_enable: true, alt_text_template: '' } );
+	await page.goto( URL );
+
+	const panel = card( page, 'Alt Text' );
+	const editor = panel.locator( '#alt_text_template' );
+	const pills = editor.locator( '.photopress-template__pill' );
+	const insert = async ( label ) => {
+		await panel.getByRole( 'button', { name: 'Insert field' } ).click();
+		await page.getByRole( 'menuitem', { name: label, exact: true } ).click();
+	};
+
+	await expect( editor ).toBeVisible( { timeout: 30000 } );
+	await editor.click();
+	await page.keyboard.type( 'Photo of ' );
+	await insert( 'Person Shown' );
+	await page.keyboard.type( ' in ' );
+	await insert( 'City' );
+	await page.keyboard.type( '.' );
+
+	await expect( pills ).toHaveText( [ 'Person Shown×', 'City×' ] );
+	await expect( panel ).toContainText( 'For example: “Photo of Jane Smith in San Francisco.”' );
+
+	// A pill's ×, and a tag typed in brackets, shown as a pill once the field is left.
+	await editor.getByRole( 'button', { name: 'Remove City' } ).click();
+	await editor.press( 'End' );
+	await page.keyboard.type( ' [dc:title]' );
+	await panel.getByRole( 'heading', { name: 'Alt Text' } ).click();
+	await expect( pills ).toHaveText( [ 'Person Shown×', 'Title×' ] );
+
+	await panel.getByRole( 'button', { name: 'Save', exact: true } ).click();
+	await expect.poll( () => settings().alt_text_template, { timeout: 15000 } ).toBe( 'Photo of [Iptc4xmpExt:PersonInImage] in . [dc:title]' );
+
+	// As saved, after a reload.
+	await page.reload();
+	await expect( pills ).toHaveText( [ 'Person Shown×', 'Title×' ], { timeout: 30000 } );
+} );
 
 test( 'Licensing: the switch shows the settings, all three are required, and then the reprocess job', async ( { page } ) => {
 	patch( { embed_licensor_enable: false, licensor_name: '', licensor_url: '', web_statement_of_rights: '' } );
