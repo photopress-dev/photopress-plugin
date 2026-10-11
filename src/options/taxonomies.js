@@ -538,17 +538,19 @@ export default function TaxonomySettings( { component, route } ) {
 	const delimiter = component.getSetting( 'custom_taxonomies_tag_delimiter' ) ?? '';
 	const separatorScope = useScope( { custom_taxonomies_tag_delimiter: delimiter }, saves );
 	const setScreen = ( next ) => component.navigate( next ? routeFor( next ) : '' );
-	const jobStarted = () => component.setState( ( state ) => ( { jobs: state.jobs + 1 } ) );
 
 	/** Starts a reprocess; what to say about it after "saved". */
 	const startReprocess = ( request ) => apiFetch( { path: '/photopress/v1/image-taxonomies/reprocess', method: 'POST', data: request } )
 		.then( ( result ) => {
-			jobStarted();
+			component.jobStarted( 'metadata.reprocess', result.job );
 			return result.queued
 				? { status: 'info', text: __( 'Its images will be reprocessed when the re-read now running finishes.' ) }
 				: { status: 'success', text: __( 'Its images are being reprocessed; the progress is below.' ) };
 		} )
-		.catch( ( e ) => ( { status: 'warning', text: e.message || __( 'But its images could not be reprocessed.' ) } ) );
+		.catch( ( e ) => {
+			component.setState( { starting: null } );
+			return { status: 'warning', text: e.message || __( 'But its images could not be reprocessed.' ) };
+		} );
 
 	// On the list: a switch, a removal, a name added. What changed is in view.
 	const save = ( next ) => component.setSetting( 'custom_taxonomies', next, true );
@@ -575,7 +577,10 @@ export default function TaxonomySettings( { component, route } ) {
 		if ( ! reprocess ) {
 			return component.navigate( '', { status: 'success', text: said } );
 		}
-		return startReprocess( reprocess ).then( ( then ) => component.navigate( '', { status: then.status, text: said + ' ' + then.text } ) );
+		// Back on the tab at once, the reprocess starting below.
+		component.setState( { starting: 'metadata.reprocess' } );
+		component.navigate( '', { status: 'success', text: said } );
+		return startReprocess( reprocess ).then( ( then ) => component.setState( { flash: { status: then.status, text: said + ' ' + then.text } } ) );
 	} );
 
 	if ( screen ) {
@@ -664,6 +669,8 @@ export default function TaxonomySettings( { component, route } ) {
 						args={ { force: empty } }
 						after={ emptyOption.link }
 						refresh={ saves + component.state.jobs }
+						starting={ 'metadata.reprocess' === component.state.starting }
+						started={ component.state.started[ 'metadata.reprocess' ] }
 						note={ ( job ) => {
 							if ( ! job.args || ! job.args.taxonomies || ! job.args.taxonomies.length ) {
 								return '';

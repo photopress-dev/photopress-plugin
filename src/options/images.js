@@ -108,6 +108,9 @@ function useAffected( settings, refresh ) {
 function ImagesPanel( { component } ) {
 	const { status, error, reload } = useStatus();
 	const [ saves, setSaves ] = useState( 0 );
+	// From the click on Save and regenerate until the job has started.
+	const [ starting, setStarting ] = useState( false );
+	const [ started, setStarted ] = useState( null );
 	const [ jobError, setJobError ] = useState( null );
 	const disabled = listOf( component.getSetting( 'disabled_sizes' ) );
 	const quality = Number( component.getSetting( 'quality' ) ?? DEFAULT_QUALITY );
@@ -133,18 +136,23 @@ function ImagesPanel( { component } ) {
 			return;
 		}
 
+		setStarting( !! regenerate );
+
 		Promise.resolve( changed ? component.saveSettings() : null ).then( () => {
 			if ( component.getError( 'save' ) ) {
+				setStarting( false );
 				return;
 			}
 			setJobError( null );
-			const started = regenerate
+			const job = regenerate
 				? apiFetch( { path: '/photopress/v1/jobs', method: 'POST', data: { type: 'images.regenerate', args: {} } } )
+					.then( setStarted )
 					.catch( ( e ) => setJobError( 'photopress_job_running' === e.code
 						? __( 'Saved. Regenerating was already running: the images it has still to do get the new settings; once it finishes, Save and regenerate again for the rest.' )
 						: e.message || __( 'Saved, but the images could not be regenerated.' ) ) )
 				: null;
-			Promise.resolve( started ).then( () => {
+			Promise.resolve( job ).then( () => {
+				setStarting( false );
 				setSaves( ( n ) => n + 1 );
 				reload();
 			} );
@@ -211,6 +219,8 @@ function ImagesPanel( { component } ) {
 					type="images.regenerate"
 					label={ __( 'Regenerating image sizes' ) }
 					startable={ false }
+					starting={ starting }
+					started={ started }
 					refresh={ saves }
 					onChange={ ( job ) => job.status === 'done' && reload() }
 				/>

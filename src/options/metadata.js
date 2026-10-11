@@ -53,6 +53,7 @@ class MetadataSettings extends Component {
 		this.saveLicensing = this.saveLicensing.bind( this );
 		this.saveThen = this.saveThen.bind( this );
 		this.navigate = this.navigate.bind( this );
+		this.jobStarted = this.jobStarted.bind( this );
 		
 		this.state = {
 			isAPILoaded: false,
@@ -77,6 +78,10 @@ class MetadataSettings extends Component {
 			dirtyFields: [],
 			// Jobs started here, so the job panels ask for the latest again.
 			jobs: 0,
+			// The job type a Save and reprocess is starting, and the jobs
+			// started, by type, as the server returned them.
+			starting: null,
+			started: {},
 			// What a page within the tab, closing, says: { status, text }.
 			flash: null,
 		};
@@ -148,21 +153,43 @@ class MetadataSettings extends Component {
 			return;
 		}
 
+		// The job's panel shows at once, starting, while it saves.
+		if ( reprocess ) {
+			this.setState( { starting: type } );
+		}
+
 		const saved = save();
 
-		if ( ! reprocess || false === saved ) {
+		if ( false === saved ) {
+			this.setState( { starting: null } );
+			return;
+		}
+		if ( ! reprocess ) {
 			return;
 		}
 
 		Promise.resolve( saved ).then( () => {
 			if ( this.getError( 'save' ) ) {
+				this.setState( { starting: null } );
 				return;
 			}
 			this.setError( type, null );
 			apiFetch( { path: '/photopress/v1/jobs', method: 'POST', data: { type, args: { force: ! reprocess.skip } } } )
-				.then( () => this.setState( ( state ) => ( { jobs: state.jobs + 1 } ) ) )
-				.catch( ( e ) => this.setError( type, e.message || __( 'Saved, but the images could not be reprocessed.' ) ) );
+				.then( ( job ) => this.jobStarted( type, job ) )
+				.catch( ( e ) => {
+					this.setState( { starting: null } );
+					this.setError( type, e.message || __( 'Saved, but the images could not be reprocessed.' ) );
+				} );
 		} );
+	}
+
+	/** A job of this type started: its panel shows it, no longer starting. */
+	jobStarted( type, job ) {
+		this.setState( ( state ) => ( {
+			jobs: state.jobs + 1,
+			starting: null,
+			started: job ? { ...state.started, [ type ]: job } : state.started,
+		} ) );
 	}
 
 	/** A section's reprocess job: an error starting it, and its progress. */
@@ -170,7 +197,7 @@ class MetadataSettings extends Component {
 		return (
 			<Fragment>
 				{ this.getError( type ) && <Notice status="error" isDismissible={ false }>{ this.getError( type ) }</Notice> }
-				<JobPanel type={ type } label={ label } startable={ false } refresh={ this.state.jobs } />
+				<JobPanel type={ type } label={ label } startable={ false } starting={ type === this.state.starting } started={ this.state.started[ type ] } refresh={ this.state.jobs } />
 			</Fragment>
 		);
 	}

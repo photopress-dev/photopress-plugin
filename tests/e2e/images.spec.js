@@ -96,6 +96,39 @@ test( 'switches and quality are saved by Save, offering to regenerate the images
 	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
 } );
 
+test( 'Save and regenerate shows the progress at once, before the job has started', async ( { page } ) => {
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	await page.goto( '/wp-admin/admin.php?page=photopress-core-base#photopress_core_images' );
+
+	// The start held, then answered as one already running: no job over the
+	// whole library is started.
+	let release;
+	const held = new Promise( ( resolve ) => ( release = resolve ) );
+	await page.route( /photopress\/v1\/jobs(\?|$)/, async ( route ) => {
+		if ( 'POST' !== route.request().method() ) {
+			return route.fallback();
+		}
+		await held;
+		await route.fulfill( { status: 409, contentType: 'application/json', body: JSON.stringify( { code: 'photopress_job_running', message: 'Running.' } ) } );
+	} );
+
+	const slider = page.getByRole( 'slider', { name: 'JPEG and WebP quality' } );
+	await expect( slider ).toHaveValue( '92', { timeout: 30000 } );
+	await slider.focus();
+	await page.keyboard.press( 'ArrowLeft' );
+	page.once( 'dialog', ( dialog ) => dialog.accept() );
+	await page.getByRole( 'button', { name: /^Save and regenerate [\d,]+ affected images?$/ } ).click( { timeout: 10000 } );
+
+	const progress = page.locator( '.photopress-job[data-job-type="images.regenerate"] .photopress-job__progress' );
+	await expect( progress ).toHaveAttribute( 'data-status', 'starting', { timeout: 1000 } );
+	await expect( progress ).toContainText( 'Starting…' );
+
+	release();
+	await expect( page.locator( '.photopress-images-settings .components-notice' ) ).toContainText( 'Regenerating was already running', { timeout: 20000 } );
+	await expect( progress.and( page.locator( '[data-status="starting"]' ) ) ).toHaveCount( 0 );
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+} );
+
 test( 'regenerating makes sizes at the quality set, keeping the sizes turned off', async ( { page, made } ) => {
 	const ids = made.images.slice( 0, 3 );
 	wp( 'option', 'update', KEY, JSON.stringify( { quality: 90, disabled_sizes: 'medium_large' } ), '--format=json' );
