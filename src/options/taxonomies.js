@@ -105,7 +105,24 @@ function scopeChoice( scope, terms ) {
 	};
 }
 
-const termCount = ( status, id ) => ( id in status.counts ? status.counts[ id ].toLocaleString() : '—' );
+/**
+ * A taxonomy's number of terms, linked to its terms in the admin; a dash
+ * while it is asked for, or for a taxonomy turned off.
+ */
+function TermCount( { status, def } ) {
+	if ( ! def || ! ( def.id in status.counts ) ) {
+		return '—';
+	}
+	const count = status.counts[ def.id ];
+	return (
+		<a
+			href={ `edit-tags.php?taxonomy=${ encodeURIComponent( def.id ) }&post_type=attachment` }
+			aria-label={ sprintf( _n( '%1$s term in %2$s', '%1$s terms in %2$s', count ), count.toLocaleString(), capitalize( def.pluralLabel ) ) }
+		>
+			{ count.toLocaleString() }
+		</a>
+	);
+}
 
 function Table( { className, head, children } ) {
 	return (
@@ -717,7 +734,7 @@ export default function TaxonomySettings( { component, route } ) {
 									<td><strong>{ capitalize( ( def || s ).pluralLabel ) }</strong></td>
 									<td>{ standardHow( s.kind ) }</td>
 									<td><code>{ archiveUrl( def || s ) }</code></td>
-									<td className="num">{ def ? termCount( status, def.id ) : '—' }</td>
+									<td className="num"><TermCount status={ status } def={ def } /></td>
 									<RowActions onEdit={ () => setScreen( { type: 'standard', kind: s.kind } ) } />
 									<td className="switch">
 										<FormToggle
@@ -750,7 +767,7 @@ export default function TaxonomySettings( { component, route } ) {
 										</td>
 								<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n }</code> ) }</td>
 								<td><code>{ archiveUrl( p ) }</code></td>
-								<td className="num">{ termCount( status, p.id ) }</td>
+								<td className="num"><TermCount status={ status } def={ p } /></td>
 								<RowActions
 									onEdit={ () => setScreen( { type: 'parent', id: p.id } ) }
 									onRemove={ () => remove( p, __( 'the parent keyword' ) ) }
@@ -848,7 +865,7 @@ export default function TaxonomySettings( { component, route } ) {
 								<td><strong>{ capitalize( c.pluralLabel ) }</strong></td>
 								<td>{ fieldLabel( c.tag ) } <span className="description">({ c.tag })</span></td>
 								<td><code>{ archiveUrl( c ) }</code></td>
-								<td className="num">{ termCount( status, c.id ) }</td>
+								<td className="num"><TermCount status={ status } def={ c } /></td>
 								<RowActions
 									onEdit={ () => setScreen( { type: 'custom', id: c.id } ) }
 									onRemove={ () => remove( c, __( 'the field' ) ) }

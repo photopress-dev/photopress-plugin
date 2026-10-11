@@ -64,6 +64,8 @@ test( 'the three kinds are listed, each standard taxonomy with a switch', async 
 	await expect( standard.locator( 'tbody tr' ) ).toHaveCount( 6 );
 	// Each taxonomy's number of terms, from the server.
 	await expect( standard.locator( 'tr[data-kind="keywords"] td.num' ) ).toHaveText( /^\d[\d,]*$/ );
+	// Linked to the taxonomy's terms in the admin.
+	await expect( standard.locator( 'tr[data-kind="keywords"] td.num a' ) ).toHaveAttribute( 'href', 'edit-tags.php?taxonomy=photos_keywords&post_type=attachment' );
 	await expect( standard.getByRole( 'checkbox', { name: 'Keywords on' } ) ).toBeVisible();
 	await expect( page.getByRole( 'heading', { name: 'Hierarchical Keyword Metadata' } ) ).toBeVisible();
 	await expect( page.getByRole( 'heading', { name: 'Custom Metadata' } ) ).toBeVisible();
