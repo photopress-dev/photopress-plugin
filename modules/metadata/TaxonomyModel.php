@@ -34,8 +34,8 @@ final class TaxonomyModel {
 	public array $standard = [];
 
 	/**
-	 * [ 'id', 'tag', 'names' ]: names are paths, each a list of
-	 * lower-cased levels ("Clients|Acme" is [ 'clients', 'acme' ]).
+	 * [ 'id', 'tag', 'names' ]: the parent keyword and the other names it
+	 * is written as, lower-cased.
 	 */
 	public array $parents = [];
 
@@ -94,7 +94,7 @@ final class TaxonomyModel {
 				$model->parents[] = [
 					'id'     => $id,
 					'tag'    => $tag,
-					'names'  => array_values( array_filter( array_map( [ self::class, 'levels' ], $names ) ) ),
+					'names'  => array_values( array_filter( array_map( [ self::class, 'name' ], $names ), 'strlen' ) ),
 				];
 				continue;
 			}
@@ -116,12 +116,15 @@ final class TaxonomyModel {
 		return array_values( array_filter( preg_split( '/\s+/', trim( $delimiter ) ), 'strlen' ) );
 	}
 
-	/** A parent keyword's name as lower-cased levels: "Clients|Acme". */
-	public static function levels( $name ): array {
+	/**
+	 * A parent keyword's name, lower-cased; '' for a path ("Clients|Acme",
+	 * saved by an earlier version): a parent keyword is one keyword.
+	 */
+	public static function name( $name ): string {
 
-		$levels = array_map( 'trim', explode( '|', (string) $name ) );
+		$name = trim( (string) $name );
 
-		return array_values( array_filter( array_map( [ self::class, 'lower' ], $levels ), 'strlen' ) );
+		return false === strpos( $name, '|' ) ? self::lower( $name ) : '';
 	}
 
 	public static function lower( string $text ): string {

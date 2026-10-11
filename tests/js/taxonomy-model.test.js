@@ -28,7 +28,7 @@ describe( 'classify', () => {
 test( 'a parent keyword is named by its names, or its id without pp_ or photos_', () => {
 	expect( parentNames( LIST[ 2 ] ) ).toEqual( [ 'people' ] );
 	expect( parentNames( { id: 'pp_person' } ) ).toEqual( [ 'person' ] );
-	expect( parentNames( { id: 'x', names: [ 'Clients|Acme', '' ] } ) ).toEqual( [ 'Clients|Acme' ] );
+	expect( parentNames( { id: 'x', names: [ 'Clients', '' ] } ) ).toEqual( [ 'Clients' ] );
 } );
 
 test( 'new ids are unique and within WordPress’s 32 characters', () => {

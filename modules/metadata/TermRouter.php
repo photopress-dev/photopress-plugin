@@ -76,8 +76,7 @@ final class TermRouter {
 					continue;
 				}
 
-				[ $parent, $depth ] = $match;
-				$terms[ $parent['id'] ][] = array_slice( $path, $depth );
+				$terms[ $match['id'] ][] = array_slice( $path, 1 );
 			}
 		}
 
@@ -263,27 +262,24 @@ final class TermRouter {
 	}
 
 	/**
-	 * The parent keyword a path is under, and how many of its levels name it:
-	 * the parent naming the most, so Clients|Acme wins over Clients. A path
-	 * that is only the parent (the keyword "People") is under none.
+	 * The parent keyword a path is under: the one its first level names. A
+	 * path that is only the parent (the keyword "People") is under none.
 	 */
 	public static function parentOf( array $path, array $parents ): ?array {
 
-		$lower = array_map( [ TaxonomyModel::class, 'lower' ], $path );
-		$found = null;
+		if ( count( $path ) < 2 ) {
+			return null;
+		}
+
+		$top = TaxonomyModel::lower( $path[0] );
 
 		foreach ( $parents as $parent ) {
-			foreach ( $parent['names'] as $name ) {
-
-				$depth = count( $name );
-
-				if ( $depth < count( $lower ) && ( ! $found || $depth > $found[1] ) && array_slice( $lower, 0, $depth ) === $name ) {
-					$found = [ $parent, $depth ];
-				}
+			if ( in_array( $top, $parent['names'], true ) ) {
+				return $parent;
 			}
 		}
 
-		return $found;
+		return null;
 	}
 
 	/** A field's values. Camera and lens are read from all their places. */

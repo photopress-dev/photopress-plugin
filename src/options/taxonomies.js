@@ -219,8 +219,7 @@ function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 }
 
 /** What a photo with these keywords gets from a parent keyword. */
-function ParentPreview( { levels, plural, singular, example, separators } ) {
-	const parent = levels.join( '|' );
+function ParentPreview( { parent, plural, singular, example, separators } ) {
 	const term = example || __( 'Example' );
 	const sub = __( 'Group' );
 	const tax = plural || __( 'This taxonomy' );
@@ -234,8 +233,8 @@ function ParentPreview( { levels, plural, singular, example, separators } ) {
 		],
 	];
 
-	if ( 1 === levels.length && separators[ 0 ] ) {
-		rows.push( [ `${ levels[ 0 ].toLowerCase() }${ separators[ 0 ] } ${ term }`, [ [ tax, term, '', archiveUrl( def, term ) ] ] ] );
+	if ( separators[ 0 ] ) {
+		rows.push( [ `${ parent.toLowerCase() }${ separators[ 0 ] } ${ term }`, [ [ tax, term, '', archiveUrl( def, term ) ] ] ] );
 	}
 
 	return (
@@ -268,20 +267,19 @@ function namesProblem( plural, singular, list, self ) {
 		: null;
 }
 
-/** "Clients › Acme", "Clients > Acme" and "Clients|Acme" are one path. */
-const asPath = ( name ) => name.split( /\s*[›>|]\s*/ ).filter( Boolean ).join( '|' );
+/** A level separator, in a name typed as a path ("Clients › Acme"). */
+const PATH = /[›>|]/;
 
 function ParentEditor( { def, prefill, list, parents, status, separators, onSave, onCancel, saving } ) {
 	const names = def ? parentNames( def ) : [ prefill || '' ];
-	const [ parent, setParent ] = useState( names[ 0 ].replace( /\|/g, ' › ' ) );
+	const [ parent, setParent ] = useState( names[ 0 ] );
 	const [ aka, setAka ] = useState( names.slice( 1 ).join( ', ' ) );
 	const [ plural, setPlural ] = useState( def ? capitalize( def.pluralLabel ) : capitalize( pluralize( prefill || '' ) ) );
 	const [ singular, setSingular ] = useState( def ? capitalize( def.singularLabel ) : capitalize( prefill || '' ) );
 	const [ named, setNamed ] = useState( !! def || !! prefill );
 	const [ error, setError ] = useState( null );
 
-	const levels = asPath( parent ).split( '|' ).filter( Boolean );
-	const found = status.prefixes.find( ( p ) => p.prefix === ( levels[ 0 ] || '' ).toLowerCase() );
+	const found = status.prefixes.find( ( p ) => p.prefix === parent.trim().toLowerCase() );
 
 	const choose = ( name ) => {
 		setParent( name );
@@ -291,7 +289,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 		}
 	};
 
-	const all = [ asPath( parent ), ...namesFrom( aka ).map( asPath ) ].filter( Boolean );
+	const all = [ parent.trim(), ...namesFrom( aka ) ].filter( Boolean );
 	const id = def ? def.id : newId( singular, list );
 	const draft = {
 		id,
@@ -311,8 +309,11 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 		if ( ! all.length ) {
 			return setError( __( 'Enter the parent keyword.' ) );
 		}
+		if ( all.some( ( n ) => PATH.test( n ) ) ) {
+			return setError( __( 'A parent keyword is one keyword, the top level of its hierarchy: Clients, not Clients › Acme. Its sub-keywords keep their levels as terms.' ) );
+		}
 		if ( taken ) {
-			return setError( sprintf( __( '“%s” is already a parent keyword.' ), taken.replace( /\|/g, ' › ' ) ) );
+			return setError( sprintf( __( '“%s” is already a parent keyword.' ), taken ) );
 		}
 		const problem = namesProblem( plural, singular, list, def ? def.index : -1 );
 		if ( problem ) {
@@ -337,7 +338,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 				__next40pxDefaultSize
 				label={ __( 'Parent keyword' ) }
 				help={ __( 'The top-level keyword whose sub-keywords become this taxonomy’s terms, such as Genre for Genre › Portraiture.' ) }
-				placeholder={ __( 'Genre, or a path such as Clients › Acme' ) }
+				placeholder={ __( 'Genre' ) }
 				value={ parent }
 				onChange={ choose }
 			/>
@@ -366,7 +367,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 			/>
 			<h4>{ __( 'What a photo gets' ) }</h4>
 			<ParentPreview
-				levels={ levels.length ? levels : [ __( 'Parent' ) ] }
+				parent={ parent.trim() || __( 'Parent' ) }
 				plural={ plural }
 				singular={ singular }
 				example={ found && found.examples[ 0 ] }
@@ -729,7 +730,7 @@ export default function TaxonomySettings( { component, route } ) {
 								<td>
 									<strong>{ capitalize( p.pluralLabel ) }</strong>
 										</td>
-								<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n.replace( /\|/g, ' › ' ) }</code> ) }</td>
+								<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n }</code> ) }</td>
 								<td><code>{ archiveUrl( p ) }</code></td>
 								<td className="num">{ termCount( status, p.id ) }</td>
 								<RowActions

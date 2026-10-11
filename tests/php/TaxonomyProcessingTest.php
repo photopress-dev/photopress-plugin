@@ -42,12 +42,13 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		$model = TaxonomyModel::build( array_merge( self::DEFINITIONS, [
 			[ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event', 'parseTagValue' => false ],
-			[ 'id' => 'pp_clients', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'Clients|Acme' ] ],
+			// A path, saved by an earlier version, names nothing.
+			[ 'id' => 'pp_clients', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ ' Clients ', 'Clients|Acme' ] ],
 		] ), ': >' );
 
 		$this->assertSame( [ 'camera', 'lens', 'city', 'keywords' ], array_keys( $model->standard ) );
 		$this->assertSame( [ [ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event' ] ], $model->custom );
-		$this->assertSame( [ [ 'people' ], [ 'genre' ], [ 'clients', 'acme' ] ], array_merge( ...array_column( $model->parents, 'names' ) ) );
+		$this->assertSame( [ 'people', 'genre', 'clients' ], array_merge( ...array_column( $model->parents, 'names' ) ) );
 		$this->assertTrue( $model->isNested( 'pp_clients' ) );
 		$this->assertTrue( $model->isNested( 'pp_genre' ), 'every parent keyword' );
 		$this->assertFalse( $model->isNested( 'pp_event' ) );
@@ -290,17 +291,15 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [], $terms['photos_keywords'] );
 	}
 
-	public function test_the_parent_keyword_naming_the_most_levels_wins(): void {
+	public function test_a_parent_keyword_takes_every_level_below_it(): void {
 
 		$definitions = array_merge( self::DEFINITIONS, [
 			[ 'id' => 'pp_clients', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'Clients' ] ],
-			[ 'id' => 'pp_acme', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'Clients|Acme' ] ],
 		] );
 
 		$terms = self::route( [ 'lr:hierarchicalSubject' => [ 'Clients|Acme|Launch', 'Clients|Globex', 'Clients' ] ], $definitions );
 
-		$this->assertSame( [ [ 'Launch' ] ], $terms['pp_acme'] );
-		$this->assertSame( [ [ 'Globex' ] ], $terms['pp_clients'] );
+		$this->assertSame( [ [ 'Acme', 'Launch' ], [ 'Globex' ] ], $terms['pp_clients'] );
 		$this->assertSame( [ [ 'Clients' ] ], $terms['photos_keywords'], 'the parent keyword alone is a keyword' );
 	}
 

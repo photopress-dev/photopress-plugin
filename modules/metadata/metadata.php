@@ -180,7 +180,7 @@ class metadata extends photopress_module {
 
 			foreach ( [ $then[ $id ] ?? null, $now[ $id ] ?? null ] as $parent ) {
 				foreach ( $parent['names'] ?? [] as $name ) {
-					$names[ $name[0] ] = true;
+					$names[ $name ] = true;
 				}
 			}
 		}
@@ -392,7 +392,7 @@ class metadata extends photopress_module {
 
 		foreach ( $model->parents as $parent ) {
 			foreach ( $parent['names'] as $name ) {
-				$taken[ implode( '|', $name ) ] = true;
+				$taken[ $name ] = true;
 			}
 		}
 
