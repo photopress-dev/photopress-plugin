@@ -43,6 +43,7 @@ class XmpReader {
 		'http://ns.useplus.org/ldf/xmp/1.0/'                   => 'plus',
 		'http://www.metadataworkinggroup.com/schemas/regions/' => 'mwg-rs',
 		'http://ns.microsoft.com/photo/1.0/'                   => 'MicrosoftPhoto',
+		'http://xmp.gettyimages.com/gift/1.0/'                 => 'GettyImagesGIFT',
 		'http://www.digikam.org/ns/1.0/'                       => 'digiKam',
 		'http://ns.google.com/photos/1.0/panorama/'            => 'GPano',
 	];

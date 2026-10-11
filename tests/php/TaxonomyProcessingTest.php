@@ -42,31 +42,225 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		$model = TaxonomyModel::build( array_merge( self::DEFINITIONS, [
 			[ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event', 'parseTagValue' => false ],
-			[ 'id' => 'pp_clients', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'Clients|Acme' ], 'nested' => true ],
+			[ 'id' => 'pp_clients', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'Clients|Acme' ] ],
 		] ), ': >' );
 
 		$this->assertSame( [ 'camera', 'lens', 'city', 'keywords' ], array_keys( $model->standard ) );
 		$this->assertSame( [ [ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event' ] ], $model->custom );
 		$this->assertSame( [ [ 'people' ], [ 'genre' ], [ 'clients', 'acme' ] ], array_merge( ...array_column( $model->parents, 'names' ) ) );
 		$this->assertTrue( $model->isNested( 'pp_clients' ) );
-		$this->assertFalse( $model->isNested( 'pp_genre' ) );
+		$this->assertTrue( $model->isNested( 'pp_genre' ), 'every parent keyword' );
+		$this->assertFalse( $model->isNested( 'pp_event' ) );
 		$this->assertSame( [ ':', '>' ], $model->separators );
 	}
 
-	public function test_prefixed_keywords_go_to_their_parent_keyword_and_the_rest_to_keywords(): void {
+	public function test_a_taxonomy_turned_off_is_neither_read_nor_filled(): void {
+
+		$definitions = self::DEFINITIONS;
+		$definitions[1]['disabled'] = true;
+		$definitions[4]['disabled'] = true;
+
+		$terms = self::route( [ 'aux:Lens' => '35.0 mm f/2.0', 'dc:subject' => [ 'people: Jane' ] ], $definitions );
+
+		$this->assertArrayNotHasKey( 'photos_lens', $terms );
+		$this->assertArrayNotHasKey( 'photos_people', $terms );
+		$this->assertSame( [ [ 'people: Jane' ] ], $terms['photos_keywords'], 'with People off, its prefix is a keyword' );
+	}
+
+	public function test_taxonomies_are_registered_with_clean_urls_and_nesting(): void {
+
+		if ( ! defined( 'EP_PERMALINK' ) ) {
+			define( 'EP_PERMALINK', 1 );
+		}
+
+		\pp_api::$options['core/metadata/custom_taxonomies'] = [
+			[ 'id' => 'pp_acme_job', 'pluralLabel' => 'Acme jobs', 'singularLabel' => 'Acme job', 'tag' => 'dc:subject', 'parseTagValue' => true ],
+			[ 'id' => 'photos_lens', 'pluralLabel' => 'lenses', 'singularLabel' => 'lens', 'tag' => 'aux:Lens', 'parseTagValue' => false, 'disabled' => true ],
+			[ 'id' => 'photos_keywords', 'pluralLabel' => 'keywords', 'singularLabel' => 'keyword', 'tag' => 'dc:subject', 'parseTagValue' => false ],
+			[ 'id' => 'photos_city', 'pluralLabel' => 'cities', 'singularLabel' => 'city', 'tag' => 'photoshop:City', 'parseTagValue' => false ],
+		];
+
+		$registered = [];
+		Functions\when( 'sanitize_title' )->alias( static fn( $text ) => strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', trim( $text ) ) ) );
+		Functions\when( 'register_taxonomy' )->alias( static function ( $id, $type, $args ) use ( &$registered ) {
+			$registered[ $id ] = $args;
+		} );
+
+		( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor()->registerTaxonomies();
+
+		$this->assertSame( [ 'pp_acme_job', 'photos_keywords', 'photos_city' ], array_keys( $registered ), 'a taxonomy turned off is not registered' );
+		$this->assertTrue( $registered['photos_keywords']['hierarchical'], 'keyword hierarchies' );
+		$this->assertFalse( $registered['photos_city']['hierarchical'] );
+		$this->assertSame( 'acme-job', $registered['pp_acme_job']['rewrite']['slug'] );
+		$this->assertTrue( $registered['pp_acme_job']['rewrite']['hierarchical'] );
+		$this->assertTrue( $registered['pp_acme_job']['hierarchical'] );
+	}
+
+		public function test_new_sites_start_with_the_standard_taxonomies_and_old_ones_keep_people(): void {
+
+		global $wpdb;
+
+		$stored  = [];
+		$queries = 0;
+		Functions\when( 'get_option' )->alias( static function ( $key ) use ( &$stored ) { return $stored[ $key ] ?? false; } );
+		Functions\when( 'update_option' )->alias( static function ( $key, $value ) use ( &$stored ) { $stored[ $key ] = $value; } );
+		Functions\when( 'apply_filters' )->returnArg( 2 );
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+
+		foreach ( [ [ null, [ 'photos_camera', 'photos_lens', 'photos_city', 'photos_state', 'photos_country', 'photos_keywords' ] ], [ '17', [ 'photos_camera', 'photos_lens', 'photos_city', 'photos_state', 'photos_country', 'photos_people', 'photos_keywords' ] ] ] as [ $found, $ids ] ) {
+
+			$stored = [];
+			$wpdb   = new class( $found, $queries ) {
+				public $term_taxonomy = 'wp_term_taxonomy';
+				public function __construct( private $found, private &$queries ) {}
+				public function prepare( $query ) { return $query; }
+				public function get_var() { $this->queries++; return $this->found; }
+			};
+
+			$this->assertSame( $ids, array_column( $m->getDefaultTaxonomyDefinitions(), 'id' ) );
+			$m->getDefaultTaxonomyDefinitions();
+		}
+
+		$this->assertSame( 2, $queries, 'worked out once and remembered' );
+		$wpdb = null;
+	}
+
+	public function test_prefixes_in_keywords_no_parent_keyword_takes(): void {
+
+		global $wpdb;
+
+		$wpdb = new class {
+			public $terms = 'wp_terms';
+			public $term_taxonomy = 'wp_term_taxonomy';
+			public $args;
+			public function esc_like( $text ) { return addcslashes( $text, '_%\\' ); }
+			public function prepare( $query, $args ) { $this->args = $args; return $query; }
+			public function get_results() {
+				return [
+					(object) [ 'name' => 'organization: Automattic', 'count' => 3 ],
+					(object) [ 'name' => 'Organization: Baidu', 'count' => 2 ],
+					(object) [ 'name' => 'genre: reportage', 'count' => 9 ],
+					(object) [ 'name' => 'publication: IEEE Spectrum', 'count' => 1 ],
+					(object) [ 'name' => 'penre: science &amp; technology', 'count' => 1 ],
+					(object) [ 'name' => 'people:', 'count' => 4 ],
+				];
+			}
+		};
+
+		$found = metadata::unclaimedPrefixes( TaxonomyModel::build( self::DEFINITIONS, ':' ) );
+
+		$this->assertSame( 'photos_keywords', $wpdb->args[0] );
+		$this->assertSame( [
+			[ 'prefix' => 'organization', 'photos' => 5, 'examples' => [ 'Automattic', 'Baidu' ] ],
+			[ 'prefix' => 'publication', 'photos' => 1, 'examples' => [ 'IEEE Spectrum' ] ],
+			[ 'prefix' => 'penre', 'photos' => 1, 'examples' => [ 'science & technology' ] ],
+		], $found );
+
+		$wpdb = null;
+	}
+
+	/** A $wpdb that records the query changeScope() makes and returns these ids. */
+	private static function refileDb( array $ids ) {
+
+		return new class( $ids ) {
+			public $terms = 'wp_terms';
+			public $term_taxonomy = 'wp_term_taxonomy';
+			public $term_relationships = 'wp_term_relationships';
+			public $query;
+			public $args;
+			private $ids;
+			public function __construct( $ids ) { $this->ids = $ids; }
+			public function esc_like( $text ) { return addcslashes( $text, '_%\\' ); }
+			public function prepare( $query, $args ) { $this->query = $query; $this->args = $args; return $query; }
+			public function get_col() { return $this->ids; }
+		};
+	}
+
+	public function test_a_name_added_to_a_parent_keyword_re_reads_the_photos_it_takes_and_its_own(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [ '12', '40' ] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+		$new  = $old;
+		$new['custom_taxonomies'][4]['names'] = [ 'people', 'Person' ];
+
+		$this->assertSame( [ 'ids' => [ 12, 40 ], 'taxonomies' => [ 'photos_people', 'photos_keywords' ] ], metadata::changeScope( $old, $new ) );
+		$this->assertSame( [ 'photos_people', 'photos_keywords', 'people%', 'person%' ], $wpdb->args, 'pp_genre did not change' );
+
+		$wpdb = null;
+	}
+
+	public function test_a_removed_parent_keyword_re_reads_its_photos(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+		$new  = $old;
+		unset( $new['custom_taxonomies'][5] );
+
+		$this->assertSame( [ 'photos_keywords' ], metadata::changeScope( $old, $new )['taxonomies'], 'its photos get their genre: keywords back' );
+		$this->assertSame( [ 'pp_genre', 'photos_keywords', 'genre%' ], $wpdb->args );
+
+		$wpdb = null;
+	}
+
+	public function test_keywords_turned_off_are_still_searched_for_photos_a_parent_keyword_takes(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [ 5 ] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+		$old['custom_taxonomies'][3]['disabled'] = true;
+		$new  = $old;
+		$new['custom_taxonomies'][5]['names'] = [ 'genre', 'style' ];
+
+		$scope = metadata::changeScope( $old, $new );
+		$this->assertSame( [ 'pp_genre' ], $scope['taxonomies'], 'Keywords is not filled while it is off' );
+		$this->assertSame( [ 'pp_genre', 'photos_keywords', 'genre%', 'style%' ], $wpdb->args, 'but its terms are searched' );
+		$this->assertSame( 'photos_keywords', TaxonomyModel::build( $old['custom_taxonomies'], ':' )->keywordsId );
+
+		$wpdb = null;
+	}
+
+	public function test_new_separators_re_read_every_parent_keyword_and_other_changes_none(): void {
+
+		global $wpdb;
+
+		$wpdb = self::refileDb( [] );
+		$old  = [ 'custom_taxonomies' => self::DEFINITIONS, 'custom_taxonomies_tag_delimiter' => ':' ];
+
+		metadata::changeScope( $old, [ 'custom_taxonomy_tag_delimiter' => ': >' ] + $old );
+		$this->assertNull( $wpdb->args, 'a key that is not the separators' );
+
+		$custom = $old;
+		$custom['custom_taxonomies'][] = [ 'id' => 'pp_event', 'tag' => 'Iptc4xmpExt:Event', 'parseTagValue' => false ];
+		$this->assertSame( [ 'ids' => [], 'taxonomies' => [] ], metadata::changeScope( $old, $custom ) );
+		$this->assertNull( $wpdb->args );
+
+		$scope = metadata::changeScope( $old, [ 'custom_taxonomies_tag_delimiter' => ': >' ] + $old );
+		$this->assertSame( [ 'photos_people', 'pp_genre', 'photos_keywords' ], $scope['taxonomies'] );
+		$this->assertSame( [ 'photos_people', 'pp_genre', 'photos_keywords', 'people%', 'genre%' ], $wpdb->args );
+
+		$wpdb = null;
+	}
+
+		public function test_prefixed_keywords_go_to_their_parent_keyword_and_the_rest_to_keywords(): void {
 
 		$terms = self::route( [ 'dc:subject' => [ 'Silicon Valley', 'people: Parisa Tabriz', 'Genre:reportage', 'organization: Automattic' ] ] );
 
-		$this->assertSame( [ 'Parisa Tabriz' ], $terms['photos_people'] );
-		$this->assertSame( [ 'reportage' ], $terms['pp_genre'], 'the prefix matches without case' );
-		$this->assertSame( [ 'Silicon Valley', 'organization: Automattic' ], $terms['photos_keywords'], 'a prefix no parent keyword has stays as written' );
+		$this->assertSame( [ [ 'Parisa Tabriz' ] ], $terms['photos_people'] );
+		$this->assertSame( [ [ 'reportage' ] ], $terms['pp_genre'], 'the prefix matches without case' );
+		$this->assertSame( [ [ 'Silicon Valley' ], [ 'organization: Automattic' ] ], $terms['photos_keywords'], 'a prefix no parent keyword has stays as written' );
 	}
 
 	public function test_a_separator_in_a_value_does_not_split_it(): void {
 
 		$terms = self::route( [ 'dc:subject' => [ 'Star Wars: A New Hope', 'people:' ] ] );
 
-		$this->assertSame( [ 'Star Wars: A New Hope', 'people:' ], $terms['photos_keywords'] );
+		$this->assertSame( [ [ 'Star Wars: A New Hope' ], [ 'people:' ] ], $terms['photos_keywords'] );
 		$this->assertSame( [], $terms['photos_people'] );
 	}
 
@@ -78,14 +272,14 @@ final class TaxonomyProcessingTest extends TestCase {
 			'dc:subject'             => [ 'People', 'Family', 'Jane', 'Places', 'USA', 'California', 'lake' ],
 		] );
 
-		$this->assertSame( [ 'Jane' ], $terms['photos_people'] );
-		$this->assertSame( [ 'Family', 'Places', 'USA', 'California', 'lake' ], $terms['photos_keywords'] );
+		$this->assertSame( [ [ 'Family', 'Jane' ] ], $terms['photos_people'], 'Jane under Family' );
+		$this->assertSame( [ [ 'Places', 'USA', 'California' ], [ 'lake' ] ], $terms['photos_keywords'], 'California under USA under Places' );
 	}
 
 	public function test_a_nested_parent_keyword_keeps_every_level_below_it(): void {
 
 		$definitions = self::DEFINITIONS;
-		$definitions[4] += [ 'nested' => true, 'names' => [ 'people', 'person' ] ];
+		$definitions[4] += [ 'names' => [ 'people', 'person' ] ];
 
 		$terms = self::route( [
 			'lr:hierarchicalSubject' => [ 'People|Family|Jane', 'People|Parisa Tabriz' ],
@@ -105,9 +299,9 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		$terms = self::route( [ 'lr:hierarchicalSubject' => [ 'Clients|Acme|Launch', 'Clients|Globex', 'Clients' ] ], $definitions );
 
-		$this->assertSame( [ 'Launch' ], $terms['pp_acme'] );
-		$this->assertSame( [ 'Globex' ], $terms['pp_clients'] );
-		$this->assertSame( [ 'Clients' ], $terms['photos_keywords'], 'the parent keyword alone is a keyword' );
+		$this->assertSame( [ [ 'Launch' ] ], $terms['pp_acme'] );
+		$this->assertSame( [ [ 'Globex' ] ], $terms['pp_clients'] );
+		$this->assertSame( [ [ 'Clients' ] ], $terms['photos_keywords'], 'the parent keyword alone is a keyword' );
 	}
 
 	public function test_an_image_gets_the_keywords_of_both_lists_when_they_disagree(): void {
@@ -119,15 +313,15 @@ final class TaxonomyProcessingTest extends TestCase {
 			'dc:subject'             => [ 'faces of open source', 'unix', 'portrait' ],
 		] );
 
-		$this->assertSame( [ 'faces of open source', 'high key', 'portrait', 'unix' ], $terms['photos_keywords'] );
-		$this->assertSame( [ 'Jim Gettys' ], $terms['photos_people'] );
+		$this->assertSame( [ [ 'faces of open source' ], [ 'high key' ], [ 'portrait' ], [ 'unix' ] ], $terms['photos_keywords'] );
+		$this->assertSame( [ [ 'Jim Gettys' ] ], $terms['photos_people'] );
 	}
 
 	public function test_other_keyword_hierarchies_when_there_is_no_lightroom_one(): void {
 
 		$terms = self::route( [ 'digiKam:TagsList' => [ 'People/Jane' ], 'dc:subject' => [ 'Jane' ] ] );
 
-		$this->assertSame( [ 'Jane' ], $terms['photos_people'] );
+		$this->assertSame( [ [ 'Jane' ] ], $terms['photos_people'] );
 		$this->assertSame( [], $terms['photos_keywords'] );
 	}
 
@@ -135,15 +329,60 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		$terms = self::route( [ 'dc:subject' => [ 'people > Jane', 'genre: still life' ] ], self::DEFINITIONS, ': >' );
 
-		$this->assertSame( [ 'Jane' ], $terms['photos_people'] );
-		$this->assertSame( [ 'still life' ], $terms['pp_genre'] );
+		$this->assertSame( [ [ 'Jane' ] ], $terms['photos_people'] );
+		$this->assertSame( [ [ 'still life' ] ], $terms['pp_genre'] );
 	}
 
 	public function test_no_separator_reads_no_prefixes(): void {
 
 		$terms = self::route( [ 'dc:subject' => [ 'people: Jane' ] ], self::DEFINITIONS, '' );
 
-		$this->assertSame( [ 'people: Jane' ], $terms['photos_keywords'] );
+		$this->assertSame( [ [ 'people: Jane' ] ], $terms['photos_keywords'] );
+	}
+
+	public function test_a_part_of_a_structured_field_is_taken_from_each_entry(): void {
+
+		$md    = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/photoshop-file-info.xmp' ) );
+		$parts = [
+			[ 'id' => 'pp_city_shown', 'tag' => 'Iptc4xmpExt:LocationShown/Iptc4xmpExt:City', 'parseTagValue' => false ],
+			[ 'id' => 'pp_artist', 'tag' => 'Iptc4xmpExt:ArtworkOrObject/Iptc4xmpExt:AOCreator', 'parseTagValue' => false ],
+			[ 'id' => 'pp_creator_city', 'tag' => 'Iptc4xmpCore:CreatorContactInfo/Iptc4xmpCore:CiAdrCity', 'parseTagValue' => false ],
+			[ 'id' => 'pp_owner', 'tag' => 'plus:CopyrightOwner/plus:CopyrightOwnerName', 'parseTagValue' => false ],
+		];
+
+		$terms = self::route( $md, array_merge( self::DEFINITIONS, $parts ) );
+
+		$this->assertSame( [ 'bar', 'foo' ], $terms['pp_city_shown'], 'the city of each location' );
+		$this->assertSame( [ 'foo', 'bar' ], $terms['pp_artist'], 'a list within each entry' );
+		$this->assertSame( [ 'foo' ], $terms['pp_creator_city'], 'one structure, not a list of them' );
+		$this->assertSame( [ 'foo', 'bar' ], $terms['pp_owner'] );
+	}
+
+	public function test_coded_values_are_their_names(): void {
+
+		$md    = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/photoshop-file-info.xmp' ) );
+		$coded = [
+			[ 'id' => 'pp_model_release', 'tag' => 'plus:ModelReleaseStatus', 'parseTagValue' => false ],
+			[ 'id' => 'pp_property_release', 'tag' => 'plus:PropertyReleaseStatus', 'parseTagValue' => false ],
+			[ 'id' => 'pp_source_type', 'tag' => 'Iptc4xmpExt:DigitalSourceType', 'parseTagValue' => false ],
+			[ 'id' => 'pp_youngest', 'tag' => 'plus:MinorModelAgeDisclosure', 'parseTagValue' => false ],
+		];
+
+		$terms = self::route( $md, array_merge( self::DEFINITIONS, $coded ) );
+
+		$this->assertSame( [ 'Unlimited Model Releases' ], $terms['pp_model_release'] );
+		$this->assertSame( [ 'Unlimited Property Releases' ], $terms['pp_property_release'] );
+		$this->assertSame( [ 'Digitized from a transparent negative' ], $terms['pp_source_type'] );
+		$this->assertSame( [ 'Age Unknown' ], $terms['pp_youngest'] );
+		$this->assertSame( 'Age 18', TermRouter::named( 'plus:MinorModelAgeDisclosure', 'http://ns.useplus.org/ldf/vocab/AG-A18' ) );
+		$this->assertSame( 'Some new kind', TermRouter::named( 'Iptc4xmpExt:DigitalSourceType', 'http://cv.iptc.org/newscodes/digitalsourcetype/someNewKind' ), 'an unknown code, in words' );
+	}
+
+	public function test_personality_as_capture_one_writes_it_is_one_term_per_name(): void {
+
+		$definitions = array_merge( self::DEFINITIONS, [ [ 'id' => 'pp_personality', 'tag' => 'GettyImagesGIFT:Personality', 'parseTagValue' => false ] ] );
+
+		$this->assertSame( [ 'Jane Smith', 'John Doe' ], self::route( [ 'GettyImagesGIFT:Personality' => 'Jane Smith; John Doe' ], $definitions )['pp_personality'] );
 	}
 
 	public function test_custom_metadata_takes_every_value_as_written(): void {
@@ -166,8 +405,8 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		$terms = self::route( [ 'dc:subject' => [ 'lake', 'Lake', 'genre:reportage', 'genre: reportage' ] ] );
 
-		$this->assertSame( [ 'lake' ], $terms['photos_keywords'] );
-		$this->assertSame( [ 'reportage' ], $terms['pp_genre'] );
+		$this->assertSame( [ [ 'lake' ] ], $terms['photos_keywords'] );
+		$this->assertSame( [ [ 'reportage' ] ], $terms['pp_genre'] );
 	}
 
 	/**
@@ -263,22 +502,41 @@ final class TaxonomyProcessingTest extends TestCase {
 		$this->assertSame( [], $set['photos_keywords'], 'forced: emptied' );
 		$this->assertSame( [], $set['photos_city'] );
 		$this->assertCount( 6, $set );
+
+		$set = [];
+		$m->setTaxonomyTerms( 42, $md, true, [ 'photos_keywords' ] );
+		$this->assertSame( [ 'photos_keywords' => [] ], $set, 'only the taxonomies asked for' );
 	}
 
-	public function test_the_reread_job_passes_force_on(): void {
+	public function test_an_attachment_without_a_file_or_that_is_no_image_is_left_alone(): void {
+
+		$m = $this->getMockBuilder( metadata::class )->disableOriginalConstructor()->onlyMethods( [ 'setTaxonomyTerms' ] )->getMock();
+		$m->expects( $this->never() )->method( 'setTaxonomyTerms' );
+
+		Functions\when( 'get_attached_file' )->justReturn( '' );
+		Functions\when( 'wp_attachment_is_image' )->justReturn( true );
+		$m->addAttachment( 7 );
+
+		Functions\when( 'get_attached_file' )->justReturn( $this->tempFile( '%PDF-1.4', '.pdf' ) );
+		Functions\when( 'wp_attachment_is_image' )->justReturn( false );
+		$m->addAttachment( 8 );
+	}
+
+	public function test_the_reread_job_passes_force_and_its_taxonomies_on(): void {
 
 		$file = $this->tempFile( 'not an image' );
 		Functions\when( 'get_attached_file' )->justReturn( $file );
 
 		$m = $this->getMockBuilder( metadata::class )->disableOriginalConstructor()->onlyMethods( [ 'addAttachment' ] )->getMock();
-		$m->expects( $this->exactly( 2 ) )->method( 'addAttachment' )->willReturnCallback( function ( $id, $force ) use ( &$calls ) {
-			$calls[] = [ $id, $force ];
+		$m->expects( $this->exactly( 3 ) )->method( 'addAttachment' )->willReturnCallback( function ( $id, $force, $only ) use ( &$calls ) {
+			$calls[] = [ $id, $force, $only ];
 		} );
 
 		$m->reprocessImage( 7, [] );
 		$m->reprocessImage( 7, [ 'force' => true ] );
+		$m->reprocessImage( 7, [ 'taxonomies' => [ 'photos_people', 'photos_keywords' ] ] );
 
-		$this->assertSame( [ [ 7, false ], [ 7, true ] ], $calls );
+		$this->assertSame( [ [ 7, false, null ], [ 7, true, null ], [ 7, false, [ 'photos_people', 'photos_keywords' ] ] ], $calls );
 	}
 
 		public function test_nested_terms_are_made_level_by_level_and_the_image_gets_every_level(): void {
@@ -303,7 +561,6 @@ final class TaxonomyProcessingTest extends TestCase {
 	public function test_an_image_gets_its_terms_and_nested_ones_by_id(): void {
 
 		$definitions = self::DEFINITIONS;
-		$definitions[4] += [ 'nested' => true ];
 		\pp_api::$options['core/metadata/custom_taxonomies'] = $definitions;
 		\pp_api::$options['core/metadata/custom_taxonomies_tag_delimiter'] = ':';
 
@@ -313,7 +570,7 @@ final class TaxonomyProcessingTest extends TestCase {
 		Functions\when( 'is_wp_error' )->justReturn( false );
 		Functions\when( 'term_exists' )->justReturn( null );
 		Functions\when( 'wp_insert_term' )->alias( static function ( $name ) {
-			return [ 'term_id' => [ 'Family' => 11, 'Jane' => 12 ][ $name ] ];
+			return [ 'term_id' => [ 'Family' => 11, 'Jane' => 12, 'lake' => 13 ][ $name ] ];
 		} );
 		Functions\when( 'wp_set_object_terms' )->alias( static function ( $id, $terms, $taxonomy ) use ( &$set ) {
 			$set[ $taxonomy ] = $terms;
@@ -323,7 +580,7 @@ final class TaxonomyProcessingTest extends TestCase {
 		$m->setTaxonomyTerms( 42, self::reader( [ 'lr:hierarchicalSubject' => [ 'People|Family|Jane' ], 'dc:subject' => [ 'Jane', 'lake' ] ] ) );
 
 		$this->assertSame( [ 11, 12 ], $set['photos_people'] );
-		$this->assertSame( [ 'lake' ], $set['photos_keywords'] );
+		$this->assertSame( [ 13 ], $set['photos_keywords'] );
 		$this->assertSame( [], $set['pp_genre'] );
 	}
 }

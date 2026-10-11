@@ -1,26 +1,16 @@
 /**
  * WordPress dependencies
  */
-const { __ } = wp.i18n;
-import { Component, Fragment, useState } from '@wordpress/element';
-import xmpLabels from '../shared/xmp-labels.js';
+const { __, sprintf } = wp.i18n;
+import { Component, Fragment } from '@wordpress/element';
 
 import {
 	BaseControl,
 	Button,
-	ExternalLink,
-	Panel,
-	PanelBody,
-	PanelRow,
-	Placeholder,
-	Spinner,
-	ToggleControl,
-	Notice,
-	Disabled,
 	CheckboxControl,
-	SelectControl,
-	TextControl,
-	Modal
+	PanelBody,
+	Notice,
+	TextControl
 } from '@wordpress/components';
 
 import {
@@ -32,11 +22,16 @@ import {
 	getError,
 	setError,
 	persistSetting,
-	sanitize
+	sanitize,
+	validateInput
 	
 } from '../shared/options.js';
 
+import TaxonomySettings from './taxonomies.js';
+import FeatureSection from '../shared/feature-section.js';
 import JobPanel from '../shared/jobs.js';
+import SaveBar from '../shared/save-bar.js';
+import apiFetch from '@wordpress/api-fetch';
 /**
  * Metadata Options Component class
  */
@@ -48,8 +43,6 @@ class MetadataSettings extends Component {
 		
 		this.settingsGroup = this.props.settingsGroup;
 		
-		this.xmpLabels = xmpLabels;
-		
 		this.persistSetting = persistSetting.bind( this );
 		this.saveSettings = saveSettings.bind( this );
 		this.getSetting = getSetting.bind( this );
@@ -57,13 +50,9 @@ class MetadataSettings extends Component {
 		this.deleteSetting = deleteSetting.bind( this );
 		this.getError = getError.bind( this );
 		this.setError = setError.bind( this );
-		
-		this.deleteCustomTaxonomy = this.deleteCustomTaxonomy.bind( this );
-		this.addNewTaxonomy = this.addNewTaxonomy.bind( this );
-		this.newTaxValueChange = this.newTaxValueChange.bind( this );
-		
-		
-		this.MyModal = this.MyModal.bind( this );
+		this.saveLicensing = this.saveLicensing.bind( this );
+		this.saveThen = this.saveThen.bind( this );
+		this.navigate = this.navigate.bind( this );
 		
 		this.state = {
 			isAPILoaded: false,
@@ -73,27 +62,23 @@ class MetadataSettings extends Component {
 				
 				custom_taxonomies_enable: true,
 				embed_licensor_enable: false,
+				description_enable: false,
 				web_statement_of_rights: '',
 				licensor_name: '',
 				licensor_url: '',
 				custom_taxonomies: [],
 				custom_taxonomies_tag_delimiter: ':',
 				alt_text_enable: true,
+				alt_text_from_file: true,
 				alt_text_template: '[photoshop:Headline]. [photopress:stringOfKeywords].',
 				description_template: '',
 				strip_metadata_from_resized_image: false
 			},
-			isNewTaxPresent: false,
-			reprocessForce: false,
-			modalOpen: false,
-			newTaxDefinition: {
-				id: '',
-				pluralLabel: '',
-				singularLabel: '',
-				tag: '',
-				parseTagValue: false
-			},
-			dirtyFields: []	
+			dirtyFields: [],
+			// Jobs started here, so the job panels ask for the latest again.
+			jobs: 0,
+			// What a page within the tab, closing, says: { status, text }.
+			flash: null,
 		};
 		
 		
@@ -124,609 +109,278 @@ class MetadataSettings extends Component {
 		}
 	}
 	
-	componentDidMount() {
-		
-		
-	}
-	
-	addNewTaxonomy( event ) {
-			
-		let value = this.state.newTaxDefinition.pluralLabel;
-		let df = this.state.dirtyFields;
-		
-		if ( ! value ) {
-			
-			this.setError('custom_taxonomies', __('Taxonomy name cannot be empty') );
-		}
-		
-		if ( typeof value == 'string' ) {
-			
-			value = value.trim();
-		}
-		
-		let custom_taxonomies = this.state.settings.custom_taxonomies ;
-	
-		
-		
-		//create array of current taxonomies
-		let current_tax = custom_taxonomies.map( function( tax ){
-			
-			return tax.plural;
-		});
-		
-		// check for duplicates
-		if ( ! current_tax.includes( value ) ) {
-			custom_taxonomies.push( this.state.newTaxDefinition );
-			
-			
-			df.push('custom_taxonomies');
-		}
-		
-		
-		
-		// set state
-		this.setState( { 
-			settings: {
-				...this.state.settings,
-				custom_taxonomies: custom_taxonomies
-			},
-			dirtyFields: df,
-			newTaxDefinition: {
-				
-				id: '',
-				puralLabel: '',
-				singularLabel: '',
-				xmpTag: '',
-				parseXmpTag: false
-				
-			},
-			modalOpen: false
-			
-		},
-		this.saveSettings
-		);
-		
-		//console.log(this.state.settings);
-	}
-		
-	deleteCustomTaxonomy ( event ) {
-			
-		// remove from state
-		let custom_taxonomies = this.state.settings.custom_taxonomies
-		//delete custom_taxonomies[ event.target.id ];
-		
-		
-		const index = event.target.id;
-		
-		console.log(index);
-		if (index > -1) {
-		
-			custom_taxonomies.splice( index, 1 );
-		}
-		
-		this.setSetting ( 'custom_taxonomies', custom_taxonomies, true );
-	}
-		
-	newTaxValueChange( key, value ) {
-		
-		let newTax = this.state.newTaxDefinition;
-			
-		let newVal = {};
-		
-		if ( key === 'singularLabel') {
-			
-			// dont allow any spaces in the id value, replace with underscore.
-			newVal.id = 'pp_' + value.replace(/\s+/g, "_");
-			
-		}
-		
-		newVal[ key ] = value;
-		
-		this.setState( 
-			
-			{ 
-				newTaxDefinition: {
-					...this.state.newTaxDefinition,
-					...newVal
-				}
-			},
-			
-			this.setNewTaxPresent
-		);
+	/**
+	 * Licensing's Save: all three settings are required, so no file or page
+	 * gets half of the licensing information.
+	 */
+	saveLicensing() {
+		const missing = [
+			[ 'licensor_name', __( 'Licensor Name' ) ],
+			[ 'web_statement_of_rights', __( 'Web Statement of Rights URL' ) ],
+			[ 'licensor_url', __( 'Licensing URL' ) ],
+		].filter( ( [ key ] ) => ! String( this.getSetting( key ) || '' ).trim() ).map( ( [ , label ] ) => label );
 
-		//console.log(this.state);
-	}
-		
-	setNewTaxPresent() {
-		
-		let isNewTaxPresent = this.state.isNewTaxPresent;
-		let newTax = this.state.newTaxDefinition;
-		// this is needed to dsiable the button
-		if ( newTax.id.length > 1 && newTax.pluralLabel.length > 1 && newTax.singularLabel.length > 1 && newTax.tag.length > 1 ) {
-			
-			isNewTaxPresent = true;
-			
+		if ( missing.length ) {
+			this.setError( 'licensor', sprintf( __( 'Licensing needs all three settings. Fill in: %s.' ), missing.join( ', ' ) ) );
+			return false;
 		}
-		
-		this.setState(
-			
-			{ isNewTaxPresent: isNewTaxPresent }
-		);
+
+		for ( const key of [ 'web_statement_of_rights', 'licensor_url' ] ) {
+			if ( ! validateInput( this.getSetting( key ), 'url' ) ) {
+				this.setError( 'licensor', this.settingsSchema[ key ].validations[ 0 ].errorMsg );
+				return false;
+			}
+		}
+
+		this.setError( 'licensor', null );
+		return this.saveSettings();
 	}
-	
-	getXmpLabels() {
-		
-		let labels = [{value: null, label: 'Select...'}];
-		
-		const keys = Object.keys( this.xmpLabels );
-		
-		keys.map( ( key, idx ) => {
-					
-			let l = this.xmpLabels[ key ];
-			labels.push( { value: key, label: `${key} \u00A0 - \u00A0  (${l})`});
-						
-		});
-		
-		return labels;
 
+	/**
+	 * Save, or Save and reprocess: saves (with save, the section's own save
+	 * when it checks its settings), then, when reprocess is given, confirmed
+	 * and the save went through, starts the job of this type over every
+	 * image.
+	 */
+	saveThen( type, reprocess, confirm, save = this.saveSettings ) {
+		// eslint-disable-next-line no-alert
+		if ( reprocess && ! window.confirm( confirm ) ) {
+			return;
+		}
+
+		const saved = save();
+
+		if ( ! reprocess || false === saved ) {
+			return;
+		}
+
+		Promise.resolve( saved ).then( () => {
+			if ( this.getError( 'save' ) ) {
+				return;
+			}
+			this.setError( type, null );
+			apiFetch( { path: '/photopress/v1/jobs', method: 'POST', data: { type, args: { force: ! reprocess.skip } } } )
+				.then( () => this.setState( ( state ) => ( { jobs: state.jobs + 1 } ) ) )
+				.catch( ( e ) => this.setError( type, e.message || __( 'Saved, but the images could not be reprocessed.' ) ) );
+		} );
 	}
-	
-	MyModal() {
-			
-	    //const [ isOpen, setOpen ] = useState( false );
-	    let modalOpen = this.state.modalOpen;
-	    const openModal = () => this.setState( { modalOpen: true } );
-	    const closeModal = () => this.setState( { modalOpen: false } );
-	 
-	    return (
-		    
-	        <div>
-	        
-	            <Button 
-	            	isPrimary 
-	            	onClick={ openModal }
-	            >
-	            Add New
-	            </Button>
-	            
-	            { modalOpen && (
-	                <Modal
-	                    title="Add Image Taxonomy"
-	                    onRequestClose={ closeModal }>
-	                   
-	                
-	                    <div key={ 'add-new-tax-definition'} className="new-taxonomy-control">
-						
-			                <div className="taxonomy_attr">
-								
-				                <TextControl
-				                  label={ __('Singular Label') }
-				                  id={'new-taxonomy-singular'}
-				                  placeholder={ __('e.g. Car') }
-				                  className="right-pad"
-					              onChange={ e => this.newTaxValueChange( 'singularLabel', e ) }
-					              help={''}
-								/>
-							</div>
-							
-			                <div className="taxonomy_attr">
-								
-				                <TextControl
-				                  label={ __('Plural Label') }
-				                  id={'new-taxonomy-plural'}
-				                  className="right-pad"
-				                  placeholder='e.g. Cars'
-					              onChange={ e => this.newTaxValueChange( 'pluralLabel', e ) }
-					              
-					              help={''}
-								/>
-							</div>
-							
-							<div className="taxonomy_attr">
-								
-								<SelectControl
-									id={'new-taxonomy-tag'}	
-									label="XMP Tag"
-									
-									options={this.getXmpLabels()}
-									className="right-pad"
-									onChange={ e => this.newTaxValueChange( 'tag', e ) }
-									help={'The embedded meta-data tag to extract.'}
-								/>
-									<ExternalLink href="#">
-									{ __( 'Read about XMP Tags' ) }
-								</ExternalLink>
-							</div>
-							
-							<div className="taxonomy_attr">
-							
-								<CheckboxControl
-									label="Child Taxonomy"
-									id={'new-taxonomy-parse-xmp-tag'}
-									defaultChecked={false}
-									onChange={ e => this.newTaxValueChange( 'parseTagValue', e ) }
-									help={'e.g. "Parse people:Elon Musk from dc:subjects"'}
-								/>
-								
-							
-							</div>
-							
-							<div className="taxonomy_attr">
-								<Button
-									className="right-pad"
-									isPrimary
-									
-									disabled={ this.state.isAPISaving || ! this.state.isNewTaxPresent}
-									onClick={ this.addNewTaxonomy }
-								>
-									{ __( 'Save' ) }
-								</Button> 
-								 <Button 
-								 	isSecondary 
-								 	onClick={ closeModal }
-								 	
-								 >
-			                        Cancel
-			                    </Button>
-							</div>
-	
-						</div>
 
-	                    
-	                    
-	                </Modal>
-	            ) }
-	        </div>
-	    );
-		    
-	}
-		
-	render() {
-		
-		const MyNotice = () => (
-		    <Notice status="error">
-		        <p>An error occurred: <code>{ '' }</code>.</p>
-		    </Notice>
-		);
-		
-		const rows = [];
-		
-		const enable = () => (
-			
-			<BaseControl
-				label={ __( '' ) }
-				help={ '' }		
-				id="'custom_taxonomies_enable'"
-				className="codeinwp-text-field"
-			>
-			
-				{ this.getError('custom_taxonomies') &&
-					
-					<Notice status="error">
-				        <p>An error occurred: <code>{ this.getError('custom_taxonomies') }</code>.</p>
-				    </Notice>	
-									
-				}
-				
-			
-				<ToggleControl
-					id={'custom_taxonomies_enable'}
-					label={ __( 'Extract embedded image meta data.' ) }
-					help={ 'Stores embedded image meta-data into custom taxonomies that you define.' }
-					checked={ this.getSetting('custom_taxonomies_enable') || false }
-					onChange={ ( value ) => this.persistSetting( 'custom_taxonomies_enable', value ) }
-				/>
-				
-			</BaseControl>	
-
-		);
-		
-		const tax_roster = () => (
-			
-			<BaseControl
-				label={ __( 'Taxonomy Definitions' ) }
-				className={"codeinwp-text-field"}
-				help={'The list of taxononomies currently defined. To edit a taxonomy definition you must delete it and then re-add using the "Add New" button'}
-			>
-				{ this.MyModal() }	
-				{ this.getSetting('custom_taxonomies') &&
-		        
-		        	this.getSetting( 'custom_taxonomies' ).map( ( val, idx ) => {
-			              
-			            let idx_label = idx + 1;
-			           
-			            return (
-				          
-			            	<div className="taxonomy_control" key={idx}>
-			            		
-			                	<div className="taxonomy_attr">
-			                		
-			                		<div className="components-base-control__field">
-			                			<label htmlFor={idx}>{`${idx_label}.`}</label>
-			                		</div>
-			                		
-			                	</div>
-			                	
-			                	<div className="taxonomy_attr placeholder-small">
-									
-									<TextControl
-										label={ __('ID') }
-										value={`${val.id}`} 
-										className="right-pad"
-										readOnly
-									/>
-		
-			                	</div>
-			                	
-			                	<div className="taxonomy_attr placeholder-small">
-									
-									<TextControl
-										label={ __('Singular Label') }
-										value={`${val.singularLabel}`} 
-										className="right-pad"
-										readOnly
-									/>
-								
-								</div>
-			                	
-			                	<div className="taxonomy_attr placeholder-small">
-									
-									<TextControl
-										label={ __('Plural Label') }
-										value={`${val.pluralLabel}`} 
-										className=" right-pad"
-										readOnly
-									/>
-									
-								</div>
-								
-								<div className="taxonomy_attr">
-									
-									<TextControl
-										label={ __('XMP Tag') }
-										value={`${val.tag}`} 
-										className="right-pad"
-										readOnly
-									/>
-								
-								</div>
-								
-								<div className="taxonomy_attr placeholder-tiny">
-									
-									<TextControl
-										label={ __('Child Taxonomy?') }
-										value={`${val.parseTagValue}`} 
-										className=" right-pad"
-										readOnly
-									/>
-		
-								</div>
-								
-								<div className="taxonomy_attr">
-								
-					                <Button
-										isPrimary
-										id = {idx}
-										disabled={ this.state.isAPISaving }
-										onClick={ this.deleteCustomTaxonomy }
-										className="components-base-control__field"
-									>
-										{ __( 'Delete' ) }
-									</Button>
-								</div>
-								
-							</div>
-			              
-			            )
-			            
-			          })
-		        }
-		        
-		        </BaseControl>
-			
-		);
-		
-		const child_delimiter = () => (
-			<div>
-			
-			<BaseControl
-				label={ __( 'Child Taxonomy Delimiter' ) }
-				help={'The default delimiter is the ":" (semicolon) character. Only change this if you know what you are doing. This delimiter is used to parse child taxonomies from within other meta-data values. e.g. "person:elon musk" would store the term "Elon Musk" into the "person" taxonomy. Child taxonomies are typically parsed from keyword values contained in dc:subject XMP tag.'}		
-				id="'custom_taxonomies_enable'"
-				className="codeinwp-text-field"
-			>
-			<TextControl
-					id={'custom_taxonomies_tag_delimiter'}
-					label={ __('') }
-					value={ this.getSetting('custom_taxonomies_tag_delimiter') } 
-					className="tiny-input right-pad"
-					length={5}
-					onChange={ ( value ) => this.setSetting( 'custom_taxonomies_tag_delimiter', value ) }
-					onBlur={ ( event ) => this.setSetting( 'custom_taxonomies_tag_delimiter', sanitize( event.target.value, 'string' ) ) }
-					
-				/>
-			</BaseControl>	
-			<Button
-				isPrimary
-				disabled={ this.state.isAPISaving }
-				onClick={ this.saveSettings }
-				className="components-base-control__field"
-			>
-				{ __( 'Save' ) }
-			</Button>
-			</div>
-		);
-		
-		// push render constants into rows array for final rendering. Order matters.
-		rows.push( 
-			enable, 
-			tax_roster,
-			child_delimiter
-		);
-		
-
+	/** A section's reprocess job: an error starting it, and its progress. */
+	jobPanel( type, label ) {
 		return (
 			<Fragment>
-			{ this.getError( 'save' ) &&
-				<Notice status="error" isDismissible={ false }>
-					<p>{ __( 'The settings were not saved:' ) } { this.getError( 'save' ) }</p>
+				{ this.getError( type ) && <Notice status="error" isDismissible={ false }>{ this.getError( type ) }</Notice> }
+				<JobPanel type={ type } label={ label } startable={ false } refresh={ this.state.jobs } />
+			</Fragment>
+		);
+	}
+
+	/**
+	 * Goes to a page within the tab (taxonomy/parent/new), or with none back
+	 * to the tab, at the top of the window, where flash is shown.
+	 */
+	navigate( route = '', flash = null ) {
+		this.setState( { flash } );
+		window.location.hash = this.settingsGroup + ( route ? '/' + route : '' );
+		window.scrollTo( 0, 0 );
+	}
+
+	/** Whether all three licensing settings are filled in and saved. */
+	licensingSaved() {
+		const keys = [ 'licensor_name', 'web_statement_of_rights', 'licensor_url' ];
+
+		return keys.every( ( key ) => String( this.getSetting( key ) || '' ).trim() ) && ! keys.some( ( key ) => this.state.dirtyFields.includes( key ) );
+	}
+
+	render() {
+		
+		const saveError = this.getError( 'save' ) && (
+			<Notice status="error" isDismissible={ false }>
+				<p>{ __( 'The settings were not saved:' ) } { this.getError( 'save' ) }</p>
+			</Notice>
+		);
+		
+		// A page within the tab: adding or editing an image taxonomy.
+		if ( ( this.props.route || '' ).startsWith( 'taxonomy/' ) ) {
+			return (
+				<Fragment>
+					{ saveError }
+					<PanelBody>
+						<TaxonomySettings component={ this } route={ this.props.route } />
+					</PanelBody>
+				</Fragment>
+			);
+		}
+		
+		return (
+			<Fragment>
+			{ saveError }
+			{ this.state.flash && (
+				<Notice status={ this.state.flash.status } onRemove={ () => this.setState( { flash: null } ) } className="photopress-flash">
+					{ this.state.flash.text }
 				</Notice>
-			}
-			<PanelBody title={ __( 'Custom Taxonomies' ) }>
-						
-					{ rows.map( ( val, idx ) => {
-					
-						let row = val();
-						return (
-						
-						 <PanelRow key={`component-${idx}`}>{row}</PanelRow> 
-						 
-						 );
-						
-					})}
-								
-			</PanelBody>	
+			) }
+			<FeatureSection
+				title={ __( 'Image Taxonomies' ) }
+				description={ __( 'Let visitors browse your photos by camera, place, person and more.' ) }
+				info={ [
+					<p key="0">{ __( 'Each image taxonomy has its own archive pages, and PhotoPress fills them from the metadata embedded in each photo when it is uploaded.' ) }</p>,
+					<p key="1">{ __( 'Standard Metadata is built in. Map the keyword hierarchies and other metadata fields you use to taxonomies of their own below.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'custom_taxonomies_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'custom_taxonomies_enable', value ) }
+				className="photopress-feature--taxonomies"
+			>
+				<TaxonomySettings component={ this } />
+			</FeatureSection>
 			
-			<PanelBody title={ __( 'Alt Text' ) }>
-			
-				<BaseControl
-					label={ __( '' ) }
-					
-				>
-					<ToggleControl
-						id={'alt_text_enable'}
-						label={ __( 'Use Meta-data for alt text of images.' ) }
-						help={ 'Populate the alternate text attribute with the value of a meta-data field.' }
-						checked={ this.getSetting('alt_text_enable')  }
-						onChange={ ( value ) => this.persistSetting( 'alt_text_enable', value ) }
+			<FeatureSection
+				title={ __( 'Alt Text' ) }
+				description={ __( 'Set each image’s alt text from its metadata when it is uploaded.' ) }
+				info={ [
+					<p key="0">{ __( 'The alt text written in the image’s file is used when it has one: the Alt Text (Accessibility) field that Lightroom Classic and Photoshop write. Otherwise the template’s fields, in square brackets, are filled from the file’s metadata, e.g. [photoshop:Headline]; with none of them, its description or title.' ) }</p>,
+					<p key="1">{ __( 'Save and reprocess all images applies a new template to the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'alt_text_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'alt_text_enable', value ) }
+			>
+				<BaseControl>
+					<CheckboxControl
+						__nextHasNoMarginBottom
+						label={ __( 'Use the alt text written in the file, when it has one' ) }
+						help={ __( 'Lightroom Classic and Photoshop write it as Alt Text (Accessibility). It takes the place of the template.' ) }
+						checked={ !! this.getSetting( 'alt_text_from_file' ) }
+						onChange={ ( value ) => this.setSetting( 'alt_text_from_file', value ) }
 					/>
-				
+
 					<TextControl
-						id={'alt_text_template'}
-						label={ __('Alt Text Template') }
-						value={ this.getSetting('alt_text_template') } 
+						id={ 'alt_text_template' }
+						label={ __( 'Alt Text Template' ) }
+						value={ this.getSetting( 'alt_text_template' ) }
 						className="small-input right-pad"
-						
-						help={"The template to use for populating alt text. Meta-data placeholders should be surounded by square brackets (i.e. [photoshop:Headline]"}
+						help={ this.getSetting( 'alt_text_from_file' )
+							? __( 'For images whose files have no alt text of their own. Metadata fields go in square brackets, e.g. [photoshop:Headline].' )
+							: __( 'Metadata fields go in square brackets, e.g. [photoshop:Headline].' ) }
 						onChange={ ( value ) => this.setSetting( 'alt_text_template', value ) }
 						onBlur={ ( event ) => this.setSetting( 'alt_text_template', sanitize( event.target.value, 'string' ) ) }
 					/>
-					
+
+					<SaveBar
+						saving={ this.state.isAPISaving }
+						reprocess={ {
+							label: __( 'Save and reprocess all images' ),
+							missing: __( 'metadata for the template' ),
+							terms: __( 'alt text' ),
+							request: {},
+						} }
+						onSave={ ( reprocess ) => this.saveThen( 'metadata.alt_text', reprocess, __( 'Save, and set the alt text of every image from its metadata? Alt text written by hand is replaced.' ) ) }
+					/>
+
+					{ this.jobPanel( 'metadata.alt_text', __( 'Reprocessing alt text' ) ) }
+				</BaseControl>
+			</FeatureSection>
+
+			<FeatureSection
+				title={ __( 'Description' ) }
+				description={ __( 'Set each image’s description from its metadata when it is uploaded or its file is replaced.' ) }
+				info={ [
+					<p key="0">{ __( 'The template’s fields, in square brackets, are filled from the metadata embedded in the image’s file, e.g. [dc:description].' ) }</p>,
+					<p key="1">{ __( 'Save and reprocess all images applies a new template to the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'description_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'description_enable', value ) }
+			>
+				<BaseControl>
 					<TextControl
-						id={'description_template'}
-						label={ __('Description Template') }
-						value={ this.getSetting('description_template') || '' }
+						id={ 'description_template' }
+						label={ __( 'Description Template' ) }
+						value={ this.getSetting( 'description_template' ) || '' }
 						className="small-input right-pad"
-						help={"The template for an image's description, set on upload and when its file is replaced, e.g. [photoshop:Headline]. Leave empty to leave descriptions alone."}
+						help={ __( 'Metadata fields go in square brackets, e.g. [dc:description].' ) }
 						onChange={ ( value ) => this.setSetting( 'description_template', value ) }
 						onBlur={ ( event ) => this.setSetting( 'description_template', sanitize( event.target.value, 'string' ) ) }
 					/>
-					
-					<Button
-						isPrimary
-						disabled={ this.state.isAPISaving }
-						onClick={ this.saveSettings }
-						className="components-base-control__field"
-					>
-						{ __( 'Save' ) }
-					</Button>
-					
+
+					<SaveBar
+						saving={ this.state.isAPISaving }
+						reprocess={ {
+							label: __( 'Save and reprocess all images' ),
+							missing: __( 'metadata for the template' ),
+							terms: __( 'description' ),
+							request: {},
+						} }
+						onSave={ ( reprocess ) => this.saveThen( 'metadata.description', reprocess, __( 'Save, and set the description of every image from its metadata? Descriptions written by hand are replaced.' ) ) }
+					/>
+
+					{ this.jobPanel( 'metadata.description', __( 'Reprocessing descriptions' ) ) }
 				</BaseControl>
-				
-			</PanelBody>
-			
-			<PanelBody title={ __( 'Licensing' ) }>
-			
-				<BaseControl
-					label={ __( '' ) }
-					
-				>
-				
-					{ this.getError('licensor') &&
-						
-						<Notice 
-							status="error"
-							isDismissible={false}
-						>
-					        <p><b>An error occured:</b> <code>{ this.getError('licensor') }</code></p>
-					    </Notice>	
-										
-					}
-					
+			</FeatureSection>
+
+			<FeatureSection
+				title={ __( 'Licensing' ) }
+				description={ __( 'Add your licensing information to your images and the pages that show them.' ) }
+				info={ [
+					<p key="0">{ __( 'The Web Statement of Rights and the licensor are written into each image file’s metadata on upload, where search engines such as Google Images read them, and added as structured data (JSON-LD) with each image on the pages that show it, with any theme.' ) }</p>,
+					<p key="1">{ __( 'All three settings are needed. Save and reprocess all images writes them into the files of the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'embed_licensor_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'embed_licensor_enable', value ) }
+			>
+				<BaseControl>
+					{ this.getError( 'licensor' ) && (
+						<Notice status="error" isDismissible={ false }>
+							<p><b>{ __( 'An error occurred:' ) }</b> <code>{ this.getError( 'licensor' ) }</code></p>
+						</Notice>
+					) }
+
 					<TextControl
-						id={'licensor_name'}
-						label={ __('Licensor Name') }
-						value={ this.getSetting('licensor_name') } 
+						id={ 'licensor_name' }
+						label={ __( 'Licensor Name' ) }
+						value={ this.getSetting( 'licensor_name' ) }
 						className=" right-pad"
-						help={"The name of the person or organization that licenses your images."}
+						help={ __( 'The name of the person or organization that licenses your images.' ) }
 						onChange={ ( value ) => this.setSetting( 'licensor_name', value ) }
 						onBlur={ ( event ) => this.setSetting( 'licensor_name', sanitize( event.target.value, 'string' ) ) }
 					/>
-				
-					
+
 					<TextControl
-						id={'web_statement_of_rights'}
-						label={ __('Web Statement of Rights URL') }
-						value={ this.getSetting('web_statement_of_rights') } 
+						id={ 'web_statement_of_rights' }
+						label={ __( 'Web Statement of Rights URL' ) }
+						value={ this.getSetting( 'web_statement_of_rights' ) }
 						className=" right-pad"
-						help={"Used by search engines to display a link to the license statement of your images."}
+						help={ __( 'Used by search engines to display a link to the license statement of your images.' ) }
 						onChange={ ( value ) => this.setSetting( 'web_statement_of_rights', value.trim() ) }
 					/>
-					
+
 					<TextControl
-						id={'licensor_url'}
-						label={ __('Licensing URL') }
-						value={ this.getSetting('licensor_url') } 
+						id={ 'licensor_url' }
+						label={ __( 'Licensing URL' ) }
+						value={ this.getSetting( 'licensor_url' ) }
 						className=" right-pad"
-						help={"The URL where people can obtain a license your images."}
+						help={ __( 'The URL where people can obtain a license for your images.' ) }
 						onChange={ ( value ) => this.setSetting( 'licensor_url', value.trim() ) }
 					/>
 
-					<Button
-						isPrimary
-						disabled={ this.state.isAPISaving }
-						onClick={ this.saveSettings }
-						className="components-base-control__field"
-					>
-						{ __( 'Save' ) }
-					</Button>
-					
-					<hr/>
-					
-					<ToggleControl
-						id={'embed_licensor_enable'}
-						label={ __( 'Embed licensing meta-data in images ' ) }
-						help={ 'Embeds licensing related meta-data (Licensor Name, Licensor URL, Web Statement of Rights, etc.) in image file during upload if they do not already exist. Requires exiftool to be installed on your server.' }
-						checked={ this.getSetting('embed_licensor_enable')  }
-						onChange={ ( value ) => this.persistSetting( 'embed_licensor_enable', value ) }
+					<SaveBar
+						saving={ this.state.isAPISaving }
+						reprocess={ {
+							label: __( 'Save and reprocess all images' ),
+							request: {},
+						} }
+						onSave={ ( reprocess ) => this.saveThen( 'metadata.license', reprocess, __( 'Save, and write the licensing information into the files of every image? Each image’s files are rewritten, and copied again wherever they are stored.' ), this.saveLicensing ) }
 					/>
-					
-					
-				
+					<p className="description">{ __( 'Reprocessing writes the licensing information into the files of every image already uploaded: the original and each size, without re-encoding them. Images whose files are stored elsewhere, as with WP Offload Media, are uploaded there again. It runs in the background, pausing while the server is busy.' ) }</p>
+
+					{ ! this.licensingSaved() && (
+						<Notice status="warning" isDismissible={ false } className="photopress-licensing-incomplete">
+							{ __( 'Licensing is not applied until all three settings are filled in and saved: nothing is written into files and no structured data is added to pages.' ) }
+						</Notice>
+					) }
+
+					{ this.jobPanel( 'metadata.license', __( 'Reprocessing licensing metadata' ) ) }
 				</BaseControl>
-				
-				<hr/>
-				
-				<JobPanel
-					type="metadata.reprocess"
-					label={ __( 'Re-read image metadata' ) }
-					description={ __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. Run it after changing the taxonomies or templates above. A photo whose file has no keywords at all, or no location, camera or lens, keeps its terms there, since its file may have had its metadata stripped. It runs in the background; you can leave this page.' ) }
-					args={ { force: this.state.reprocessForce } }
-					confirm={ this.state.reprocessForce
-						? __( 'Re-read the metadata of every image, and empty the terms of photos whose files have none? Terms, alt text and descriptions set by hand are replaced by what the files say.' )
-						: __( 'Re-read the metadata of every image? Terms, alt text and descriptions set by hand are replaced by what the files say.' ) }
-				/>
-				
-				<ToggleControl
-					__nextHasNoMarginBottom
-					label={ __( 'Also empty terms a file has nothing for' ) }
-					help={ __( 'Removes the keywords, location, camera or lens terms of photos whose files have none, as when every keyword was removed from a file.' ) }
-					checked={ !! this.state.reprocessForce }
-					onChange={ ( value ) => this.setState( { reprocessForce: value } ) }
-				/>
-				
-			</PanelBody>
-			
+			</FeatureSection>
+
 			</Fragment>
 		
 		);

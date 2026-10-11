@@ -179,7 +179,11 @@ class photopress_settingsPage {
 							'parseTagValue' => [ 'type' => 'boolean' ],
 							// A parent keyword's names, and whether its terms nest.
 							'names'         => [ 'type' => 'array', 'items' => [ 'type' => 'string' ] ],
+							// No longer used (every parent keyword is nested); accepted
+							// from settings saved before, and dropped.
 							'nested'        => [ 'type' => 'boolean' ],
+							// Turned off: not registered or filled, its names kept.
+							'disabled'      => [ 'type' => 'boolean' ],
 						],
 					],
 				];
@@ -239,6 +243,7 @@ class photopress_settingsPage {
 			
 			case 'none':
 				$list = [];
+				$ids  = [];
 				foreach ( (array) $value as $item ) {
 					$item = (array) $item;
 					$clean = [
@@ -249,6 +254,16 @@ class photopress_settingsPage {
 						'parseTagValue' => ! empty( $item['parseTagValue'] ),
 					];
 					
+					// Each id once: two entries with one id would register as
+					// one taxonomy, their terms mixed. A repeat gets a suffix,
+					// as the settings screen gives a new taxonomy.
+					$id = $clean['id'];
+					for ( $n = 2; '' !== $id && isset( $ids[ $id ] ); $n++ ) {
+						$id = substr( $clean['id'], 0, 32 - strlen( "_$n" ) ) . "_$n";
+					}
+					$ids[ $id ]  = true;
+					$clean['id'] = $id;
+					
 					// Only on parent keywords that use them.
 					$names = array_values( array_filter( array_map( 'sanitize_text_field', array_map( 'strval', (array) ( $item['names'] ?? [] ) ) ), 'strlen' ) );
 					
@@ -256,8 +271,8 @@ class photopress_settingsPage {
 						$clean['names'] = $names;
 					}
 					
-					if ( ! empty( $item['nested'] ) ) {
-						$clean['nested'] = true;
+					if ( ! empty( $item['disabled'] ) ) {
+						$clean['disabled'] = true;
 					}
 					
 					$list[] = $clean;

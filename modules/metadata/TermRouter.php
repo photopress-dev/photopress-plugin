@@ -16,10 +16,10 @@ namespace PhotoPress\modules\metadata;
  * Photoshop's File Info, leaves the other as it was); the image gets the
  * keywords of both, since neither can be told to be the newer.
  *
- * A path under a parent keyword goes to the parent's taxonomy: all of its
- * levels below the parent as nested terms, when the parent is nested, else
- * its last level, the levels between going to Keywords. Every level of any
- * other path goes to Keywords.
+ * A path under a parent keyword goes to the parent's taxonomy, its levels
+ * below the parent as nested terms (People|Family|Jane: Jane under Family).
+ * Any other path goes to Keywords, nested the same way (Places|USA|California:
+ * California under USA under Places); a plain keyword is a path of one.
  */
 final class TermRouter {
 
@@ -31,8 +31,8 @@ final class TermRouter {
 	];
 
 	/**
-	 * Taxonomy id => its terms: names, or for a nested taxonomy paths (lists
-	 * of names, parent first). Every taxonomy of the model is present, so one
+	 * Taxonomy id => its terms: names, or for a nested taxonomy (Keywords
+	 * and the parent keywords') paths, lists of names, parent first. Every taxonomy of the model is present, so one
 	 * the image has nothing for is emptied.
 	 */
 	public static function route( XmpReader $md, TaxonomyModel $model ): array {
@@ -66,25 +66,18 @@ final class TermRouter {
 				$match = self::parentOf( $path, $tag_parents );
 
 				if ( ! $match ) {
-					foreach ( $path as $level ) {
-						self::add( $terms, $tag_takers, $level );
+					foreach ( $tag_takers as $id ) {
+						if ( $model->isNested( $id ) ) {
+							$terms[ $id ][] = $path;
+						} else {
+							array_push( $terms[ $id ], ...$path );
+						}
 					}
 					continue;
 				}
 
 				[ $parent, $depth ] = $match;
-				$under = array_slice( $path, $depth );
-
-				if ( $parent['nested'] ) {
-					$terms[ $parent['id'] ][] = $under;
-					continue;
-				}
-
-				$terms[ $parent['id'] ][] = array_pop( $under );
-
-				foreach ( $under as $level ) {
-					self::add( $terms, $tag_takers, $level );
-				}
+				$terms[ $parent['id'] ][] = array_slice( $path, $depth );
 			}
 		}
 
@@ -94,6 +87,60 @@ final class TermRouter {
 
 		return $terms;
 	}
+
+	/**
+	 * Fields whose values are codes, by code: the vocabularies' own names,
+	 * in US English.
+	 */
+	const CODED = [
+		'plus:ModelReleaseStatus'      => [
+			'MR-NON' => 'None',
+			'MR-NAP' => 'Not Applicable',
+			'MR-UMR' => 'Unlimited Model Releases',
+			'MR-LMR' => 'Limited or Incomplete Model Releases',
+		],
+		'plus:PropertyReleaseStatus'   => [
+			'PR-NON' => 'None',
+			'PR-NAP' => 'Not Applicable',
+			'PR-UPR' => 'Unlimited Property Releases',
+			'PR-LPR' => 'Limited or Incomplete Property Releases',
+		],
+		'plus:MinorModelAgeDisclosure' => [
+			'AG-UNK' => 'Age Unknown',
+			'AG-A25' => 'Age 25 or Over',
+			'AG-U14' => 'Age 14 or Under',
+		],
+		'Iptc4xmpExt:DigitalSourceType' => [
+			'digitalCapture'                      => 'Digital capture sampled from real life',
+			'computationalCapture'                => 'Multi-frame computational capture sampled from real life',
+			'negativeFilm'                        => 'Digitized from a transparent negative',
+			'positiveFilm'                        => 'Digitized from a transparent positive',
+			'print'                               => 'Digitized from a non-transparent medium',
+			'minorHumanEdits'                     => 'Original media with minor human edits',
+			'humanEdits'                          => 'Human-edited media',
+			'compositeWithTrainedAlgorithmicMedia' => 'Edited using Generative AI',
+			'algorithmicallyEnhanced'             => 'Algorithmically-altered media',
+			'softwareImage'                       => 'Created by software',
+			'digitalArt'                          => 'Digital art',
+			'digitalCreation'                     => 'Digital creation',
+			'dataDrivenMedia'                     => 'Data-driven media',
+			'trainedAlgorithmicMedia'             => 'Created using Generative AI',
+			'algorithmicMedia'                    => 'Pure algorithmic media',
+			'screenCapture'                       => 'Screen capture',
+			'virtualRecording'                    => 'Virtual event recording',
+			'composite'                           => 'Composite of elements',
+			'compositeCapture'                    => 'Composite of captured elements',
+			'compositeSynthetic'                  => 'Composite including generative AI elements',
+		],
+	];
+
+	/**
+	 * Fields written as one text with their values separated, not as a
+	 * list: Capture One writes Getty Images' Personality as "Jane;John".
+	 */
+	const SEPARATED = [
+		'GettyImagesGIFT:Personality' => ';',
+	];
 
 	/** Fields read together: a file with any of them has a location. */
 	const SOURCES = [
@@ -251,8 +298,65 @@ final class TermRouter {
 				return self::strings( StandardMetadata::lens( $md ) );
 
 			default:
-				return self::strings( $md->getXmp( $tag ) );
+				$values = false !== strpos( $tag, '/' ) ? self::part( $md, $tag ) : self::strings( $md->getXmp( $tag ) );
+
+				if ( isset( self::CODED[ $tag ] ) ) {
+					$values = array_map( static fn( $v ) => self::named( $tag, $v ), $values );
+				}
+
+				if ( isset( self::SEPARATED[ $tag ] ) ) {
+					$values = self::trimmed( array_merge( [], ...array_map( static fn( $v ) => explode( self::SEPARATED[ $tag ], $v ), $values ) ) );
+				}
+
+				return $values;
 		}
+	}
+
+	/**
+	 * One part of a structured field, from each of its entries: the city of
+	 * each Location Shown, as Iptc4xmpExt:LocationShown/Iptc4xmpExt:City.
+	 */
+	private static function part( XmpReader $md, string $tag ): array {
+
+		[ $field, $name ] = explode( '/', $tag, 2 );
+		$value            = $md->getXmp( $field );
+
+		if ( ! is_array( $value ) ) {
+			return [];
+		}
+
+		// One structure (the creator's contact details) or a list of them.
+		$entries = array_key_exists( $name, $value ) ? [ $value ] : $value;
+		$out     = [];
+
+		foreach ( $entries as $entry ) {
+			if ( is_array( $entry ) && isset( $entry[ $name ] ) ) {
+				array_push( $out, ...self::strings( $entry[ $name ] ) );
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The name of a field's code: PLUS release statuses and IPTC digital
+	 * source types are written as URLs (.../MR-UMR). A code not known is
+	 * written out from its own words.
+	 */
+	public static function named( string $tag, string $value ): string {
+
+		$code  = basename( rtrim( $value, '/' ) );
+		$names = self::CODED[ $tag ];
+
+		if ( isset( $names[ $code ] ) ) {
+			return $names[ $code ];
+		}
+
+		if ( 'plus:MinorModelAgeDisclosure' === $tag && preg_match( '/^AG-A(\d\d)$/', $code, $m ) ) {
+			return 'Age ' . (int) $m[1];
+		}
+
+		return ucfirst( strtolower( trim( preg_replace( '/([a-z])([A-Z])/', '$1 $2', $code ) ) ) );
 	}
 
 	private static function strings( $value ): array {
@@ -271,13 +375,6 @@ final class TermRouter {
 	private static function trimmed( array $parts ): array {
 
 		return array_values( array_filter( array_map( 'trim', $parts ), 'strlen' ) );
-	}
-
-	private static function add( array &$terms, array $ids, string $term ): void {
-
-		foreach ( $ids as $id ) {
-			$terms[ $id ][] = $term;
-		}
 	}
 
 	/** Each term once; names compared without case, as WordPress does. */

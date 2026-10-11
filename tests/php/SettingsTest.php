@@ -79,6 +79,45 @@ final class SettingsTest extends TestCase {
 		$this->assertArrayNotHasKey( 'not_a_field', $clean );
 	}
 
+	public function test_each_taxonomy_id_once(): void {
+
+		Functions\when( 'get_option' )->justReturn( [] );
+
+		$long  = str_repeat( 'x', 32 );
+		$clean = $this->page()->sanitizeOptions( [
+			'custom_taxonomies' => [
+				[ 'id' => 'pp_genre' ],
+				[ 'id' => 'pp_genre' ],
+				[ 'id' => 'PP_Genre' ],
+				[ 'id' => $long ],
+				[ 'id' => $long ],
+			],
+		] );
+
+		$ids = array_column( $clean['custom_taxonomies'], 'id' );
+
+		$this->assertSame( [ 'pp_genre', 'pp_genre_2', 'pp_genre_3', $long, str_repeat( 'x', 30 ) . '_2' ], $ids );
+		$this->assertLessThanOrEqual( 32, strlen( $ids[4] ) );
+	}
+
+		public function test_taxonomy_names_and_turning_off_are_kept_where_set_and_nesting_dropped(): void {
+
+		Functions\when( 'get_option' )->justReturn( [] );
+
+		$clean = $this->page()->sanitizeOptions( [
+			'custom_taxonomies' => [
+				[ 'id' => 'pp_people', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'People', ' <b>person</b> ', '' ], 'nested' => 1 ],
+				[ 'id' => 'photos_lens', 'tag' => 'aux:Lens', 'disabled' => true ],
+				[ 'id' => 'photos_city', 'tag' => 'photoshop:City', 'names' => [], 'nested' => false, 'disabled' => false ],
+			],
+		] );
+
+		$this->assertSame( [ 'People', 'person' ], $clean['custom_taxonomies'][0]['names'] );
+		$this->assertArrayNotHasKey( 'nested', $clean['custom_taxonomies'][0], 'every parent keyword is nested' );
+		$this->assertTrue( $clean['custom_taxonomies'][1]['disabled'] );
+		$this->assertSame( [ 'id', 'pluralLabel', 'singularLabel', 'tag', 'parseTagValue' ], array_keys( $clean['custom_taxonomies'][2] ) );
+	}
+
 	public function test_fields_missing_from_the_input_keep_their_stored_values(): void {
 
 		Functions\when( 'get_option' )->justReturn( [ 'thumbnailHeight' => 150 ] );

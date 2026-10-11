@@ -55,15 +55,16 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 = IMAGE META-DATA MANAGEMENT =
 
-* Define unlimited custom image taxonomies
-* Extract embedded EXIF, IPTC, and XMP meta-data from image files and store in taxonomies
-* Create and extract "child taxonomies" from embedded meta-data fields
+* Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload
+* Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up and keyword hierarchies kept as nested terms
+* Hierarchical Keyword Metadata: keywords under a parent keyword (People › Jane in Lightroom or Capture One, or people: Jane) go to the parent keyword's own taxonomy, each level nested under the one above
+* Custom Metadata: any other metadata field as a taxonomy
 * Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 * Display Exif Widget
 * Display Image Taxonomy Terms Widget
 * Generate custom image ALT text using meta-data templates
-* Generate image descriptions using meta-data templates
-* Embed Licensing info (Licensor, Licensor URL, Web Statement of Rights) into images files during upload
+* Generate image descriptions using meta-data templates, and reprocess the alt text or descriptions of every image after changing a template
+* Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
 * Re-read the meta-data of every image in the background, with its progress on the settings page, after changing taxonomies or templates
 
 = OFFLOAD MEDIA =
@@ -73,6 +74,16 @@ With WP Offload Media installed, the Offload Media settings tab shows:
 * Whether Offload Media is active, and where images are stored and served from
 * How long browsers and the CDN keep offloaded images (by default 1 day, then 1 hour while checking for a new one)
 * A button to clear the CloudFront cache
+
+== Frequently Asked Questions ==
+
+= What are the image taxonomies' IDs? =
+
+A taxonomy's ID is the name WordPress stores its terms under. Themes (taxonomy-{ID}.php templates), search plugins such as Relevanssi, the Image Taxonomies block and the widget refer to taxonomies by it. It never changes, even when the taxonomy is renamed.
+
+The six Standard Metadata taxonomies always have these IDs: photos_camera, photos_lens, photos_city, photos_state, photos_country and photos_keywords.
+
+Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_genre for Genre, pp_person for a People parent keyword. Taxonomies made by earlier versions keep the IDs they have, such as photos_people for People.
 
 == Screenshots ==
 

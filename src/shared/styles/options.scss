@@ -390,3 +390,340 @@ input[type="checkbox"] {
 		color: #d63638;
 	}
 }
+
+// An on/off setting: label and help on the left, the switch in the far
+// right column (src/shared/switch-row.js), as in the settings tables.
+.photopress-switch-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px 0;
+
+	label {
+		font-weight: 600;
+	}
+
+	.components-form-toggle {
+		flex: none;
+		margin-top: 2px;
+	}
+}
+
+.photopress-switch-row__help {
+	margin: 4px 0 0;
+	color: #646970;
+}
+
+// The Image Taxonomies section (src/options/taxonomies.js).
+.photopress-taxonomies {
+	max-width: 1100px;
+
+	code {
+		font-size: 12px;
+	}
+
+	.num {
+		text-align: right;
+	}
+
+	th.switch,
+	td.switch {
+		width: 40px;
+		text-align: right;
+	}
+}
+
+.photopress-taxonomies__intro {
+	max-width: 760px;
+	font-size: 14px;
+}
+
+.photopress-taxonomies__section {
+	margin-top: 28px;
+
+	h3 {
+		margin: 0 0 4px;
+	}
+}
+
+.photopress-taxonomies__head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+
+	.description {
+		max-width: 760px;
+		margin: 0;
+	}
+}
+
+.photopress-taxonomies__scroll {
+	overflow-x: auto;
+}
+
+.photopress-taxonomies__actions {
+	white-space: nowrap;
+	text-align: right;
+}
+
+.photopress-taxonomies__chip {
+	display: inline-block;
+	margin: 0 6px 4px 0;
+	padding: 1px 8px;
+	border: 1px solid #c5d9ed;
+	border-radius: 10px;
+	background: #f0f6fc;
+}
+
+.photopress-taxonomies__found {
+	margin-top: 16px;
+	padding: 12px 16px;
+	border: 1px solid #c5d9ed;
+	background: #f0f6fc;
+
+	h4 {
+		margin: 0;
+	}
+
+	ul {
+		margin: 8px 0 0;
+	}
+
+	li {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
+		padding: 6px 0;
+		border-top: 1px solid #dcdcde;
+	}
+}
+
+.photopress-taxonomies__separators {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 16px;
+
+	flex-direction: column;
+
+	.components-base-control {
+		width: 100%;
+		max-width: 560px;
+	}
+}
+
+.photopress-savebar {
+	margin-top: 8px;
+
+	.components-checkbox-control {
+		margin-bottom: 12px;
+	}
+}
+
+.photopress-taxonomies__editor {
+	max-width: 760px;
+
+	h3 {
+		margin: 12px 0 16px;
+	}
+
+	h4 {
+		margin: 24px 0 8px;
+	}
+
+	.components-base-control {
+		margin-bottom: 16px;
+	}
+}
+
+.photopress-taxonomies__pair {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+
+	@media (max-width: 600px) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.photopress-taxonomies__chips {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin-top: -8px;
+}
+
+.photopress-savebar__buttons {
+	display: flex;
+	gap: 8px;
+	margin-top: 24px;
+}
+
+// A section's reprocess job, below its settings and Save.
+.components-panel__body .components-base-control .photopress-job {
+	margin-top: 32px;
+	padding-top: 16px;
+	border-top: 1px solid #dcdcde;
+}
+
+// A job's button with its progress beside it (Reprocess all images).
+.photopress-job--compact .photopress-job__row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	gap: 12px 16px;
+
+	.photopress-job__progress {
+		flex: 1 1 280px;
+
+		progress {
+			width: 100%;
+		}
+
+		p {
+			margin: 4px 0 0;
+		}
+	}
+}
+
+.photopress-taxonomies__reprocess {
+	margin: 16px 0 24px;
+
+	.components-checkbox-control {
+		margin-top: 12px;
+	}
+}
+
+.photopress-flash {
+	margin: 0 0 16px;
+}
+
+// A feature as a card (src/shared/feature-section.js).
+.photopress-feature {
+	max-width: 1100px;
+	margin: 0 0 24px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.photopress-feature__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 16px 24px;
+	border-bottom: 1px solid #f0f0f1;
+
+	h2 {
+		margin: 0;
+		font-size: 18px;
+		font-weight: 400;
+	}
+}
+
+.photopress-feature__info {
+	padding: 12px 24px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #f0f0f1;
+	color: #3c434a;
+
+	p {
+		margin: 0 0 8px;
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+	}
+}
+
+.photopress-feature__switch {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 18px 24px;
+
+	label {
+		font-size: 14px;
+	}
+
+	// Larger than an option's switch: it turns a whole feature on.
+	.components-form-toggle {
+		flex: none;
+		transform: scale(1.3);
+		transform-origin: left center;
+		margin-right: 8px;
+	}
+}
+
+.photopress-feature__settings {
+	padding: 16px 24px 24px;
+	border-top: 1px solid #f0f0f1;
+}
+
+// Settings behind an Advanced settings link.
+.photopress-advanced {
+	margin-top: 16px;
+
+	> .components-button.is-link {
+		text-decoration: none;
+	}
+}
+
+// An option's own settings, under its switch.
+.photopress-subsettings {
+	margin: 0 0 8px 48px;
+}
+
+// An Advanced options link beside buttons.
+.photopress-advanced-link.components-button.is-link {
+	align-self: center;
+	margin-left: 4px;
+	text-decoration: none;
+}
+
+.photopress-savebar .components-checkbox-control {
+	margin-top: 4px;
+}
+
+// Cancel at the right end of the buttons.
+.photopress-savebar__cancel.components-button {
+	margin-left: auto;
+}
+
+// The metadata field's label, with a link to what the fields mean at the right.
+.photopress-taxonomies__field-label {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 8px;
+
+	.components-base-control__label {
+		margin: 0;
+	}
+}
+
+.photopress-images-outdated,
+.photopress-images-regenerate-note {
+	color: #646970;
+}
+
+.photopress-images-threshold input {
+	max-width: 8em;
+}
+
+.photopress-images-settings h3 {
+	margin-top: 32px;
+
+	&:first-child {
+		margin-top: 0;
+	}
+}

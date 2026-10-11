@@ -3,9 +3,10 @@
  * images, their cache lifetime, and clearing replaced images from CloudFront.
  */
 const { __, sprintf } = wp.i18n;
+import SwitchRow from '../shared/switch-row.js';
 import { Component, useEffect, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
-import { BaseControl, Button, Notice, PanelBody, SelectControl, TextControl, ToggleControl } from '@wordpress/components';
+import { BaseControl, Button, Notice, PanelBody, SelectControl, TextControl } from '@wordpress/components';
 
 import {
 	setSetting,
@@ -275,9 +276,7 @@ class MediaSettings extends Component {
 							onChange={ ( value ) => this.setSetting( 'stale_seconds', value ) }
 						/>
 
-						<ToggleControl
-							__nextHasNoMarginBottom
-							id="delete_replaced_objects"
+						<SwitchRow
 							label={ __( 'Delete replaced files from the bucket' ) }
 							help={ __( "When a replacement gives an image's sizes new names (new dimensions or file type), delete the old files from the bucket two days later, once no cached page can still show them. Offload Media itself leaves them there." ) }
 							checked={ !! this.getSetting( 'delete_replaced_objects' ) }

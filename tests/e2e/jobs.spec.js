@@ -32,5 +32,5 @@ test( 're-reading the metadata of some images, with progress on the settings pag
 	await expect( panel.locator( '.photopress-job__progress' ) ).toHaveAttribute( 'data-status', 'done', { timeout: 90000 } );
 	await expect( panel ).toContainText( `${ made.images.length } of ${ made.images.length }` );
 	await expect( panel ).toContainText( 'Finished' );
-	await expect( panel.getByRole( 'button', { name: 'Run again' } ) ).toBeVisible();
+	await expect( panel.getByRole( 'button', { name: 'Reprocess all images' } ) ).toBeVisible();
 } );

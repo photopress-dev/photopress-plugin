@@ -653,7 +653,7 @@ class MediaRest {
 	 */
 	public static function attachmentFiles( $file, array $meta ) {
 
-		$full = _wp_relative_upload_path( $file );
+		$full = self::relativeUploadPath( $file );
 		$dir = self::uploadSubdir( $full );
 		$files = [ 'full' => $full ];
 
@@ -934,6 +934,17 @@ class MediaRest {
 		}
 
 		return array_values( array_unique( $updated ) );
+	}
+
+	/**
+	 * "2024/05/photo.jpg" for a file in uploads, given its full path; any
+	 * other path as it is.
+	 */
+	protected static function relativeUploadPath( $path ) {
+
+		$base = rtrim( (string) wp_get_upload_dir()['basedir'], '/' );
+
+		return '' !== $base && str_starts_with( (string) $path, $base . '/' ) ? substr( $path, strlen( $base ) + 1 ) : $path;
 	}
 
 	/**

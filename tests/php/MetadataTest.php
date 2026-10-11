@@ -44,6 +44,23 @@ final class MetadataTest extends TestCase {
 		return ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
 	}
 
+	public function test_alt_text_written_in_the_file_is_used_in_place_of_the_template(): void {
+
+		$m  = $this->metadataWithTemplate( '[photoshop:Headline]' );
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'photoshop:Headline' => 'At the lake', 'Iptc4xmpCore:AltTextAccessibility' => 'A man rowing a red boat on a lake' ] ] );
+
+		\pp_api::$options['core/metadata/alt_text_from_file'] = true;
+		$this->assertSame( 'A man rowing a red boat on a lake', $m->generateAltText( $md ) );
+
+		\pp_api::$options['core/metadata/alt_text_from_file'] = false;
+		$this->assertSame( 'At the lake', $m->generateAltText( $md ), 'off: the template' );
+
+		\pp_api::$options['core/metadata/alt_text_from_file'] = true;
+		$md->loadFromArray( [ 'xmp' => [ 'photoshop:Headline' => 'At the lake' ] ] );
+		$this->assertSame( 'At the lake', $m->generateAltText( $md ), 'none in the file: the template' );
+	}
+
 	public function test_alt_text_falls_back_to_description_then_title(): void {
 
 		$md = new XmpReader();
@@ -64,6 +81,7 @@ final class MetadataTest extends TestCase {
 
 		$file = $this->tempFile( 'not an image' );
 		Functions\when( 'get_attached_file' )->justReturn( $file );
+		Functions\when( 'wp_attachment_is_image' )->justReturn( true );
 
 		$m = $this->getMockBuilder( metadata::class )
 			->disableOriginalConstructor()
@@ -97,6 +115,7 @@ final class MetadataTest extends TestCase {
 
 		Functions\stubs( [ 'is_wp_error' => static fn( $thing ) => $thing instanceof \WP_Error ] );
 		\pp_api::$options = [
+			'core/metadata/embed_licensor_enable'   => true,
 			'core/metadata/web_statement_of_rights' => 'https://example.test/license',
 			'core/metadata/licensor_name'           => 'Alice Photography',
 			'core/metadata/licensor_url'            => 'https://alice.example',
@@ -159,6 +178,26 @@ final class MetadataTest extends TestCase {
 
 		$this->assertSame( 'https://photographer.example', $md['xmpRights:WebStatement'] );
 		$this->assertSame( [ [ 'plus:LicensorName' => 'Alice Photography', 'plus:LicensorURL' => 'https://alice.example' ] ], $md['plus:Licensor'] );
+	}
+
+	public function test_the_license_is_embedded_in_raster_images_only(): void {
+
+		\pp_api::$options = [
+			'core/metadata/embed_licensor_enable'   => true,
+			'core/metadata/web_statement_of_rights' => 'https://example.test/license',
+			'core/metadata/licensor_name'           => 'Alice Photography',
+			'core/metadata/licensor_url'            => 'https://alice.example',
+		];
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+
+		foreach ( [ 'application/pdf' => '%PDF-1.4 text', 'image/svg+xml' => '<svg xmlns="http://www.w3.org/2000/svg"/>', 'video/mp4' => 'not a video' ] as $type => $contents ) {
+			$file = $this->tempFile( $contents, '.bin' );
+			$this->assertNull( $m->embedLicense( null, [ 'tmp_name' => $file ], $file, $type ) );
+			$this->assertSame( $contents, file_get_contents( $file ), "$type: left as it is" );
+		}
+
+		$this->assertTrue( metadata::isRasterImage( 'image/webp' ) );
+		$this->assertFalse( metadata::isRasterImage( 'image/svg+xml' ) );
 	}
 
 	public function test_media_library_attributes_do_not_override_the_blocks_own(): void {
@@ -237,6 +276,7 @@ final class MetadataTest extends TestCase {
 		$md = new XmpReader();
 		$md->loadFromArray( [ 'xmp' => [ 'photoshop:Headline' => 'Bob at the lake' ] ] );
 
+		\pp_api::$options['core/metadata/description_enable'] = true;
 		\pp_api::$options['core/metadata/description_template'] = '';
 		$this->assertNull( $m->generateDescription( $md ), 'no template: leave the description alone' );
 
@@ -245,6 +285,106 @@ final class MetadataTest extends TestCase {
 
 		\pp_api::$options['core/metadata/description_template'] = '[photoshop:City]';
 		$this->assertSame( '', $m->generateDescription( $md ), 'nothing in the file: cleared' );
+
+		\pp_api::$options['core/metadata/description_enable'] = false;
+		$this->assertNull( $m->generateDescription( $md ), 'off: leave the description alone' );
+	}
+
+	public function test_sites_saved_before_the_description_switch_get_it_on_where_a_template_is_set(): void {
+
+		$stored = [
+			'photopress_core_metadata'  => [ 'description_template' => '[dc:description]' ],
+		];
+		Functions\when( 'get_option' )->alias( static function ( $key ) use ( &$stored ) { return $stored[ $key ] ?? false; } );
+		Functions\when( 'update_option' )->alias( static function ( $key, $value ) use ( &$stored ) { $stored[ $key ] = $value; } );
+
+		metadata::addDescriptionSwitch();
+		$this->assertTrue( $stored['photopress_core_metadata']['description_enable'] );
+
+		$stored['photopress_core_metadata'] = [ 'description_template' => ' ' ];
+		metadata::addDescriptionSwitch();
+		$this->assertFalse( $stored['photopress_core_metadata']['description_enable'] );
+
+		$stored['photopress_core_metadata'] = [ 'description_template' => '[dc:description]', 'description_enable' => false ];
+		metadata::addDescriptionSwitch();
+		$this->assertFalse( $stored['photopress_core_metadata']['description_enable'], 'a saved switch stays' );
+	}
+
+	public function test_the_license_json_ld_is_given_for_the_images_a_page_shows_when_licensing_is_on(): void {
+
+		global $wp_query;
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$image = (object) [ 'ID' => 7, 'post_type' => 'attachment' ];
+		$pdf   = (object) [ 'ID' => 8, 'post_type' => 'attachment' ];
+		$post  = (object) [ 'ID' => 9, 'post_type' => 'post' ];
+		$wp_query = (object) [ 'posts' => [ $image, $pdf, $post ] ];
+
+		Functions\when( 'is_attachment' )->justReturn( false );
+		Functions\when( 'is_search' )->justReturn( true );
+		Functions\when( 'is_archive' )->justReturn( false );
+		Functions\when( 'wp_attachment_is_image' )->alias( static fn( $p ) => 7 === $p->ID );
+
+		\pp_api::$options['core/metadata/embed_licensor_enable'] = true;
+		\pp_api::$options['core/metadata/licensor_name'] = 'Alice Photography';
+		\pp_api::$options['core/metadata/licensor_url'] = 'https://alice.example/buy';
+		\pp_api::$options['core/metadata/web_statement_of_rights'] = '';
+		$this->assertSame( [], $m->licensableImagesOfPage(), 'not all three settings filled in' );
+
+		\pp_api::$options['core/metadata/web_statement_of_rights'] = 'https://alice.example/terms';
+		$this->assertSame( [ 7 ], $m->licensableImagesOfPage() );
+
+		\pp_api::$options['core/metadata/embed_licensor_enable'] = false;
+		$this->assertSame( [], $m->licensableImagesOfPage(), 'licensing off' );
+		$this->assertSame( '', $m->renderLicensingSchema( [] ) );
+
+		$wp_query = null;
+	}
+
+	public function test_the_license_is_written_into_each_file_of_an_image_without_re_encoding(): void {
+
+		$dir  = sys_get_temp_dir() . '/pp-license-' . uniqid();
+		mkdir( $dir );
+		$jpeg = dirname( __DIR__ ) . '/fixtures/images/02-landscape-3x2.jpg';
+		foreach ( [ 'a-scaled.jpg', 'a.jpg', 'a-300x200.jpg' ] as $name ) {
+			copy( $jpeg, "$dir/$name" );
+		}
+
+		$updated = 0;
+		Functions\when( 'get_attached_file' )->justReturn( "$dir/a-scaled.jpg" );
+		Functions\when( 'wp_get_attachment_metadata' )->justReturn( [ 'original_image' => 'a.jpg', 'sizes' => [ 'medium' => [ 'file' => 'a-300x200.jpg' ], 'gone' => [ 'file' => 'a-1x1.jpg' ] ] ] );
+		Functions\when( 'wp_update_attachment_metadata' )->alias( static function () use ( &$updated ) { $updated++; } );
+		Functions\when( 'wp_basename' )->alias( 'basename' );
+
+		\pp_api::$options['core/metadata/embed_licensor_enable'] = true;
+		\pp_api::$options['core/metadata/web_statement_of_rights'] = 'https://example.test/license';
+		\pp_api::$options['core/metadata/licensor_name'] = 'Test Licensor';
+		\pp_api::$options['core/metadata/licensor_url'] = '';
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$this->assertInstanceOf( \WP_Error::class, $m->embedLicenseInImage( 5 ), 'not all three settings filled in' );
+		$this->assertSame( 0, $updated );
+		\pp_api::$options['core/metadata/licensor_url'] = 'https://licensor.example';
+
+		try {
+			$this->assertSame( [ "$dir/a-scaled.jpg", "$dir/a.jpg", "$dir/a-300x200.jpg" ], metadata::imageFiles( 5 ), 'files that are missing are left out' );
+			$this->assertTrue( $m->embedLicenseInImage( 5 ) );
+			$this->assertSame( 1, $updated, 'its metadata is updated, for offloading plugins' );
+
+			foreach ( [ 'a-scaled.jpg', 'a.jpg', 'a-300x200.jpg' ] as $name ) {
+				$md = new XmpReader();
+				$md->loadFromFile( "$dir/$name" );
+				$this->assertSame( 'https://example.test/license', $md->getXmp( 'xmpRights:WebStatement' ), $name );
+				$this->assertSame( [ 'plus:LicensorName' => 'Test Licensor', 'plus:LicensorURL' => 'https://licensor.example' ], $md->getXmp( 'plus:Licensor' ), $name );
+				$this->assertSame( ( new \Imagick( $jpeg ) )->getImageSignature(), ( new \Imagick( "$dir/$name" ) )->getImageSignature(), "$name: same pixels" );
+			}
+
+			\pp_api::$options['core/metadata/embed_licensor_enable'] = false;
+			$this->assertInstanceOf( \WP_Error::class, $m->embedLicenseInImage( 5 ), 'licensing off' );
+		} finally {
+			array_map( 'unlink', glob( "$dir/*" ) );
+			rmdir( $dir );
+		}
 	}
 
 	public function test_a_keyword_taxonomy_is_emptied_when_the_file_has_other_keywords(): void {
@@ -265,13 +405,17 @@ final class MetadataTest extends TestCase {
 			$set[ $taxonomy ] = $terms;
 		} );
 
+		Functions\when( 'is_wp_error' )->justReturn( false );
+		Functions\when( 'term_exists' )->justReturn( null );
+		Functions\when( 'wp_insert_term' )->justReturn( [ 'term_id' => 13 ] );
+
 		$md = new XmpReader();
 		$md->loadFromArray( [ 'xmp' => [ 'dc:subject' => [ 'lake' ] ] ] );
 		$m->setTaxonomyTerms( 42, $md );
 
 		// People is emptied (the file has keywords, none of them people); the
 		// city is kept, as the file has no location at all.
-		$this->assertSame( [ 'photos_keywords' => [ 'lake' ], 'photos_people' => [] ], $set );
+		$this->assertSame( [ 'photos_keywords' => [ 13 ], 'photos_people' => [] ], $set );
 	}
 }
 
