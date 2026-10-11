@@ -96,10 +96,14 @@ test( 'a replaced image keeps its CloudFront URL and is cleared from the CDN', a
 	// Cleared from the settings tab rather than waiting for the queue.
 	await page.reload();
 	const status = page.locator( '.photopress-offload-status' );
-	await expect( status ).toContainText( '1 image(s) waiting', { timeout: 60000 } );
+	await expect( status ).toContainText( '1 image waiting', { timeout: 60000 } );
 	await status.getByRole( 'button', { name: 'Clear waiting images now' } ).click();
-	await expect( status ).toContainText( 'Last invalidation:', { timeout: 60000 } );
+	await expect( status ).toContainText( 'Last cleared:', { timeout: 60000 } );
 	await expect( status ).not.toContainText( 'failed' );
+
+	if ( process.env.PP_E2E_SHOTS ) {
+		await page.locator( '.components-panel__body', { has: status } ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/offload.png` } );
+	}
 
 	// CloudFront serves the new file once the invalidation completes, and
 	// the old medium size no longer exists.

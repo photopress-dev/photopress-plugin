@@ -323,7 +323,7 @@ test.describe( 'settings', () => {
 					[ /\bd[a-z0-9]{12,14}\.cloudfront\.net\b/g, 'd111111abcdef8.cloudfront.net' ],
 					[ /\bE[A-Z0-9]{12,14}\b/g, 'EDFDVBD6EXAMPLE' ],
 				];
-				const bucket = [ ...root.querySelectorAll( 'th' ) ].find( ( th ) => th.textContent === 'Bucket' );
+				const bucket = [ ...root.querySelectorAll( 'th' ) ].find( ( th ) => th.textContent === 'Cloud storage' );
 				const name = bucket && bucket.nextElementSibling.textContent.split( ' ' )[ 0 ];
 				if ( name ) {
 					swap.push( [ new RegExp( name.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ), 'g' ), 'example-photos' ] );

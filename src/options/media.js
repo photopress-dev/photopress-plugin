@@ -2,7 +2,7 @@
  * The Offload Media settings tab: where WP Offload Media stores and serves
  * images, their cache lifetime, and clearing replaced images from CloudFront.
  */
-const { __, sprintf } = wp.i18n;
+const { __, _n, sprintf } = wp.i18n;
 import SwitchRow from '../shared/switch-row.js';
 import { Component, useEffect, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
@@ -21,7 +21,7 @@ import {
 
 const CREDENTIAL_SOURCES = {
 	photopress: __( 'PHOTOPRESS_AWS_* constants in wp-config.php' ),
-	'instance-role': __( "the server's IAM role" ),
+	'instance-role': __( 'The server’s IAM role' ),
 	'offload-media': __( "WP Offload Media's credentials" ),
 };
 
@@ -66,7 +66,7 @@ function OffloadStatus() {
 		if (
 			'all' === scope &&
 			// eslint-disable-next-line no-alert
-			! window.confirm( __( 'Clear every file from the CDN? Each is fetched from the bucket again on its next request.' ) )
+			! window.confirm( __( 'Clear every image from the CDN? Each is fetched from cloud storage again the next time it’s viewed.' ) )
 		) {
 			return;
 		}
@@ -79,7 +79,7 @@ function OffloadStatus() {
 
 	const state = (
 		<p className="photopress-offload-state">
-			{ __( 'Offload Media status:' ) }{ ' ' }
+			{ __( 'WP Offload Media:' ) }{ ' ' }
 			<span className={ `photopress-offload-state__value is-${ status.plugin }` }>{ PLUGIN_STATES[ status.plugin ] || status.plugin }</span>
 		</p>
 	);
@@ -89,7 +89,7 @@ function OffloadStatus() {
 			<div className="photopress-offload-status" data-state="missing">
 				{ state }
 				<p>
-					{ __( 'With WP Offload Media, images are stored in a bucket (Amazon S3 and others) and can be served from a CDN; this page then shows where, sets their cache lifetime, and clears replaced images from CloudFront.' ) }
+					{ __( 'WP Offload Media stores images in cloud storage, such as Amazon S3, and serves them from a CDN. Once it’s active, this page shows where, sets how long images are cached, and clears replaced ones from CloudFront.' ) }
 				</p>
 			</div>
 		);
@@ -99,7 +99,7 @@ function OffloadStatus() {
 		return (
 			<div className="photopress-offload-status" data-state="inactive">
 				{ state }
-				<p>{ __( 'Activate it to store images in a bucket; this page then shows where they are stored and served.' ) }</p>
+				<p>{ __( 'Activate it to store images in cloud storage.' ) }</p>
 			</div>
 		);
 	}
@@ -116,9 +116,9 @@ function OffloadStatus() {
 			<h3>{ __( 'Storage' ) }</h3>
 			<table className="form-table">
 				<tbody>
-					<Row label={ __( 'Bucket' ) }>{ storage.bucket ? `${ storage.bucket } (${ storage.provider || 'aws' }${ storage.region ? ', ' + storage.region : '' })` : __( 'Not set' ) }</Row>
-					<Row label={ __( 'Path in the bucket' ) }>{ storage.object_prefix || '/' }{ storage.object_versioning ? __( ' + a dated folder per image' ) : '' }</Row>
-					<Row label={ __( 'New uploads' ) }>{ storage.copy_to_s3 ? __( 'Copied to the bucket' ) : __( 'Not copied' ) }{ storage.remove_local_file ? __( ', removed from this server' ) : __( ', kept on this server too' ) }</Row>
+					<Row label={ __( 'Cloud storage' ) }>{ storage.bucket ? `${ storage.bucket } (${ storage.provider || 'aws' }${ storage.region ? ', ' + storage.region : '' })` : __( 'Not set' ) }</Row>
+					<Row label={ __( 'Folder' ) }>{ storage.object_prefix || '/' }{ storage.object_versioning ? __( ', then a dated folder per upload' ) : '' }</Row>
+					<Row label={ __( 'New uploads' ) }>{ storage.copy_to_s3 ? __( 'Copied to cloud storage' ) : __( 'Not copied' ) }{ storage.remove_local_file ? __( ', removed from this server' ) : __( ', also kept on this server' ) }</Row>
 				</tbody>
 			</table>
 
@@ -126,15 +126,15 @@ function OffloadStatus() {
 			<table className="form-table">
 				<tbody>
 					<Row label={ __( 'Served from' ) }>
-						{ ! storage.serve_from_s3 ? __( 'This server (Offload Media does not rewrite URLs)' ) : status.domain || __( 'The bucket directly (no CDN domain)' ) }
+						{ ! storage.serve_from_s3 ? __( 'This server (Offload Media doesn’t rewrite URLs)' ) : status.domain || __( 'Cloud storage, directly (no CDN)' ) }
 					</Row>
 					{ status.domain && (
 						<Row label={ __( 'CloudFront distribution' ) }>
 							{ status.distribution
 								? status.distribution.id
-								: __( 'None found for this domain: it may not be a CloudFront domain.' ) }
+								: __( 'None found: the domain may not be on CloudFront.' ) }
 							<br />
-							<span className="description">{ __( "Found from Offload Media's delivery domain." ) }</span>
+							<span className="description">{ __( 'Looked up from Offload Media’s delivery domain.' ) }</span>
 						</Row>
 					) }
 					<Row label={ __( 'AWS credentials for CloudFront' ) }>
@@ -148,23 +148,23 @@ function OffloadStatus() {
 				<>
 					<h3>{ __( 'Clearing replaced images' ) }</h3>
 					<p>
-						{ __( 'A replaced image keeps its URL. PhotoPress asks CloudFront to drop its copy, a few seconds after the replacement, so the new file shows at once.' ) }
+						{ __( 'A replaced image keeps its URL, so PhotoPress has CloudFront drop the old copy a few seconds later.' ) }
 					</p>
 					<p>
 						{ last
 							? last.error
-								? sprintf( __( 'Last invalidation failed (%1$s): %2$s' ), when( last.time ), last.error )
+								? sprintf( __( 'Last cleared %1$s, but it failed: %2$s' ), when( last.time ), last.error )
 								: last.all
-								? sprintf( __( 'Last invalidation: %s, everything' ), when( last.time ) )
-								: sprintf( __( 'Last invalidation: %1$s, %2$d image(s)' ), when( last.time ), last.paths )
-							: __( 'No invalidations yet.' ) }
-						{ status.pending > 0 && ' ' + sprintf( __( '%d image(s) waiting.' ), status.pending ) }
+								? sprintf( __( 'Last cleared: %s, everything' ), when( last.time ) )
+								: sprintf( _n( 'Last cleared: %1$s, %2$d image', 'Last cleared: %1$s, %2$d images', last.paths ), when( last.time ), last.paths )
+							: __( 'Nothing cleared yet.' ) }
+						{ status.pending > 0 && ' ' + sprintf( _n( '%d image waiting.', '%d images waiting.', status.pending ), status.pending ) }
 					</p>
 					<Button variant="secondary" disabled={ busy || ! canInvalidate || ! status.pending } onClick={ () => invalidate( 'pending' ) }>
 						{ __( 'Clear waiting images now' ) }
 					</Button>
 					<Button variant="secondary" isDestructive disabled={ busy || ! canInvalidate } onClick={ () => invalidate( 'all' ) }>
-						{ __( 'Invalidate the whole CDN' ) }
+						{ __( 'Clear the whole CDN' ) }
 					</Button>
 				</>
 			) }
@@ -262,23 +262,23 @@ class MediaSettings extends Component {
 
 						<DurationControl
 							id="cache_seconds"
-							label={ __( 'Browsers and the CDN keep an image for' ) }
-							help={ __( "Before checking back for a new copy. A replaced image keeps its URL, so this is how long an old copy can still be shown where it was not cleared. Offload Media's own is a year." ) }
+							label={ __( 'Cache images for' ) }
+							help={ __( 'How long browsers and the CDN keep an image before checking for a new one. Where a replaced image wasn’t cleared, its old copy can show this long. Offload Media’s default is a year.' ) }
 							seconds={ Number( this.getSetting( 'cache_seconds' ) ?? DAY ) }
 							onChange={ ( value ) => this.setSetting( 'cache_seconds', value ) }
 						/>
 
 						<DurationControl
 							id="stale_seconds"
-							label={ __( 'Then keep showing it while checking for' ) }
-							help={ __( 'After that, how long the old copy may still be shown while the new one is fetched, so nobody waits on the check. 0 to always wait.' ) }
+							label={ __( 'Then serve the old copy while checking, for' ) }
+							help={ __( 'So nobody waits on the check. 0 to always wait.' ) }
 							seconds={ Number( this.getSetting( 'stale_seconds' ) ?? HOUR ) }
 							onChange={ ( value ) => this.setSetting( 'stale_seconds', value ) }
 						/>
 
 						<SwitchRow
-							label={ __( 'Delete replaced files from the bucket' ) }
-							help={ __( "When a replacement gives an image's sizes new names (new dimensions or file type), delete the old files from the bucket two days later, once no cached page can still show them. Offload Media itself leaves them there." ) }
+							label={ __( 'Delete replaced files from cloud storage' ) }
+							help={ __( 'When a replacement renames an image’s sizes (new dimensions or file type), delete the old files two days later, once no cached page can show them. Offload Media leaves them.' ) }
 							checked={ !! this.getSetting( 'delete_replaced_objects' ) }
 							onChange={ ( value ) => this.persistSetting( 'delete_replaced_objects', value ) }
 						/>

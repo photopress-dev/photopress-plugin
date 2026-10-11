@@ -202,7 +202,7 @@ function ImagesPanel( { component } ) {
 
 				{ blocked && (
 					<Notice status="warning" isDismissible={ false } className="photopress-images-blocked">
-						{ __( 'WP Offload Media is set to remove files from this server, so images already uploaded can’t be regenerated: making sizes needs each image’s original here. Images uploaded from now on get the sizes and quality set here.' ) }
+						{ __( 'WP Offload Media is set to remove files from this server, so existing images can’t be regenerated: that needs each original here. New uploads get the sizes and quality set here.' ) }
 					</Notice>
 				) }
 
