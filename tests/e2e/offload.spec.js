@@ -31,6 +31,10 @@ const rest = ( page, route, { method = 'GET', body, type, name } = {} ) => page.
 const jpeg = ( file ) => fs.readFileSync( path.join( IMAGES, file ) ).toString( 'base64' );
 
 let image = null;
+let sized = null;
+
+const IMAGES_OPTION = 'photopress_core_images';
+let imagesOption = '';
 
 // Offload Media on, and the setting that deletes renamed files' old copies.
 const MEDIA_OPTION = 'photopress_core_media';
@@ -39,14 +43,16 @@ let mediaOption = '';
 test.beforeAll( () => {
 	wp( 'plugin', 'activate', 'amazon-s3-and-cloudfront' );
 	mediaOption = wp( 'eval', `echo wp_json_encode( get_option( '${ MEDIA_OPTION }', null ) );` ).trim().split( '\n' ).pop();
+	imagesOption = wp( 'eval', `echo wp_json_encode( get_option( '${ IMAGES_OPTION }', null ) );` ).trim().split( '\n' ).pop();
 	wp( 'eval', `$o = (array) get_option( '${ MEDIA_OPTION }', [] ); $o['delete_replaced_objects'] = true; update_option( '${ MEDIA_OPTION }', $o );` );
 } );
 
 test.afterAll( async ( { browser } ) => {
-	if ( image ) {
-		// Offload Media deletes the bucket's copies with the image.
-		wp( 'post', 'delete', String( image ), '--force' );
+	// Offload Media deletes the bucket's copies with the image.
+	for ( const id of [ image, sized ].filter( Boolean ) ) {
+		wp( 'post', 'delete', String( id ), '--force' );
 	}
+	wp( 'eval', `$before = json_decode( '${ imagesOption.replace( /'/g, "\\'" ) }', true ); null === $before ? delete_option( '${ IMAGES_OPTION }' ) : update_option( '${ IMAGES_OPTION }', $before );` );
 	wp( 'eval', "delete_option( 'photopress_cdn_last' ); delete_option( 'photopress_cdn_pending' ); as_unschedule_all_actions( 'photopress_cdn_invalidate', [], 'photopress' ); as_unschedule_all_actions( 'photopress_offload_delete_objects' );" );
 	wp( 'eval', `$before = json_decode( '${ mediaOption.replace( /'/g, "\\'" ) }', true ); null === $before ? delete_option( '${ MEDIA_OPTION }' ) : update_option( '${ MEDIA_OPTION }', $before );` );
 	wp( 'plugin', 'deactivate', 'amazon-s3-and-cloudfront' );
@@ -99,4 +105,49 @@ test( 'a replaced image keeps its CloudFront URL and is cleared from the CDN', a
 	// the old medium size no longer exists.
 	await expect.poll( async () => ( await request.get( url ) ).headers().etag, { timeout: 240000, intervals: [ 10000 ] } ).not.toBe( before );
 	expect( ( await request.get( oldMedium ) ).status() ).toBeGreaterThanOrEqual( 400 );
+} );
+
+test( 'a size turned on is made for an offloaded image and served from the bucket', async ( { page, request } ) => {
+	test.setTimeout( 180000 );
+	const IMAGES = 'PhotoPress\\modules\\images\\images';
+	await page.goto( '/wp-admin/admin.php?page=photopress-core-base#photopress_core_images' );
+
+	// Uploaded while medium_large was off: neither here nor in the bucket.
+	wp( 'option', 'update', IMAGES_OPTION, JSON.stringify( { quality: 92, disabled_sizes: 'medium_large' } ), '--format=json' );
+	const uploaded = await rest( page, '/wp/v2/media', { method: 'POST', body: jpeg( '02-landscape-3x2.jpg' ), type: 'image/jpeg', name: 'pp-fixture-offload-sizes.jpg' } );
+	expect( uploaded.status, JSON.stringify( uploaded.data ) ).toBe( 201 );
+	sized = uploaded.data.id;
+	expect( Object.keys( uploaded.data.media_details.sizes ) ).not.toContain( 'medium_large' );
+	const medium = uploaded.data.media_details.sizes.medium.source_url;
+	expect( medium ).toMatch( /^https:\/\/[^/]*cloudfront\.net\// );
+
+	wp( 'option', 'update', IMAGES_OPTION, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	expect( wp( 'eval', `echo ${ IMAGES }::work( wp_get_attachment_metadata( ${ sized } ), 'image/jpeg', ${ IMAGES }::qualityOf( ${ sized } ), ${ IMAGES }::settings() );` ).trim().split( '\n' ).pop() ).toBe( 'missing' );
+
+	// Made, and uploaded by Offload Media with the metadata saved once done.
+	const after = JSON.parse( wp( 'eval', `
+		$result = ${ IMAGES }::regenerate( ${ sized } );
+		echo wp_json_encode( [
+			'result' => is_wp_error( $result ) ? $result->get_error_message() : $result,
+			'url'    => wp_get_attachment_image_src( ${ sized }, 'medium_large' )[0],
+			'medium' => wp_get_attachment_image_src( ${ sized }, 'medium' )[0],
+			'sizes'  => array_keys( wp_get_attachment_metadata( ${ sized } )['sizes'] ),
+		] );
+	` ).trim().split( '\n' ).pop() );
+
+	expect( after.result ).toBe( true );
+	expect( after.sizes ).toContain( 'medium_large' );
+	expect( after.url ).toMatch( /^https:\/\/[^/]*cloudfront\.net\/.*-768x512\.jpg$/ );
+	expect( after.medium ).toBe( medium );
+	expect( ( await request.get( after.url ) ).status() ).toBe( 200 );
+	expect( ( await request.get( medium ) ).status() ).toBe( 200 );
+} );
+
+test( 'with Offload Media removing files from the server, the Image Sizes tab is told', () => {
+	const status = JSON.parse( wp( 'eval', `
+		add_filter( 'as3cf_get_setting', static fn( $value, $key ) => 'remove-local-file' === $key ? true : $value, 10, 2 );
+		echo wp_json_encode( PhotoPress\\modules\\images\\images::status() );
+	` ).trim().split( '\n' ).pop() );
+
+	expect( status.localFilesRemoved ).toBe( true );
 } );

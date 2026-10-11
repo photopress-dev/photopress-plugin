@@ -26,13 +26,21 @@ class images extends photopress_module {
 	const DEFAULT_QUALITY = 92;
 
 	/**
-	 * What an image's sizes were last made with (see recordFor()).
+	 * The quality an image's sizes were made at. Which sizes it has, and
+	 * whether it was scaled down, are in WordPress's own metadata; the
+	 * quality is not.
 	 */
-	const MADE_META = '_photopress_sizes_made';
+	const QUALITY_META = '_photopress_quality';
 
 	/**
-	 * Before MADE_META: a hash of the settings an image was made with (see
-	 * legacySignature()). Read once, to convert, then deleted.
+	 * The quality images without QUALITY_META are taken to have been made
+	 * at: the setting when this was first needed.
+	 */
+	const ASSUMED_QUALITY_OPTION = 'photopress_images_assumed_quality';
+
+	/**
+	 * Before QUALITY_META (1.9.0): a hash of the settings an image was made
+	 * with. Deleted when the image is regenerated.
 	 */
 	const SIGNATURE_META = '_photopress_sizes_signature';
 
@@ -47,7 +55,7 @@ class images extends photopress_module {
 
 		Jobs::register( self::JOB, [
 			'label'         => __( 'Regenerate image sizes' ),
-			'description'   => __( 'Makes every image\'s sizes again from its original, with the sizes and quality set here.' ),
+			'description'   => __( 'Gives every image the sizes and quality set here, from its original.' ),
 			// The images that need work, unless all.
 			'count'         => static fn( $args ) => self::countImages( $args + [ 'outdated' => empty( $args['all'] ) ] ),
 			'items'         => [ self::class, 'nextImages' ],
@@ -101,10 +109,10 @@ class images extends photopress_module {
 	}
 
 	/**
-	 * What an image's sizes depend on: the quality, the big image threshold
-	 * (0 when off) and the sizes made, each with its width, height and crop.
-	 * $given: quality and disabled_sizes to use instead of those saved, for
-	 * the images a change would affect.
+	 * What new images get: the quality, the big image threshold (0 when
+	 * off) and the sizes made, as WordPress describes them. $given: quality
+	 * and disabled_sizes to use instead of those saved, for the images a
+	 * change would affect.
 	 */
 	public static function settings( $given = [] ) {
 
@@ -112,126 +120,82 @@ class images extends photopress_module {
 			? array_filter( array_map( 'trim', is_array( $given['disabled_sizes'] ) ? $given['disabled_sizes'] : explode( ',', (string) $given['disabled_sizes'] ) ), 'strlen' )
 			: self::disabledSizes();
 		$quality = array_key_exists( 'quality', $given ) ? (int) $given['quality'] : (int) pp_api::getOption( 'core', 'images', 'quality' );
-		$sizes = [];
-
-		foreach ( array_diff_key( (array) wp_get_registered_image_subsizes(), array_flip( $disabled ) ) as $name => $size ) {
-			$sizes[ $name ] = self::dimensions( $size );
-		}
-		ksort( $sizes );
 
 		return [
 			'quality'   => $quality >= 1 && $quality <= 100 ? $quality : 82,
 			'threshold' => (int) apply_filters( 'big_image_size_threshold', 2560, [ 0, 0 ], '', 0 ),
-			'sizes'     => $sizes,
+			'sizes'     => array_diff_key( (array) wp_get_registered_image_subsizes(), array_flip( $disabled ) ),
 		];
 	}
 
 	/**
-	 * A size as [ width, height, crop ], crop as WordPress takes it: false,
-	 * true, or where to crop from, as [ x, y ].
+	 * The quality images made before PhotoPress recorded it are taken to
+	 * have: the setting the first time this is asked.
 	 */
-	private static function dimensions( $size ) {
+	public static function assumedQuality() {
 
-		$crop = $size['crop'] ?? false;
+		$assumed = (int) get_option( self::ASSUMED_QUALITY_OPTION, 0 );
 
-		return [ (int) ( $size['width'] ?? 0 ), (int) ( $size['height'] ?? 0 ), is_array( $crop ) ? array_values( $crop ) : (bool) $crop ];
-	}
-
-	/**
-	 * What an image was made with, from its metadata: the settings, the
-	 * longest side of its original (for the threshold), and for each size,
-	 * whether it was made (not when the image is smaller than the size).
-	 */
-	public static function recordFor( $id, $meta, $settings ) {
-
-		$long = max( (int) ( $meta['width'] ?? 0 ), (int) ( $meta['height'] ?? 0 ) );
-
-		if ( ! empty( $meta['original_image'] ) ) {
-			$original = wp_getimagesize( trailingslashit( dirname( (string) get_attached_file( $id, true ) ) ) . $meta['original_image'] );
-			$long = $original ? max( (int) $original[0], (int) $original[1] ) : 0;
+		if ( ! $assumed ) {
+			$assumed = self::settings()['quality'];
+			add_option( self::ASSUMED_QUALITY_OPTION, $assumed, '', false );
 		}
 
-		$sizes = [];
-		foreach ( $settings['sizes'] as $name => $size ) {
-			$sizes[ $name ] = array_merge( $size, [ isset( $meta['sizes'][ $name ] ) ] );
-		}
-
-		return [
-			'quality'   => $settings['quality'],
-			'threshold' => $settings['threshold'],
-			'long'      => $long,
-			'sizes'     => $sizes,
-		];
+		return $assumed;
 	}
 
 	/**
 	 * What an image needs for its sizes to be as $settings say, from its
-	 * record: null for nothing; 'full' for every size made again, when the
-	 * quality (for JPEG and WebP) or what the threshold does to it changed,
-	 * or there is no record; or the sizes to make (new, or with other
-	 * dimensions) and to drop (made, and now turned off).
+	 * metadata and the quality it was made at: 'full', every size made again
+	 * from the original, when the quality (JPEG and WebP only) is another or
+	 * the threshold scales it otherwise; 'missing', the sizes turned on that
+	 * it lacks and is large enough for; or null, nothing.
 	 *
-	 * @return null|string|array
+	 * A size turned off is nothing to do: images keep the sizes they have,
+	 * files and metadata together.
+	 *
+	 * @return string|null
 	 */
-	public static function work( $record, $mime, $settings ) {
+	public static function work( $meta, $mime, $quality, $settings ) {
 
-		if ( ! is_array( $record ) || ! isset( $record['sizes'] ) ) {
+		if ( ! is_array( $meta ) || empty( $meta['width'] ) || empty( $meta['height'] ) ) {
 			return 'full';
 		}
 
-		if ( in_array( $mime, [ 'image/jpeg', 'image/webp' ], true ) && (int) $record['quality'] !== $settings['quality'] ) {
+		if ( in_array( $mime, [ 'image/jpeg', 'image/webp' ], true ) && (int) $quality !== $settings['quality'] ) {
 			return 'full';
 		}
 
-		// Scaled down to a -scaled copy before, or now: the sizes are made
-		// from it. Unknown (0), any change to the threshold counts.
-		$long = (int) ( $record['long'] ?? 0 );
-		$before = (int) $record['threshold'];
-		$now = $settings['threshold'];
-		$scaled = static fn( $threshold ) => $threshold > 0 && ( ! $long || $long > $threshold ) ? $threshold : 0;
+		// A -scaled copy's longest side is the threshold it was made with.
+		$long = max( (int) $meta['width'], (int) $meta['height'] );
+		$scaled = ! empty( $meta['original_image'] ) && preg_match( '/-scaled\.[a-z0-9]+$/i', (string) ( $meta['file'] ?? '' ) );
+		$threshold = $settings['threshold'];
 
-		if ( $before !== $now && $scaled( $before ) !== $scaled( $now ) ) {
+		if ( $scaled ? $threshold !== $long : $threshold > 0 && $long > $threshold ) {
 			return 'full';
 		}
 
-		$make = [];
 		foreach ( $settings['sizes'] as $name => $size ) {
-			$had = $record['sizes'][ $name ] ?? null;
-			if ( ! $had || array_slice( $had, 0, 3 ) !== $size ) {
-				$make[] = $name;
+			if ( ! isset( $meta['sizes'][ $name ] ) && image_resize_dimensions( (int) $meta['width'], (int) $meta['height'], (int) $size['width'], (int) $size['height'], $size['crop'] ?? false ) ) {
+				return 'missing';
 			}
 		}
 
-		$drop = [];
-		foreach ( $record['sizes'] as $name => $had ) {
-			if ( ! isset( $settings['sizes'][ $name ] ) && ! empty( $had[3] ) ) {
-				$drop[] = $name;
-			}
-		}
-
-		return $make || $drop ? [ 'make' => $make, 'drop' => $drop ] : null;
+		return null;
 	}
 
 	/**
-	 * An image's record. One with a hash from before records, of the
-	 * settings as they are now, gets the record of them.
+	 * The quality an image was made at, as recorded or assumed.
 	 */
-	public static function recordOf( $id ) {
+	public static function qualityOf( $id ) {
 
-		$record = get_post_meta( $id, self::MADE_META, true );
+		$quality = (int) get_post_meta( $id, self::QUALITY_META, true );
 
-		if ( ! is_array( $record ) && '' !== (string) get_post_meta( $id, self::SIGNATURE_META, true ) && get_post_meta( $id, self::SIGNATURE_META, true ) === self::legacySignature() ) {
-			$record = self::recordFor( $id, wp_get_attachment_metadata( $id ), self::settings() );
-			update_post_meta( $id, self::MADE_META, $record );
-			delete_post_meta( $id, self::SIGNATURE_META );
-		}
-
-		return is_array( $record ) ? $record : null;
+		return $quality ?: self::assumedQuality();
 	}
 
 	/**
-	 * The hash images were marked with before records: of the sizes made,
-	 * the quality and the threshold, as they are now.
+	 * The hash images were marked with in 1.9.0.
 	 */
 	public static function legacySignature() {
 
@@ -246,16 +210,27 @@ class images extends photopress_module {
 	}
 
 	/**
-	 * wp_generate_attachment_metadata: an image uploaded now is made with the
-	 * settings as they are.
+	 * wp_generate_attachment_metadata: an image uploaded now is made at the
+	 * quality as it is.
 	 */
 	public static function markUpToDate( $metadata, $id, $context = 'create' ) {
 
 		if ( 'create' === $context && ! empty( $metadata['sizes'] ) ) {
-			update_post_meta( $id, self::MADE_META, self::recordFor( $id, $metadata, self::settings() ) );
+			update_post_meta( $id, self::QUALITY_META, self::settings()['quality'] );
 		}
 
 		return $metadata;
+	}
+
+	/**
+	 * Whether WP Offload Media removes files from this server once they are
+	 * offloaded: then the originals are not here to make sizes from.
+	 */
+	public static function offloadRemovesLocalFiles() {
+
+		global $as3cf;
+
+		return is_object( $as3cf ) && method_exists( $as3cf, 'get_setting' ) && (bool) $as3cf->get_setting( 'remove-local-file' );
 	}
 
 	/**
@@ -311,9 +286,10 @@ class images extends photopress_module {
 		}
 
 		return [
-			'sizes'    => $sizes,
-			'images'   => self::countImages(),
-			'outdated' => self::countImages( [ 'outdated' => true ] ),
+			'sizes'              => $sizes,
+			'images'             => self::countImages(),
+			'outdated'           => self::countImages( [ 'outdated' => true ] ),
+			'localFilesRemoved'  => self::offloadRemovesLocalFiles(),
 		];
 	}
 
@@ -364,7 +340,7 @@ class images extends photopress_module {
 
 	/**
 	 * Up to $limit images after $after, by ID: for each, whether it needs
-	 * work, from its record, without reading anything else.
+	 * work, from its metadata and quality (with $judge; otherwise true).
 	 *
 	 * @return array<int, bool>
 	 */
@@ -372,41 +348,30 @@ class images extends photopress_module {
 
 		global $wpdb;
 
+		$where = "p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%%'" . self::onlyIds( $args, 'p.ID' ) . ' AND p.ID > %d ORDER BY p.ID LIMIT %d';
+
+		if ( ! $judge ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
+			return array_fill_keys( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->posts} p WHERE $where", (int) $after, (int) $limit ) ) ), true );
+		}
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT p.ID, p.post_mime_type, m.meta_value AS made, s.meta_value AS signature FROM {$wpdb->posts} p
-			LEFT JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = %s
-			LEFT JOIN {$wpdb->postmeta} s ON s.post_id = p.ID AND s.meta_key = %s
-			WHERE p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%%'" . self::onlyIds( $args, 'p.ID' ) . ' AND p.ID > %d ORDER BY p.ID LIMIT %d',
-			self::MADE_META,
-			self::SIGNATURE_META,
+			"SELECT p.ID, p.post_mime_type, a.meta_value AS meta, q.meta_value AS quality FROM {$wpdb->posts} p
+			LEFT JOIN {$wpdb->postmeta} a ON a.post_id = p.ID AND a.meta_key = '_wp_attachment_metadata'
+			LEFT JOIN {$wpdb->postmeta} q ON q.post_id = p.ID AND q.meta_key = %s
+			WHERE $where",
+			self::QUALITY_META,
 			(int) $after,
 			(int) $limit
 		) );
 
-		$settings = $judge ? self::settings( (array) ( $args['settings'] ?? [] ) ) : null;
-		$current = $judge ? self::settings() : null;
-		$legacy = $judge ? self::legacySignature() : null;
+		$settings = self::settings( (array) ( $args['settings'] ?? [] ) );
+		$assumed = self::assumedQuality();
 		$out = [];
 
 		foreach ( $rows as $row ) {
-			if ( ! $judge ) {
-				$out[ (int) $row->ID ] = true;
-				continue;
-			}
-			$record = maybe_unserialize( $row->made );
-			// Marked with the hash of the settings as they are: made with
-			// them, every size (whether it was is not known), the original's
-			// size not known.
-			if ( ! is_array( $record ) && $row->signature === $legacy ) {
-				$record = [
-					'quality'   => $current['quality'],
-					'threshold' => $current['threshold'],
-					'long'      => 0,
-					'sizes'     => array_map( static fn( $size ) => array_merge( $size, [ true ] ), $current['sizes'] ),
-				];
-			}
-			$out[ (int) $row->ID ] = null !== self::work( $record, $row->post_mime_type, $settings );
+			$out[ (int) $row->ID ] = null !== self::work( maybe_unserialize( $row->meta ), $row->post_mime_type, (int) $row->quality ?: $assumed, $settings );
 		}
 
 		return $out;
@@ -421,33 +386,30 @@ class images extends photopress_module {
 
 	/**
 	 * Brings an image's sizes up to date with the settings, doing only what
-	 * its record says it needs (see work()): nothing; dropping sizes turned
-	 * off from its metadata (their files stay); making sizes new to it; or,
-	 * with $args['all'] too, making every size again from its original
-	 * upload as WordPress does on upload (a -scaled copy is made again, or
-	 * not, by the threshold as it is now).
+	 * it needs (see work()): nothing; making the sizes turned on that it
+	 * lacks; or, with $args['all'] too, making every size again from its
+	 * original upload as WordPress does on upload (a -scaled copy is made
+	 * again, or not, by the threshold as it is now). Sizes turned off that
+	 * it has are kept, files and metadata.
 	 *
 	 * @return true|WP_Error
 	 */
 	public static function regenerate( $id, $args = [] ) {
 
 		$settings = self::settings();
-		$work = empty( $args['all'] ) ? self::work( self::recordOf( $id ), get_post_mime_type( $id ), $settings ) : 'full';
+		$meta = wp_get_attachment_metadata( $id );
+		$work = empty( $args['all'] ) ? self::work( $meta, get_post_mime_type( $id ), self::qualityOf( $id ), $settings ) : 'full';
 
 		if ( null === $work ) {
 			return true;
 		}
 
-		$meta = wp_get_attachment_metadata( $id );
-
-		if ( ! is_array( $meta ) ) {
-			$work = 'full';
-		}
-
 		$original = wp_get_original_image_path( $id );
 
-		if ( ( 'full' === $work || $work['make'] ) && ( ! $original || ! is_readable( $original ) ) ) {
-			return new WP_Error( 'photopress_regenerate_missing', __( 'The original file is not on this server.' ) );
+		if ( ! $original || ! is_readable( $original ) ) {
+			return new WP_Error( 'photopress_regenerate_missing', self::offloadRemovesLocalFiles()
+				? __( 'The original file is not on this server: Offload Media removed it.' )
+				: __( 'The original file is not on this server.' ) );
 		}
 
 		if ( ! function_exists( 'wp_generate_attachment_metadata' ) ) {
@@ -461,25 +423,33 @@ class images extends photopress_module {
 		add_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
 
 		if ( 'full' === $work ) {
+			$before = is_array( $meta ) ? (array) ( $meta['sizes'] ?? [] ) : [];
+			$dir = dirname( (string) get_attached_file( $id, true ) );
+
 			// From the original: WordPress makes the -scaled copy again from
 			// it if it is over the threshold, and points the image at that.
 			if ( get_attached_file( $id, true ) !== $original ) {
 				update_attached_file( $id, $original );
 			}
 			$meta = wp_generate_attachment_metadata( $id, $original );
+
+			// The sizes it had that are not made now (turned off) stay, as
+			// long as their files do: WordPress deletes an image's files by
+			// its metadata.
+			if ( is_array( $meta ) ) {
+				foreach ( $before as $name => $size ) {
+					if ( ! isset( $meta['sizes'][ $name ] ) && ! empty( $size['file'] ) && file_exists( $dir . '/' . $size['file'] ) ) {
+						$meta['sizes'][ $name ] = $size;
+					}
+				}
+			}
 		} else {
-			foreach ( array_merge( $work['make'], $work['drop'] ) as $name ) {
-				unset( $meta['sizes'][ $name ] );
-			}
-			if ( $work['make'] ) {
-				// WordPress makes the sizes its metadata lacks (all those the
-				// image is large enough for, turned off or not): these only.
-				wp_update_attachment_metadata( $id, $meta );
-				$only = static fn( $missing ) => array_intersect_key( (array) $missing, array_flip( $work['make'] ) );
-				add_filter( 'wp_get_missing_image_subsizes', $only );
-				$meta = wp_update_image_subsizes( $id );
-				remove_filter( 'wp_get_missing_image_subsizes', $only );
-			}
+			// WordPress makes the sizes its metadata lacks, turned off or
+			// not: those turned on only.
+			$only = static fn( $missing ) => self::enabledSizes( $missing );
+			add_filter( 'wp_get_missing_image_subsizes', $only );
+			$meta = wp_update_image_subsizes( $id );
+			remove_filter( 'wp_get_missing_image_subsizes', $only );
 		}
 
 		remove_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
@@ -489,7 +459,7 @@ class images extends photopress_module {
 		}
 
 		wp_update_attachment_metadata( $id, $meta );
-		update_post_meta( $id, self::MADE_META, self::recordFor( $id, $meta, $settings ) );
+		update_post_meta( $id, self::QUALITY_META, $settings['quality'] );
 		delete_post_meta( $id, self::SIGNATURE_META );
 
 		return true;

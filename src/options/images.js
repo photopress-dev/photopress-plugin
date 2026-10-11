@@ -118,7 +118,11 @@ function ImagesPanel( { component } ) {
 	const saved = component.savedSettings || component.state.settings;
 	const changed = quality !== Number( saved.quality ?? DEFAULT_QUALITY ) || disabled.join( ',' ) !== listOf( saved.disabled_sizes ).join( ',' );
 
-	const reprocess = affected > 0 && {
+	// Offload Media removes the originals from the server: nothing to make
+	// sizes from.
+	const blocked = status && status.localFilesRemoved;
+
+	const reprocess = ! blocked && affected > 0 && {
 		label: sprintf( _n( 'Save and regenerate %s affected image', 'Save and regenerate %s affected images', affected ), affected.toLocaleString() ),
 		request: {},
 	};
@@ -127,7 +131,7 @@ function ImagesPanel( { component } ) {
 	// sizes of the images not made with the settings saved.
 	const save = ( regenerate ) => {
 		// eslint-disable-next-line no-alert
-		if ( regenerate && ! window.confirm( sprintf( _n( 'Save, and make the sizes of %s image again from its original? Its existing size files are replaced.', 'Save, and make the sizes of %s images again from their originals? Their existing size files are replaced.', affected ), affected.toLocaleString() ) ) ) {
+		if ( regenerate && ! window.confirm( sprintf( _n( 'Save, and regenerate the sizes of %s image? Where every size is made again, the existing size files are replaced.', 'Save, and regenerate the sizes of %s images? Where every size is made again, the existing size files are replaced.', affected ), affected.toLocaleString() ) ) ) {
 			return;
 		}
 
@@ -175,26 +179,34 @@ function ImagesPanel( { component } ) {
 				/>
 
 				<h3>{ __( 'Sizes' ) }</h3>
-				<p>{ __( 'Every image size registered by WordPress, the theme and plugins. WordPress makes each one for every image uploaded; turn off the ones nothing uses. A size turned off is not made from now on; its files already made stay.' ) }</p>
+				<p>{ __( 'Every image size registered by WordPress, the theme and plugins. WordPress makes each one for every image uploaded; turn off the ones nothing uses. Turning a size off applies to images uploaded from now on: those already uploaded keep theirs. A size turned on can be made for them too, with Save and regenerate.' ) }</p>
 				{ status ? (
 					<SizeList sizes={ status.sizes } disabled={ disabled } onChange={ ( list ) => component.setSetting( 'disabled_sizes', list.join( ',' ) ) } />
 				) : (
 					<p>{ __( 'Loading…' ) }</p>
 				) }
 
-				{ status && ! changed && (
+				{ status && ! changed && ! blocked && (
 					<p className="photopress-images-outdated" data-outdated={ status.outdated }>
 						{ status.outdated > 0
-							? sprintf( __( '%1$s of %2$s images were made with other sizes or quality, or before PhotoPress kept track.' ), status.outdated.toLocaleString(), status.images.toLocaleString() )
-							: __( 'Every image was made with these sizes and quality.' ) }
+							? sprintf( __( '%1$s of %2$s images lack sizes turned on here, or were made at another quality.' ), status.outdated.toLocaleString(), status.images.toLocaleString() )
+							: __( 'Every image has the sizes turned on here, at this quality.' ) }
 					</p>
+				) }
+
+				{ blocked && (
+					<Notice status="warning" isDismissible={ false } className="photopress-images-blocked">
+						{ __( 'WP Offload Media is set to remove files from this server, so images already uploaded can’t be regenerated: making sizes needs each image’s original here. Images uploaded from now on get the sizes and quality set here.' ) }
+					</Notice>
 				) }
 
 				<SaveBar saving={ component.state.isAPISaving } reprocess={ reprocess } onSave={ save } />
 
-				<p className="photopress-images-regenerate-note">
-					{ __( "Regenerating makes each image's sizes again from its original upload, in the background, a few images at a time, waiting while the server is busy; you can leave this page. Sizes turned off are dropped from each image's list; their files stay." ) }
-				</p>
+				{ ! blocked && (
+					<p className="photopress-images-regenerate-note">
+						{ __( 'Regenerating does only what each image needs: a size turned on is made alone; a new quality makes every size again from the original upload. It runs in the background, a few images at a time, waiting while the server is busy; you can leave this page.' ) }
+					</p>
+				) }
 
 				{ jobError && <Notice status="error" isDismissible={ false }>{ jobError }</Notice> }
 				<JobPanel
