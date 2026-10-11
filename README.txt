@@ -53,27 +53,36 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Dynamic Gutenberg block
 * Create a gallery of child pages, from their featured images (useful as an index of gallery pages)
 
-= IMAGE META-DATA MANAGEMENT =
+= IMAGE METADATA MANAGEMENT =
 
-* Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload
-* Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up and keyword hierarchies kept as nested terms
-* Hierarchical Keyword Metadata: keywords under a parent keyword (People › Jane in Lightroom or Capture One, or people: Jane) go to the parent keyword's own taxonomy, each level nested under the one above
-* Custom Metadata: any other metadata field as a taxonomy
+* Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload, each with its own archive pages
+* Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up and keyword hierarchies kept as nested terms. Each can be renamed or turned off
+* Hierarchical Keyword Metadata: keywords under a parent keyword (Genre › Portraiture in Lightroom or Capture One, or genre: Portraiture) go to the parent keyword's own taxonomy, each level nested under the one above
+* The parent keywords found in your photos that have no taxonomy are listed, each with a button to add one
+* Custom Metadata: any other metadata field as a taxonomy, chosen from a list of IPTC fields, each with what it holds and where photo software shows it
+* Adding or changing a taxonomy offers to reprocess just the images it affects, in the background, with the progress on the settings page
 * Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 * Display Exif Widget
 * Display Image Taxonomy Terms Widget
-* Generate custom image ALT text using meta-data templates
-* Generate image descriptions using meta-data templates, and reprocess the alt text or descriptions of every image after changing a template
+* Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a metadata template
+* Image descriptions from a metadata template
 * Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
-* Re-read the meta-data of every image in the background, with its progress on the settings page, after changing taxonomies or templates
+* Save and reprocess all images: applies a new template or licensing to the images already uploaded, in the background
+
+= IMAGE SIZES =
+
+* The quality JPEG and WebP sizes are saved at, 92 by default (WordPress's own is 82)
+* Every image size registered by WordPress, the theme and plugins, with a switch to stop making the ones nothing uses
+* Save and regenerate: makes again only what each image needs, in the background, a few images at a time and waiting while the server is busy
 
 = OFFLOAD MEDIA =
 
 With WP Offload Media installed, the Offload Media settings tab shows:
 
 * Whether Offload Media is active, and where images are stored and served from
-* How long browsers and the CDN keep offloaded images (by default 1 day, then 1 hour while checking for a new one)
-* A button to clear the CloudFront cache
+* How long browsers and the CDN cache offloaded images, 1 day by default
+* A replaced image cleared from CloudFront a few seconds later, so the new one shows, and a button to clear the whole CDN
+* An option to delete a replaced image's old files from cloud storage
 
 == Frequently Asked Questions ==
 
@@ -96,13 +105,50 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 7. Gallery Slideshow captions at 75% of the slideshow's width on a desktop, and the full width on a phone
 8. Child Pages block: a gallery of a page's child pages
 9. Image Taxonomies block on an image's page
-10. Store embedded image meta-data into custom image taxonomies
-11. Generate image alt text and descriptions with meta-data templates
-12. Embed licensing meta-data into uploaded images
-13. Re-read the meta-data of every image in the background, with its progress
-14. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing the CloudFront cache
+10. Image taxonomies filled from the photos' metadata: Standard Metadata, Hierarchical Keyword Metadata and Custom Metadata
+11. A parent keyword found in the photos given a taxonomy of its own, and the images it affects reprocessed
+12. Alt text and descriptions from the photos' metadata
+13. Licensing metadata embedded into images
+14. Image Sizes tab: the quality images are saved at, and the sizes made
+15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
 
 == Changelog ==
+
+= 1.10.0 =
+
+* Metadata tab: Image Taxonomies, Alt Text, Description and Licensing, each
+  a card with its switch. Each has Save, and Save and reprocess all images
+  to apply a change to the images already uploaded, with the progress shown
+  as soon as it is clicked.
+* Image taxonomies: Standard Metadata, Hierarchical Keyword Metadata and
+  Custom Metadata, each in a table with its term count and archive pages.
+  Taxonomies are added and edited on screens of their own, with a preview of
+  what a photo gets.
+* Hierarchical Keyword Metadata: the parent keywords found in your photos
+  that have no taxonomy are listed, each with a button to add one, or to add
+  it to a taxonomy whose parent keyword it looks like. A parent keyword can
+  be written more than one way (Also written as).
+* Custom Metadata: the field is chosen from a list of IPTC fields, grouped
+  as photo software shows them, with what each holds and a link to the IPTC
+  guide. Parts of structured fields, such as the city of the location shown,
+  can be chosen too, and coded fields are filed in words.
+* Saving a taxonomy change offers to reprocess just the images it affects.
+  Terms of images whose files have nothing for a taxonomy are kept unless
+  Empty the terms is checked under Advanced options.
+* Alt text: the Alt Text (Accessibility) that Lightroom Classic and
+  Photoshop write into the file is used when it has one, in place of the
+  template.
+* New sites start without a People parent keyword. A new taxonomy gets an
+  ID and archive URL no other has.
+* Image Sizes tab: Save, or Save and regenerate the images a change affects.
+  Each image's record of the quality it was made at means a regenerate does
+  only what it needs: a size turned on is made alone, and a new quality
+  makes every size again from the original. A size turned off applies to new
+  uploads; those already made are kept.
+* Offload Media tab: plainer wording. Offloaded images are cached for the
+  set time, then shown for up to 5 more minutes while a new copy is checked
+  for; that second setting is gone.
+* Settings: a switch saves only its own setting.
 
 = 1.9.0 =
 

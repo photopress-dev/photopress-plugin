@@ -65,39 +65,50 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 ![Child Pages block](.wordpress-org/screenshot-8.png)
 
-### Meta-Data
+### Metadata
 
-- Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload
-- Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up and keyword hierarchies kept as nested terms
-- Hierarchical Keyword Metadata: keywords under a parent keyword (People › Jane in Lightroom or Capture One, or people: Jane) go to the parent keyword's own taxonomy, each level nested under the one above
-- Custom Metadata: any other metadata field as a taxonomy
+- Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload, each with its own archive pages
+- Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up and keyword hierarchies kept as nested terms. Each can be renamed or turned off
+- Hierarchical Keyword Metadata: keywords under a parent keyword (Genre › Portraiture in Lightroom or Capture One, or genre: Portraiture) go to the parent keyword's own taxonomy, each level nested under the one above
+- The parent keywords found in your photos that have no taxonomy are listed, each with a button to add one
+- Custom Metadata: any other metadata field as a taxonomy, chosen from a list of IPTC fields, each with what it holds and where photo software shows it
+- Adding or changing a taxonomy offers to reprocess just the images it affects, in the background, with the progress on the settings page
 - Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 - Display Exif Widget
 - Display Image Taxonomy Terms Widget
-- Generate custom image ALT text using meta-data templates
-- Generate image descriptions using meta-data templates, and reprocess the alt text or descriptions of every image after changing a template
+- Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a metadata template
+- Image descriptions from a metadata template
 - Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
-- Re-read the meta-data of every image in the background, with its progress on the settings page, after changing taxonomies or templates
+- Save and reprocess all images: applies a new template or licensing to the images already uploaded, in the background
 
 ![Image Taxonomies block](.wordpress-org/screenshot-9.png)
 
-![Custom image taxonomies](.wordpress-org/screenshot-10.png)
+![Image taxonomies](.wordpress-org/screenshot-10.png)
 
-![Alt text and description templates](.wordpress-org/screenshot-11.png)
+![A parent keyword found in the photos given a taxonomy, and its images reprocessed](.wordpress-org/screenshot-11.gif)
 
-![Licensing](.wordpress-org/screenshot-12.png)
+![Alt text and description templates](.wordpress-org/screenshot-12.png)
 
-![Re-reading image meta-data](.wordpress-org/screenshot-13.png)
+![Licensing](.wordpress-org/screenshot-13.png)
+
+### Image Sizes
+
+- The quality JPEG and WebP sizes are saved at, 92 by default (WordPress's own is 82)
+- Every image size registered by WordPress, the theme and plugins, with a switch to stop making the ones nothing uses
+- Save and regenerate: makes again only what each image needs, in the background, a few images at a time and waiting while the server is busy
+
+![The Image Sizes tab](.wordpress-org/screenshot-14.png)
 
 ### Offload Media
 
 With [WP Offload Media](https://wordpress.org/plugins/amazon-s3-and-cloudfront/) installed, the Offload Media settings tab shows:
 
 - Whether Offload Media is active, and where images are stored and served from
-- How long browsers and the CDN keep offloaded images (by default 1 day, then 1 hour while checking for a new one)
-- A button to clear the CloudFront cache
+- How long browsers and the CDN cache offloaded images, 1 day by default
+- A replaced image cleared from CloudFront a few seconds later, so the new one shows, and a button to clear the whole CDN
+- An option to delete a replaced image's old files from cloud storage
 
-![The Offload Media tab](.wordpress-org/screenshot-14.png)
+![The Offload Media tab](.wordpress-org/screenshot-15.png)
 
 ## Requirements
 
