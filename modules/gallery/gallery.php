@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\gallery;
 use photopress_module;
+use pp_api;
 use WP_HTML_Tag_Processor;
 
 /**
@@ -11,6 +12,8 @@ use WP_HTML_Tag_Processor;
  * (masonry, rows, mosaic) that run on core/gallery.
  */
 class gallery extends photopress_module {
+
+	public $label = 'Gallery';
 
 	const LAYOUTS = [ 'masonry', 'rows', 'mosaic' ];
 
@@ -41,11 +44,94 @@ class gallery extends photopress_module {
 		] );
 
 		GalleryAdd::addHooks();
-		GalleryRemove::addHooks();
+
+		if ( pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ) {
+			GalleryRemove::addHooks();
+		}
+
+		add_action( 'enqueue_block_editor_assets', [ $this, 'shareEnabledLayouts' ] );
 
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
 		add_filter( 'render_block_core/gallery', [ GallerySlideshow::class, 'hideSourceGallery' ], 10, 2 );
+	}
+
+	/**
+	 * The layouts turned on in the Gallery tab, as offered in the editor.
+	 * A gallery that already has one turned off keeps it.
+	 */
+	public static function enabledLayouts() {
+
+		return array_values( array_filter( self::LAYOUTS, static fn( $layout ) => (bool) pp_api::getOption( 'core', 'gallery', 'layout_' . $layout ) ) );
+	}
+
+	/**
+	 * enqueue_block_editor_assets: the layouts the editor offers; see
+	 * src/variations/gallery-layouts.js.
+	 */
+	public function shareEnabledLayouts() {
+
+		wp_add_inline_script( 'photopress-editor', 'window.photopressGalleryLayouts = ' . wp_json_encode( self::enabledLayouts() ) . ';', 'before' );
+	}
+
+	public function registerOptions() {
+
+		$options = [];
+
+		foreach ( [ 'masonry' => 'Masonry', 'rows' => 'Rows', 'mosaic' => 'Mosaic' ] as $layout => $title ) {
+
+			$options[ 'layout_' . $layout ] = [
+				'default_value' => true,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => $title . ' layout',
+					'page_name'     => 'gallery',
+					'section'       => 'general',
+					'description'   => 'Offer the ' . $title . ' layout for the Gallery block in the editor.',
+					'label_for'     => $title . ' layout',
+					'error_message' => '',
+				],
+			];
+		}
+
+		$options['remove_deleted_images'] = [
+			'default_value' => true,
+			'field'         => [
+				'type'          => 'boolean',
+				'title'         => 'Remove deleted images from galleries',
+				'page_name'     => 'gallery',
+				'section'       => 'general',
+				'description'   => 'Remove images from galleries that are deleted from the Media Library.',
+				'label_for'     => 'Remove deleted images from galleries',
+				'error_message' => '',
+			],
+		];
+
+		return $options;
+	}
+
+	public function registerSettingsPages() {
+
+		return [
+
+			'gallery' => [
+
+				'parent_slug'         => 'photopress-core-base',
+				'title'               => 'Gallery',
+				'menu_title'          => 'Gallery',
+				'required_capability' => 'manage_options',
+				'menu_slug'           => 'photopress-gallery',
+				'description'         => 'The Gallery block\'s PhotoPress layouts, and galleries of deleted images.',
+				'sections'            => [
+					'general' => [
+						'id'          => 'general',
+						'title'       => 'General',
+						'description' => '',
+					],
+				],
+				'noPhpRender'         => true,
+			],
+		];
 	}
 
 	/**

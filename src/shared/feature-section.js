@@ -1,7 +1,8 @@
 /**
  * A feature on a settings page, as a card: its name, with an info button at
  * the right for a longer explanation; a larger switch at the left with a
- * sentence saying what it does; and, when it is on, its settings below.
+ * sentence saying what it does; and, when it is on, its settings below, if
+ * it has any.
  */
 import { useState } from '@wordpress/element';
 import { Button, FormToggle } from '@wordpress/components';
@@ -43,7 +44,7 @@ export default function FeatureSection( { title, description, info, checked, onC
 				<label htmlFor={ id } id={ id + '-description' }>{ description }</label>
 			</div>
 
-			{ checked && <div className="photopress-feature__settings">{ children }</div> }
+			{ checked && children && <div className="photopress-feature__settings">{ children }</div> }
 		</section>
 	);
 }

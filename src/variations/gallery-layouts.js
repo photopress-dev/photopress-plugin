@@ -45,6 +45,9 @@ const ATTRIBUTES = {
 	photopressHideCaptions: { type: 'boolean', default: false },
 };
 
+// The layouts turned on in the Gallery settings tab (modules/gallery/gallery.php).
+const ENABLED = Array.isArray( window.photopressGalleryLayouts ) ? window.photopressGalleryLayouts : Object.keys( LAYOUTS );
+
 const isGallery = ( name ) => name === 'core/gallery';
 
 const layoutOf = ( attributes ) =>
@@ -62,7 +65,7 @@ addFilter( 'blocks.registerBlockType', 'photopress/gallery-layouts/attributes', 
 	return { ...settings, attributes: { ...settings.attributes, ...ATTRIBUTES } };
 } );
 
-Object.entries( LAYOUTS ).forEach( ( [ layout, label ] ) => {
+Object.entries( LAYOUTS ).filter( ( [ layout ] ) => ENABLED.includes( layout ) ).forEach( ( [ layout, label ] ) => {
 	registerBlockVariation( 'core/gallery', {
 		name: `photopress-${ layout }`,
 		/* translators: %s: gallery layout name, e.g. Masonry. */
@@ -254,7 +257,10 @@ const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props 
 						value={ layout || '' }
 						options={ [
 							{ label: __( 'Default (columns)' ), value: '' },
-							...Object.entries( LAYOUTS ).map( ( [ value, label ] ) => ( { value, label } ) ),
+							// A gallery keeps a layout turned off since it was chosen.
+							...Object.entries( LAYOUTS )
+								.filter( ( [ value ] ) => ENABLED.includes( value ) || value === layout )
+								.map( ( [ value, label ] ) => ( { value, label } ) ),
 						] }
 						onChange={ ( value ) => setAttributes( { photopressLayout: value || undefined } ) }
 					/>

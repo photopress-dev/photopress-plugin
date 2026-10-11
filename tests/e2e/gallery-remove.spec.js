@@ -1,6 +1,8 @@
 /**
  * An image deleted from the media library is taken out of the static
- * galleries that show it, at any depth; the others' images stay.
+ * galleries that show it, at any depth; the others' images stay. Not with
+ * Remove deleted images turned off in the Gallery tab, which is put back
+ * afterwards.
  */
 const { test, expect } = require( './test' );
 const { rest, file } = require( './rest' );
@@ -14,18 +16,40 @@ function galleryIds( post ) {
 
 const imageBlock = ( id ) => `<!-- wp:image {"id":${ id },"sizeSlug":"large","linkDestination":"none"} -->\n<figure class="wp-block-image size-large"><img src="/wp-content/uploads/${ id }.jpg" alt="" class="wp-image-${ id }"/></figure>\n<!-- /wp:image -->`;
 
+const KEY = 'photopress_core_gallery';
+let saved;
+
+const settings = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ KEY }', null ) );` ) ) );
+
+test.beforeAll( () => {
+	saved = settings();
+} );
+
+test.afterAll( () => {
+	if ( null === saved ) {
+		wp( 'option', 'delete', KEY );
+	} else {
+		wp( 'option', 'update', KEY, JSON.stringify( saved ), '--format=json' );
+	}
+} );
+
+const upload = async ( page, name ) => {
+	const added = await rest( page, { method: 'POST', route: '/wp/v2/media', file: file( name, `pp-fixture-upload-${ Date.now() }-${ name }` ) } );
+	expect( added.status, JSON.stringify( added.data ) ).toBe( 201 );
+	return added.data.id;
+};
+
 const gallery = ( ids ) => `<!-- wp:gallery {"linkTo":"none"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped">${ ids.map( imageBlock ).join( '\n\n' ) }</figure>\n<!-- /wp:gallery -->`;
 
 test( 'a deleted image is taken out of the galleries that show it', async ( { page, made } ) => {
+	wp( 'option', 'delete', KEY );
 	await page.goto( '/' );
 	const uploaded = [];
 	let post;
 
 	try {
 		for ( const name of [ '01-portrait-2x3.jpg', '02-landscape-3x2.jpg' ] ) {
-			const added = await rest( page, { method: 'POST', route: '/wp/v2/media', file: file( name, `pp-fixture-upload-${ Date.now() }-${ name }` ) } );
-			expect( added.status, JSON.stringify( added.data ) ).toBe( 201 );
-			uploaded.push( added.data.id );
+			uploaded.push( await upload( page, name ) );
 		}
 		const [ deleted, kept ] = uploaded;
 		const other = made.images[ 0 ];
@@ -52,6 +76,34 @@ test( 'a deleted image is taken out of the galleries that show it', async ( { pa
 	} finally {
 		for ( const id of uploaded ) {
 			await rest( page, { method: 'DELETE', route: `/wp/v2/media/${ id }?force=true` } );
+		}
+		if ( post ) {
+			await rest( page, { method: 'DELETE', route: `/wp/v2/pages/${ post }?force=true` } );
+		}
+	}
+} );
+
+test( 'with Remove deleted images off, galleries keep a deleted image', async ( { page, made } ) => {
+	wp( 'option', 'update', KEY, JSON.stringify( { remove_deleted_images: false } ), '--format=json' );
+	await page.goto( '/' );
+	let image;
+	let post;
+
+	try {
+		image = await upload( page, '03-square.jpg' );
+		const id = image;
+		const created = await rest( page, { method: 'POST', route: '/wp/v2/pages', json: { title: 'E2E: gallery of a deleted image, kept', status: 'draft', content: gallery( [ made.images[ 0 ], image ] ) } } );
+		expect( created.status, JSON.stringify( created.data ) ).toBe( 201 );
+		post = created.data.id;
+
+		const removed = await rest( page, { method: 'DELETE', route: `/wp/v2/media/${ image }?force=true` } );
+		expect( removed.status ).toBe( 200 );
+		image = null;
+
+		expect( galleryIds( post ) ).toEqual( [ [ made.images[ 0 ], id ] ] );
+	} finally {
+		if ( image ) {
+			await rest( page, { method: 'DELETE', route: `/wp/v2/media/${ image }?force=true` } );
 		}
 		if ( post ) {
 			await rest( page, { method: 'DELETE', route: `/wp/v2/pages/${ post }?force=true` } );

@@ -163,6 +163,10 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   every gallery that shows it, in an edit of each post, rather than left as
   a broken image. Galleries in the format of WordPress before 5.9 are left
   as they are.
+* Gallery tab: switches for the Masonry, Rows and Mosaic layouts and for
+  removing deleted images from galleries, all on by default. A layout
+  turned off is no longer offered in the editor; galleries that already use
+  it keep it.
 
 = 1.9.0 =
 

@@ -31,6 +31,7 @@ import MetadataSettings from './options/metadata.js';
 import SlideshowSettings from './options/slideshow.js';
 import MediaSettings from './options/media.js';
 import ImagesSettings from './options/images.js';
+import GallerySettings from './options/gallery.js';
 
 class SettingsPage extends Component {
 	
@@ -82,6 +83,7 @@ class SettingsPage extends Component {
 				photopress_core_slideshow: response.photopress_core_slideshow ,
 				photopress_core_media: response.photopress_core_media ,
 				photopress_core_images: response.photopress_core_images ,
+				photopress_core_gallery: response.photopress_core_gallery ,
 				photopress_core_base: response.photopress_core_base,
 				isAPILoaded: true
 			});
@@ -182,6 +184,15 @@ class SettingsPage extends Component {
 			/>	
 		);
 		
+		const renderGallerySettings = () => (
+			
+			<GallerySettings
+				key = {"galleryoptionspage"}
+				data= {this.state.photopress_core_gallery}
+				settingsGroup={"photopress_core_gallery"}
+			/>	
+		);
+		
 		const renderTab = (tab) => { 
 			//console.log(tab);
 			let rf = function() {};
@@ -210,6 +221,12 @@ class SettingsPage extends Component {
 				case "photopress_core_images":
 					
 					rf = renderImagesSettings;
+				
+					break;	
+					
+				case "photopress_core_gallery":
+					
+					rf = renderGallerySettings;
 				
 					break;	
 			}
