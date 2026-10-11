@@ -56,10 +56,15 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 
 	const fail = ( e ) => setError( e.message || __( 'The request failed.' ) );
 
-	// The most recent job of this type, if any.
+	// The most recent job of this type while it runs. One that has ended
+	// stays only if it was shown running here, so a new visit to the page
+	// starts without it.
 	useEffect( () => {
 		apiFetch( { path: `/photopress/v1/jobs?type=${ encodeURIComponent( type ) }` } )
-			.then( ( jobs ) => setJob( jobs[ 0 ] || null ) )
+			.then( ( jobs ) => setJob( ( shown ) => {
+				const latest = jobs[ 0 ] || null;
+				return latest && ( isRunning( latest ) || ( shown && shown.id === latest.id ) ) ? latest : null;
+			} ) )
 			.catch( fail );
 	}, [ type, refresh ] );
 

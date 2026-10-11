@@ -1,36 +1,55 @@
 /**
- * A background job, started over REST and watched on its settings page until
- * it finishes. Run on the fixture images only, never the whole library.
+ * A background job, started on its settings page and watched until it
+ * finishes. Run on the fixture images only, never the whole library.
  */
 const { test, expect } = require( './test' );
-const { wp } = require( './wp' );
+const { wp, lastLine } = require( './wp' );
 
-test.afterAll( () => {
-	// The job records this test made.
-	wp( 'eval', `foreach ( (array) get_option( 'photopress_jobs', [] ) as $id ) { delete_option( "photopress_job_$id" ); as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' ); } delete_option( 'photopress_jobs' );` );
+let before;
+
+test.beforeAll( () => {
+	before = lastLine( wp( 'eval', `echo wp_json_encode( array_values( (array) get_option( 'photopress_jobs', [] ) ) );` ) );
 } );
 
-test( 're-reading the metadata of some images, with progress on the settings page', async ( { page, made } ) => {
+test.afterAll( () => {
+	// The job records this test made, and the list as it was.
+	wp( 'eval', `
+		$before = (array) json_decode( '${ before }', true );
+		foreach ( array_diff( (array) get_option( 'photopress_jobs', [] ), $before ) as $id ) {
+			delete_option( "photopress_job_$id" );
+			as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' );
+		}
+		update_option( 'photopress_jobs', $before, false );
+	` );
+} );
+
+test( 're-reading the metadata of some images, with progress on the settings page until it is left', async ( { page, made } ) => {
 	await page.goto( '/wp-admin/admin.php?page=photopress-core-base#photopress_core_metadata' );
 
-	const started = await page.evaluate( async ( ids ) => {
-		const nonce = await ( await fetch( '/wp-admin/admin-ajax.php?action=rest-nonce' ) ).text();
-		const response = await fetch( '/?rest_route=/photopress/v1/jobs', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': nonce },
-			body: JSON.stringify( { type: 'metadata.reprocess', args: { ids } } ),
-		} );
-		return { status: response.status, job: await response.json() };
-	}, made.images );
+	// Reprocess all images, for the fixture images only.
+	await page.route( ( url ) => url.pathname.endsWith( '/photopress/v1/jobs' ) || url.searchParams.get( 'rest_route' ) === '/photopress/v1/jobs', ( route ) => {
+		const request = route.request();
+		if ( 'POST' !== request.method() ) {
+			return route.fallback();
+		}
+		const body = request.postDataJSON();
+		return route.fallback( { postData: JSON.stringify( { ...body, args: { ...body.args, ids: made.images } } ) } );
+	} );
 
-	expect( started.status, JSON.stringify( started.job ) ).toBe( 200 );
-	expect( started.job.total ).toBe( made.images.length );
-
-	// The panel finds the job and follows it to the end.
-	await page.reload();
 	const panel = page.locator( '.photopress-job[data-job-type="metadata.reprocess"]' );
+	page.once( 'dialog', ( dialog ) => dialog.accept() );
+	await panel.getByRole( 'button', { name: 'Reprocess all images' } ).click( { timeout: 30000 } );
+
+	// The panel follows it to the end.
 	await expect( panel.locator( '.photopress-job__progress' ) ).toHaveAttribute( 'data-status', 'done', { timeout: 90000 } );
 	await expect( panel ).toContainText( `${ made.images.length } of ${ made.images.length }` );
 	await expect( panel ).toContainText( 'Finished' );
 	await expect( panel.getByRole( 'button', { name: 'Reprocess all images' } ) ).toBeVisible();
+
+	// Once it has ended, a new visit to the page starts without it.
+	const fetched = page.waitForResponse( ( response ) => decodeURIComponent( response.url() ).includes( 'photopress/v1/jobs?type=metadata.reprocess' ) );
+	await page.reload();
+	await fetched;
+	await expect( panel.getByRole( 'button', { name: 'Reprocess all images' } ) ).toBeVisible();
+	await expect( panel.locator( '.photopress-job__progress' ) ).toHaveCount( 0 );
 } );

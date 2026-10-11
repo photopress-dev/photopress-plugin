@@ -161,11 +161,12 @@ test( 'regenerating makes sizes at the quality set, keeping the sizes turned off
 		}
 	` );
 
-	// The panel shows it finished.
+	// A job that ended before the page was opened is not shown.
+	const fetched = page.waitForResponse( ( response ) => decodeURIComponent( response.url() ).includes( 'photopress/v1/jobs?type=images.regenerate' ) );
 	await page.reload();
-	const panel = page.locator( '.photopress-job[data-job-type="images.regenerate"]' );
-	await expect( panel.locator( '.photopress-job__progress' ) ).toHaveAttribute( 'data-status', 'done', { timeout: 120000 } );
-	await expect( panel ).toContainText( `${ ids.length } of ${ ids.length }` );
+	await fetched;
+	await expect( page.getByRole( 'slider', { name: 'JPEG and WebP quality' } ) ).toBeVisible( { timeout: 30000 } );
+	await expect( page.locator( '.photopress-job[data-job-type="images.regenerate"]' ) ).toHaveCount( 0 );
 
 	for ( const image of Object.values( sizesOf( ids ) ) ) {
 		expect( image.upToDate ).toBe( true );
