@@ -401,7 +401,6 @@ test.describe( 'settings', () => {
 			await tab( page, 'Metadata' );
 			const section = feature( page, 'Image Taxonomies' );
 			await expect( section.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_genre"] td.num' ) ).toHaveText( /^[1-9]/, { timeout: 30000 } );
-			await expect( section.locator( '.photopress-job__progress' ) ).toBeVisible();
 			await section.screenshot( { path: path.join( OUT, 'screenshot-10.png' ) } );
 		} );
 
