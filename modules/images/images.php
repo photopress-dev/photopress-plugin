@@ -26,13 +26,6 @@ class images extends photopress_module {
 	const DEFAULT_QUALITY = 92;
 
 	/**
-	 * WordPress's big image threshold: an upload longer than this on a side
-	 * gets a -scaled copy this size, shown as the image in place of the
-	 * original.
-	 */
-	const DEFAULT_THRESHOLD = 2560;
-
-	/**
 	 * The quality an image's sizes were made at. Which sizes it has, and
 	 * whether it was scaled down, are in WordPress's own metadata; the
 	 * quality is not.
@@ -57,7 +50,6 @@ class images extends photopress_module {
 
 		add_filter( 'wp_editor_set_quality', [ self::class, 'quality' ], 10, 2 );
 		add_filter( 'intermediate_image_sizes_advanced', [ self::class, 'enabledSizes' ] );
-		add_filter( 'big_image_size_threshold', [ self::class, 'threshold' ] );
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
 		add_filter( 'wp_generate_attachment_metadata', [ self::class, 'markUpToDate' ], 10, 3 );
 
@@ -94,41 +86,6 @@ class images extends photopress_module {
 	}
 
 	/**
-	 * big_image_size_threshold: the longest side set, or false (WordPress's
-	 * off) when large uploads are not scaled down.
-	 */
-	public static function threshold( $threshold = self::DEFAULT_THRESHOLD ) {
-
-		return self::thresholdOf( [] ) ?: false;
-	}
-
-	/**
-	 * The threshold the settings give, 0 for off: $given's
-	 * scale_large_uploads and big_image_threshold, or those saved. Never
-	 * less than the longest side of the largest size made (with $given's
-	 * disabled_sizes, or those saved): WordPress makes the sizes from the
-	 * original, so a smaller copy would be smaller than the sizes offered
-	 * beside it.
-	 */
-	private static function thresholdOf( $given ) {
-
-		$setting = static fn( $key ) => array_key_exists( $key, $given ) ? $given[ $key ] : pp_api::getOption( 'core', 'images', $key );
-		$scale = $setting( 'scale_large_uploads' );
-		$longest = (int) $setting( 'big_image_threshold' );
-
-		if ( null !== $scale && ! filter_var( $scale, FILTER_VALIDATE_BOOLEAN ) ) {
-			return 0;
-		}
-
-		$largest = 0;
-		foreach ( self::settings( array_intersect_key( $given, [ 'disabled_sizes' => 0 ] ) + [ 'scale_large_uploads' => false ] )['sizes'] as $size ) {
-			$largest = max( $largest, (int) $size['width'], (int) $size['height'] );
-		}
-
-		return max( $longest > 0 ? $longest : self::DEFAULT_THRESHOLD, $largest );
-	}
-
-	/**
 	 * The sizes turned off, by name.
 	 *
 	 * @return string[]
@@ -152,10 +109,9 @@ class images extends photopress_module {
 	}
 
 	/**
-	 * What new images get: the quality, the big image threshold (0 when
-	 * off) and the sizes made, as WordPress describes them. $given: quality,
-	 * disabled_sizes, scale_large_uploads and big_image_threshold to use
-	 * instead of those saved, for the images a change would affect.
+	 * What new images get: the quality and the sizes made, as WordPress
+	 * describes them. $given: quality and disabled_sizes to use instead of
+	 * those saved, for the images a change would affect.
 	 */
 	public static function settings( $given = [] ) {
 
@@ -166,9 +122,6 @@ class images extends photopress_module {
 
 		return [
 			'quality'   => $quality >= 1 && $quality <= 100 ? $quality : 82,
-			'threshold' => array_intersect_key( $given, [ 'scale_large_uploads' => 0, 'big_image_threshold' => 0 ] )
-				? self::thresholdOf( $given )
-				: (int) apply_filters( 'big_image_size_threshold', self::DEFAULT_THRESHOLD, [ 0, 0 ], '', 0 ),
 			'sizes'     => array_diff_key( (array) wp_get_registered_image_subsizes(), array_flip( $disabled ) ),
 		];
 	}
@@ -192,12 +145,14 @@ class images extends photopress_module {
 	/**
 	 * What an image needs for its sizes to be as $settings say, from its
 	 * metadata and the quality it was made at: 'full', every size made again
-	 * from the original, when the quality (JPEG and WebP only) is another or
-	 * the threshold scales it otherwise; 'missing', the sizes turned on that
-	 * it lacks and its original is large enough for; or null, nothing.
+	 * from the original, when the quality (JPEG and WebP only) is another;
+	 * 'missing', the sizes turned on that it lacks and its original is large
+	 * enough for; or null, nothing.
 	 *
 	 * A size turned off is nothing to do: images keep the sizes they have,
-	 * files and metadata together.
+	 * files and metadata together. Nor is a change to WordPress's big image
+	 * threshold: like the sizes' dimensions, it is WordPress's, and applies
+	 * to an image when its sizes are next made from the original.
 	 *
 	 * @return string|null
 	 */
@@ -211,17 +166,9 @@ class images extends photopress_module {
 			return 'full';
 		}
 
-		// A -scaled copy's longest side is the threshold it was made with.
-		$long = max( (int) $meta['width'], (int) $meta['height'] );
-		$scaled = ! empty( $meta['original_image'] ) && preg_match( '/-scaled\.[a-z0-9]+$/i', (string) ( $meta['file'] ?? '' ) );
-		$threshold = $settings['threshold'];
-
-		if ( $scaled ? $threshold !== $long : $threshold > 0 && $long > $threshold ) {
-			return 'full';
-		}
-
 		// WordPress makes the sizes from the original, so one larger than a
 		// -scaled copy is made when the original is large enough for it.
+		$scaled = ! empty( $meta['original_image'] ) && preg_match( '/-scaled\.[a-z0-9]+$/i', (string) ( $meta['file'] ?? '' ) );
 		$original = null;
 
 		foreach ( $settings['sizes'] as $name => $size ) {
@@ -310,8 +257,7 @@ class images extends photopress_module {
 	 * made, and how many images need their sizes made again.
 	 *
 	 * POST /photopress/v1/image-sizes/scope: how many images would need their
-	 * sizes made again with the settings given (quality, disabled_sizes,
-	 * scale_large_uploads, big_image_threshold).
+	 * sizes made again with the settings given (quality, disabled_sizes).
 	 */
 	public static function registerRoutes() {
 
@@ -336,7 +282,7 @@ class images extends photopress_module {
 
 	public static function scope( $request ) {
 
-		$settings = array_intersect_key( (array) $request->get_param( 'settings' ), array_flip( [ 'quality', 'disabled_sizes', 'scale_large_uploads', 'big_image_threshold' ] ) );
+		$settings = array_intersect_key( (array) $request->get_param( 'settings' ), array_flip( [ 'quality', 'disabled_sizes' ] ) );
 
 		return [ 'affected' => self::countImages( [ 'outdated' => true, 'settings' => $settings ] ) ];
 	}
@@ -621,34 +567,6 @@ class images extends photopress_module {
 					'section'       => 'general',
 					'description'   => 'The quality JPEG and WebP sizes are saved at, out of 100.',
 					'label_for'     => 'Image quality',
-					'error_message' => '',
-				],
-			],
-
-			'scale_large_uploads' => [
-
-				'default_value' => true,
-				'field'         => [
-					'type'          => 'boolean',
-					'title'         => 'Scale down large uploads',
-					'page_name'     => 'images',
-					'section'       => 'general',
-					'description'   => 'Whether an upload longer than the threshold gets a scaled-down copy, shown in place of the original.',
-					'label_for'     => 'Scale down large uploads',
-					'error_message' => '',
-				],
-			],
-
-			'big_image_threshold' => [
-
-				'default_value' => self::DEFAULT_THRESHOLD,
-				'field'         => [
-					'type'          => 'integer',
-					'title'         => 'Largest image shown',
-					'page_name'     => 'images',
-					'section'       => 'general',
-					'description'   => 'The longest side, in pixels, an upload is scaled down to.',
-					'label_for'     => 'Largest image shown',
 					'error_message' => '',
 				],
 			],

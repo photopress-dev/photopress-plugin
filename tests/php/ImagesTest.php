@@ -106,45 +106,12 @@ final class ImagesTest extends TestCase {
 		$saved = images::settings();
 
 		$this->assertSame( $saved, images::settings( [ 'quality' => 92, 'disabled_sizes' => '' ] ) );
-		$this->assertSame( [ 92, 2560 ], [ $saved['quality'], $saved['threshold'] ] );
+		$this->assertSame( 92, $saved['quality'] );
 
 		$given = images::settings( [ 'quality' => '90', 'disabled_sizes' => [ 'thumbnail', '800x800' ] ] );
 		$this->settings( 90, '800x800, thumbnail' );
 		$this->assertSame( images::settings(), $given );
 		$this->assertSame( [ 'medium' ], array_keys( $given['sizes'] ) );
-	}
-
-	public function test_large_uploads_are_scaled_to_the_longest_side_set_or_not_at_all(): void {
-
-		// Never saved: WordPress's own.
-		$this->assertSame( 2560, images::threshold( 2560 ) );
-
-		\pp_api::$options['core/images/big_image_threshold'] = 3200;
-		$this->assertSame( 3200, images::threshold( 2560 ) );
-
-		\pp_api::$options['core/images/scale_large_uploads'] = false;
-		$this->assertFalse( images::threshold( 2560 ) );
-	}
-
-	public function test_the_threshold_is_never_less_than_the_largest_size_made(): void {
-
-		$this->settings();
-		\pp_api::$options['core/images/big_image_threshold'] = 500;
-		$this->assertSame( 800, images::threshold( 2560 ) );
-
-		// 800x800 turned off: medium, 300, is the largest.
-		$this->settings( 92, '800x800' );
-		$this->assertSame( 500, images::threshold( 2560 ) );
-		$this->assertSame( 800, images::settings( [ 'disabled_sizes' => '', 'scale_large_uploads' => true, 'big_image_threshold' => 500 ] )['threshold'] );
-	}
-
-	public function test_the_threshold_given_is_the_one_saved_once_saved(): void {
-
-		$this->settings();
-
-		$this->assertSame( 4000, images::settings( [ 'scale_large_uploads' => true, 'big_image_threshold' => '4000' ] )['threshold'] );
-		$this->assertSame( 0, images::settings( [ 'scale_large_uploads' => false, 'big_image_threshold' => 4000 ] )['threshold'] );
-		$this->assertSame( 2560, images::settings( [ 'big_image_threshold' => 0 ] )['threshold'] );
 	}
 
 	public function test_an_image_with_every_size_at_the_quality_needs_nothing(): void {
@@ -189,29 +156,34 @@ final class ImagesTest extends TestCase {
 		$this->assertNull( images::work( $small, 'image/jpeg', 92, images::settings() ) );
 	}
 
-	public function test_a_new_threshold_counts_only_where_it_scales_the_image_otherwise(): void {
+	public function test_a_scaled_image_is_checked_against_its_original_whatever_the_threshold(): void {
 
 		$this->settings();
 		$scaled = $this->meta( [ 'file' => '2024/05/photo-scaled.jpg', 'width' => 2560, 'height' => 1707, 'original_image' => 'photo.jpg' ] );
-		// Turned upright, not scaled.
-		$rotated = $this->meta( [ 'file' => '2024/05/photo-rotated.jpg', 'original_image' => 'photo.jpg' ] );
 		$settings = images::settings();
 
+		// Scaled at another threshold than WordPress's now: its own.
 		$this->assertNull( images::work( $scaled, 'image/jpeg', 92, $settings ) );
-		$this->assertNull( images::work( $rotated, 'image/jpeg', 92, $settings ) );
 
-		$settings['threshold'] = 3000;
-		$this->assertSame( 'full', images::work( $scaled, 'image/jpeg', 92, $settings ) );
-		$this->assertNull( images::work( $this->meta(), 'image/jpeg', 92, $settings ) );
+		// A size larger than the -scaled copy, made from the original.
+		$settings['sizes']['3000x3000'] = [ 'width' => 3000, 'height' => 3000, 'crop' => false ];
+		$original = $this->uploads . '/2024/05/photo.jpg';
+		mkdir( dirname( $original ), 0775, true );
+		touch( $original );
+		Functions\when( 'wp_get_upload_dir' )->justReturn( [ 'basedir' => $this->uploads ] );
+		Functions\when( 'wp_basename' )->alias( 'basename' );
 
-		$settings['threshold'] = 1600;
-		$this->assertSame( 'full', images::work( $this->meta(), 'image/jpeg', 92, $settings ) );
-		$this->assertSame( 'full', images::work( $rotated, 'image/jpeg', 92, $settings ) );
+		try {
+			Functions\when( 'wp_getimagesize' )->justReturn( [ 5000, 3333 ] );
+			$this->assertSame( 'missing', images::work( $scaled, 'image/jpeg', 92, $settings ) );
 
-		// Turned off: the scaled one is served from its original.
-		$settings['threshold'] = 0;
-		$this->assertSame( 'full', images::work( $scaled, 'image/jpeg', 92, $settings ) );
-		$this->assertNull( images::work( $this->meta(), 'image/jpeg', 92, $settings ) );
+			Functions\when( 'wp_getimagesize' )->justReturn( [ 2800, 1867 ] );
+			$this->assertNull( images::work( $scaled, 'image/jpeg', 92, $settings ) );
+		} finally {
+			unlink( $original );
+			rmdir( dirname( $original ) );
+			rmdir( dirname( $original, 2 ) );
+		}
 	}
 
 	public function test_an_image_uploaded_is_recorded_at_the_quality(): void {
