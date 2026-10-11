@@ -528,7 +528,17 @@ export default function TaxonomySettings( { component, route } ) {
 	const { standard, parents, custom } = classify( list );
 	const saving = component.state.isAPISaving;
 	const saves = useSaves( saving );
-	const status = useStatus( saves );
+	// The term counts are asked for again after a save and when a reprocess ends.
+	const [ reprocessed, setReprocessed ] = useState( 0 );
+	const reprocessing = useRef( false );
+	const reprocessChanged = ( job ) => {
+		const running = [ 'queued', 'running' ].includes( job.status );
+		if ( reprocessing.current && ! running ) {
+			setReprocessed( ( n ) => n + 1 );
+		}
+		reprocessing.current = running;
+	};
+	const status = useStatus( saves + reprocessed );
 	const screen = screenOf( route );
 	const [ empty, setEmpty ] = useState( false );
 	const emptyOption = useAdvanced( () => setEmpty( false ) );
@@ -669,6 +679,7 @@ export default function TaxonomySettings( { component, route } ) {
 						args={ { force: empty } }
 						after={ emptyOption.link }
 						refresh={ saves + component.state.jobs }
+						onChange={ reprocessChanged }
 						starting={ 'metadata.reprocess' === component.state.starting }
 						started={ component.state.started[ 'metadata.reprocess' ] }
 						note={ ( job ) => {
