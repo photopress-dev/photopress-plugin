@@ -38,7 +38,7 @@ const sizesOf = ( ids ) => JSON.parse( lastLine( wp( 'eval', `
 		$out[ $id ] = [
 			'sizes'    => array_keys( $meta['sizes'] ?? [] ),
 			'quality'  => $medium && class_exists( 'Imagick' ) ? ( new Imagick( "$dir/$medium" ) )->getImageCompressionQuality() : null,
-			'upToDate' => get_post_meta( $id, '_photopress_sizes_signature', true ) === PhotoPress\\modules\\images\\images::signature(),
+			'upToDate' => null === PhotoPress\\modules\\images\\images::work( PhotoPress\\modules\\images\\images::recordOf( $id ), get_post_mime_type( $id ), PhotoPress\\modules\\images\\images::settings() ),
 		];
 	}
 	echo wp_json_encode( $out );
@@ -66,9 +66,10 @@ test( 'a size turned off is saved by Save, offering to regenerate the images it 
 	expect( JSON.parse( lastLine( wp( 'option', 'get', KEY, '--format=json' ) ) ).disabled_sizes ).toBe( '' );
 	await expect( page.locator( '.photopress-images-outdated' ) ).toHaveCount( 0 );
 
-	// No image is made without medium_large: every one is affected.
-	const images = Number( lastLine( wp( 'eval', `echo PhotoPress\\modules\\images\\images::countImages();` ) ) );
-	await expect( page.getByRole( 'button', { name: /^Save and regenerate [\d,]+ affected images?$/ } ) ).toHaveText( new RegExp( images.toLocaleString( 'en-US' ) ), { timeout: 10000 } );
+	// The images that have medium_large, or no record of what they were made with.
+	const images = Number( lastLine( wp( 'eval', `echo PhotoPress\\modules\\images\\images::countImages( [ 'outdated' => true, 'settings' => [ 'disabled_sizes' => 'medium_large' ] ] );` ) ) );
+	expect( images ).toBeGreaterThan( 0 );
+	await expect( page.getByRole( 'button', { name: /^Save and regenerate [\d,]+ affected images?$/ } ) ).toHaveText( new RegExp( ` ${ images.toLocaleString( 'en-US' ) } ` ), { timeout: 10000 } );
 
 	if ( process.env.PP_E2E_SHOTS ) {
 		await page.locator( '.photopress-savebar' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/save-and-regenerate.png` } );
@@ -133,4 +134,40 @@ test( 'regenerating makes sizes at the quality set, without the sizes turned off
 	for ( const image of Object.values( sizesOf( ids ) ) ) {
 		expect( image.sizes ).toContain( 'medium_large' );
 	}
+} );
+
+test( 'a size turned off is dropped, and turned on is made, without making the others again', ( { made } ) => {
+	const id = made.images[ 0 ];
+	const IMAGES = 'PhotoPress\\modules\\images\\images';
+	// The files of the image's sizes, each dated an hour ago, and what it needs.
+	const state = () => JSON.parse( lastLine( wp( 'eval', `
+		$meta = wp_get_attachment_metadata( ${ id } );
+		$dir = dirname( get_attached_file( ${ id } ) );
+		$files = [];
+		foreach ( $meta['sizes'] as $name => $size ) { clearstatcache(); $files[ $name ] = filemtime( "$dir/{$size['file']}" ) < time() - 1800; }
+		echo wp_json_encode( [ 'files' => $files, 'work' => ${ IMAGES }::work( ${ IMAGES }::recordOf( ${ id } ), get_post_mime_type( ${ id } ), ${ IMAGES }::settings() ) ] );
+	` ) ) );
+	const age = `$meta = wp_get_attachment_metadata( ${ id } ); $dir = dirname( get_attached_file( ${ id } ) ); foreach ( $meta['sizes'] as $size ) { touch( "$dir/{$size['file']}", time() - 3600 ); }`;
+
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	wp( 'eval', `${ IMAGES }::regenerate( ${ id }, [ 'all' => true ] ); ${ age }` );
+	expect( state().work ).toBeNull();
+	expect( Object.keys( state().files ) ).toContain( 'medium_large' );
+
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: 'medium_large' } ), '--format=json' );
+	expect( state().work ).toEqual( { make: [], drop: [ 'medium_large' ] } );
+	wp( 'eval', `${ IMAGES }::regenerate( ${ id } );` );
+	let now = state();
+	expect( now.work ).toBeNull();
+	expect( Object.keys( now.files ) ).not.toContain( 'medium_large' );
+	expect( Object.values( now.files ).every( Boolean ) ).toBe( true );
+
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	expect( state().work ).toEqual( { make: [ 'medium_large' ], drop: [] } );
+	wp( 'eval', `${ IMAGES }::regenerate( ${ id } );` );
+	now = state();
+	expect( now.work ).toBeNull();
+	// Made now; the rest as they were.
+	expect( now.files.medium_large ).toBe( false );
+	expect( Object.entries( now.files ).filter( ( [ name ] ) => 'medium_large' !== name ).every( ( [ , old ] ) => old ) ).toBe( true );
 } );

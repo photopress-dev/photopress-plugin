@@ -20,7 +20,7 @@ final class MediaRestTest extends TestCase {
 		Functions\stubs( [
 			// WordPress's implementations, minus the filters.
 			'wp_basename'              => static fn( $path ) => urldecode( basename( str_replace( [ '%2F', '%5C' ], '/', urlencode( $path ) ) ) ),
-			'_wp_relative_upload_path' => static fn( $path ) => preg_replace( '#^/srv/wp-content/uploads/#', '', $path ),
+			'wp_get_upload_dir'        => [ 'basedir' => '/srv/wp-content/uploads' ],
 			'is_serialized'            => static fn( $data ) => is_string( $data ) && ( 'b:0;' === trim( $data ) || false !== @unserialize( trim( $data ), [ 'allowed_classes' => false ] ) ),
 		] );
 	}

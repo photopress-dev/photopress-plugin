@@ -90,57 +90,145 @@ final class ImagesTest extends TestCase {
 		$this->assertSame( [ 'medium' ], array_keys( images::enabledSizes( self::SIZES ) ) );
 	}
 
-	public function test_the_signature_changes_with_the_sizes_and_the_quality(): void {
+	/** A record of an image made with the settings as they are. */
+	private function record( array $meta = [ 'width' => 2000, 'height' => 1500, 'sizes' => [ 'thumbnail' => [], 'medium' => [], '800x800' => [] ] ] ): array {
+
+		return images::recordFor( 7, $meta, images::settings() );
+	}
+
+	public function test_the_settings_given_are_those_saved_once_saved(): void {
 
 		$this->settings( 92 );
-		$first = images::signature();
+		$saved = images::settings();
 
-		$this->assertSame( $first, images::signature() );
+		$this->assertSame( $saved, images::settings( [ 'quality' => 92, 'disabled_sizes' => '' ] ) );
+		$this->assertSame( [ 92, 2560 ], [ $saved['quality'], $saved['threshold'] ] );
+		$this->assertSame( [ 150, 150, true ], $saved['sizes']['thumbnail'] );
 
-		$this->settings( 90 );
-		$this->assertNotSame( $first, images::signature() );
+		$given = images::settings( [ 'quality' => '90', 'disabled_sizes' => [ 'thumbnail', '800x800' ] ] );
+		$this->settings( 90, '800x800, thumbnail' );
+		$this->assertSame( images::settings(), $given );
+		$this->assertSame( [ 'medium' ], array_keys( $given['sizes'] ) );
+	}
+
+	public function test_a_record_says_which_sizes_were_made(): void {
+
+		$this->settings();
+		// Too small for 800x800.
+		$record = $this->record( [ 'width' => 600, 'height' => 400, 'sizes' => [ 'thumbnail' => [], 'medium' => [] ] ] );
+
+		$this->assertSame( 600, $record['long'] );
+		$this->assertSame( [ 150, 150, true, true ], $record['sizes']['thumbnail'] );
+		$this->assertSame( [ 800, 800, false, false ], $record['sizes']['800x800'] );
+	}
+
+	public function test_an_image_made_with_the_settings_needs_nothing(): void {
+
+		$this->settings();
+
+		$this->assertNull( images::work( $this->record(), 'image/jpeg', images::settings() ) );
+	}
+
+	public function test_without_a_record_every_size_is_made_again(): void {
+
+		$this->assertSame( 'full', images::work( null, 'image/jpeg', images::settings() ) );
+	}
+
+	public function test_a_new_quality_makes_every_size_again_for_jpeg_and_webp_only(): void {
+
+		$this->settings( 92 );
+		$record = $this->record();
+		$this->settings( 85 );
+
+		$this->assertSame( 'full', images::work( $record, 'image/jpeg', images::settings() ) );
+		$this->assertSame( 'full', images::work( $record, 'image/webp', images::settings() ) );
+		$this->assertNull( images::work( $record, 'image/png', images::settings() ) );
+	}
+
+	public function test_a_size_turned_off_is_dropped_where_it_was_made(): void {
+
+		$this->settings();
+		$made = $this->record();
+		$small = $this->record( [ 'width' => 600, 'height' => 400, 'sizes' => [ 'thumbnail' => [], 'medium' => [] ] ] );
+		$this->settings( 92, '800x800' );
+
+		$this->assertSame( [ 'make' => [], 'drop' => [ '800x800' ] ], images::work( $made, 'image/jpeg', images::settings() ) );
+		// Never made for an image smaller than it: nothing to do.
+		$this->assertNull( images::work( $small, 'image/jpeg', images::settings() ) );
+	}
+
+	public function test_a_size_turned_on_or_resized_is_made_alone(): void {
 
 		$this->settings( 92, '800x800' );
-		$this->assertNotSame( $first, images::signature() );
+		$record = $this->record();
+		$this->settings();
+		$this->assertSame( [ 'make' => [ '800x800' ], 'drop' => [] ], images::work( $record, 'image/jpeg', images::settings() ) );
+
+		$record = $this->record();
+		Functions\when( 'wp_get_registered_image_subsizes' )->justReturn( [ 'medium' => [ 'width' => 400, 'height' => 400, 'crop' => false ] ] + self::SIZES );
+		$this->assertSame( [ 'make' => [ 'medium' ], 'drop' => [] ], images::work( $record, 'image/jpeg', images::settings() ) );
 	}
 
-	/**
-	 * The images a change would affect are counted with the signature of
-	 * the settings on screen, the same as once they are saved.
-	 */
-	public function test_the_signature_of_settings_given_is_theirs_once_saved(): void {
+	public function test_a_new_threshold_counts_only_where_it_scales_the_image(): void {
 
-		$this->settings( 92 );
-		$saved = images::signature();
+		$this->settings();
+		$small = $this->record( [ 'width' => 2000, 'height' => 1500, 'sizes' => [] ] );
+		Functions\when( 'wp_getimagesize' )->justReturn( [ 6000, 4000 ] );
+		Functions\when( 'get_attached_file' )->justReturn( '/uploads/photo-scaled.jpg' );
+		$large = $this->record( [ 'width' => 2560, 'height' => 1707, 'original_image' => 'photo.jpg', 'sizes' => [] ] );
+		$this->assertSame( 6000, $large['long'] );
 
-		$this->assertSame( $saved, images::signature( [ 'quality' => 92, 'disabled_sizes' => '' ] ) );
-		$this->assertSame( $saved, images::signature( [] ) );
+		$settings = images::settings();
+		$settings['threshold'] = 3000;
+		$this->assertNull( images::work( $small, 'image/jpeg', $settings ) );
+		$this->assertSame( 'full', images::work( $large, 'image/jpeg', $settings ) );
 
-		$changed = images::signature( [ 'quality' => 90, 'disabled_sizes' => '800x800, thumbnail' ] );
-		$this->settings( 90, '800x800, thumbnail' );
-		$this->assertSame( images::signature(), $changed );
-		$this->assertSame( $changed, images::signature( [ 'quality' => '90', 'disabled_sizes' => [ 'thumbnail', '800x800' ] ] ) );
+		// Turned off: the large one is no longer scaled.
+		$settings['threshold'] = 0;
+		$this->assertNull( images::work( $small, 'image/jpeg', $settings ) );
+		$this->assertSame( 'full', images::work( $large, 'image/jpeg', $settings ) );
 	}
 
-	public function test_an_image_uploaded_is_marked_up_to_date(): void {
+	public function test_an_image_uploaded_is_recorded(): void {
 
 		$this->settings();
 		$saved = [];
 		Functions\when( 'update_post_meta' )->alias( static function ( $id, $key, $value ) use ( &$saved ) { $saved[ $id ][ $key ] = $value; } );
 
-		$meta = [ 'file' => 'photo.jpg', 'sizes' => [ 'medium' => [] ] ];
+		$meta = [ 'file' => 'photo.jpg', 'width' => 2000, 'height' => 1500, 'sizes' => [ 'medium' => [] ] ];
 		$this->assertSame( $meta, images::markUpToDate( $meta, 7, 'create' ) );
 		// Not an edit in the image editor, nor a file without sizes.
 		images::markUpToDate( $meta, 8, 'update' );
 		images::markUpToDate( [ 'file' => 'doc.pdf' ], 9, 'create' );
 
-		$this->assertSame( [ 7 => [ images::SIGNATURE_META => images::signature() ] ], $saved );
+		$this->assertSame( [ 7 ], array_keys( $saved ) );
+		$this->assertSame( images::recordFor( 7, $meta, images::settings() ), $saved[7][ images::MADE_META ] );
 	}
 
-	public function test_an_image_made_with_these_settings_is_skipped(): void {
+	/** get_post_meta: the image's record, or the hash of before records. */
+	private function stored( $record, string $signature = '' ): void {
+
+		Functions\when( 'get_post_meta' )->alias( static fn( $id, $key ) => images::MADE_META === $key ? $record : $signature );
+		Functions\when( 'get_post_mime_type' )->justReturn( 'image/jpeg' );
+	}
+
+	public function test_an_image_up_to_date_is_skipped(): void {
 
 		$this->settings();
-		Functions\when( 'get_post_meta' )->justReturn( images::signature() );
+		$this->stored( $this->record() );
+		Functions\expect( 'wp_generate_attachment_metadata' )->never();
+
+		$this->assertTrue( images::regenerate( 7 ) );
+	}
+
+	public function test_a_hash_of_the_settings_as_they_are_becomes_a_record(): void {
+
+		$this->settings();
+		$this->stored( '', images::legacySignature() );
+		$meta = [ 'width' => 2000, 'height' => 1500, 'sizes' => [ 'thumbnail' => [], 'medium' => [], '800x800' => [] ] ];
+		Functions\when( 'wp_get_attachment_metadata' )->justReturn( $meta );
+		Functions\expect( 'update_post_meta' )->once()->with( 7, images::MADE_META, images::recordFor( 7, $meta, images::settings() ) );
+		Functions\expect( 'delete_post_meta' )->once()->with( 7, images::SIGNATURE_META );
 		Functions\expect( 'wp_generate_attachment_metadata' )->never();
 
 		$this->assertTrue( images::regenerate( 7 ) );
@@ -149,30 +237,51 @@ final class ImagesTest extends TestCase {
 	public function test_an_image_without_its_original_on_the_server_is_an_error(): void {
 
 		$this->settings();
-		Functions\when( 'get_post_meta' )->justReturn( '' );
+		$this->stored( '' );
+		Functions\when( 'wp_get_attachment_metadata' )->justReturn( [ 'sizes' => [] ] );
 		Functions\when( 'wp_get_original_image_path' )->justReturn( '/nowhere/photo.jpg' );
 		Functions\expect( 'wp_generate_attachment_metadata' )->never();
 
 		$this->assertSame( 'photopress_regenerate_missing', images::regenerate( 7 )->get_error_code() );
 	}
 
-	public function test_sizes_are_made_again_from_the_original_and_the_image_marked_up_to_date(): void {
+	public function test_a_size_turned_off_is_dropped_without_making_anything(): void {
+
+		$this->settings();
+		$record = $this->record();
+		$this->settings( 92, '800x800' );
+		$this->stored( $record );
+
+		Functions\when( 'wp_get_attachment_metadata' )->justReturn( [ 'width' => 2000, 'height' => 1500, 'sizes' => [ 'thumbnail' => [ 'file' => 't.jpg' ], 'medium' => [ 'file' => 'm.jpg' ], '800x800' => [ 'file' => 'l.jpg' ] ] ] );
+		Functions\when( 'wp_get_original_image_path' )->justReturn( '/nowhere/photo.jpg' );
+		Functions\expect( 'wp_generate_attachment_metadata' )->never();
+		Functions\expect( 'wp_update_attachment_metadata' )->once()->with( 7, [ 'width' => 2000, 'height' => 1500, 'sizes' => [ 'thumbnail' => [ 'file' => 't.jpg' ], 'medium' => [ 'file' => 'm.jpg' ] ] ] );
+		Functions\when( 'update_post_meta' )->justReturn( true );
+		Functions\when( 'delete_post_meta' )->justReturn( true );
+
+		$this->assertTrue( images::regenerate( 7 ) );
+	}
+
+	public function test_sizes_are_made_again_from_the_original_and_the_image_recorded(): void {
 
 		$this->settings();
 		$original = $this->tempFile( 'jpeg' );
 		$saved = [];
 
-		Functions\when( 'get_post_meta' )->justReturn( 'an older signature' );
+		$this->stored( '', 'an older signature' );
+		Functions\when( 'wp_get_attachment_metadata' )->justReturn( [ 'sizes' => [] ] );
 		Functions\when( 'wp_get_original_image_path' )->justReturn( $original );
 		// Pointed at its -scaled copy, as an image over the threshold is.
 		Functions\when( 'get_attached_file' )->justReturn( str_replace( '.jpg', '-scaled.jpg', $original ) );
 		Functions\expect( 'update_attached_file' )->once()->with( 7, $original );
-		Functions\expect( 'wp_generate_attachment_metadata' )->once()->with( 7, $original )->andReturn( [ 'file' => 'photo-scaled.jpg', 'sizes' => [] ] );
-		Functions\expect( 'wp_update_attachment_metadata' )->once()->with( 7, [ 'file' => 'photo-scaled.jpg', 'sizes' => [] ] );
+		Functions\expect( 'wp_generate_attachment_metadata' )->once()->with( 7, $original )->andReturn( [ 'file' => 'photo-scaled.jpg', 'width' => 900, 'height' => 600, 'sizes' => [ 'medium' => [] ] ] );
+		Functions\expect( 'wp_update_attachment_metadata' )->once()->with( 7, [ 'file' => 'photo-scaled.jpg', 'width' => 900, 'height' => 600, 'sizes' => [ 'medium' => [] ] ] );
 		Functions\when( 'update_post_meta' )->alias( static function ( $id, $key, $value ) use ( &$saved ) { $saved[ $key ] = $value; } );
+		Functions\expect( 'delete_post_meta' )->once()->with( 7, images::SIGNATURE_META );
 
 		$this->assertTrue( images::regenerate( 7 ) );
-		$this->assertSame( images::signature(), $saved[ images::SIGNATURE_META ] );
+		$this->assertSame( [ 92, 2560, 900 ], [ $saved[ images::MADE_META ]['quality'], $saved[ images::MADE_META ]['threshold'], $saved[ images::MADE_META ]['long'] ] );
+		$this->assertSame( [ 300, 300, false, true ], $saved[ images::MADE_META ]['sizes']['medium'] );
 	}
 
 	public function test_all_makes_up_to_date_images_again_too(): void {
@@ -180,13 +289,15 @@ final class ImagesTest extends TestCase {
 		$this->settings();
 		$original = $this->tempFile( 'jpeg' );
 
-		Functions\when( 'get_post_meta' )->justReturn( images::signature() );
+		$this->stored( $this->record() );
+		Functions\when( 'wp_get_attachment_metadata' )->justReturn( [ 'sizes' => [] ] );
 		Functions\when( 'wp_get_original_image_path' )->justReturn( $original );
 		Functions\when( 'get_attached_file' )->justReturn( $original );
 		Functions\expect( 'update_attached_file' )->never();
 		Functions\expect( 'wp_generate_attachment_metadata' )->once()->andReturn( [ 'sizes' => [] ] );
 		Functions\when( 'wp_update_attachment_metadata' )->justReturn( true );
 		Functions\when( 'update_post_meta' )->justReturn( true );
+		Functions\when( 'delete_post_meta' )->justReturn( true );
 
 		$this->assertTrue( images::regenerate( 7, [ 'all' => true ] ) );
 	}
