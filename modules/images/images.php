@@ -37,12 +37,14 @@ class images extends photopress_module {
 		add_filter( 'wp_editor_set_quality', [ self::class, 'quality' ], 10, 2 );
 		add_filter( 'intermediate_image_sizes_advanced', [ self::class, 'enabledSizes' ] );
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
+		add_filter( 'wp_generate_attachment_metadata', [ self::class, 'markUpToDate' ], 10, 3 );
 
 		Jobs::register( self::JOB, [
 			'label'         => __( 'Regenerate image sizes' ),
 			'description'   => __( 'Makes every image\'s sizes again from its original, with the sizes and quality set here.' ),
-			'count'         => [ self::class, 'countImages' ],
-			'items'         => [ self::class, 'nextImages' ],
+			// The images not made with the settings as they are, unless all.
+			'count'         => static fn( $args ) => self::countImages( $args + [ 'outdated' => empty( $args['all'] ) ] ),
+			'items'         => static fn( $after, $limit, $args ) => self::nextImages( $after, $limit, $args + [ 'outdated' => empty( $args['all'] ) ] ),
 			'process'       => [ self::class, 'regenerate' ],
 			// Image processing is the heaviest work a site does: a few images
 			// at a time, resting between batches, and not while the server is
@@ -95,23 +97,45 @@ class images extends photopress_module {
 	/**
 	 * What an image's sizes depend on: the sizes made, the quality and the
 	 * big image threshold. An image whose sizes were made with these is up
-	 * to date.
+	 * to date. $settings: quality and disabled_sizes to use instead of those
+	 * saved, for the images a change would affect.
 	 */
-	public static function signature() {
+	public static function signature( $settings = [] ) {
 
-		$sizes = self::enabledSizes( wp_get_registered_image_subsizes() );
+		$disabled = array_key_exists( 'disabled_sizes', $settings )
+			? array_filter( array_map( 'trim', is_array( $settings['disabled_sizes'] ) ? $settings['disabled_sizes'] : explode( ',', (string) $settings['disabled_sizes'] ) ), 'strlen' )
+			: self::disabledSizes();
+		$sizes = array_diff_key( (array) wp_get_registered_image_subsizes(), array_flip( $disabled ) );
 		ksort( $sizes );
+
+		$quality = array_key_exists( 'quality', $settings ) ? (int) $settings['quality'] : (int) pp_api::getOption( 'core', 'images', 'quality' );
 
 		return md5( wp_json_encode( [
 			'sizes'     => $sizes,
-			'quality'   => self::quality( 82, 'image/jpeg' ),
+			'quality'   => $quality >= 1 && $quality <= 100 ? $quality : 82,
 			'threshold' => (int) apply_filters( 'big_image_size_threshold', 2560, [ 0, 0 ], '', 0 ),
 		] ) );
 	}
 
 	/**
+	 * wp_generate_attachment_metadata: an image uploaded now is made with the
+	 * settings as they are, so it is up to date.
+	 */
+	public static function markUpToDate( $metadata, $id, $context = 'create' ) {
+
+		if ( 'create' === $context && ! empty( $metadata['sizes'] ) ) {
+			update_post_meta( $id, self::SIGNATURE_META, self::signature() );
+		}
+
+		return $metadata;
+	}
+
+	/**
 	 * GET /photopress/v1/image-sizes: every registered size, whether it is
 	 * made, and how many images need their sizes made again.
+	 *
+	 * POST /photopress/v1/image-sizes/scope: how many images would need their
+	 * sizes made again with the settings given (quality, disabled_sizes).
 	 */
 	public static function registerRoutes() {
 
@@ -120,6 +144,25 @@ class images extends photopress_module {
 			'callback'            => [ self::class, 'status' ],
 			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
 		] );
+
+		register_rest_route( 'photopress/v1', '/image-sizes/scope', [
+			'methods'             => 'POST',
+			'callback'            => [ self::class, 'scope' ],
+			'permission_callback' => static fn() => current_user_can( 'manage_options' ),
+			'args'                => [
+				'settings' => [
+					'type'    => 'object',
+					'default' => [],
+				],
+			],
+		] );
+	}
+
+	public static function scope( $request ) {
+
+		$settings = array_intersect_key( (array) $request->get_param( 'settings' ), array_flip( [ 'quality', 'disabled_sizes' ] ) );
+
+		return [ 'affected' => self::countImages() - self::countUpToDate( self::signature( $settings ) ) ];
 	}
 
 	public static function status() {
@@ -142,29 +185,44 @@ class images extends photopress_module {
 		return [
 			'sizes'    => $sizes,
 			'images'   => self::countImages(),
-			'outdated' => self::countImages() - self::countUpToDate(),
+			'outdated' => self::countImages( [ 'outdated' => true ] ),
 		];
 	}
 
 	/**
-	 * The images, for the job: all of them, or those in $args['ids'].
+	 * The images: all of them, or those in $args['ids']; with
+	 * $args['outdated'], only those not made with the settings as they are.
 	 */
 	public static function countImages( $args = [] ) {
 
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'" . self::onlyIds( $args ) );
+		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'" . self::only( $args ) );
 	}
 
-	private static function onlyIds( $args ) {
+	/**
+	 * The conditions for $args: in ids, if given; not up to date, if outdated.
+	 */
+	private static function only( $args ) {
 
+		global $wpdb;
+
+		$where = '';
 		$ids = array_filter( array_map( 'intval', (array) ( $args['ids'] ?? [] ) ) );
 
-		return $ids ? ' AND ID IN (' . implode( ',', $ids ) . ')' : '';
+		if ( $ids ) {
+			$where .= ' AND ID IN (' . implode( ',', $ids ) . ')';
+		}
+
+		if ( ! empty( $args['outdated'] ) ) {
+			$where .= $wpdb->prepare( " AND ID NOT IN (SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = %s AND meta_value = %s)", self::SIGNATURE_META, self::signature() );
+		}
+
+		return $where;
 	}
 
-	protected static function countUpToDate() {
+	protected static function countUpToDate( $signature = null ) {
 
 		global $wpdb;
 
@@ -172,7 +230,7 @@ class images extends photopress_module {
 		return (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COUNT(*) FROM {$wpdb->posts} p JOIN {$wpdb->postmeta} m ON m.post_id = p.ID AND m.meta_key = %s AND m.meta_value = %s WHERE p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%%'",
 			self::SIGNATURE_META,
-			self::signature()
+			$signature ?? self::signature()
 		) );
 	}
 
@@ -185,7 +243,7 @@ class images extends photopress_module {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
 		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
-			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%%'" . self::onlyIds( $args ) . " AND ID > %d ORDER BY ID LIMIT %d",
+			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%%'" . self::only( $args ) . " AND ID > %d ORDER BY ID LIMIT %d",
 			(int) $after,
 			(int) $limit
 		) ) );

@@ -50,7 +50,34 @@ test( 'the tab lists the sizes and the quality, 92 unless set', async ( { page }
 
 	await expect( page.locator( '.photopress-image-sizes tr[data-size="medium"]' ) ).toBeVisible( { timeout: 30000 } );
 	await expect( page.getByRole( 'slider', { name: 'JPEG and WebP quality' } ) ).toHaveValue( '92' );
-	await expect( page.locator( '.photopress-job[data-job-type="images.regenerate"]' ) ).toBeVisible();
+	await expect( page.getByRole( 'button', { name: 'Save', exact: true } ) ).toBeVisible();
+} );
+
+test( 'a size turned off is saved by Save, offering to regenerate the images it affects', async ( { page } ) => {
+	wp( 'option', 'update', KEY, JSON.stringify( { quality: 92, disabled_sizes: '' } ), '--format=json' );
+	await page.goto( '/wp-admin/admin.php?page=photopress-core-base#photopress_core_images' );
+
+	const toggle = page.locator( '.photopress-image-sizes tr[data-size="medium_large"]' ).getByRole( 'checkbox' );
+	await expect( toggle ).toBeChecked( { timeout: 30000 } );
+	await toggle.click();
+
+	// Not saved by the switch: by Save, or Save and regenerate.
+	await page.waitForTimeout( 1000 );
+	expect( JSON.parse( lastLine( wp( 'option', 'get', KEY, '--format=json' ) ) ).disabled_sizes ).toBe( '' );
+	await expect( page.locator( '.photopress-images-outdated' ) ).toHaveCount( 0 );
+
+	// No image is made without medium_large: every one is affected.
+	const images = Number( lastLine( wp( 'eval', `echo PhotoPress\\modules\\images\\images::countImages();` ) ) );
+	await expect( page.getByRole( 'button', { name: /^Save and regenerate [\d,]+ affected images?$/ } ) ).toHaveText( new RegExp( images.toLocaleString( 'en-US' ) ), { timeout: 10000 } );
+
+	if ( process.env.PP_E2E_SHOTS ) {
+		await page.locator( '.photopress-savebar' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/save-and-regenerate.png` } );
+	}
+
+	await page.getByRole( 'button', { name: 'Save', exact: true } ).click();
+	await expect.poll( () => JSON.parse( lastLine( wp( 'option', 'get', KEY, '--format=json' ) ) ).disabled_sizes ).toBe( 'medium_large' );
+	await expect( page.locator( '.photopress-images-outdated' ) ).toBeVisible();
+	await expect( page.locator( '.photopress-job[data-job-type="images.regenerate"] .photopress-job__progress[data-status="queued"], .photopress-job[data-job-type="images.regenerate"] .photopress-job__progress[data-status="running"]' ) ).toHaveCount( 0 );
 } );
 
 test( 'regenerating makes sizes at the quality set, without the sizes turned off', async ( { page, made } ) => {

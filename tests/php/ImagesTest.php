@@ -104,6 +104,39 @@ final class ImagesTest extends TestCase {
 		$this->assertNotSame( $first, images::signature() );
 	}
 
+	/**
+	 * The images a change would affect are counted with the signature of
+	 * the settings on screen, the same as once they are saved.
+	 */
+	public function test_the_signature_of_settings_given_is_theirs_once_saved(): void {
+
+		$this->settings( 92 );
+		$saved = images::signature();
+
+		$this->assertSame( $saved, images::signature( [ 'quality' => 92, 'disabled_sizes' => '' ] ) );
+		$this->assertSame( $saved, images::signature( [] ) );
+
+		$changed = images::signature( [ 'quality' => 90, 'disabled_sizes' => '800x800, thumbnail' ] );
+		$this->settings( 90, '800x800, thumbnail' );
+		$this->assertSame( images::signature(), $changed );
+		$this->assertSame( $changed, images::signature( [ 'quality' => '90', 'disabled_sizes' => [ 'thumbnail', '800x800' ] ] ) );
+	}
+
+	public function test_an_image_uploaded_is_marked_up_to_date(): void {
+
+		$this->settings();
+		$saved = [];
+		Functions\when( 'update_post_meta' )->alias( static function ( $id, $key, $value ) use ( &$saved ) { $saved[ $id ][ $key ] = $value; } );
+
+		$meta = [ 'file' => 'photo.jpg', 'sizes' => [ 'medium' => [] ] ];
+		$this->assertSame( $meta, images::markUpToDate( $meta, 7, 'create' ) );
+		// Not an edit in the image editor, nor a file without sizes.
+		images::markUpToDate( $meta, 8, 'update' );
+		images::markUpToDate( [ 'file' => 'doc.pdf' ], 9, 'create' );
+
+		$this->assertSame( [ 7 => [ images::SIGNATURE_META => images::signature() ] ], $saved );
+	}
+
 	public function test_an_image_made_with_these_settings_is_skipped(): void {
 
 		$this->settings();
