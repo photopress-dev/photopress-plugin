@@ -235,7 +235,6 @@ class MediaSettings extends Component {
 			errors: {},
 			settings: {
 				cache_seconds: DAY,
-				stale_seconds: HOUR,
 				delete_replaced_objects: false,
 				...this.props.data,
 			},
@@ -266,14 +265,6 @@ class MediaSettings extends Component {
 							help={ __( 'How long browsers and the CDN keep an image before checking for a new one. Where a replaced image wasn’t cleared, its old copy can show this long. Offload Media’s default is a year.' ) }
 							seconds={ Number( this.getSetting( 'cache_seconds' ) ?? DAY ) }
 							onChange={ ( value ) => this.setSetting( 'cache_seconds', value ) }
-						/>
-
-						<DurationControl
-							id="stale_seconds"
-							label={ __( 'Refresh in the background for up to' ) }
-							help={ __( 'Once an image’s cache time is up, browsers and the CDN can keep showing the copy they have while they fetch a fresh one, so the page doesn’t wait. Past this time, it waits. 0 to always wait.' ) }
-							seconds={ Number( this.getSetting( 'stale_seconds' ) ?? HOUR ) }
-							onChange={ ( value ) => this.setSetting( 'stale_seconds', value ) }
 						/>
 
 						<SwitchRow

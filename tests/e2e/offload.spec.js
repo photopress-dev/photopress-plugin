@@ -71,7 +71,7 @@ test( 'a replaced image keeps its CloudFront URL and is cleared from the CDN', a
 	// PhotoPress's cache header, not Offload Media's year. Twice, so
 	// CloudFront has it cached.
 	let served = await request.get( url );
-	expect( served.headers()[ 'cache-control' ] ).toBe( 'max-age=86400, stale-while-revalidate=3600' );
+	expect( served.headers()[ 'cache-control' ] ).toBe( 'max-age=86400, stale-while-revalidate=300' );
 	const before = served.headers().etag;
 	await request.get( url );
 
