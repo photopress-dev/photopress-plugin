@@ -27,6 +27,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * They look the same in the editor as on the site
 * Open the full-screen slideshow when an image is clicked
 * Hide captions option
+* An image deleted from the Media Library is taken out of the galleries that show it
 
 = FULL-SCREEN SLIDESHOW =
 
@@ -158,6 +159,10 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   set time, then shown for up to 5 more minutes while a new copy is checked
   for; that second setting is gone.
 * Settings: a switch saves only its own setting.
+* Gallery block: an image deleted from the Media Library is taken out of
+  every gallery that shows it, in an edit of each post, rather than left as
+  a broken image. Galleries in the format of WordPress before 5.9 are left
+  as they are.
 
 = 1.9.0 =
 

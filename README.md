@@ -23,6 +23,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 - They look the same in the editor as on the site
 - Open the full-screen slideshow when an image is clicked
 - Hide captions option
+- An image deleted from the Media Library is taken out of the galleries that show it
 
 ![Masonry layout](.wordpress-org/screenshot-1.png)
 

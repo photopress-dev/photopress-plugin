@@ -463,22 +463,35 @@ class GalleryAdd {
 			}
 		}
 
-		// The gallery's own markup before, between and after its inner blocks.
-		$content   = $added['innerContent'];
+		return self::withInnerBlocks( $added, $inner );
+	}
+
+	/**
+	 * The gallery with these inner blocks, in its own markup before, between
+	 * and after them.
+	 */
+	public static function withInnerBlocks( array $gallery, array $inner ) {
+
+		$content   = $gallery['innerContent'];
 		$nulls     = array_keys( $content, null, true );
-		$separator = implode( '', array_slice( $content, $nulls[0] + 1, $nulls[1] - $nulls[0] - 1 ) );
+
+		if ( ! $nulls ) {
+			return $gallery;
+		}
+
+		$separator = count( $nulls ) > 1 ? implode( '', array_slice( $content, $nulls[0] + 1, $nulls[1] - $nulls[0] - 1 ) ) : "\n\n";
 		$markup    = [ implode( '', array_slice( $content, 0, $nulls[0] ) ) ];
 
-		foreach ( $inner as $index => $block ) {
+		foreach ( array_values( $inner ) as $index => $block ) {
 			array_push( $markup, ...( $index ? [ $separator, null ] : [ null ] ) );
 		}
 
 		$markup[] = implode( '', array_slice( $content, end( $nulls ) + 1 ) );
 
-		$added['innerBlocks']  = $inner;
-		$added['innerContent'] = $markup;
+		$gallery['innerBlocks']  = array_values( $inner );
+		$gallery['innerContent'] = $markup;
 
-		return $added;
+		return $gallery;
 	}
 
 	/**
