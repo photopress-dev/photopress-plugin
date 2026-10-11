@@ -166,6 +166,39 @@ test( 'a change that moves photos offers to reprocess just those, emptying nothi
 	await editor.getByRole( 'button', { name: 'Cancel' } ).click();
 } );
 
+test( 'a taxonomy made admin only has no archive pages, until made public again', async ( { page } ) => {
+	const row = page.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_e2e_person"]' );
+	const archive = '/e2e-person/alice/';
+
+	await page.goto( URL );
+	await expect( row.locator( 'td' ).nth( 2 ) ).toHaveText( 'Yes', { timeout: 30000 } );
+	expect( ( await page.goto( archive ) ).status() ).toBe( 200 );
+
+	const setPublic = async ( on ) => {
+		await page.goto( URL );
+		await row.getByRole( 'button', { name: 'Edit' } ).click();
+		const editor = page.locator( '.photopress-taxonomies__editor' );
+		const toggle = editor.getByRole( 'checkbox', { name: 'Public' } );
+		await expect( toggle ).toBeChecked( { checked: ! on } );
+		await toggle.click();
+		await expect( editor ).toContainText( on ? 'Archive pages: /e2e-person/…' : 'No archive pages. (they were at /e2e-person/…, which will stop working)' );
+		await editor.getByRole( 'button', { name: 'Save', exact: true } ).click();
+		await expect( page.locator( '.photopress-flash' ) ).toContainText( 'E2E people saved.' );
+	};
+
+	await setPublic( false );
+	await settled.poll( () => taxonomies().find( ( t ) => 'pp_e2e_person' === t.id ).private ).toBe( true );
+	await expect( row.locator( 'td' ).nth( 2 ) ).toHaveText( 'No' );
+	await expect( row.locator( 'td' ).nth( 3 ) ).toHaveText( '—' );
+	// Its terms are still counted, and linked to under Media.
+	await expect( row.locator( 'td.num a' ) ).toHaveText( '1' );
+	expect( ( await page.goto( archive ) ).status() ).toBe( 404 );
+
+	await setPublic( true );
+	await settled.poll( () => taxonomies().find( ( t ) => 'pp_e2e_person' === t.id ).private ).toBeUndefined();
+	expect( ( await page.goto( archive ) ).status() ).toBe( 200 );
+} );
+
 test( 'a standard taxonomy is turned off and on, keeping its names', async ( { page } ) => {
 	await page.goto( URL );
 

@@ -61,6 +61,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * The parent keywords found in your photos that have no taxonomy are listed, each with a button to add one
 * Custom Metadata: any other metadata field as a taxonomy, chosen from a list of IPTC fields, each with what it holds and where photo software shows it
 * Adding or changing a taxonomy offers to reprocess just the images it affects, in the background, with the progress on the settings page
+* A taxonomy can be for the admin only: its terms are kept and shown in the Media Library, with no archive pages on the site
 * Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
 * Display Exif Widget
 * Display Image Taxonomy Terms Widget
@@ -132,6 +133,11 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   as photo software shows them, with what each holds and a link to the IPTC
   guide. Parts of structured fields, such as the city of the location shown,
   can be chosen too, and coded fields are filed in words.
+* A taxonomy can be made admin only with its Public switch: it has no
+  archive or term pages, and the Image Taxonomies block and widget leave it
+  out, while its terms are kept and shown in the Media Library and under
+  Media. The tables' Public column shows which are.
+* Each taxonomy's term count links to its terms under Media.
 * Saving a taxonomy change offers to reprocess just the images it affects.
   Terms of images whose files have nothing for a taxonomy are kept unless
   Empty the terms is checked under Advanced options.

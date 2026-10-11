@@ -12,6 +12,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
+import SwitchRow from '../shared/switch-row.js';
 import { useAdvanced } from '../shared/advanced-options.js';
 import { FIELD_GROUPS, GUIDE_URL, fieldOf, guideUrl } from '../shared/metadata-fields.js';
 import {
@@ -105,6 +106,25 @@ function scopeChoice( scope, terms ) {
 	};
 }
 
+/** A definition as saved: private only when it is not public. */
+function withPublic( def, isPublic ) {
+	const { private: wasPrivate, ...rest } = def; // eslint-disable-line no-unused-vars
+	return isPublic ? rest : { ...rest, private: true };
+}
+
+const isPublicDef = ( def ) => ! def || ! def.private;
+
+/** A table's Public and Archive pages cells. */
+function PublicCells( { def } ) {
+	const shown = isPublicDef( def );
+	return (
+		<Fragment>
+			<td>{ shown ? __( 'Yes' ) : __( 'No' ) }</td>
+			<td>{ shown ? <code>{ archiveUrl( def ) }</code> : '—' }</td>
+		</Fragment>
+	);
+}
+
 /**
  * A taxonomy's number of terms, linked to its terms in the admin; a dash
  * while it is asked for, or for a taxonomy turned off.
@@ -187,16 +207,30 @@ function Editor( { title, error, onSave, onCancel, saving, saveLabel, reprocess,
 	);
 }
 
-function Names( { plural, singular, onPlural, onSingular, urlTerm, before } ) {
+/**
+ * The names, and whether the taxonomy is public, with its archive pages.
+ * before: the archive pages' slug as saved, for a public taxonomy.
+ */
+function Names( { plural, singular, onPlural, onSingular, isPublic, onPublic, urlTerm, before } ) {
+	const moved = before && ( ! isPublic || before !== slug( singular ) );
+
 	return (
 		<div className="photopress-taxonomies__names">
 			<div className="photopress-taxonomies__pair">
 				<TextControl __nextHasNoMarginBottom __next40pxDefaultSize label={ __( 'Plural name' ) } value={ plural } onChange={ onPlural } />
 				<TextControl __nextHasNoMarginBottom __next40pxDefaultSize label={ __( 'Singular name' ) } value={ singular } onChange={ onSingular } />
 			</div>
+			<SwitchRow
+				label={ __( 'Public' ) }
+				help={ __( 'Each term has an archive page on the site, and the Image Taxonomies block shows the terms. Turned off, the taxonomy is for the admin only: its terms are kept, and shown in the Media Library and under Media.' ) }
+				checked={ isPublic }
+				onChange={ onPublic }
+			/>
 			<p className="description">
-				{ __( 'Archive pages:' ) } <code>{ archiveUrl( { singularLabel: singular }, urlTerm ) }</code>
-				{ before && before !== slug( singular ) && (
+				{ isPublic
+					? <>{ __( 'Archive pages:' ) } <code>{ archiveUrl( { singularLabel: singular }, urlTerm ) }</code></>
+					: __( 'No archive pages.' ) }
+				{ moved && (
 					<> { sprintf( __( '(they were at /%s/…, which will stop working)' ), before ) }</>
 				) }
 			</p>
@@ -207,6 +241,7 @@ function Names( { plural, singular, onPlural, onSingular, urlTerm, before } ) {
 function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 	const [ plural, setPlural ] = useState( capitalize( def.pluralLabel ) );
 	const [ singular, setSingular ] = useState( capitalize( def.singularLabel ) );
+	const [ isPublic, setPublic ] = useState( isPublicDef( def ) );
 	const [ error, setError ] = useState( null );
 
 	const save = () => {
@@ -214,12 +249,12 @@ function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 		if ( problem ) {
 			return setError( problem );
 		}
-		onSave( { ...def, pluralLabel: plural.trim(), singularLabel: singular.trim() } );
+		onSave( withPublic( { ...def, pluralLabel: plural.trim(), singularLabel: singular.trim() }, isPublic ) );
 	};
 
 	return (
 		<Editor title={ capitalize( def.pluralLabel ) } error={ error } onSave={ save } onCancel={ onCancel } saving={ saving }>
-			<Names plural={ plural } singular={ singular } onPlural={ setPlural } onSingular={ setSingular } before={ slug( def.singularLabel ) } />
+			<Names plural={ plural } singular={ singular } onPlural={ setPlural } onSingular={ setSingular } isPublic={ isPublic } onPublic={ setPublic } before={ def.index >= 0 && isPublicDef( def ) && slug( def.singularLabel ) } />
 			<h4>{ __( 'Where PhotoPress looks' ) }</h4>
 			<p>{ standardHow( kind ) }. { __( 'Nothing to set up: PhotoPress reads every place cameras and photo software record it.' ) }</p>
 			<details>
@@ -236,7 +271,7 @@ function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 }
 
 /** What a photo with these keywords gets from a parent keyword. */
-function ParentPreview( { parent, plural, singular, example, separators } ) {
+function ParentPreview( { parent, plural, singular, isPublic, example, separators } ) {
 	const term = example || __( 'Example' );
 	const sub = __( 'Group' );
 	const tax = plural || __( 'This taxonomy' );
@@ -261,7 +296,7 @@ function ParentPreview( { parent, plural, singular, example, separators } ) {
 					<td>{ 0 === i && <code>{ keyword }</code> }</td>
 					<td>{ t }</td>
 					<td><strong>{ value }</strong>{ under && <span className="description"> { sprintf( __( 'under %s' ), under ) }</span> }</td>
-					<td><code>{ url }</code></td>
+					<td>{ isPublic ? <code>{ url }</code> : '—' }</td>
 				</tr>
 			) ) ) }
 		</Table>
@@ -294,6 +329,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 	const [ plural, setPlural ] = useState( def ? capitalize( def.pluralLabel ) : capitalize( pluralize( prefill || '' ) ) );
 	const [ singular, setSingular ] = useState( def ? capitalize( def.singularLabel ) : capitalize( prefill || '' ) );
 	const [ named, setNamed ] = useState( !! def || !! prefill );
+	const [ isPublic, setPublic ] = useState( isPublicDef( def ) );
 	const [ error, setError ] = useState( null );
 
 	const found = status.prefixes.find( ( p ) => p.prefix === parent.trim().toLowerCase() );
@@ -308,7 +344,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 
 	const all = [ parent.trim(), ...namesFrom( aka ) ].filter( Boolean );
 	const id = def ? def.id : newId( singular, list );
-	const draft = {
+	const draft = withPublic( {
 		id,
 		pluralLabel: plural.trim(),
 		singularLabel: singular.trim(),
@@ -316,7 +352,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 		parseTagValue: true,
 		names: all,
 		...( def && def.disabled ? { disabled: true } : {} ),
-	};
+	}, isPublic );
 	const scope = useScope( { custom_taxonomies: def ? list.map( ( d, i ) => ( i === def.index ? draft : d ) ) : [ ...list, draft ] } );
 
 	const save = ( reprocess ) => {
@@ -380,13 +416,16 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 				singular={ singular }
 				onPlural={ ( v ) => ( setNamed( true ), setPlural( v ) ) }
 				onSingular={ ( v ) => ( setNamed( true ), setSingular( v ) ) }
-				before={ def && slug( def.singularLabel ) }
+				isPublic={ isPublic }
+				onPublic={ setPublic }
+				before={ def && isPublicDef( def ) && slug( def.singularLabel ) }
 			/>
 			<h4>{ __( 'What a photo gets' ) }</h4>
 			<ParentPreview
 				parent={ parent.trim() || __( 'Parent' ) }
 				plural={ plural }
 				singular={ singular }
+				isPublic={ isPublic }
 				example={ found && found.examples[ 0 ] }
 				separators={ separators }
 			/>
@@ -396,7 +435,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 }
 
 /** What a photo with a value in the field gets: a term in the taxonomy, with its page. */
-function CustomPreview( { tag, plural, singular } ) {
+function CustomPreview( { tag, plural, singular, isPublic } ) {
 	const value = fieldOf( tag ).example || __( 'Example' );
 	const def = { singularLabel: singular };
 
@@ -408,7 +447,7 @@ function CustomPreview( { tag, plural, singular } ) {
 					<td><code>{ value }</code></td>
 					<td>{ plural || __( 'This taxonomy' ) }</td>
 					<td><strong>{ value }</strong></td>
-					<td><code>{ archiveUrl( def, value ) }</code></td>
+					<td>{ isPublic ? <code>{ archiveUrl( def, value ) }</code> : '—' }</td>
 				</tr>
 			</Table>
 			<p className="description">{ __( 'Each value in the field becomes a term, as written. A field with several values gives the photo a term for each.' ) }</p>
@@ -428,6 +467,7 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 	const [ plural, setPlural ] = useState( def ? capitalize( def.pluralLabel ) : '' );
 	const [ singular, setSingular ] = useState( def ? capitalize( def.singularLabel ) : '' );
 	const [ named, setNamed ] = useState( !! def );
+	const [ isPublic, setPublic ] = useState( isPublicDef( def ) );
 	const [ error, setError ] = useState( null );
 
 	const pick = ( value ) => {
@@ -448,14 +488,14 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 		if ( problem ) {
 			return setError( problem );
 		}
-		onSave( {
+		onSave( withPublic( {
 			id,
 			pluralLabel: plural.trim(),
 			singularLabel: singular.trim(),
 			tag,
 			parseTagValue: false,
 			...( def && def.disabled ? { disabled: true } : {} ),
-		}, reprocess );
+		}, isPublic ), reprocess );
 	};
 
 	const option = ( t ) => ( { value: t, label: `${ fieldLabel( t ) } (${ t })` } );
@@ -509,9 +549,11 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 				singular={ singular }
 				onPlural={ ( v ) => ( setNamed( true ), setPlural( v ) ) }
 				onSingular={ ( v ) => ( setNamed( true ), setSingular( v ) ) }
-				before={ def && slug( def.singularLabel ) }
+				isPublic={ isPublic }
+				onPublic={ setPublic }
+				before={ def && isPublicDef( def ) && slug( def.singularLabel ) }
 			/>
-			{ tag && <CustomPreview tag={ tag } plural={ plural } singular={ singular } /> }
+			{ tag && <CustomPreview tag={ tag } plural={ plural } singular={ singular } isPublic={ isPublic } /> }
 		</Editor>
 	);
 }
@@ -724,7 +766,7 @@ export default function TaxonomySettings( { component, route } ) {
 				>
 					<Table
 						className="photopress-taxonomies__standard"
-						head={ [ [ __( 'Taxonomy' ) ], [ __( 'How it’s filled' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ], [ __( 'On' ), 'switch' ] ] }
+						head={ [ [ __( 'Taxonomy' ) ], [ __( 'How it’s filled' ) ], [ __( 'Public' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ], [ __( 'On' ), 'switch' ] ] }
 					>
 						{ STANDARD.map( ( s ) => {
 							const def = standard[ s.kind ];
@@ -733,7 +775,7 @@ export default function TaxonomySettings( { component, route } ) {
 								<tr key={ s.kind } data-kind={ s.kind }>
 									<td><strong>{ capitalize( ( def || s ).pluralLabel ) }</strong></td>
 									<td>{ standardHow( s.kind ) }</td>
-									<td><code>{ archiveUrl( def || s ) }</code></td>
+									<PublicCells def={ def || s } />
 									<td className="num"><TermCount status={ status } def={ def } /></td>
 									<RowActions onEdit={ () => setScreen( { type: 'standard', kind: s.kind } ) } />
 									<td className="switch">
@@ -757,16 +799,16 @@ export default function TaxonomySettings( { component, route } ) {
 				>
 					<Table
 						className="photopress-taxonomies__parents"
-						head={ [ [ __( 'Taxonomy' ) ], [ __( 'Parent keywords' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
+						head={ [ [ __( 'Taxonomy' ) ], [ __( 'Parent keywords' ) ], [ __( 'Public' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
 					>
-						{ parents.length === 0 && <tr><td colSpan="5">{ __( 'No parent keywords yet.' ) }</td></tr> }
+						{ parents.length === 0 && <tr><td colSpan="6">{ __( 'No parent keywords yet.' ) }</td></tr> }
 						{ parents.map( ( p ) => (
 							<tr key={ p.id } data-taxonomy={ p.id }>
 								<td>
 									<strong>{ capitalize( p.pluralLabel ) }</strong>
 										</td>
 								<td>{ parentNames( p ).map( ( n ) => <code key={ n } className="photopress-taxonomies__chip">{ n }</code> ) }</td>
-								<td><code>{ archiveUrl( p ) }</code></td>
+								<PublicCells def={ p } />
 								<td className="num"><TermCount status={ status } def={ p } /></td>
 								<RowActions
 									onEdit={ () => setScreen( { type: 'parent', id: p.id } ) }
@@ -857,14 +899,14 @@ export default function TaxonomySettings( { component, route } ) {
 				>
 					<Table
 						className="photopress-taxonomies__custom"
-						head={ [ [ __( 'Taxonomy' ) ], [ __( 'Field' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
+						head={ [ [ __( 'Taxonomy' ) ], [ __( 'Field' ) ], [ __( 'Public' ) ], [ __( 'Archive pages' ) ], [ __( 'Terms' ), 'num' ], [ __( 'Actions' ), 'hidden' ] ] }
 					>
-						{ custom.length === 0 && <tr><td colSpan="5">{ __( 'No custom metadata yet.' ) }</td></tr> }
+						{ custom.length === 0 && <tr><td colSpan="6">{ __( 'No custom metadata yet.' ) }</td></tr> }
 						{ custom.map( ( c ) => (
 							<tr key={ c.id } data-taxonomy={ c.id }>
 								<td><strong>{ capitalize( c.pluralLabel ) }</strong></td>
 								<td>{ fieldLabel( c.tag ) } <span className="description">({ c.tag })</span></td>
-								<td><code>{ archiveUrl( c ) }</code></td>
+								<PublicCells def={ c } />
 								<td className="num"><TermCount status={ status } def={ c } /></td>
 								<RowActions
 									onEdit={ () => setScreen( { type: 'custom', id: c.id } ) }

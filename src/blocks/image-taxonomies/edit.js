@@ -58,13 +58,15 @@ export default function Edit( { attributes, setAttributes, context } ) {
 	const blockProps = useBlockProps();
 
 	// Readable over REST by users who can edit posts (ImageTaxonomyRest).
-	const available = useSelect(
+	// Those for the admin only are never shown to visitors, so not offered.
+	const taxonomiesOf = useSelect(
 		( select ) => select( coreStore ).getTaxonomies( { type: 'attachment', per_page: -1, context: 'view' } ),
 		[]
 	);
+	const available = taxonomiesOf && taxonomiesOf.filter( ( t ) => false !== t.photopress_public );
 
-	// Taxonomies saved in the block but no longer registered stay listed so
-	// they can be removed; the server skips them.
+	// Taxonomies saved in the block but no longer registered or public stay
+	// listed so they can be removed; the server skips them.
 	const missing = available ? taxonomies.filter( ( slug ) => ! available.some( ( t ) => t.slug === slug ) ) : [];
 
 	const preview = context.postId ? (

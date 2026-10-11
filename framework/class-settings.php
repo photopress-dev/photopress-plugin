@@ -184,6 +184,8 @@ class photopress_settingsPage {
 							'nested'        => [ 'type' => 'boolean' ],
 							// Turned off: not registered or filled, its names kept.
 							'disabled'      => [ 'type' => 'boolean' ],
+							// Not public: for the admin only, with no pages on the site.
+							'private'       => [ 'type' => 'boolean' ],
 						],
 					],
 				];
@@ -273,6 +275,10 @@ class photopress_settingsPage {
 					
 					if ( ! empty( $item['disabled'] ) ) {
 						$clean['disabled'] = true;
+					}
+					
+					if ( ! empty( $item['private'] ) ) {
+						$clean['private'] = true;
 					}
 					
 					$list[] = $clean;

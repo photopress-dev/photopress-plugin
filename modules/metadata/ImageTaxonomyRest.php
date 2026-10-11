@@ -64,6 +64,24 @@ class ImageTaxonomyRest {
 		add_filter( 'rest_prepare_attachment', [ self::class, 'stripMediaTerms' ] );
 		add_filter( 'rest_attachment_query', [ self::class, 'ignoreMediaTermFilters' ] );
 		add_filter( 'rest_queried_resource_route', [ self::class, 'noAlternateLink' ] );
+		add_action( 'rest_api_init', [ self::class, 'registerFields' ] );
+	}
+
+	/**
+	 * photopress_public on each taxonomy in /wp/v2/taxonomies: whether it has
+	 * pages on the site, for the Image Taxonomies block's list of those it
+	 * can show. (Its visibility is in the edit context only.)
+	 */
+	public static function registerFields() {
+
+		register_rest_field( 'taxonomy', 'photopress_public', [
+			'get_callback' => static fn( $taxonomy ) => is_taxonomy_viewable( $taxonomy['slug'] ),
+			'schema'       => [
+				'type'     => 'boolean',
+				'context'  => [ 'view', 'edit' ],
+				'readonly' => true,
+			],
+		] );
 	}
 
 	/**

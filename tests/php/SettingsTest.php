@@ -100,21 +100,22 @@ final class SettingsTest extends TestCase {
 		$this->assertLessThanOrEqual( 32, strlen( $ids[4] ) );
 	}
 
-		public function test_taxonomy_names_and_turning_off_are_kept_where_set_and_nesting_dropped(): void {
+		public function test_taxonomy_names_turning_off_and_admin_only_are_kept_where_set_and_nesting_dropped(): void {
 
 		Functions\when( 'get_option' )->justReturn( [] );
 
 		$clean = $this->page()->sanitizeOptions( [
 			'custom_taxonomies' => [
 				[ 'id' => 'pp_people', 'tag' => 'dc:subject', 'parseTagValue' => true, 'names' => [ 'People', ' <b>person</b> ', '' ], 'nested' => 1 ],
-				[ 'id' => 'photos_lens', 'tag' => 'aux:Lens', 'disabled' => true ],
-				[ 'id' => 'photos_city', 'tag' => 'photoshop:City', 'names' => [], 'nested' => false, 'disabled' => false ],
+				[ 'id' => 'photos_lens', 'tag' => 'aux:Lens', 'disabled' => true, 'private' => true ],
+				[ 'id' => 'photos_city', 'tag' => 'photoshop:City', 'names' => [], 'nested' => false, 'disabled' => false, 'private' => false ],
 			],
 		] );
 
 		$this->assertSame( [ 'People', 'person' ], $clean['custom_taxonomies'][0]['names'] );
 		$this->assertArrayNotHasKey( 'nested', $clean['custom_taxonomies'][0], 'every parent keyword is nested' );
 		$this->assertTrue( $clean['custom_taxonomies'][1]['disabled'] );
+		$this->assertTrue( $clean['custom_taxonomies'][1]['private'] );
 		$this->assertSame( [ 'id', 'pluralLabel', 'singularLabel', 'tag', 'parseTagValue' ], array_keys( $clean['custom_taxonomies'][2] ) );
 	}
 

@@ -79,6 +79,7 @@ final class TaxonomyProcessingTest extends TestCase {
 			[ 'id' => 'photos_lens', 'pluralLabel' => 'lenses', 'singularLabel' => 'lens', 'tag' => 'aux:Lens', 'parseTagValue' => false, 'disabled' => true ],
 			[ 'id' => 'photos_keywords', 'pluralLabel' => 'keywords', 'singularLabel' => 'keyword', 'tag' => 'dc:subject', 'parseTagValue' => false ],
 			[ 'id' => 'photos_city', 'pluralLabel' => 'cities', 'singularLabel' => 'city', 'tag' => 'photoshop:City', 'parseTagValue' => false ],
+			[ 'id' => 'pp_client', 'pluralLabel' => 'clients', 'singularLabel' => 'client', 'tag' => 'dc:subject', 'parseTagValue' => true, 'private' => true ],
 		];
 
 		$registered = [];
@@ -89,12 +90,23 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor()->registerTaxonomies();
 
-		$this->assertSame( [ 'pp_acme_job', 'photos_keywords', 'photos_city' ], array_keys( $registered ), 'a taxonomy turned off is not registered' );
+		$this->assertSame( [ 'pp_acme_job', 'photos_keywords', 'photos_city', 'pp_client' ], array_keys( $registered ), 'a taxonomy turned off is not registered' );
 		$this->assertTrue( $registered['photos_keywords']['hierarchical'], 'keyword hierarchies' );
 		$this->assertFalse( $registered['photos_city']['hierarchical'] );
 		$this->assertSame( 'acme-job', $registered['pp_acme_job']['rewrite']['slug'] );
 		$this->assertTrue( $registered['pp_acme_job']['rewrite']['hierarchical'] );
 		$this->assertTrue( $registered['pp_acme_job']['hierarchical'] );
+		$this->assertTrue( $registered['pp_acme_job']['public'] );
+		$this->assertSame( 'pp_acme_job', $registered['pp_acme_job']['query_var'] );
+
+		// For the admin only: no pages, its terms screen and column kept.
+		$client = $registered['pp_client'];
+		foreach ( [ 'public', 'publicly_queryable', 'rewrite', 'query_var', 'show_in_nav_menus', 'show_tagcloud' ] as $arg ) {
+			$this->assertFalse( $client[ $arg ], $arg );
+		}
+		foreach ( [ 'show_ui', 'show_in_menu', 'show_admin_column', 'show_in_rest' ] as $arg ) {
+			$this->assertTrue( $client[ $arg ], $arg );
+		}
 	}
 
 		public function test_new_sites_start_with_the_standard_taxonomies_and_old_ones_keep_people(): void {

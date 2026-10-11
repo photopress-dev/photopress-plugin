@@ -10,14 +10,14 @@ namespace PhotoPress\modules\metadata;
 class ImageTaxonomies {
 
 	/**
-	 * Every taxonomy registered for attachments, in registration order. Shown
-	 * when no taxonomies are chosen.
+	 * Every public taxonomy registered for attachments, in registration
+	 * order. Shown when no taxonomies are chosen.
 	 *
 	 * @return string[]
 	 */
 	public static function allTaxonomies() {
 
-		return array_values( get_object_taxonomies( 'attachment', 'names' ) );
+		return array_values( array_filter( get_object_taxonomies( 'attachment', 'names' ), 'is_taxonomy_viewable' ) );
 	}
 
 	/**
@@ -50,7 +50,8 @@ class ImageTaxonomies {
 
 		foreach ( $taxonomies as $name ) {
 
-			if ( ! taxonomy_exists( $name ) ) {
+			// A taxonomy for the admin only is never shown to visitors.
+			if ( ! taxonomy_exists( $name ) || ! is_taxonomy_viewable( $name ) ) {
 				continue;
 			}
 

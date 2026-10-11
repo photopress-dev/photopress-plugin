@@ -1122,8 +1122,13 @@ class metadata extends photopress_module {
 			// finds Jane, as WordPress reads the last part of a term path.
 			$nested = $model->isNested( $id );
 			$slug   = sanitize_title( $tax[ 'singularLabel' ] );
+			// Not public: for the admin only, with no archive or term pages,
+			// menus or tag clouds; its terms screen and Media Library column stay.
+			$public = empty( $tax['private'] );
 			
-			$this->rewrites[] = [ $id, $slug, $nested ];
+			if ( $public ) {
+				$this->rewrites[] = [ $id, $slug, $nested ];
+			}
 			
 			register_taxonomy( $id, 'attachment', array(
 				
@@ -1148,16 +1153,21 @@ class metadata extends photopress_module {
 						'menu_name'         			=> __( $upper_plural )
 					),
 					
-					'query_var' => $id, 
+					'query_var' => $public ? $id : false, 
 					// In REST for the editor and core blocks, but only for users
 					// who can edit posts; see ImageTaxonomyRest.
 					'show_in_rest'          => true,
 					'rest_controller_class' => TermsController::class,
 					// As the settings screen shows it: "Acme job" is /acme-job/.
-					'rewrite' => array('slug' => $slug, 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ),
+					'rewrite' => $public ? array('slug' => $slug, 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ) : false,
 					'update_count_callback'	=> '_update_generic_term_count',
 					'show_admin_column' => true,
-					'public'	=> true 
+					'public'	=> $public,
+					'publicly_queryable' => $public,
+					'show_ui' => true,
+					'show_in_menu' => true,
+					'show_in_nav_menus' => $public,
+					'show_tagcloud' => $public,
 				)
 			);
 		}

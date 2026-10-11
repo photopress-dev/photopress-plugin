@@ -17,7 +17,8 @@ final class ImageTaxonomiesTest extends TestCase {
 			'photos_keywords' => [ (object) [ 'name' => 'portrait', 'slug' => 'portrait' ], (object) [ 'name' => 'Q&amp;A <b>', 'slug' => 'qa' ] ],
 			'photos_lens'     => [],
 		];
-		$labels = [ 'photos_city' => 'Cities', 'photos_keywords' => 'Keywords', 'photos_lens' => 'Lenses' ];
+		$terms['pp_client'] = [ (object) [ 'name' => 'Acme', 'slug' => 'acme' ] ];
+		$labels = [ 'photos_city' => 'Cities', 'photos_keywords' => 'Keywords', 'photos_lens' => 'Lenses', 'pp_client' => 'Clients' ];
 
 		Functions\stubs( [
 			'taxonomy_exists'        => static fn( $name ) => isset( $labels[ $name ] ),
@@ -25,6 +26,7 @@ final class ImageTaxonomiesTest extends TestCase {
 			'get_term_link'          => static fn( $term, $name ) => "https://example.test/$name/{$term->slug}/",
 			'get_taxonomy'           => static fn( $name ) => (object) [ 'label' => $labels[ $name ] ],
 			'get_object_taxonomies'  => static fn() => array_keys( $labels ),
+			'is_taxonomy_viewable'   => static fn( $name ) => 'pp_client' !== $name,
 			'is_wp_error'            => static fn( $v ) => $v instanceof \WP_Error,
 			'get_the_ID'             => 7,
 			'get_block_wrapper_attributes' => static fn( $extra ) => 'class="' . $extra['class'] . ' wp-block-photopress-image-taxonomies"',
@@ -57,6 +59,13 @@ final class ImageTaxonomiesTest extends TestCase {
 
 		$this->assertSame( '', ImageTaxonomies::renderRows( 7, [ 'photos_people', 'photos_lens' ] ) );
 		$this->assertSame( '', ImageTaxonomies::renderRows( 0, [ 'photos_city' ] ) );
+	}
+
+	public function test_a_taxonomy_for_the_admin_only_is_never_shown(): void {
+
+		$this->assertStringNotContainsString( 'Acme', ImageTaxonomies::renderRows( 7, [] ), 'not among all' );
+		$this->assertSame( '', ImageTaxonomies::renderRows( 7, [ 'pp_client' ] ), 'nor when chosen' );
+		$this->assertNotContains( 'pp_client', ImageTaxonomies::allTaxonomies() );
 	}
 
 	public function test_block_renders_the_context_post_in_a_wrapper(): void {
