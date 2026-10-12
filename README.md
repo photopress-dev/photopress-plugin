@@ -24,7 +24,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 - Open the full-screen slideshow when an image is clicked
 - Hide captions option
 - An image deleted from the Media Library is taken out of the galleries that show it
-- A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
+- A Gallery settings tab with a switch for each layout, for removing deleted images and for the image templates, all on by default
 
 ![Masonry layout](.wordpress-org/screenshot-1.png)
 
@@ -78,15 +78,14 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 - Custom Metadata: any other metadata field as a taxonomy, chosen from a list of IPTC fields, each with what it holds and where photo software shows it
 - Adding or changing a taxonomy offers to reprocess just the images it affects, in the background, with the progress on the settings page
 - A taxonomy can be for the admin only: its terms are kept and shown in the Media Library, with no archive pages on the site
-- Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
-- Display Exif Widget
-- Display Image Taxonomy Terms Widget
+- Image Metadata block: an image's terms, such as keywords, people, places and camera, and its exposure details from the file (aperture, shutter speed, ISO, focal length, date taken), in the order you choose
+- The Display Taxonomies and Display Image Exif widgets, for classic widget areas; in the block widgets editor, placed ones transform into the Image Metadata block
 - Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a template of words and metadata fields
 - Image descriptions from a template of words and metadata fields
 - Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
 - Save and reprocess all images: applies a new template or licensing to the images already uploaded, in the background
 
-![Image Taxonomies block](.wordpress-org/screenshot-9.png)
+![Image Metadata block](.wordpress-org/screenshot-9.png)
 
 ![Image taxonomies](.wordpress-org/screenshot-10.png)
 
@@ -95,6 +94,26 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 ![Alt text and description templates](.wordpress-org/screenshot-12.png)
 
 ![Licensing](.wordpress-org/screenshot-13.png)
+
+### Image Templates
+
+For block themes that have no templates of their own for them (WordPress 6.7 or later):
+
+- Image archives: a keyword's, a camera's or any image taxonomy's archive page shows its images in the Masonry layout, with links to more pages
+- Image pages: the image, its caption and description, its taxonomy terms and its exposure details
+- Both are edited in the Site Editor, like the theme's own templates, and can be turned off in the Gallery tab
+- Archive Images and Attachment Image blocks, to build your own
+- An archive of an image taxonomy looks for a taxonomy-attachment template, as themes built on the Frame framework do
+
+![A keyword's images in the Image Archives template](.wordpress-org/screenshot-17.png)
+
+### Pages & Search
+
+- Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
+- Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
+- Both on by default
+
+![The Pages & Search tab](.wordpress-org/screenshot-18.png)
 
 ### Image Sizes
 

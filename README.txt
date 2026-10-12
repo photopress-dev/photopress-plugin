@@ -28,7 +28,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Open the full-screen slideshow when an image is clicked
 * Hide captions option
 * An image deleted from the Media Library is taken out of the galleries that show it
-* A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
+* A Gallery settings tab with a switch for each layout, for removing deleted images and for the image templates, all on by default
 
 = FULL-SCREEN SLIDESHOW =
 
@@ -64,13 +64,28 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Custom Metadata: any other metadata field as a taxonomy, chosen from a list of IPTC fields, each with what it holds and where photo software shows it
 * Adding or changing a taxonomy offers to reprocess just the images it affects, in the background, with the progress on the settings page
 * A taxonomy can be for the admin only: its terms are kept and shown in the Media Library, with no archive pages on the site
-* Image Taxonomies block: an image's terms, such as keywords, people, places and camera, for block themes
-* Display Exif Widget
-* Display Image Taxonomy Terms Widget
+* Image Metadata block: an image's terms, such as keywords, people, places and camera, and its exposure details from the file (aperture, shutter speed, ISO, focal length, date taken), in the order you choose
+* The Display Taxonomies and Display Image Exif widgets, for classic widget areas; in the block widgets editor, placed ones transform into the Image Metadata block
 * Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a template of words and metadata fields
 * Image descriptions from a template of words and metadata fields
 * Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
 * Save and reprocess all images: applies a new template or licensing to the images already uploaded, in the background
+
+= IMAGE TEMPLATES =
+
+For block themes that have no templates of their own for them (WordPress 6.7 or later):
+
+* Image archives: a keyword's, a camera's or any image taxonomy's archive page shows its images in the Masonry layout, with links to more pages
+* Image pages: the image, its caption and description, its taxonomy terms and its exposure details
+* Both are edited in the Site Editor, like the theme's own templates, and can be turned off in the Gallery tab
+* Archive Images and Attachment Image blocks, to build your own
+* An archive of an image taxonomy looks for a taxonomy-attachment template, as themes built on the Frame framework do
+
+= PAGES & SEARCH =
+
+* Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
+* Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
+* Both on by default
 
 = IMAGE SIZES =
 
@@ -91,7 +106,7 @@ With WP Offload Media installed, the Offload Media settings tab shows:
 
 = What are the image taxonomies' IDs? =
 
-A taxonomy's ID is the name WordPress stores its terms under. Themes (taxonomy-{ID}.php templates), search plugins such as Relevanssi, the Image Taxonomies block and the widget refer to taxonomies by it. It never changes, even when the taxonomy is renamed.
+A taxonomy's ID is the name WordPress stores its terms under. Themes (taxonomy-{ID}.php templates), search plugins such as Relevanssi, the Image Metadata block and the widget refer to taxonomies by it. It never changes, even when the taxonomy is renamed.
 
 The six Standard Metadata taxonomies always have these IDs: photos_camera, photos_lens, photos_city, photos_state, photos_country and photos_keywords.
 
@@ -107,14 +122,16 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 6. Gallery Slideshow block: press either side of the slideshow to move through a gallery on the same page
 7. Gallery Slideshow captions at 75% of the slideshow's width on a desktop, and the full width on a phone
 8. Child Pages block: a gallery of a page's child pages
-9. Image Taxonomies block on an image's page
+9. Image Metadata block on an image's page
 10. Image taxonomies filled from the photos' metadata: Standard Metadata, Hierarchical Keyword Metadata and Custom Metadata
 11. A parent keyword found in the photos given a taxonomy of its own, and the images it affects reprocessed
 12. Alt text and descriptions from the photos' metadata
 13. Licensing metadata embedded into images
 14. Image Sizes tab: the quality images are saved at, and the sizes made
 15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
-16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
+16. Gallery tab: the layouts offered in the editor, removing deleted images from galleries, and the image templates
+17. Image Archives template: a keyword's images in the Masonry layout
+18. Pages & Search tab: attachment pages and image taxonomy pages
 
 == Changelog ==
 
@@ -165,10 +182,33 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   every gallery that shows it, in an edit of each post, rather than left as
   a broken image. Galleries in the format of WordPress before 5.9 are left
   as they are.
-* Gallery tab: switches for the Masonry, Rows and Mosaic layouts and for
-  removing deleted images from galleries, all on by default. A layout
-  turned off is no longer offered in the editor; galleries that already use
-  it keep it.
+* Gallery tab: switches for the Masonry, Rows and Mosaic layouts, for
+  removing deleted images from galleries and for the image templates, all on
+  by default. A layout turned off is no longer offered in the editor;
+  galleries that already use it keep it.
+* Pages & Search tab: switches for attachment pages (WordPress's own
+  setting; off, an image's page and links to it go to the file) and for
+  image taxonomy archive pages (off, terms are shown unlinked). Both are on
+  by default.
+* Image templates for block themes: image taxonomy archives show their
+  images in the Masonry layout (Archive Images block), and image pages show
+  the image, its caption and description, its terms and its exposure details
+  (Attachment Image block). A theme's own taxonomy-attachment or attachment
+  template is used instead.
+* Image Metadata block (formerly Image Taxonomies): also shows the exposure
+  details WordPress read from the file, in any order among the taxonomies.
+  Rows line up in two columns.
+* Widgets: in the block widgets editor, the Display Taxonomies and Display
+  Image Exif widgets are no longer offered, and placed ones transform into
+  the Image Metadata block. The Exif widget shows the details it is set to
+  (it always showed ISO, aperture and camera), labelled and formatted
+  (f/2.8, 1/250 s), and only on image pages.
+* Fixed: on the archive pages of any custom taxonomy, including other
+  plugins', every query on the page listed draft and private posts.
+  Image taxonomy archives now list only public images: unattached, or
+  attached to a published post.
+* Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
+  out in WordPress's columns instead.
 
 = 1.9.0 =
 

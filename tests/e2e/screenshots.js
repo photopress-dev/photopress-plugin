@@ -63,9 +63,6 @@ test.beforeAll( async () => {
 		pages[ `child${ i }` ] = draft( title, '', `, 'post_parent' => ${ pages.parent }, 'menu_order' => ${ i }, 'meta_input' => [ '_thumbnail_id' => ${ made.names[ name ] } ]` );
 	} );
 
-	// The Image Taxonomies block in an image's description, shown on its
-	// attachment page.
-	wp( 'post', 'update', String( made.names[ '01-portrait-2x3' ] ), '--post_content=<!-- wp:photopress/image-taxonomies /-->' );
 } );
 
 test.afterAll( () => {
@@ -228,13 +225,21 @@ test( 'screenshot-8: the Child Pages block', async ( { page } ) => {
 	await page.screenshot( { path: path.join( OUT, 'screenshot-8.png' ), clip: await around( block, page ) } );
 } );
 
-test( 'screenshot-9: the Image Taxonomies block, on an image\'s page', async ( { page } ) => {
+test( 'screenshot-9: the Image Metadata block, on an image\'s page', async ( { page } ) => {
 	const id = made.names[ '01-portrait-2x3' ];
+	// The test images have no EXIF; exposure details as a camera writes them.
+	wp( 'eval', `$meta = wp_get_attachment_metadata( ${ id } ); $meta['image_meta'] = array_merge( (array) ( $meta['image_meta'] ?? [] ), [ 'camera' => 'Canon EOS R5', 'aperture' => '4', 'shutter_speed' => '0.002', 'iso' => '200', 'focal_length' => '85', 'created_timestamp' => '1757240400' ] ); wp_update_attachment_metadata( ${ id }, $meta );` );
 	// Its permalink: ?attachment_id= redirects to it, and PP_E2E_ORIGIN does
 	// not follow redirects.
 	const url = new URL( lastLine( wp( 'eval', `echo get_permalink( ${ id } );` ) ) );
-	const block = await front( page, url.pathname + url.search, { width: 1100, height: 1400 }, '.wp-block-photopress-image-taxonomies' );
-	await page.screenshot( { path: path.join( OUT, 'screenshot-9.png' ), clip: await around( block, page ) } );
+	const first = await front( page, url.pathname + url.search, { width: 1100, height: 1400 }, '.wp-block-photopress-image-taxonomies' );
+	// The image page template has two: the terms, then the exposure details.
+	const blocks = page.locator( '.wp-block-photopress-image-taxonomies' ).filter( { visible: true } );
+	await expect( blocks, await blocks.evaluateAll( ( els ) => els.map( ( el ) => el.parentElement.className + ' > ' + el.textContent.slice( 0, 40 ) ).join( ' | ' ) ) ).toHaveCount( 2 );
+	const last = blocks.last();
+	const [ a, b ] = [ await around( first, page ), await around( last, page ) ];
+	const x = Math.min( a.x, b.x );
+	await page.screenshot( { path: path.join( OUT, 'screenshot-9.png' ), clip: { x, y: a.y, width: Math.max( a.x + a.width, b.x + b.width ) - x, height: b.y + b.height - a.y } } );
 } );
 
 const center = ( box ) => ( { x: box.x + box.width / 2, y: box.y + box.height / 2 } );
@@ -249,6 +254,20 @@ const POINTER = () => window.addEventListener( 'DOMContentLoaded', () => {
 	window.addEventListener( 'mousemove', ( e ) => {
 		pointer.style.transform = `translate(${ e.clientX - 2 }px,${ e.clientY - 1 }px)`;
 	}, true );
+} );
+
+test( 'screenshot-17: an image taxonomy archive, in the Image Archives template', async ( { page } ) => {
+	// The keyword every test image has.
+	const term = lastLine( wp( 'eval', `$t = get_term_by( 'slug', 'fixture', 'photos_keywords' ); echo $t ? wp_make_link_relative( get_term_link( $t ) ) : '';` ) );
+	test.skip( ! term, 'The test images have no fixture keyword.' );
+	const block = await front( page, term, { width: 1100, height: 1400 }, '.wp-block-photopress-archive-images' );
+	await expect( block.locator( 'figure.wp-block-gallery' ) ).toHaveClass( /photopress-laid-out/ );
+	// From the archive's title.
+	const heading = page.locator( '.wp-block-query-title' ).first();
+	await heading.evaluate( ( el ) => window.scrollBy( 0, el.getBoundingClientRect().top - 20 ) );
+	const title = await heading.boundingBox();
+	const box = await around( block, page );
+	await page.screenshot( { path: path.join( OUT, 'screenshot-17.png' ), clip: { ...box, y: Math.floor( title.y - 20 ), height: box.y + box.height - Math.floor( title.y - 20 ) } } );
 } );
 
 test.describe( 'settings', () => {
@@ -321,6 +340,12 @@ test.describe( 'settings', () => {
 			const content = await tab( page, 'Slideshow' );
 			await expect( content ).toContainText( 'Thumbnail' );
 			await content.screenshot( { path: path.join( OUT, 'screenshot-5.png' ) } );
+		} );
+
+		test( 'screenshot-18: the Pages & Search tab', async ( { page } ) => {
+			const content = await tab( page, 'Pages & Search' );
+			await expect( feature( page, 'Image taxonomy pages' ) ).toBeVisible( { timeout: 30000 } );
+			await content.screenshot( { path: path.join( OUT, 'screenshot-18.png' ) } );
 		} );
 
 		test( 'screenshot-16: the Gallery tab', async ( { page } ) => {
