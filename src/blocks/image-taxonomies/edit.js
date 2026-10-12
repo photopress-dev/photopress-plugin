@@ -14,6 +14,17 @@ import ServerSideRender from '@wordpress/server-side-render';
  */
 import metadata from '../../../modules/metadata/blocks/image-taxonomies/block.json';
 
+// ImageTaxonomies::exifFields(): rows from the exposure details WordPress
+// read from the image's file.
+export const EXIF_FIELDS = [
+	{ slug: 'exif:camera', name: __( 'Camera model' ) },
+	{ slug: 'exif:aperture', name: __( 'Aperture' ) },
+	{ slug: 'exif:shutter_speed', name: __( 'Shutter speed' ) },
+	{ slug: 'exif:iso', name: __( 'ISO' ) },
+	{ slug: 'exif:focal_length', name: __( 'Focal length' ) },
+	{ slug: 'exif:created_timestamp', name: __( 'Date taken' ) },
+];
+
 function TaxonomyList( { available, selected, onChange } ) {
 	// The chosen taxonomies first, in their display order, then the rest.
 	const ordered = [
@@ -67,31 +78,32 @@ export default function Edit( { attributes, setAttributes, context } ) {
 
 	// Taxonomies saved in the block but no longer registered or public stay
 	// listed so they can be removed; the server skips them.
-	const missing = available ? taxonomies.filter( ( slug ) => ! available.some( ( t ) => t.slug === slug ) ) : [];
+	const known = available ? [ ...available, ...EXIF_FIELDS ] : [];
+	const missing = available ? taxonomies.filter( ( slug ) => ! known.some( ( t ) => t.slug === slug ) ) : [];
 
 	const preview = context.postId ? (
 		<ServerSideRender
 			block={ metadata.name }
 			attributes={ attributes }
 			urlQueryArgs={ { post_id: context.postId } }
-			EmptyResponsePlaceholder={ () => <p>{ __( 'This image has no terms in the chosen taxonomies.' ) }</p> }
+			EmptyResponsePlaceholder={ () => <p>{ __( 'This image has nothing to show in the chosen rows.' ) }</p> }
 		/>
 	) : (
 		<Placeholder
 			icon={ tag }
 			label={ metadata.title }
-			instructions={ __( 'Shows the taxonomy terms of the current image, on image (attachment) pages and in their templates.' ) }
+			instructions={ __( 'Shows the taxonomy terms and exposure details of the current image, on image (attachment) pages and in their templates.' ) }
 		/>
 	);
 
 	return (
 		<>
 			<InspectorControls>
-				<PanelBody title={ __( 'Taxonomies' ) }>
-					<p className="components-base-control__help">{ __( 'Choose which to show, in order. None chosen shows all.' ) }</p>
+				<PanelBody title={ __( 'Rows' ) }>
+					<p className="components-base-control__help">{ __( 'Choose which to show, in order: taxonomies, then exposure details from the file. None chosen shows every taxonomy.' ) }</p>
 					{ available ? (
 						<TaxonomyList
-							available={ [ ...available, ...missing.map( ( slug ) => ( { slug, name: slug } ) ) ] }
+							available={ [ ...known, ...missing.map( ( slug ) => ( { slug, name: slug } ) ) ] }
 							selected={ taxonomies }
 							onChange={ ( next ) => setAttributes( { taxonomies: next } ) }
 						/>
@@ -110,7 +122,7 @@ export default function Edit( { attributes, setAttributes, context } ) {
 					<ToggleControl
 						__nextHasNoMarginBottom
 						label={ __( 'Show labels' ) }
-						help={ __( 'Show the taxonomy name before its terms.' ) }
+						help={ __( 'Show each row’s name before its terms or value.' ) }
 						checked={ showLabels }
 						onChange={ ( value ) => setAttributes( { showLabels: value } ) }
 					/>

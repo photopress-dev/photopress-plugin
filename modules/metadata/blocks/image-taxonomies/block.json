@@ -2,10 +2,10 @@
 	"$schema": "https://schemas.wp.org/trunk/block.json",
 	"apiVersion": 3,
 	"name": "photopress/image-taxonomies",
-	"title": "Image Taxonomies",
+	"title": "Image Metadata",
 	"category": "media",
-	"description": "The taxonomy terms of the current image: keywords, people, places, camera and so on.",
-	"keywords": [ "photopress", "taxonomy", "terms", "metadata", "keywords" ],
+	"description": "The metadata of the current image: its taxonomy terms, such as keywords, people and places, and the exposure details from its file.",
+	"keywords": [ "photopress", "taxonomy", "terms", "metadata", "keywords", "exif", "exposure", "camera" ],
 	"textdomain": "photopress",
 	"attributes": {
 		"taxonomies": {

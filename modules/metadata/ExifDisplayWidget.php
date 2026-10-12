@@ -3,113 +3,90 @@
 namespace PhotoPress\modules\metadata;
 use WP_Widget;
 
+/**
+ * "Display Image Exif (PhotoPress)": the exposure details of the image on an
+ * image (attachment) page. Kept for the widgets already placed and for the
+ * classic widgets screen; in the widgets block editor it is not offered, and
+ * a placed one can be transformed into the Image Metadata block, which shows
+ * the same rows (src/blocks/image-taxonomies/transforms.js).
+ */
 class ExifDisplayWidget extends WP_Widget {
-	
+
+	/**
+	 * Keys shown by a widget saved without a list.
+	 */
+	const DEFAULT_KEYS = 'iso,aperture,camera';
+
 	function __construct() {
-	
-		/* Widget settings. */
-		$widget_ops = [ 
-		
-			'classname' => 'ExifDisplayWidget', 
-			'description' => __("Display's the EXIF info of an image. Can only be used on single image or attachment pages.", 'photopress'),
-			'customize_selective_refresh' => true 
+
+		$widget_ops = [
+
+			'classname' => 'ExifDisplayWidget',
+			'description' => __( 'Displays the EXIF info of an image. Can only be used on single image or attachment pages.', 'photopress' ),
+			'customize_selective_refresh' => true,
+			// Exposes the settings to the widgets block editor, so a placed
+			// widget can be transformed into the Image Metadata block.
+			'show_instance_in_rest' => true,
 		];
 
-		/* Widget control settings. */
-		$control_ops = array('width' => 300);
-		
-		/* Create the widget. */
-		parent::__construct('ExifDisplayWidget', __('Display Image Exif (PhotoPress)', 'photopress'), $widget_ops, $control_ops);
+		parent::__construct( 'ExifDisplayWidget', __( 'Display Image Exif (PhotoPress)', 'photopress' ), $widget_ops, [ 'width' => 300 ] );
 	}
-	
-	function widget( $args, $instance ) {
-		
-		global $post;
-		
-		extract( $args );
-		
-		if ( ! isset( $keys ) || empty( $keys ) ) {
-			
-			$keys = 'iso,aperture,camera';
-		}
-		
-		$keys = explode(',', $keys);
-	 	
-		/* User-selected settings. */
-		//$title = apply_filters('widget_title', $instance['title'] );
-		
-		/* Before widget (defined by themes). */
-		echo $before_widget;
 
-		//$meta = papt_getMetaData($post->ID);
-		$meta = wp_get_attachment_metadata( $post->ID );
-		$meta = $meta['image_meta'];
-		//print_r($meta);
-		$html = '';
-		
-		$values = array_intersect_key( $meta, array_flip( $keys ) );
-		
-		if ( $values ) {
-		
-			$html .= '<div class="display-exif-widget">';	
-		
-			foreach ( $values as $key => $value ) {
-					
-					$value = trim( $value );
-					
-					if ( $value ) {
-					
-						$html .= '<div class="container"><div class="label">'. $key .': </div><div class="terms">' . $value . '</div></div>';	
-					}	
-			}
-		
-			$html .= '<div>';
-		}
-		
-		if ( $values && $html ) {
-		
-			if ( ! empty( $instance['title'] ) ) {
-				echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ). $args['after_title'];
-			}	
-			echo $html;
-			/* After widget (defined by themes). */
-			echo $after_widget;
-		} else {
-			
-			echo '<!-- Widget had nothing to output. -->';
-			echo $after_widget;
-		}
+	/**
+	 * The widget's keys, image_meta keys such as iso, as rows of the Image
+	 * Metadata block.
+	 *
+	 * @return string[]
+	 */
+	public static function rows( $keys ) {
+
+		$keys = ImageTaxonomies::parseList( '' !== trim( (string) $keys ) ? $keys : self::DEFAULT_KEYS );
+
+		return array_map( static fn( $key ) => ImageTaxonomies::EXIF_PREFIX . strtolower( $key ), $keys );
 	}
-	
+
+	function widget( $args, $instance ) {
+
+		$post_id = get_the_ID();
+		$html    = $post_id ? ImageTaxonomies::renderRows( $post_id, self::rows( $instance['keys'] ?? '' ), false, true ) : '';
+
+		if ( '' === $html ) {
+			return;
+		}
+
+		echo $args['before_widget'];
+
+		if ( ! empty( $instance['title'] ) ) {
+			echo $args['before_title'] . apply_filters( 'widget_title', $instance['title'] ) . $args['after_title'];
+		}
+
+		echo '<div class="display-exif-widget display-taxonomy-terms-widget">' . $html . '</div>';
+		echo $args['after_widget'];
+	}
+
 	function update( $new_instance, $old_instance ) {
+
 		$instance = $old_instance;
 
-		/* Strip tags (if needed) and update the widget settings. */
-		$instance['title'] = strip_tags( $new_instance['title'] );
-		$instance['keys'] = strip_tags( $new_instance['keys'] );
+		$instance['title'] = sanitize_text_field( $new_instance['title'] ?? '' );
+		$instance['keys']  = sanitize_text_field( $new_instance['keys'] ?? '' );
 
 		return $instance;
 	}
-	
+
 	function form( $instance ) {
 
-		/* Set up some default widget settings. */
-		$defaults = array( 'title' => 'Example' );
-		$instance = wp_parse_args( (array) $instance, $defaults ); ?>
-		
+		$instance = wp_parse_args( (array) $instance, [ 'title' => '', 'keys' => self::DEFAULT_KEYS ] );
+		?>
 		<p>
-			<label for="<?php echo $this->get_field_id( 'title' ); ?>">Title:</label><BR>
-			<input id="<?php echo $this->get_field_id( 'title' ); ?>" name="<?php echo $this->get_field_name( 'title' ); ?>" value="<?php echo $instance['title']; ?>" style="width:100%;" />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php esc_html_e( 'Title:', 'photopress' ); ?></label><br>
+			<input id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" value="<?php echo esc_attr( $instance['title'] ); ?>" style="width:100%;" />
 		</p>
-		
 		<p>
-			<label for="<?php echo $this->get_field_id( 'keys' ); ?>">Meta Data Keys (optional):</label><BR>
-			<input id="<?php echo $this->get_field_id( 'keys' ); ?>" name="<?php echo $this->get_field_name( 'keys' ); ?>" value="<?php echo $instance['keys']; ?>" style="width:100%;" />
+			<label for="<?php echo esc_attr( $this->get_field_id( 'keys' ) ); ?>"><?php esc_html_e( 'Details, separated by commas:', 'photopress' ); ?></label><br>
+			<input id="<?php echo esc_attr( $this->get_field_id( 'keys' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'keys' ) ); ?>" value="<?php echo esc_attr( $instance['keys'] ); ?>" style="width:100%;" />
+			<small><?php echo esc_html( implode( ', ', array_keys( ImageTaxonomies::exifFields() ) ) ); ?></small>
 		</p>
-
 		<?php
 	}
 }
-	
-
-?>

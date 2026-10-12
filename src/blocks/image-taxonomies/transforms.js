@@ -16,7 +16,7 @@ export const parseList = ( list ) =>
 
 /**
  * A placed "Display Taxonomies (PhotoPress)" widget, as the widgets block
- * editor holds it, to this block: the same taxonomies in the same order,
+ * editor holds it, to this block (Image Metadata): the same taxonomies in the same order,
  * linked and labelled as the widget always was, and its title as a heading.
  */
 export function fromWidget( { instance } ) {
@@ -30,6 +30,25 @@ export function fromWidget( { instance } ) {
 	return raw.title ? [ createBlock( 'core/heading', { content: raw.title, level: 2 } ), block ] : block;
 }
 
+// ExifDisplayWidget::DEFAULT_KEYS.
+export const EXIF_WIDGET_DEFAULT_KEYS = 'iso,aperture,camera';
+
+/**
+ * A placed "Display Image Exif (PhotoPress)" widget to this block: the same
+ * details in the same order, unlinked as the widget showed them, and its
+ * title as a heading.
+ */
+export function fromExifWidget( { instance } ) {
+	const raw = instance?.raw || {};
+	const block = createBlock( metadata.name, {
+		taxonomies: parseList( raw.keys || EXIF_WIDGET_DEFAULT_KEYS ).map( ( key ) => `exif:${ key.toLowerCase() }` ),
+		linkTerms: false,
+		showLabels: true,
+	} );
+
+	return raw.title ? [ createBlock( 'core/heading', { content: raw.title, level: 2 } ), block ] : block;
+}
+
 export default {
 	from: [
 		{
@@ -37,6 +56,12 @@ export default {
 			blocks: [ 'core/legacy-widget' ],
 			isMatch: ( { idBase, instance } ) => idBase === 'xmpdisplaywidget' && !! instance?.raw,
 			transform: fromWidget,
+		},
+		{
+			type: 'block',
+			blocks: [ 'core/legacy-widget' ],
+			isMatch: ( { idBase, instance } ) => idBase === 'exifdisplaywidget' && !! instance?.raw,
+			transform: fromExifWidget,
 		},
 	],
 };
