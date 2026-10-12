@@ -47,13 +47,13 @@ test( 'Taxonomy Gallery is inserted in Masonry, and only it is active for a quer
 	expect( variation( 'photopress-mosaic' ).isActive( { photopressLayout: 'mosaic' } ) ).toBe( true );
 } );
 
-test( 'on an image taxonomy archive template the archive\'s images; anywhere else, those chosen', () => {
+test( 'on an image taxonomy archive or search template the page\'s own images; anywhere else, those chosen', () => {
 	const taxonomies = [ 'photos_keywords', 'pp_genre' ];
 
 	expect( templateSlugOf( 'wp_template', 'twentytwentyfive//taxonomy-attachment' ) ).toBe( 'taxonomy-attachment' );
 	expect( templateSlugOf( 'page', 12 ) ).toBe( '' );
 
-	for ( const slug of [ 'taxonomy-attachment', 'taxonomy-photos_keywords', 'taxonomy-pp_genre-portrait' ] ) {
+	for ( const slug of [ 'taxonomy-attachment', 'taxonomy-photos_keywords', 'taxonomy-pp_genre-portrait', 'search', 'search-images' ] ) {
 		expect( isImageArchiveTemplate( slug, taxonomies ), slug ).toBe( true );
 		expect( sourceFor( slug, taxonomies ) ).toBe( 'archive' );
 	}
@@ -64,7 +64,7 @@ test( 'on an image taxonomy archive template the archive\'s images; anywhere els
 } );
 
 test( 'a sentence says what it shows', () => {
-	expect( summaryOf( { photopressSource: 'archive', photopressLayout: 'masonry' } ) ).toBe( 'The images of the archive page being viewed, in the Masonry layout, with links to more pages of them.' );
+	expect( summaryOf( { photopressSource: 'archive', photopressLayout: 'masonry' } ) ).toBe( 'The images of the archive or search results being viewed, in the Masonry layout, with links to more pages of them.' );
 	expect( summaryOf( { photopressSource: 'query', photopressLayout: 'mosaic', photopressCount: 8, photopressTaxonomy: 'photos_keywords', photopressTerm: 3, photopressOrder: 'rand' }, { taxonomy: 'Keywords', term: 'portrait' } ) )
 		.toBe( '8 images in Keywords: “portrait”, in random order, in the Mosaic layout.' );
 	expect( summaryOf( { photopressSource: 'query' } ) ).toBe( 'The 12 latest images, newest first, in the Default (columns) layout.' );

@@ -68,14 +68,16 @@ export const templateSlugOf = ( postType, postId ) =>
 	'wp_template' === postType && 'string' === typeof postId ? postId.split( '//' ).pop() : '';
 
 /**
- * Whether a template is for the archives of image taxonomies: PhotoPress's
- * taxonomy-attachment, or the theme's for one of them.
+ * Whether a template shows the images of the page's own query: an image
+ * taxonomy's archive (PhotoPress's taxonomy-attachment, or the theme's for
+ * one of them), or search results, which list images while they are in
+ * search (modules/search).
  *
  * @param {string}   slug       The template's.
  * @param {string[]} taxonomies The image taxonomies.
  */
 export const isImageArchiveTemplate = ( slug, taxonomies ) =>
-	'taxonomy-attachment' === slug || taxonomies.some( ( tax ) => slug === `taxonomy-${ tax }` || slug.startsWith( `taxonomy-${ tax }-` ) );
+	[ 'taxonomy-attachment', 'search', 'search-images' ].includes( slug ) || taxonomies.some( ( tax ) => slug === `taxonomy-${ tax }` || slug.startsWith( `taxonomy-${ tax }-` ) );
 
 /**
  * Where a Taxonomy Gallery finds its images: on an image taxonomy's
@@ -101,7 +103,7 @@ export function summaryOf( attributes, names = {} ) {
 
 	if ( 'archive' === attributes.photopressSource ) {
 		/* translators: %s: a gallery layout, such as Masonry. */
-		return sprintf( __( 'The images of the archive page being viewed, in the %s layout, with links to more pages of them.' ), layout );
+		return sprintf( __( 'The images of the archive or search results being viewed, in the %s layout, with links to more pages of them.' ), layout );
 	}
 
 	const count = attributes.photopressCount || 12;

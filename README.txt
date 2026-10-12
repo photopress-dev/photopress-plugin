@@ -86,6 +86,8 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 * Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
 * Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
 * Both on by default; while each is on, block themes get PhotoPress's template for those pages
+* Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks: the images in a Taxonomy Gallery, and the posts and pages found in a Search Posts block, to order as you like
+* With Relevanssi, PhotoPress has it index images, their alt text and the image taxonomies (its settings show the same), keeps an image's entry current as its terms change, and adds existing images to its index in the background
 
 = IMAGE SIZES =
 
@@ -190,6 +192,13 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   image taxonomy archive pages (off, terms are shown unlinked). Both are on
   by default, and while each is on, block themes get PhotoPress's template
   for those pages.
+* Images in search results (Pages & Search tab, off by default): searches
+  find images by their titles, captions, alt text and terms, and posts and
+  pages too unless turned off. In block themes, the Image Search template
+  shows the images in a Taxonomy Gallery and the posts and pages in a Search
+  Posts block. With Relevanssi, PhotoPress drives its index: images, alt
+  text and the image taxonomies, an image indexed again when its terms
+  change, and a background job that adds existing images once.
 * Image templates for block themes: image taxonomy archives show their
   images in the Masonry layout (Taxonomy Gallery, a Gallery block variation
   whose layout can be changed), and image pages show

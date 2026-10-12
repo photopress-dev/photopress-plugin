@@ -17,6 +17,9 @@ use photopress_module;
  * are still shown, unlinked. While each is on, block themes without their
  * own get PhotoPress's template for those pages
  * (modules/gallery/ImageTemplates.php).
+ *
+ * And images in search results, found by their titles, captions, alt text
+ * and terms, with Relevanssi or without (ImageSearch).
  */
 class search extends photopress_module {
 
@@ -30,18 +33,23 @@ class search extends photopress_module {
 	 * ask while WordPress is starting, before this one has registered its
 	 * defaults.
 	 *
-	 * @param string $key attachment_pages or taxonomy_pages.
+	 * @param string $key     attachment_pages, taxonomy_pages, images_in_search
+	 *                        or posts_in_search.
+	 * @param bool   $default When it was never saved.
 	 */
-	public static function enabled( $key ) {
+	public static function enabled( $key, $default = true ) {
 
 		$saved = get_option( self::OPTION );
 
-		return ! is_array( $saved ) || ! array_key_exists( $key, $saved ) || ! empty( $saved[ $key ] );
+		return is_array( $saved ) && array_key_exists( $key, $saved ) ? ! empty( $saved[ $key ] ) : $default;
 	}
 
 	public function definePublicHooks() {
 
 		add_filter( 'pre_option_wp_attachment_pages_enabled', [ self::class, 'attachmentPagesOption' ] );
+
+		ImageSearch::addHooks();
+		add_action( 'admin_enqueue_scripts', [ self::class, 'shareRelevanssiStatus' ], 20 );
 
 		if ( ! self::enabled( 'attachment_pages' ) ) {
 			add_filter( 'attachment_link', [ self::class, 'linkToFile' ], 10, 2 );
@@ -66,6 +74,25 @@ class search extends photopress_module {
 		return wp_get_attachment_url( $post_id ) ?: $link;
 	}
 
+	/**
+	 * admin_enqueue_scripts: for the settings page, whether Relevanssi is the
+	 * site's search and how many images its index has.
+	 */
+	public static function shareRelevanssiStatus() {
+
+		if ( ! wp_script_is( 'photopress-options-script', 'registered' ) && ! wp_script_is( 'photopress-options-script', 'enqueued' ) ) {
+			return;
+		}
+
+		$status = [ 'active' => ImageSearch::relevanssi() ];
+
+		if ( $status['active'] ) {
+			$status['images'] = ImageSearch::indexedImages();
+		}
+
+		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $status ) . ';', 'before' );
+	}
+
 	public function registerOptions() {
 
 		return [
@@ -79,6 +106,32 @@ class search extends photopress_module {
 					'section'       => 'general',
 					'description'   => 'Give each image a page of its own. Off, an image\'s page address goes to its file.',
 					'label_for'     => 'Attachment pages',
+					'error_message' => '',
+				],
+			],
+
+			'images_in_search' => [
+				'default_value' => false,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Images in search results',
+					'page_name'     => 'search',
+					'section'       => 'general',
+					'description'   => 'Find images when visitors search the site, by their titles, captions, alt text and terms.',
+					'label_for'     => 'Images in search results',
+					'error_message' => '',
+				],
+			],
+
+			'posts_in_search' => [
+				'default_value' => true,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Posts and pages in search results',
+					'page_name'     => 'search',
+					'section'       => 'general',
+					'description'   => 'With images in search results, find posts and pages too.',
+					'label_for'     => 'Posts and pages in search results',
 					'error_message' => '',
 				],
 			],

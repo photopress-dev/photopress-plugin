@@ -2,7 +2,8 @@
  * The Pages & Search settings tab: attachment pages and image taxonomy
  * pages, both on until turned off. Off, an image's page goes to its file,
  * and a keyword has no archive page while its terms are still shown,
- * unlinked. The settings are put back afterwards.
+ * unlinked. The two settings are put back afterwards, and the tab's others
+ * left alone.
  */
 const { test, expect } = require( './test' );
 const { wp, lastLine } = require( './wp' );
@@ -13,16 +14,27 @@ let saved;
 
 const settings = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ KEY }', null ) );` ) ) );
 
+// The tab's other settings, such as images in search, are left alone.
+const KEYS = [ 'attachment_pages', 'taxonomy_pages' ];
+const php = ( value ) => `json_decode( base64_decode( '${ Buffer.from( JSON.stringify( value ) ).toString( 'base64' ) }' ), true )`;
+
+/** Sets these keys, or with null clears them back to their defaults. */
+const setKeys = ( values ) => wp( 'eval', `
+	$o = get_option( '${ KEY }' );
+	$o = is_array( $o ) ? $o : [];
+	foreach ( ${ php( values ) } as $k => $v ) { if ( null === $v ) { unset( $o[ $k ] ); } else { $o[ $k ] = $v; } }
+	$o ? update_option( '${ KEY }', $o ) : delete_option( '${ KEY }' );
+` );
+
+const defaults = () => setKeys( Object.fromEntries( KEYS.map( ( k ) => [ k, null ] ) ) );
+
 test.beforeAll( () => {
-	saved = settings();
+	const now = settings() || {};
+	saved = Object.fromEntries( KEYS.map( ( k ) => [ k, k in now ? now[ k ] : null ] ) );
 } );
 
 test.afterAll( () => {
-	if ( null === saved ) {
-		wp( 'option', 'delete', KEY );
-	} else {
-		wp( 'option', 'update', KEY, JSON.stringify( saved ), '--format=json' );
-	}
+	setKeys( saved );
 } );
 
 const featureSwitch = ( page, title ) => page.locator( '.photopress-feature' )
@@ -42,7 +54,7 @@ const urlsOf = ( id ) => JSON.parse( lastLine( wp( 'eval', `
 ` ) ) );
 
 test( 'both switches are on by default; attachment pages off send an image\'s page and links to its file', async ( { page, made } ) => {
-	wp( 'option', 'delete', KEY );
+	defaults();
 	const id = made.images[ 0 ];
 	const on = urlsOf( id );
 	expect( on.link ).not.toBe( on.file );
@@ -77,7 +89,7 @@ test( 'both switches are on by default; attachment pages off send an image\'s pa
 } );
 
 test( 'image taxonomy pages off: no keyword archive, terms shown unlinked, and the Metadata tab shows none', async ( { page, made } ) => {
-	wp( 'option', 'delete', KEY );
+	defaults();
 	const { page: imagePage, keyword, archive } = urlsOf( made.images[ 0 ] );
 	test.skip( ! archive, 'The test image has no keyword.' );
 	expect( ( await page.goto( archive ) ).status() ).toBe( 200 );

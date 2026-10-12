@@ -1924,7 +1924,8 @@ class metadata extends photopress_module {
 	/**
 	 * A query var: the query lists only images WordPress counts as public
 	 * (get_post_status()), unattached or attached to a published post. Set
-	 * on image taxonomy archives and by the Taxonomy Gallery.
+	 * on image taxonomy archives, by the Taxonomy Gallery, and on searches
+	 * that list images (search module). Other post types are left alone.
 	 */
 	const PUBLIC_IMAGES = 'photopress_public_images';
 
@@ -1939,7 +1940,8 @@ class metadata extends photopress_module {
 			return $where;
 		}
 
-		return $where . " AND ( {$wpdb->posts}.post_parent = 0 OR EXISTS ( SELECT 1 FROM {$wpdb->posts} AS photopress_parent WHERE photopress_parent.ID = {$wpdb->posts}.post_parent AND photopress_parent.post_status = 'publish' ) )";
+		// Only images: a search can list posts with them.
+		return $where . " AND ( {$wpdb->posts}.post_type <> 'attachment' OR {$wpdb->posts}.post_parent = 0 OR EXISTS ( SELECT 1 FROM {$wpdb->posts} AS photopress_parent WHERE photopress_parent.ID = {$wpdb->posts}.post_parent AND photopress_parent.post_status = 'publish' ) )";
 	}
 	
 	public function sortImageSrcset( $sources, $size_array, $image_src, $image_meta, $attachment_id ) {

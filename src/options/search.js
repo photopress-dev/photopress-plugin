@@ -1,9 +1,9 @@
 /**
  * The Pages & Search settings tab: whether images and image taxonomy terms
- * have pages of their own on the site (modules/search); while they do, block
- * themes get PhotoPress's templates for them. Searching images is to come here too.
+ * have pages of their own on the site (modules/search), with PhotoPress's
+ * templates for them in block themes; and images in search results.
  */
-const { __ } = wp.i18n;
+const { __, _n, sprintf } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
 import { Notice } from '@wordpress/components';
 
@@ -17,6 +17,11 @@ import {
 	persistSetting,
 } from '../shared/options.js';
 import FeatureSection from '../shared/feature-section.js';
+import SwitchRow from '../shared/switch-row.js';
+import JobPanel from '../shared/jobs.js';
+
+// Whether Relevanssi is the site's search, and its index (modules/search).
+const RELEVANSSI = window.photopressRelevanssi || { active: false };
 
 class SearchSettings extends Component {
 	constructor() {
@@ -38,6 +43,8 @@ class SearchSettings extends Component {
 			settings: {
 				attachment_pages: true,
 				taxonomy_pages: true,
+				images_in_search: false,
+				posts_in_search: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -82,6 +89,39 @@ class SearchSettings extends Component {
 					checked={ this.getSetting( 'taxonomy_pages' ) }
 					onChange={ ( value ) => this.persistSetting( 'taxonomy_pages', value ) }
 				/>
+
+				<FeatureSection
+					title={ __( 'Images in search results' ) }
+					description={ __( 'Find images when visitors search the site, by their titles, captions, alt text and terms.' ) }
+					info={ [
+						<p key="0">{ __( 'A block theme shows them with PhotoPress’s Image Search template: the images in a Taxonomy Gallery, and the posts and pages found listed apart. A classic theme lists them in its own search results. With Relevanssi, PhotoPress has it index images and their terms, and its settings show the same.' ) }</p>,
+					] }
+					checked={ this.getSetting( 'images_in_search' ) }
+					onChange={ ( value ) => this.persistSetting( 'images_in_search', value ) }
+				>
+					<SwitchRow
+						label={ __( 'Posts and pages too' ) }
+						help={ __( 'Turned off, a search finds images alone.' ) }
+						checked={ this.getSetting( 'posts_in_search' ) }
+						onChange={ ( value ) => this.persistSetting( 'posts_in_search', value ) }
+					/>
+					{ RELEVANSSI.active && (
+						<div className="photopress-search-relevanssi">
+							<p className="components-base-control__help">
+								{ RELEVANSSI.images
+									? sprintf( _n( 'Relevanssi is the site’s search; its index has %s image.', 'Relevanssi is the site’s search; its index has %s images.', RELEVANSSI.images ), RELEVANSSI.images.toLocaleString() )
+									: __( 'Relevanssi is the site’s search, and its index has no images yet. They are added when images are turned on here.' ) }
+							</p>
+							<JobPanel
+								type="search.index"
+								label={ __( 'Adding images to the search index' ) }
+								compact
+								startLabel={ __( 'Index images' ) }
+								refresh={ this.state.settings.images_in_search }
+							/>
+						</div>
+					) }
+				</FeatureSection>
 			</Fragment>
 		);
 	}
