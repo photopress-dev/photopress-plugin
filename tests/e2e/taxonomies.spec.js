@@ -104,8 +104,8 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	await expect( page.getByRole( 'heading', { name: 'Add Hierarchical Keyword Taxonomy' } ) ).toBeVisible();
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Add', exact: true } ).click();
 
-	// Back on the tab, at its top, where it says so.
-	await expect( page ).toHaveURL( /#photopress_core_metadata$/ );
+	// Back on the tab, at its top, where it says so, once saved.
+	await settled( page ).toHaveURL( /#photopress_core_metadata$/ );
 	await expect( page.locator( '.photopress-flash' ) ).toContainText( 'Acme jobs added.' );
 	await expect( page.locator( '.photopress-flash' ) ).toBeInViewport();
 
@@ -124,7 +124,7 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 	await page.getByLabel( 'Plural name' ).fill( 'Acme projects' );
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Save', exact: true } ).click();
 	await settled.poll( () => taxonomies().find( ( t ) => 'pp_acme_job' === t.id ).pluralLabel ).toBe( 'Acme projects' );
-	await expect( page.locator( '.photopress-flash' ) ).toContainText( 'Acme projects saved.' );
+	await settled( page.locator( '.photopress-flash' ) ).toContainText( 'Acme projects saved.' );
 
 	// The browser's Back returns to the screen it left.
 	await page.goBack();
@@ -183,7 +183,7 @@ test( 'a taxonomy made admin only has no archive pages, until made public again'
 		await toggle.click();
 		await expect( editor ).toContainText( on ? 'Archive pages: /e2e-person/…' : 'No archive pages. (they were at /e2e-person/…, which will stop working)' );
 		await editor.getByRole( 'button', { name: 'Save', exact: true } ).click();
-		await expect( page.locator( '.photopress-flash' ) ).toContainText( 'E2E people saved.' );
+		await settled( page.locator( '.photopress-flash' ) ).toContainText( 'E2E people saved.' );
 	};
 
 	await setPublic( false );

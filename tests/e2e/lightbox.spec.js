@@ -1,8 +1,26 @@
 /**
  * The lightbox: a press on either half of the slide goes back or forward,
- * with the same cursor as the Gallery Slideshow block.
+ * with the same cursor as the Gallery Slideshow block. Slideshows are turned
+ * on for the tests, and the setting put back afterwards.
  */
 const { test, expect } = require( './test' );
+const { wp, lastLine } = require( './wp' );
+
+const KEY = 'photopress_core_slideshow';
+let saved;
+
+test.beforeAll( () => {
+	saved = lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ KEY }', null ) );` ) );
+	wp( 'eval', `update_option( '${ KEY }', array_merge( (array) get_option( '${ KEY }', [] ), [ 'enable' => true ] ) );` );
+} );
+
+test.afterAll( () => {
+	if ( 'null' === saved ) {
+		wp( 'option', 'delete', KEY );
+	} else {
+		wp( 'option', 'update', KEY, saved, '--format=json' );
+	}
+} );
 
 const current = ( page ) => page.locator( '.panels .center img' ).getAttribute( 'data-id' ).then( Number );
 
