@@ -135,8 +135,8 @@ class metadata extends photopress_module {
 			 */
 			add_action( 'photopress_attachment_file_replaced', [ $this, 'fileReplaced' ], 10, 4 );
 						
-			// needed to show attachments on taxonomy pages
-			add_filter( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
+			// Images on the archive pages of image taxonomies.
+			add_action( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
 			
 		}
 	}	
@@ -778,6 +778,10 @@ class metadata extends photopress_module {
 		
 		register_widget( 'PhotoPress\modules\metadata\XmpDisplayWidget' );
 		register_widget( 'PhotoPress\modules\metadata\ExifDisplayWidget' );
+
+		// The widgets block editor offers the Image Metadata block in their
+		// place; placed ones still show, and transform into it.
+		add_filter( 'widget_types_to_hide_from_legacy_widget_block', static fn( $types ) => array_merge( (array) $types, [ 'xmpdisplaywidget', 'exifdisplaywidget' ] ) );
 	}
 		
 	public function registerOptions() {	
@@ -1848,15 +1852,66 @@ class metadata extends photopress_module {
 		return $ids;
 	}
 
+	/**
+	 * pre_get_posts: the main query of an image taxonomy's archive page
+	 * lists images, whose status is inherit, where WordPress would look for
+	 * published posts and find none. Only images WordPress counts as public
+	 * (get_post_status()): unattached, or attached to a published post.
+	 * Other queries on the page, and other taxonomies' archives, are left
+	 * alone.
+	 *
+	 * @param \WP_Query $query
+	 */
 	public function makeImagesVisibleToTaxQueries( $query ) {
-		
-		if ( is_tax() ) {
-		
-			$query->set( 'post_status', 'all' );
-		}
-		
-		return $query;
 
+		if ( ! $query->is_main_query() || ! $query->is_tax() || '' !== (string) $query->get( 'post_status' ) ) {
+			return;
+		}
+
+		$taxonomies = array_keys( (array) ( $query->tax_query->queried_terms ?? [] ) );
+
+		if ( ! $taxonomies || ! self::areImageTaxonomies( $taxonomies ) ) {
+			return;
+		}
+
+		$query->set( 'post_status', 'inherit' );
+		add_filter( 'posts_where', [ $this, 'onlyPublicImages' ], 10, 2 );
+	}
+
+	/**
+	 * Whether each taxonomy is for images alone.
+	 *
+	 * @param string[] $taxonomies
+	 */
+	public static function areImageTaxonomies( array $taxonomies ) {
+
+		foreach ( $taxonomies as $name ) {
+
+			$taxonomy = get_taxonomy( $name );
+
+			if ( ! $taxonomy || [ 'attachment' ] !== array_values( (array) $taxonomy->object_type ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * posts_where, for the query makeImagesVisibleToTaxQueries() changed:
+	 * images unattached or attached to a published post.
+	 */
+	public function onlyPublicImages( $where, $query ) {
+
+		global $wpdb;
+
+		if ( ! $query->is_main_query() ) {
+			return $where;
+		}
+
+		remove_filter( 'posts_where', [ $this, 'onlyPublicImages' ], 10 );
+
+		return $where . " AND ( {$wpdb->posts}.post_parent = 0 OR EXISTS ( SELECT 1 FROM {$wpdb->posts} AS photopress_parent WHERE photopress_parent.ID = {$wpdb->posts}.post_parent AND photopress_parent.post_status = 'publish' ) )";
 	}
 	
 	public function sortImageSrcset( $sources, $size_array, $image_src, $image_meta, $attachment_id ) {
