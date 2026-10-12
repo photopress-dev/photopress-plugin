@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\gallery;
 
+use PhotoPress\modules\metadata\ImageTaxonomies;
 use PhotoPress\modules\metadata\metadata;
 
 /**
@@ -17,8 +18,10 @@ use PhotoPress\modules\metadata\metadata;
  * already looks for attachment. A theme's own template of the same name, or
  * a more specific one, is used instead of these.
  *
- * Also the two blocks the templates are made of: Archive Images and
- * Attachment Image.
+ * Also what the templates are made of: Taxonomy Gallery, a core/gallery
+ * variation filled here with images (photopressSource "archive", the
+ * archive page's; "query", those of a chosen taxonomy term, or the latest),
+ * and the Attachment Image block.
  */
 class ImageTemplates {
 
@@ -27,9 +30,7 @@ class ImageTemplates {
 	 */
 	public static function addHooks( $register_templates ) {
 
-		register_block_type( __DIR__ . '/blocks/archive-images', [
-			'render_callback' => [ self::class, 'renderArchiveImages' ],
-		] );
+		add_filter( 'pre_render_block', [ self::class, 'renderTaxonomyGallery' ], 10, 2 );
 		register_block_type( __DIR__ . '/blocks/attachment-image', [
 			'render_callback' => [ self::class, 'renderAttachmentImage' ],
 		] );
@@ -103,25 +104,64 @@ class ImageTemplates {
 	}
 
 	/**
-	 * render_callback of photopress/archive-images: the images of the main
-	 * query, when it is an archive's, as a core/gallery block, so the
-	 * PhotoPress layouts and slideshow apply as they do in a post, and links
-	 * to the archive's other pages.
+	 * The Taxonomy Gallery settings, which are not the rendered gallery's.
 	 */
-	public static function renderArchiveImages( $attributes ) {
+	const QUERY_ATTRIBUTES = [ 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder' ];
 
-		global $wp_query;
+	/**
+	 * pre_render_block: a Taxonomy Gallery, a core/gallery with a
+	 * photopressSource, as a gallery of its images: with "archive", the main
+	 * query's when it is an archive's, with links to the archive's other
+	 * pages; with "query", those queryArgs() gives. The gallery is rendered
+	 * as core renders one saved with those images, so the PhotoPress
+	 * layouts, slideshow and hidden captions apply as they do in a post.
+	 * With no images, nothing.
+	 *
+	 * @param string|null $pre    Markup another filter rendered, or null.
+	 * @param array       $parsed The parsed block.
+	 */
+	public static function renderTaxonomyGallery( $pre, $parsed ) {
 
-		if ( ! $wp_query instanceof \WP_Query || $wp_query->is_singular() ) {
-			return '';
+		$source = $parsed['attrs']['photopressSource'] ?? '';
+
+		if ( null !== $pre || 'core/gallery' !== ( $parsed['blockName'] ?? '' ) || ! in_array( $source, [ 'archive', 'query' ], true ) ) {
+			return $pre;
 		}
 
-		$ids = [];
+		$attributes = (array) $parsed['attrs'];
+		$pages      = '';
 
-		foreach ( (array) $wp_query->posts as $post ) {
+		if ( 'query' === $source ) {
 
-			if ( $post instanceof \WP_Post && wp_attachment_is_image( $post ) ) {
-				$ids[] = (int) $post->ID;
+			$args = self::queryArgs( $attributes );
+			$ids  = $args ? array_map( 'intval', ( new \WP_Query( $args ) )->posts ) : [];
+
+		} else {
+
+			global $wp_query;
+
+			if ( ! $wp_query instanceof \WP_Query || $wp_query->is_singular() ) {
+				return '';
+			}
+
+			$ids = [];
+
+			foreach ( (array) $wp_query->posts as $post ) {
+
+				if ( $post instanceof \WP_Post && wp_attachment_is_image( $post ) ) {
+					$ids[] = (int) $post->ID;
+				}
+			}
+
+			$links = $ids ? paginate_links( [
+				'total'     => (int) $wp_query->max_num_pages,
+				'current'   => max( 1, (int) get_query_var( 'paged' ) ),
+				'prev_text' => __( 'Previous', 'photopress' ),
+				'next_text' => __( 'Next', 'photopress' ),
+			] ) : '';
+
+			if ( $links ) {
+				$pages = '<nav class="photopress-archive-images__pages" aria-label="' . esc_attr__( 'More images', 'photopress' ) . '">' . $links . '</nav>';
 			}
 		}
 
@@ -129,34 +169,71 @@ class ImageTemplates {
 			return '';
 		}
 
-		$gallery = do_blocks( self::galleryMarkup( $ids, $attributes ) );
-
-		$pages = paginate_links( [
-			'total'     => (int) $wp_query->max_num_pages,
-			'current'   => max( 1, (int) get_query_var( 'paged' ) ),
-			'prev_text' => __( 'Previous', 'photopress' ),
-			'next_text' => __( 'Next', 'photopress' ),
-		] );
-
-		return sprintf(
-			'<div %s>%s%s</div>',
-			get_block_wrapper_attributes(),
-			wp_filter_content_tags( $gallery ),
-			$pages ? '<nav class="photopress-archive-images__pages" aria-label="' . esc_attr__( 'More images', 'photopress' ) . '">' . $pages . '</nav>' : ''
-		);
+		return wp_filter_content_tags( do_blocks( self::galleryMarkup( $ids, $attributes ) ) ) . $pages;
 	}
 
 	/**
-	 * A core/gallery block of the images, as the editor would save it.
+	 * The query of a Taxonomy Gallery set to "query": its number of
+	 * public images, newest first or in the order chosen, with the chosen
+	 * term of an image taxonomy (and the terms under it), or any.
+	 *
+	 * @param array $attributes The gallery's.
+	 * @return array|null WP_Query arguments; null for a taxonomy visitors may
+	 *                    not see, or one not for images.
+	 */
+	public static function queryArgs( array $attributes ) {
+
+		$orders = [
+			'date-desc' => [ 'date', 'DESC' ],
+			'date-asc'  => [ 'date', 'ASC' ],
+			'title'     => [ 'title', 'ASC' ],
+			'rand'      => [ 'rand', 'ASC' ],
+		];
+
+		[ $orderby, $order ] = $orders[ $attributes['photopressOrder'] ?? '' ] ?? $orders['date-desc'];
+
+		$args = [
+			'post_type'              => 'attachment',
+			'post_status'            => 'inherit',
+			'post_mime_type'         => 'image',
+			'posts_per_page'         => min( 100, max( 1, (int) ( $attributes['photopressCount'] ?? 12 ) ) ),
+			'orderby'                => $orderby,
+			'order'                  => $order,
+			'fields'                 => 'ids',
+			'no_found_rows'          => true,
+			'update_post_term_cache' => false,
+			metadata::PUBLIC_IMAGES  => true,
+		];
+
+		$taxonomy = (string) ( $attributes['photopressTaxonomy'] ?? '' );
+		$term     = (int) ( $attributes['photopressTerm'] ?? 0 );
+
+		if ( '' === $taxonomy || ! $term ) {
+			return $args;
+		}
+
+		if ( ! taxonomy_exists( $taxonomy ) || ! metadata::areImageTaxonomies( [ $taxonomy ] ) || ! ImageTaxonomies::isShown( $taxonomy ) ) {
+			return null;
+		}
+
+		$args['tax_query'] = [ [ 'taxonomy' => $taxonomy, 'field' => 'term_id', 'terms' => $term ] ];
+
+		return $args;
+	}
+
+	/**
+	 * The Taxonomy Gallery as a core/gallery block saved with the
+	 * images, as the editor would save it: its own attributes (layout,
+	 * slideshow, alignment and so on) less the query, and an image block for
+	 * each image, linked and sized as the gallery says, with its caption.
 	 *
 	 * @param int[] $ids
-	 * @param array $attributes The Archive Images block's.
+	 * @param array $attributes The gallery's.
 	 */
 	public static function galleryMarkup( array $ids, array $attributes ) {
 
 		$size    = (string) ( $attributes['sizeSlug'] ?? 'large' );
 		$link_to = in_array( $attributes['linkTo'] ?? '', [ 'attachment', 'media', 'none' ], true ) ? $attributes['linkTo'] : 'attachment';
-		$layout  = in_array( $attributes['layout'] ?? '', gallery::LAYOUTS, true ) ? $attributes['layout'] : '';
 		$images  = [];
 
 		foreach ( $ids as $id ) {
@@ -174,7 +251,7 @@ class ImageTemplates {
 				$img = sprintf( '<a href="%s">%s</a>', esc_url( $href ), $img );
 			}
 
-			$caption = ! empty( $attributes['showCaptions'] ) ? (string) wp_get_attachment_caption( $id ) : '';
+			$caption = (string) wp_get_attachment_caption( $id );
 
 			if ( '' !== trim( $caption ) ) {
 				$img .= '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
@@ -188,21 +265,34 @@ class ImageTemplates {
 			);
 		}
 
-		$gallery_attrs = [
-			'linkTo'                => $link_to,
-			'sizeSlug'              => $size,
-			'photopressSlideshow'   => ! empty( $attributes['slideshow'] ),
-			'photopressColumnWidth' => max( 100, (int) ( $attributes['columnWidth'] ?? 300 ) ),
-			'photopressRowHeight'   => max( 100, (int) ( $attributes['rowHeight'] ?? 300 ) ),
-		];
+		$gallery_attrs = array_diff_key( $attributes, array_flip( self::QUERY_ATTRIBUTES ) );
+		$gallery_attrs['linkTo']   = $link_to;
+		$gallery_attrs['sizeSlug'] = $size;
 
-		if ( $layout ) {
-			$gallery_attrs['photopressLayout'] = $layout;
+		if ( isset( $gallery_attrs['photopressLayout'] ) && ! in_array( $gallery_attrs['photopressLayout'], gallery::LAYOUTS, true ) ) {
+			unset( $gallery_attrs['photopressLayout'] );
+		}
+
+		// The classes the editor saves on the figure for these attributes.
+		$classes = [ 'wp-block-gallery', 'has-nested-images', isset( $attributes['columns'] ) ? 'columns-' . (int) $attributes['columns'] : 'columns-default' ];
+
+		if ( $attributes['imageCrop'] ?? true ) {
+			$classes[] = 'is-cropped';
+		}
+
+		if ( ! empty( $attributes['align'] ) ) {
+			$classes[] = 'align' . sanitize_html_class( $attributes['align'] );
+		}
+
+		if ( ! empty( $attributes['className'] ) ) {
+			$classes[] = trim( (string) $attributes['className'] );
 		}
 
 		return sprintf(
-			'<!-- wp:gallery %s --><figure class="wp-block-gallery has-nested-images columns-default is-cropped">%s</figure><!-- /wp:gallery -->',
+			'<!-- wp:gallery %s --><figure class="%s"%s>%s</figure><!-- /wp:gallery -->',
 			wp_json_encode( $gallery_attrs ),
+			esc_attr( implode( ' ', $classes ) ),
+			! empty( $attributes['anchor'] ) ? ' id="' . esc_attr( $attributes['anchor'] ) . '"' : '',
 			implode( '', $images )
 		);
 	}

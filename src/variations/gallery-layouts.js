@@ -16,10 +16,10 @@ import { registerBlockVariation } from '@wordpress/blocks';
 import { createHigherOrderComponent } from '@wordpress/compose';
 import { useSelect } from '@wordpress/data';
 import { store as coreStore } from '@wordpress/core-data';
-import { InspectorControls, store as blockEditorStore } from '@wordpress/block-editor';
-import { PanelBody, RangeControl, SelectControl, ToggleControl } from '@wordpress/components';
-import { useEffect, useRef } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { InspectorControls, useBlockProps, store as blockEditorStore } from '@wordpress/block-editor';
+import { ComboboxControl, PanelBody, Placeholder, RangeControl, SelectControl, ToggleControl } from '@wordpress/components';
+import { useEffect, useRef, useState } from '@wordpress/element';
+import { __, sprintf } from '@wordpress/i18n';
 import { gallery as galleryIcon } from '@wordpress/icons';
 
 /**
@@ -43,6 +43,13 @@ const ATTRIBUTES = {
 	photopressRowHeight: { type: 'number', default: 300 },
 	photopressSlideshow: { type: 'boolean', default: false },
 	photopressHideCaptions: { type: 'boolean', default: false },
+	// Taxonomy Gallery (modules/gallery/ImageTemplates.php): "archive", the
+	// archive page's images; "query", those of a term, or the latest.
+	photopressSource: { type: 'string' },
+	photopressTaxonomy: { type: 'string' },
+	photopressTerm: { type: 'number' },
+	photopressCount: { type: 'number', default: 12 },
+	photopressOrder: { type: 'string', default: 'date-desc' },
 };
 
 // The layouts turned on in the Gallery settings tab (modules/gallery/gallery.php).
@@ -52,6 +59,62 @@ const isGallery = ( name ) => name === 'core/gallery';
 
 const layoutOf = ( attributes ) =>
 	LAYOUTS[ attributes.photopressLayout ] ? attributes.photopressLayout : null;
+
+/** A Taxonomy Gallery: its images are found when the page is viewed. */
+export const isTaxonomyGallery = ( attributes ) => [ 'archive', 'query' ].includes( attributes.photopressSource );
+
+/** The slug of the template being edited, or '' when it is not a template. */
+export const templateSlugOf = ( postType, postId ) =>
+	'wp_template' === postType && 'string' === typeof postId ? postId.split( '//' ).pop() : '';
+
+/**
+ * Whether a template is for the archives of image taxonomies: PhotoPress's
+ * taxonomy-attachment, or the theme's for one of them.
+ *
+ * @param {string}   slug       The template's.
+ * @param {string[]} taxonomies The image taxonomies.
+ */
+export const isImageArchiveTemplate = ( slug, taxonomies ) =>
+	'taxonomy-attachment' === slug || taxonomies.some( ( tax ) => slug === `taxonomy-${ tax }` || slug.startsWith( `taxonomy-${ tax }-` ) );
+
+/**
+ * Where a Taxonomy Gallery finds its images: on an image taxonomy's
+ * archive template, the archive's; anywhere else, those chosen.
+ */
+export const sourceFor = ( slug, taxonomies ) => ( isImageArchiveTemplate( slug, taxonomies ) ? 'archive' : 'query' );
+
+const ORDERS = {
+	'date-desc': __( 'newest first' ),
+	'date-asc': __( 'oldest first' ),
+	title: __( 'by title' ),
+	rand: __( 'in random order' ),
+};
+
+/**
+ * What a Taxonomy Gallery shows, in a sentence.
+ *
+ * @param {Object} attributes The gallery's.
+ * @param {Object} names      taxonomy (its name) and term (its name), when chosen.
+ */
+export function summaryOf( attributes, names = {} ) {
+	const layout = LAYOUTS[ attributes.photopressLayout ] || __( 'Default (columns)' );
+
+	if ( 'archive' === attributes.photopressSource ) {
+		/* translators: %s: a gallery layout, such as Masonry. */
+		return sprintf( __( 'The images of the archive page being viewed, in the %s layout, with links to more pages of them.' ), layout );
+	}
+
+	const count = attributes.photopressCount || 12;
+	const order = ORDERS[ attributes.photopressOrder ] || ORDERS[ 'date-desc' ];
+
+	if ( attributes.photopressTerm && names.term ) {
+		/* translators: 1: a number of images, 2: a taxonomy, such as Keywords, 3: a term, 4: an order, such as newest first, 5: a gallery layout. */
+		return sprintf( __( '%1$d images in %2$s: “%3$s”, %4$s, in the %5$s layout.' ), count, names.taxonomy || attributes.photopressTaxonomy, names.term, order, layout );
+	}
+
+	/* translators: 1: a number of images, 2: an order, such as newest first, 3: a gallery layout. */
+	return sprintf( __( 'The %1$d latest images, %2$s, in the %3$s layout.' ), count, order, layout );
+}
 
 /*
  * Register the attributes. Without this the editor drops them from the block
@@ -76,9 +139,35 @@ Object.entries( LAYOUTS ).filter( ( [ layout ] ) => ENABLED.includes( layout ) )
 		attributes: { photopressLayout: layout },
 		// Recognized by this attribute alone, so editing the CSS classes or
 		// the block style cannot turn it back into a plain gallery.
-		isActive: [ 'photopressLayout' ],
+		isActive: ( attributes ) => layout === attributes.photopressLayout && ! isTaxonomyGallery( attributes ),
 		scope: [ 'inserter', 'transform' ],
 	} );
+} );
+
+/*
+ * Taxonomy Gallery: a gallery whose images are found when the page is viewed,
+ * like core's Query Loop. On an image taxonomy's archive template, the
+ * archive's, with links to more pages of them; anywhere else, those of a
+ * chosen taxonomy term, or the latest. It saves no images; the server fills
+ * it (modules/gallery/ImageTemplates.php), in whichever layout is chosen.
+ */
+registerBlockVariation( 'core/gallery', {
+	name: 'photopress-taxonomy-gallery',
+	title: __( 'Taxonomy Gallery' ),
+	description: __( 'A gallery of images found when the page is viewed: those of a keyword, a camera or another term, or the latest; on an image archive template, the archive’s. In a PhotoPress layout.' ),
+	icon: galleryIcon,
+	keywords: [ 'photopress', 'query', 'archive', 'taxonomy', 'keyword', 'latest' ],
+	attributes: {
+		photopressSource: 'query',
+		photopressLayout: ENABLED[ 0 ],
+		photopressCount: 12,
+		linkTo: 'attachment',
+		sizeSlug: 'large',
+		photopressHideCaptions: true,
+		align: 'wide',
+	},
+	isActive: isTaxonomyGallery,
+	scope: [ 'inserter' ],
 } );
 
 /*
@@ -94,7 +183,7 @@ registerBlockVariation( 'core/gallery', {
 	description: __( 'Display multiple images in a rich gallery.' ),
 	icon: galleryIcon,
 	attributes: { photopressLayout: undefined },
-	isActive: ( attributes ) => ! attributes.photopressLayout,
+	isActive: ( attributes ) => ! attributes.photopressLayout && ! isTaxonomyGallery( attributes ),
 	scope: [ 'transform' ],
 } );
 
@@ -230,6 +319,113 @@ function MosaicPreview( { clientId, rowHeight, gap } ) {
 	return <span ref={ ref } hidden />;
 }
 
+const IMAGE_LINKS = [
+	{ value: 'attachment', label: __( 'Image page' ) },
+	{ value: 'media', label: __( 'Image file' ) },
+	{ value: 'none', label: __( 'None' ) },
+];
+
+const IMAGE_SIZES = [
+	{ value: 'medium', label: __( 'Medium' ) },
+	{ value: 'large', label: __( 'Large' ) },
+	{ value: 'full', label: __( 'Full size' ) },
+];
+
+/**
+ * The term of an image taxonomy, found as its name is typed.
+ */
+function TermPicker( { taxonomy, value, onChange } ) {
+	const [ search, setSearch ] = useState( '' );
+	const { found, current } = useSelect( ( select ) => {
+		const store = select( coreStore );
+		return {
+			found: store.getEntityRecords( 'taxonomy', taxonomy, { search, per_page: 20, context: 'view' } ) || [],
+			current: value ? store.getEntityRecord( 'taxonomy', taxonomy, value, { context: 'view' } ) : null,
+		};
+	}, [ taxonomy, search, value ] );
+
+	const options = [ ...( current ? [ current ] : [] ), ...found.filter( ( t ) => ! current || t.id !== current.id ) ]
+		.map( ( t ) => ( { value: String( t.id ), label: t.name } ) );
+
+	return (
+		<ComboboxControl
+			__nextHasNoMarginBottom
+			label={ __( 'Term' ) }
+			help={ __( 'Type to find one. None chosen: the latest images of any term.' ) }
+			value={ value ? String( value ) : null }
+			options={ options }
+			onFilterValueChange={ setSearch }
+			onChange={ ( next ) => onChange( next ? Number( next ) : undefined ) }
+		/>
+	);
+}
+
+/**
+ * Taxonomy Gallery in the editor: there are no images to show until the page is
+ * viewed, so a sentence saying what it will show, in place of core's
+ * gallery, which would offer to add images; its source, set from where it
+ * is; and the settings of the images it finds.
+ */
+function TaxonomyGalleryEdit( { attributes, setAttributes } ) {
+	const { slug, taxonomies } = useSelect( ( select ) => {
+		const editor = select( 'core/editor' );
+		return {
+			slug: templateSlugOf( editor?.getCurrentPostType?.(), editor?.getCurrentPostId?.() ),
+			// Not those for the admin only.
+			taxonomies: ( select( coreStore ).getTaxonomies( { type: 'attachment', per_page: -1, context: 'view' } ) || [] ).filter( ( t ) => false !== t.photopress_public ),
+		};
+	}, [] );
+
+	const source = sourceFor( slug, taxonomies.map( ( t ) => t.slug ) );
+	const taxonomy = taxonomies.find( ( t ) => t.slug === attributes.photopressTaxonomy );
+	const term = useSelect( ( select ) => ( taxonomy && attributes.photopressTerm ? select( coreStore ).getEntityRecord( 'taxonomy', taxonomy.slug, attributes.photopressTerm, { context: 'view' } ) : null ), [ taxonomy, attributes.photopressTerm ] );
+
+	// Where it is decides: a gallery moved between an archive template and
+	// anywhere else follows.
+	useEffect( () => {
+		if ( source !== attributes.photopressSource ) {
+			setAttributes( { photopressSource: source } );
+		}
+	}, [ source, attributes.photopressSource ] );
+
+	return (
+		<>
+			<div { ...useBlockProps() }>
+				<Placeholder icon={ galleryIcon } label={ __( 'Taxonomy Gallery' ) } instructions={ summaryOf( { ...attributes, photopressSource: source }, { taxonomy: taxonomy?.name, term: term?.name } ) } />
+			</div>
+			<InspectorControls>
+				<PanelBody title={ __( 'Images' ) }>
+					{ 'query' === source && (
+						<>
+							<SelectControl
+								__nextHasNoMarginBottom
+								label={ __( 'Taxonomy' ) }
+								value={ attributes.photopressTaxonomy || '' }
+								options={ [ { value: '', label: __( 'Any (the latest images)' ) }, ...taxonomies.map( ( t ) => ( { value: t.slug, label: t.name } ) ) ] }
+								onChange={ ( value ) => setAttributes( { photopressTaxonomy: value || undefined, photopressTerm: undefined } ) }
+							/>
+							{ taxonomy && (
+								<TermPicker taxonomy={ taxonomy.slug } value={ attributes.photopressTerm } onChange={ ( value ) => setAttributes( { photopressTerm: value } ) } />
+							) }
+							<RangeControl __nextHasNoMarginBottom label={ __( 'Number of images' ) } value={ attributes.photopressCount || 12 } min={ 1 } max={ 100 } onChange={ ( value ) => setAttributes( { photopressCount: value } ) } />
+							<SelectControl
+								__nextHasNoMarginBottom
+								label={ __( 'Order' ) }
+								value={ attributes.photopressOrder || 'date-desc' }
+								options={ Object.entries( ORDERS ).map( ( [ value, label ] ) => ( { value, label: label.charAt( 0 ).toUpperCase() + label.slice( 1 ) } ) ) }
+								onChange={ ( value ) => setAttributes( { photopressOrder: value } ) }
+							/>
+						</>
+					) }
+					{ 'archive' === source && <p className="components-base-control__help">{ __( 'On an image archive template, the images of the archive page being viewed.' ) }</p> }
+					<SelectControl __nextHasNoMarginBottom label={ __( 'Link to' ) } value={ attributes.linkTo || 'attachment' } options={ IMAGE_LINKS } onChange={ ( value ) => setAttributes( { linkTo: value } ) } />
+					<SelectControl __nextHasNoMarginBottom label={ __( 'Image size' ) } value={ attributes.sizeSlug || 'large' } options={ IMAGE_SIZES } onChange={ ( value ) => setAttributes( { sizeSlug: value } ) } />
+				</PanelBody>
+			</InspectorControls>
+		</>
+	);
+}
+
 const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props ) => {
 	if ( ! isGallery( props.name ) ) {
 		return <BlockEdit { ...props } />;
@@ -248,7 +444,7 @@ const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props 
 
 	return (
 		<>
-			<BlockEdit { ...props } />
+			{ isTaxonomyGallery( attributes ) ? <TaxonomyGalleryEdit attributes={ attributes } setAttributes={ setAttributes } /> : <BlockEdit { ...props } /> }
 			<InspectorControls>
 				<PanelBody title={ __( 'PhotoPress' ) }>
 					<SelectControl

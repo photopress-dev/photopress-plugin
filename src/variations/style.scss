@@ -126,3 +126,12 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 		order: 2;
 	}
 }
+
+// Taxonomy Gallery on an archive: links to its other pages of images, under them.
+.photopress-archive-images__pages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em 1em;
+	justify-content: center;
+	margin-top: 2em;
+}

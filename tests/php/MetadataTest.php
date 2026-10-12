@@ -341,6 +341,21 @@ final class MetadataTest extends TestCase {
 		$wp_query = null;
 	}
 
+	public function test_an_image_gets_its_license_json_ld_once_a_page(): void {
+
+		Functions\stubs( [ 'wp_get_attachment_url' => static fn( $id ) => "https://example.test/up/$id.jpg" ] );
+		\pp_api::$options['core/metadata/licensor_name'] = 'Alice Photography';
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+
+		// An image block's, then the footer's for the page's images.
+		$this->assertStringContainsString( '/up/7.jpg', $m->renderLicensingSchema( [ 7 ] ) );
+		$footer = $m->renderLicensingSchema( [ 7, 8 ] );
+		$this->assertStringContainsString( '/up/8.jpg', $footer );
+		$this->assertStringNotContainsString( '/up/7.jpg', $footer );
+		$this->assertSame( '', $m->renderLicensingSchema( [ 7, 8 ] ) );
+	}
+
 	public function test_the_license_is_written_into_each_file_of_an_image_without_re_encoding(): void {
 
 		$dir  = sys_get_temp_dir() . '/pp-license-' . uniqid();

@@ -168,7 +168,7 @@ final class GalleryLayoutTest extends TestCase {
 		$module = ( new \ReflectionClass( gallery::class ) )->newInstanceWithoutConstructor();
 
 		$args = $module->addGalleryAttributes( [ 'attributes' => [ 'columns' => [ 'type' => 'number' ] ] ], 'core/gallery' );
-		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions' ], array_keys( $args['attributes'] ) );
+		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions', 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder' ], array_keys( $args['attributes'] ) );
 
 		$this->assertSame( [ 'x' => 1 ], $module->addGalleryAttributes( [ 'x' => 1 ], 'core/image' ) );
 	}

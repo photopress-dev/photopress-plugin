@@ -165,6 +165,13 @@ class gallery extends photopress_module {
 			'photopressRowHeight'   => [ 'type' => 'number', 'default' => 300 ],
 			'photopressSlideshow'   => [ 'type' => 'boolean', 'default' => false ],
 			'photopressHideCaptions' => [ 'type' => 'boolean', 'default' => false ],
+			// Taxonomy Gallery (ImageTemplates): "archive", the archive page's
+			// images; "query", those of a taxonomy term, or the latest.
+			'photopressSource'      => [ 'type' => 'string' ],
+			'photopressTaxonomy'    => [ 'type' => 'string' ],
+			'photopressTerm'        => [ 'type' => 'number' ],
+			'photopressCount'       => [ 'type' => 'number', 'default' => 12 ],
+			'photopressOrder'       => [ 'type' => 'string', 'default' => 'date-desc' ],
 		] );
 
 		return $args;

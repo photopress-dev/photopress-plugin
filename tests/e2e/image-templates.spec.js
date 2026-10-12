@@ -1,7 +1,8 @@
 /**
  * The templates PhotoPress gives block themes, on the site's own theme
  * (which has none of its own): an image taxonomy's archive shows its public
- * images with Archive Images, and an image's page shows the image once, its
+ * images with Taxonomy Gallery, a Gallery block variation whose layout is the
+ * gallery's own setting; on a page it shows the images of a term, or the latest; and an image's page shows the image once, its
  * terms and its exposure details. Off with the Gallery tab's Image templates
  * switch. And no other query on an archive page lists drafts.
  *
@@ -37,6 +38,9 @@ test.beforeAll( () => {
 			copy( ${ JSON.stringify( path.join( __dirname, '../fixtures/images' ) ) } . '/' . $name, $tmp );
 			$id = media_handle_sideload( [ 'name' => "pp-e2e-archive-$i.jpg", 'tmp_name' => $tmp ], 2 === $i ? $draft_page : 0, "PP E2E archive image $i" );
 			wp_set_object_terms( $id, '${ KEYWORD }', 'photos_keywords', true );
+			// In order, a minute apart, and the newest on the site.
+			$date = gmdate( 'Y-m-d H:i:s', time() + 60 * ( $i + 1 ) );
+			wp_update_post( [ 'ID' => $id, 'post_date' => get_date_from_gmt( $date ), 'post_date_gmt' => $date ] );
 			$images[] = $id;
 		}
 		$meta = wp_get_attachment_metadata( $images[0] );
@@ -75,7 +79,7 @@ test( 'an image taxonomy archive shows its public images in a gallery layout', a
 	const response = await page.goto( made.archive );
 	expect( response.status() ).toBe( 200 );
 
-	const images = page.locator( '.wp-block-photopress-archive-images figure.wp-block-gallery' );
+	const images = page.locator( 'main figure.wp-block-gallery' );
 	await expect( images ).toHaveClass( /photopress-layout-masonry/ );
 	const [ first, second, attachedToDraft ] = made.images;
 	await expect( images.locator( 'img' ) ).toHaveCount( 2 );
@@ -97,6 +101,31 @@ test( 'an image taxonomy archive shows its public images in a gallery layout', a
 
 	if ( process.env.PP_E2E_SHOTS ) {
 		await page.screenshot( { path: `${ process.env.PP_E2E_SHOTS }/image-archive.png`, fullPage: true } );
+	}
+} );
+
+test( 'with licensing on, an archive describes each image\'s license once', async ( { page } ) => {
+	const META = 'photopress_core_metadata';
+	const before = lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ META }' ) );` ) );
+	wp( 'eval', `update_option( '${ META }', array_merge( (array) get_option( '${ META }' ), [ 'embed_licensor_enable' => true, 'licensor_name' => 'Jane Smith', 'web_statement_of_rights' => 'https://www.example.com/license-statement', 'licensor_url' => 'https://www.example.com/purchase-license' ] ) );` );
+
+	try {
+		const files = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_map( 'wp_get_attachment_url', ${ JSON.stringify( made.images.slice( 0, 2 ) ) } ) );` ) ) );
+		await page.goto( made.archive );
+		const described = await page.locator( 'script[type="application/ld+json"]' ).evaluateAll( ( scripts ) => scripts.flatMap( ( script ) => {
+			try {
+				const data = JSON.parse( script.textContent );
+				return ( Array.isArray( data ) ? data : [ data ] ).map( ( item ) => item.contentUrl ).filter( Boolean );
+			} catch ( e ) {
+				return [];
+			}
+		} ) );
+
+		for ( const file of files ) {
+			expect( described.filter( ( url ) => url === file ), file ).toHaveLength( 1 );
+		}
+	} finally {
+		wp( 'option', 'update', META, before, '--format=json' );
 	}
 } );
 
@@ -135,11 +164,58 @@ test( 'an image page shows the image once, its terms and its exposure details', 
 	}
 } );
 
+test( 'an archive template edited in the Site Editor lays its Taxonomy Gallery out as chosen', async ( { page } ) => {
+	wp( 'option', 'delete', KEY );
+	// The theme's own copy of Image Archives, as the Site Editor saves it,
+	// with the gallery set to Mosaic.
+	const edited = Number( lastLine( wp( 'eval', `
+		$content = str_replace( '"photopressLayout":"masonry"', '"photopressLayout":"mosaic","photopressRowHeight":200', file_get_contents( WP_PLUGIN_DIR . '/photopress-plugin/modules/gallery/templates/taxonomy-attachment.html' ) );
+		$id = wp_insert_post( [ 'post_type' => 'wp_template', 'post_status' => 'publish', 'post_name' => 'taxonomy-attachment', 'post_title' => 'Image Archives', 'post_content' => $content, 'tax_input' => [ 'wp_theme' => [ get_stylesheet() ] ] ] );
+		wp_set_object_terms( $id, get_stylesheet(), 'wp_theme' );
+		echo $id;
+	` ) ) );
+
+	try {
+		expect( ( await page.goto( made.archive ) ).status() ).toBe( 200 );
+		const images = page.locator( 'main figure.wp-block-gallery' );
+		await expect( images ).toHaveClass( /photopress-layout-mosaic/ );
+		await expect( images ).toHaveAttribute( 'data-pp-row-height', '200' );
+		await expect( images.locator( 'img' ) ).toHaveCount( 2 );
+	} finally {
+		wp( 'post', 'delete', String( edited ), '--force' );
+	}
+} );
+
+test( 'on a page, Taxonomy Gallery shows the images of a term, or the latest, public ones only', async ( { page } ) => {
+	const [ first, second, attachedToDraft ] = made.images;
+	const gallery = ( attrs ) => `<!-- wp:gallery ${ JSON.stringify( { linkTo: 'attachment', sizeSlug: 'large', photopressLayout: 'rows', photopressSource: 'query', ...attrs } ) } -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"></figure>\n<!-- /wp:gallery -->`;
+	const term = Number( lastLine( wp( 'eval', `echo get_term_by( 'slug', '${ KEYWORD }', 'photos_keywords' )->term_id;` ) ) );
+	const content = gallery( { photopressTaxonomy: 'photos_keywords', photopressTerm: term, photopressCount: 1, photopressOrder: 'date-asc', anchor: 'by-term' } ) + gallery( { photopressCount: 2, anchor: 'latest' } );
+	const post = Number( lastLine( wp( 'eval', `echo wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'PP E2E image query ${ stamp }', 'post_content' => ${ JSON.stringify( content ) } ] );` ) ) );
+
+	try {
+		await page.goto( `/?page_id=${ post }&preview=true` );
+
+		const byTerm = page.locator( 'figure.wp-block-gallery#by-term' );
+		await expect( byTerm ).toHaveClass( /photopress-layout-rows/ );
+		await expect( byTerm.locator( 'img' ) ).toHaveCount( 1 );
+		await expect( byTerm.locator( `img.wp-image-${ first }` ) ).toHaveCount( 1 );
+
+		// The newest public images: not the one attached to a draft.
+		const latest = page.locator( 'figure.wp-block-gallery#latest' );
+		await expect( latest.locator( 'img' ) ).toHaveCount( 2 );
+		await expect( latest.locator( `img.wp-image-${ second }` ) ).toHaveCount( 1 );
+		await expect( latest.locator( `img.wp-image-${ attachedToDraft }` ) ).toHaveCount( 0 );
+	} finally {
+		wp( 'post', 'delete', String( post ), '--force' );
+	}
+} );
+
 test( 'with Image templates off, the theme\'s own templates are used', async ( { page } ) => {
 	wp( 'option', 'update', KEY, JSON.stringify( { image_templates: false } ), '--format=json' );
 
 	expect( ( await page.goto( made.archive ) ).status() ).toBe( 200 );
-	await expect( page.locator( '.wp-block-photopress-archive-images' ) ).toHaveCount( 0 );
+	await expect( page.locator( 'main figure.wp-block-gallery' ) ).toHaveCount( 0 );
 
 	await page.goto( made.page );
 	await expect( page.locator( '.wp-block-photopress-attachment-image' ) ).toHaveCount( 0 );

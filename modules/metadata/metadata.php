@@ -15,6 +15,9 @@ class metadata extends photopress_module {
 	
 	/** The taxonomies registered, [ id, slug, hierarchical ], for maybeFlushRewriteRules(). */
 	private $rewrites = [];
+
+	/** Images whose license JSON-LD this request has printed, so none is printed twice. */
+	private $licensed = [];
 	
 	public $label = 'Metadata'; 
 	
@@ -90,6 +93,9 @@ class metadata extends photopress_module {
 		
 		// registers display widgets
 		add_action( 'widgets_init', [ $this, 'registerWidgets' ] );
+
+		// Queries flagged photopress_public_images list only public images.
+		add_filter( 'posts_where', [ self::class, 'onlyPublicImages' ], 10, 2 );
 		
 		// The block counterpart of the taxonomy widget, for block themes, which
 		// have no widget areas.
@@ -649,11 +655,23 @@ class metadata extends photopress_module {
 		return $ids;
 	}
 	
+	/**
+	 * The license JSON-LD of the images, less those the page has it for
+	 * already: an image block's comes first, and the footer's
+	 * (printLicensingSchemaForPage) adds only what is missing, as on an
+	 * archive whose images a Taxonomy Gallery shows.
+	 *
+	 * @param int[] $attachment_ids
+	 */
 	public function renderLicensingSchema( $attachment_ids ) {
+		
+		$attachment_ids = array_values( array_diff( array_map( 'intval', (array) $attachment_ids ), $this->licensed ) );
 		
 		if ( [] === $attachment_ids ) {
 			return '';
 		}
+		
+		$this->licensed = array_merge( $this->licensed, $attachment_ids );
 		
 		$licensing_schema = $this->generateLicensingSchema( $attachment_ids );
 		
@@ -1881,7 +1899,7 @@ class metadata extends photopress_module {
 		}
 
 		$query->set( 'post_status', 'inherit' );
-		add_filter( 'posts_where', [ $this, 'onlyPublicImages' ], 10, 2 );
+		$query->set( self::PUBLIC_IMAGES, true );
 	}
 
 	/**
@@ -1904,18 +1922,22 @@ class metadata extends photopress_module {
 	}
 
 	/**
-	 * posts_where, for the query makeImagesVisibleToTaxQueries() changed:
-	 * images unattached or attached to a published post.
+	 * A query var: the query lists only images WordPress counts as public
+	 * (get_post_status()), unattached or attached to a published post. Set
+	 * on image taxonomy archives and by the Taxonomy Gallery.
 	 */
-	public function onlyPublicImages( $where, $query ) {
+	const PUBLIC_IMAGES = 'photopress_public_images';
+
+	/**
+	 * posts_where, for queries with PUBLIC_IMAGES set.
+	 */
+	public static function onlyPublicImages( $where, $query ) {
 
 		global $wpdb;
 
-		if ( ! $query->is_main_query() ) {
+		if ( ! $query instanceof \WP_Query || ! $query->get( self::PUBLIC_IMAGES ) ) {
 			return $where;
 		}
-
-		remove_filter( 'posts_where', [ $this, 'onlyPublicImages' ], 10 );
 
 		return $where . " AND ( {$wpdb->posts}.post_parent = 0 OR EXISTS ( SELECT 1 FROM {$wpdb->posts} AS photopress_parent WHERE photopress_parent.ID = {$wpdb->posts}.post_parent AND photopress_parent.post_status = 'publish' ) )";
 	}

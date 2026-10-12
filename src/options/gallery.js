@@ -107,7 +107,7 @@ class GallerySettings extends Component {
 					title={ __( 'Image templates' ) }
 					description={ __( 'Give image taxonomy archives and image pages templates of their own, in block themes that have none.' ) }
 					info={ [
-						<p key="0">{ __( 'An archive, such as a keyword’s or a camera’s, shows its images in the Masonry layout with the Archive Images block. An image’s page shows the image, its caption and description, its taxonomy terms and its exposure details.' ) }</p>,
+						<p key="0">{ __( 'An archive, such as a keyword’s or a camera’s, shows its images in the Masonry layout, in a Taxonomy Gallery whose layout can be changed in the Site Editor. An image’s page shows the image, its caption and description, its taxonomy terms and its exposure details.' ) }</p>,
 						<p key="1">{ __( 'Both can be edited in the Site Editor, as Image Archives and Image Pages. A theme’s own taxonomy-attachment or attachment template is used instead. Classic themes are not changed.' ) }</p>,
 					] }
 					checked={ this.getSetting( 'image_templates' ) }
