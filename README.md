@@ -114,6 +114,7 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 - Both on by default; while each is on, block themes get PhotoPress's template for those pages
 - Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks, to order as you like: the search box, a Search Summary (the terms and the number of images found), the images in a Taxonomy Gallery in rows with each one's file name and title under it, with numbered pages, and the posts and pages found in a Search Posts block
 - With Relevanssi, PhotoPress has it index images, their alt text and the image taxonomies (its settings show the same), keeps an image's entry current as its terms change or are renamed, and adds existing images to its index in the background
+- Page cache and search index: the page cache plugin in use and, with Relevanssi, how many images its index has, with a Re-index all images button. With Proxy Cache Purge, which clears a post's pages when it is saved but not an image's or a term's, PhotoPress clears an image's page when the image is edited or deleted or its terms change (while attachment pages are on), and every page of a term's archive when its images change or the term is renamed (while image taxonomy pages are on)
 
 ![The Pages & Search tab](.wordpress-org/screenshot-18.png)
 

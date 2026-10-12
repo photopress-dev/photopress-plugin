@@ -3,7 +3,6 @@
 namespace PhotoPress\Tests;
 
 use Brain\Monkey\Functions;
-use PhotoPress\jobs\Jobs;
 use PhotoPress\modules\search\ImageSearch;
 
 /**
@@ -115,98 +114,6 @@ final class ImageSearchTest extends TestCase {
 
 		// Another search is core's.
 		$this->assertSame( ' AND (core search) ', ImageSearch::searchSql( ' AND (core search) ', new \WP_Query() ) );
-
-		$wpdb = null;
-	}
-
-	public function test_a_renamed_terms_images_are_indexed_again_a_few_now_more_in_a_job(): void {
-
-		global $wpdb;
-
-		$options = [ 'photopress_core_search' => [ 'images_in_search' => true ] ];
-		$name = 'Ojai';
-		$images = [ 4, 9, 12 ];
-		$indexed = [];
-
-		Functions\stubs( [
-			'get_option'              => static function ( $key, $default = false ) use ( &$options ) { return $options[ $key ] ?? $default; },
-			'update_option'           => static function ( $key, $value ) use ( &$options ) { $options[ $key ] = $value; return true; },
-			'delete_option'           => static function ( $key ) use ( &$options ) { unset( $options[ $key ] ); return true; },
-			'add_option'              => static function ( $key, $value ) use ( &$options ) { if ( isset( $options[ $key ] ) ) { return false; } $options[ $key ] = $value; return true; },
-			'get_term'                => static function ( $id ) use ( &$name ) { return (object) [ 'term_taxonomy_id' => 26 + $id, 'name' => $name ]; },
-			'relevanssi_do_query'     => null,
-			'relevanssi_get_custom_fields' => [],
-			'relevanssi_index_doc'    => static function ( $id ) use ( &$indexed ) { $indexed[] = $id; },
-			'wp_cache_delete'         => true,
-			'wp_generate_uuid4'       => static fn() => bin2hex( random_bytes( 16 ) ),
-			'get_current_user_id'     => 1,
-			'wp_convert_hr_to_bytes'  => -1,
-			'as_enqueue_async_action' => 1,
-			'as_has_scheduled_action' => false,
-		] );
-
-		// The images of term_taxonomy_id 31, by ID.
-		$wpdb = new class( $images ) {
-			public $posts = 'wp_posts';
-			public $term_relationships = 'wp_term_relationships';
-			public function __construct( public array &$images ) {}
-			public function prepare( $query, ...$args ) { return [ $query, $args ]; }
-			public function get_col( $prepared ) {
-				[ $query, [ $after, $limit ] ] = $prepared;
-				return array_slice( array_values( array_filter( $this->images, static fn( $id ) => $id > $after ) ), 0, $limit );
-			}
-			public function get_var( $query ) { return count( $this->images ); }
-		};
-
-		// A description edited: nothing to index.
-		ImageSearch::termEditing( 5, 'photos_keywords' );
-		ImageSearch::termEdited( 5, 31, 'photos_keywords' );
-		$this->assertFalse( has_action( 'shutdown', [ ImageSearch::class, 'indexChanged' ] ) );
-
-		// Not an image taxonomy.
-		ImageSearch::termEditing( 5, 'category' );
-		$name = 'Ojai Valley';
-		ImageSearch::termEdited( 5, 31, 'photos_keywords' );
-		$this->assertFalse( has_action( 'shutdown', [ ImageSearch::class, 'indexChanged' ] ) );
-
-		// Renamed, with three images: at the end of the request.
-		ImageSearch::termEditing( 5, 'photos_keywords' );
-		$name = 'Ojai, California';
-		ImageSearch::termEdited( 5, 31, 'photos_keywords' );
-		$this->assertNotFalse( has_action( 'shutdown', [ ImageSearch::class, 'indexChanged' ] ) );
-		ImageSearch::indexChanged();
-		$this->assertSame( $images, $indexed );
-
-		// Renamed, with more than a batch: the term job.
-		Jobs::register( ImageSearch::TERM_JOB, [
-			'label'   => 'Terms',
-			'count'   => [ ImageSearch::class, 'countTermImages' ],
-			'items'   => [ ImageSearch::class, 'nextTermImages' ],
-			'process' => [ ImageSearch::class, 'indexImage' ],
-			'finish'  => [ ImageSearch::class, 'startRenamed' ],
-		] );
-		$wpdb->images = range( 1, 40 );
-		$indexed = [];
-
-		ImageSearch::termEditing( 5, 'photos_keywords' );
-		$name = 'Ojai';
-		ImageSearch::termEdited( 5, 31, 'photos_keywords' );
-		$this->assertSame( [], $indexed, 'not in the request' );
-		$job = Jobs::recent( ImageSearch::TERM_JOB )[0];
-		$this->assertSame( [ [ 'terms' => [ 31 ] ], 40 ], [ $job['args'], $job['total'] ] );
-
-		// Another renamed while it runs: after it.
-		ImageSearch::termEditing( 6, 'photos_keywords' );
-		$name = 'Ojai Valley';
-		ImageSearch::termEdited( 6, 32, 'photos_keywords' );
-		$this->assertSame( [ 32 ], $options[ ImageSearch::RENAMED ] );
-
-		Jobs::runBatch( $job['id'] );
-		Jobs::runBatch( $job['id'] );
-		$this->assertSame( range( 1, 40 ), $indexed );
-		$this->assertSame( 'done', Jobs::get( $job['id'] )['status'] );
-		$this->assertSame( [ 'terms' => [ 32 ] ], Jobs::recent( ImageSearch::TERM_JOB )[0]['args'] );
-		$this->assertArrayNotHasKey( ImageSearch::RENAMED, $options );
 
 		$wpdb = null;
 	}

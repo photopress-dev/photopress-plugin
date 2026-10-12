@@ -1,7 +1,8 @@
 /**
  * The Pages & Search settings tab: whether images and image taxonomy terms
  * have pages of their own on the site (modules/search), with PhotoPress's
- * templates for them in block themes; and images in search results.
+ * templates for them in block themes; images in search results; and the
+ * page cache and search index.
  */
 const { __, _n, sprintf } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
@@ -20,8 +21,21 @@ import FeatureSection from '../shared/feature-section.js';
 import SwitchRow from '../shared/switch-row.js';
 import JobPanel from '../shared/jobs.js';
 
-// Whether Relevanssi is the site's search, and its index (modules/search).
+// Whether Relevanssi is the site's search, and its index; the page cache
+// plugin, and whether PhotoPress clears its pages (modules/search).
 const RELEVANSSI = window.photopressRelevanssi || { active: false };
+const PAGE_CACHE = window.photopressPageCache || { plugin: '', purges: false };
+
+/** The page cache in use, and whether PhotoPress clears its pages. */
+function pageCache() {
+	if ( PAGE_CACHE.purges ) {
+		return sprintf( __( 'Pages are cached by %s. PhotoPress clears the pages of images and image taxonomy terms when they change.' ), PAGE_CACHE.plugin );
+	}
+
+	return PAGE_CACHE.plugin
+		? sprintf( __( 'Pages are cached by %s. PhotoPress doesn’t clear its pages; they are refreshed as its settings say.' ), PAGE_CACHE.plugin )
+		: __( 'No page cache plugin is active.' );
+}
 
 class SearchSettings extends Component {
 	constructor() {
@@ -105,21 +119,37 @@ class SearchSettings extends Component {
 						checked={ this.getSetting( 'posts_in_search' ) }
 						onChange={ ( value ) => this.persistSetting( 'posts_in_search', value ) }
 					/>
-					{ RELEVANSSI.active && (
+				</FeatureSection>
+
+				<FeatureSection
+					title={ __( 'Page cache and search index' ) }
+					className="photopress-search-cache"
+					description={ pageCache() }
+					info={ PAGE_CACHE.purges && [
+						<p key="0">{ __( 'Proxy Cache Purge clears a post’s pages when the post is saved, but not an image’s, or a term’s. PhotoPress clears an image’s page when the image is edited or deleted or its terms change, while attachment pages are on, and every page of a term’s archive when its images change or it is renamed, while image taxonomy pages are on.' ) }</p>,
+					] }
+				>
+					{ RELEVANSSI.active ? (
 						<div className="photopress-search-relevanssi">
-							<p className="components-base-control__help">
+							<p>
 								{ RELEVANSSI.images
 									? sprintf( _n( 'Relevanssi is the site’s search; its index has %s image.', 'Relevanssi is the site’s search; its index has %s images.', RELEVANSSI.images ), RELEVANSSI.images.toLocaleString() )
-									: __( 'Relevanssi is the site’s search, and its index has no images yet. They are added when images are turned on here.' ) }
+									: __( 'Relevanssi is the site’s search, and its index has no images yet.' ) }
 							</p>
 							<JobPanel
 								type="search.index"
 								label={ __( 'Adding images to the search index' ) }
 								compact
-								startLabel={ __( 'Index images' ) }
+								startable={ !! this.getSetting( 'images_in_search' ) }
+								startLabel={ __( 'Re-index all images' ) }
 								refresh={ this.state.settings.images_in_search }
 							/>
+							{ ! this.getSetting( 'images_in_search' ) && (
+								<p className="components-base-control__help">{ __( 'Turn on Images in search results to add images to the index.' ) }</p>
+							) }
 						</div>
+					) : (
+						<p>{ __( 'The site’s search is WordPress’s own, which keeps no index.' ) }</p>
 					) }
 				</FeatureSection>
 			</Fragment>

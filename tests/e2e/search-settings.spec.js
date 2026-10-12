@@ -117,3 +117,31 @@ test( 'image taxonomy pages off: no keyword archive, terms shown unlinked, and t
 	await expect.poll( () => settings()?.taxonomy_pages, { timeout: 15000 } ).toBe( true );
 	expect( ( await page.goto( archive ) ).status() ).toBe( 200 );
 } );
+
+test( 'the page cache and search index card: the cache in use, and Relevanssi\'s index with Re-index all images', async ( { page } ) => {
+	const status = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( [
+		'cache'      => \\PhotoPress\\modules\\search\\PageCache::plugin(),
+		'relevanssi' => \\PhotoPress\\modules\\search\\ImageSearch::relevanssi(),
+		'images'     => \\PhotoPress\\modules\\search\\search::enabled( 'images_in_search', false ),
+	] );` ) ) );
+
+	await page.goto( URL );
+	const card = page.locator( '.photopress-search-cache' );
+	await expect( card.getByRole( 'heading', { name: 'Page cache and search index' } ) ).toBeVisible( { timeout: 30000 } );
+	await expect( card.getByRole( 'checkbox' ) ).toHaveCount( 0 );
+	await expect( card ).toContainText( status.cache ? `Pages are cached by ${ status.cache }.` : 'No page cache plugin is active.' );
+
+	if ( ! status.relevanssi ) {
+		await expect( card ).toContainText( 'The site’s search is WordPress’s own, which keeps no index.' );
+		return;
+	}
+
+	await expect( card ).toContainText( /Relevanssi is the site’s search(; its index has [\d,]+ images?\.|, and its index has no images yet\.)/ );
+	const reindex = card.getByRole( 'button', { name: 'Re-index all images' } );
+	if ( status.images ) {
+		await expect( reindex ).toBeEnabled();
+	} else {
+		await expect( reindex ).toHaveCount( 0 );
+		await expect( card ).toContainText( 'Turn on Images in search results to add images to the index.' );
+	}
+} );

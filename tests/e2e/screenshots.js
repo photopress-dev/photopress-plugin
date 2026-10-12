@@ -371,7 +371,7 @@ test.describe( 'settings', () => {
 
 		test( 'screenshot-18: the Pages & Search tab', async ( { page } ) => {
 			const content = await tab( page, 'Pages & Search' );
-			await expect( feature( page, 'Image taxonomy pages' ) ).toBeVisible( { timeout: 30000 } );
+			await expect( feature( page, 'Page cache and search index' ) ).toBeVisible( { timeout: 30000 } );
 			await content.screenshot( { path: path.join( OUT, 'screenshot-18.png' ) } );
 		} );
 

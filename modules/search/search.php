@@ -49,7 +49,9 @@ class search extends photopress_module {
 		add_filter( 'pre_option_wp_attachment_pages_enabled', [ self::class, 'attachmentPagesOption' ] );
 
 		ImageSearch::addHooks();
-		add_action( 'admin_enqueue_scripts', [ self::class, 'shareRelevanssiStatus' ], 20 );
+		PageCache::addHooks();
+		RenamedTerms::addHooks();
+		add_action( 'admin_enqueue_scripts', [ self::class, 'shareStatus' ], 20 );
 
 		if ( ! self::enabled( 'attachment_pages' ) ) {
 			add_filter( 'attachment_link', [ self::class, 'linkToFile' ], 10, 2 );
@@ -75,22 +77,25 @@ class search extends photopress_module {
 	}
 
 	/**
-	 * admin_enqueue_scripts: for the settings page, whether Relevanssi is the
+	 * admin_enqueue_scripts: for the settings page, the page cache plugin
+	 * and whether PhotoPress clears its pages; whether Relevanssi is the
 	 * site's search and how many images its index has.
 	 */
-	public static function shareRelevanssiStatus() {
+	public static function shareStatus() {
 
 		if ( ! wp_script_is( 'photopress-options-script', 'registered' ) && ! wp_script_is( 'photopress-options-script', 'enqueued' ) ) {
 			return;
 		}
 
-		$status = [ 'active' => ImageSearch::relevanssi() ];
+		$relevanssi = [ 'active' => ImageSearch::relevanssi() ];
 
-		if ( $status['active'] ) {
-			$status['images'] = ImageSearch::indexedImages();
+		if ( $relevanssi['active'] ) {
+			$relevanssi['images'] = ImageSearch::indexedImages();
 		}
 
-		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $status ) . ';', 'before' );
+		$cache = [ 'plugin' => PageCache::plugin(), 'purges' => PageCache::purges() ];
+
+		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );
 	}
 
 	public function registerOptions() {

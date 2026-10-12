@@ -2,7 +2,8 @@
  * A feature on a settings page, as a card: its name, with an info button at
  * the right for a longer explanation; a larger switch at the left with a
  * sentence saying what it does; and, when it is on, its settings below, if
- * it has any.
+ * it has any. Without onChange, a card with no switch: the sentence, and its
+ * settings always.
  */
 import { useState } from '@wordpress/element';
 import { Button, FormToggle } from '@wordpress/components';
@@ -32,19 +33,23 @@ export default function FeatureSection( { title, description, info, checked, onC
 
 			{ info && open && <div id={ id + '-info' } className="photopress-feature__info">{ info }</div> }
 
-			<div className="photopress-feature__switch">
-				<FormToggle
-					id={ id }
-					checked={ !! checked }
-					disabled={ disabled }
-					aria-label={ title }
-					aria-describedby={ id + '-description' }
-					onChange={ ( event ) => onChange( event.target.checked ) }
-				/>
-				<label htmlFor={ id } id={ id + '-description' }>{ description }</label>
-			</div>
+			{ onChange ? (
+				<div className="photopress-feature__switch">
+					<FormToggle
+						id={ id }
+						checked={ !! checked }
+						disabled={ disabled }
+						aria-label={ title }
+						aria-describedby={ id + '-description' }
+						onChange={ ( event ) => onChange( event.target.checked ) }
+					/>
+					<label htmlFor={ id } id={ id + '-description' }>{ description }</label>
+				</div>
+			) : (
+				<p className="photopress-feature__description">{ description }</p>
+			) }
 
-			{ checked && children && <div className="photopress-feature__settings">{ children }</div> }
+			{ ( checked || ! onChange ) && children && <div className="photopress-feature__settings">{ children }</div> }
 		</section>
 	);
 }
