@@ -78,7 +78,7 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 * Image archives: a keyword's, a camera's or any image taxonomy's archive page shows its images in the Masonry layout, with links to more pages
 * Image pages: the image, its caption and description, its taxonomy terms and its exposure details
 * Both are edited in the Site Editor, like the theme's own templates, and can be turned off in the Gallery tab
-* Archive Images and Attachment Image blocks, to build your own
+* Taxonomy Gallery, a Gallery block variation in any PhotoPress layout: on an image archive template, the archive's images; anywhere else, the latest images or those of a keyword, camera or other term. And the Attachment Image block
 * An archive of an image taxonomy looks for a taxonomy-attachment template, as themes built on the Frame framework do
 
 = PAGES & SEARCH =
@@ -191,7 +191,8 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   image taxonomy archive pages (off, terms are shown unlinked). Both are on
   by default.
 * Image templates for block themes: image taxonomy archives show their
-  images in the Masonry layout (Archive Images block), and image pages show
+  images in the Masonry layout (Taxonomy Gallery, a Gallery block variation
+  whose layout can be changed), and image pages show
   the image, its caption and description, its terms and its exposure details
   (Attachment Image block). A theme's own taxonomy-attachment or attachment
   template is used instead.

@@ -260,8 +260,8 @@ test( 'screenshot-17: an image taxonomy archive, in the Image Archives template'
 	// The keyword every test image has.
 	const term = lastLine( wp( 'eval', `$t = get_term_by( 'slug', 'fixture', 'photos_keywords' ); echo $t ? wp_make_link_relative( get_term_link( $t ) ) : '';` ) );
 	test.skip( ! term, 'The test images have no fixture keyword.' );
-	const block = await front( page, term, { width: 1100, height: 1400 }, '.wp-block-photopress-archive-images' );
-	await expect( block.locator( 'figure.wp-block-gallery' ) ).toHaveClass( /photopress-laid-out/ );
+	const block = await front( page, term, { width: 1100, height: 1400 }, 'main figure.wp-block-gallery' );
+	await expect( block ).toHaveClass( /photopress-laid-out/ );
 	// From the archive's title.
 	const heading = page.locator( '.wp-block-query-title' ).first();
 	await heading.evaluate( ( el ) => window.scrollBy( 0, el.getBoundingClientRect().top - 20 ) );
