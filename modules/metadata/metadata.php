@@ -132,13 +132,12 @@ class metadata extends photopress_module {
 			 * part of the Post's meta data.
 			 */
 			//add_filter('wp_generate_attachment_metadata', 'papt_storeNewMeta',1,2);
-			
-			add_action('enable-media-replace-upload-done', [ $this, 'updateAttachment' ], 1, 2 );
 
 			/**
-			 * Handler for when PhotoPress gives an image a new file (see
-			 * MediaRest): its terms and alt text come from the new file,
-			 * unless the client asked for them to be left alone.
+			 * Handler for when an image is given a new file (MediaRest, or
+			 * Enable Media Replace through EnableMediaReplace): its terms and
+			 * alt text come from the new file, unless the client asked for
+			 * them to be left alone.
 			 */
 			add_action( 'photopress_attachment_file_replaced', [ $this, 'fileReplaced' ], 10, 4 );
 						
@@ -1341,15 +1340,6 @@ class metadata extends photopress_module {
 			return;
 		}
 		
-		$this->addAttachment( $id );
-	}
-	
-	/**
-	 * Handler for updating the image meta when the file is replaced
-	 */
-	public function updateAttachment( $url ) {
-		
-		$id = attachment_url_to_postid( $url );
 		$this->addAttachment( $id );
 	}
 	

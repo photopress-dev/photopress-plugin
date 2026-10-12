@@ -104,6 +104,7 @@ With WP Offload Media installed, the Offload Media settings tab shows:
 * How long browsers and the CDN cache offloaded images, 1 day by default
 * A replaced image cleared from CloudFront a few seconds later, so the new one shows, and a button to clear the whole CDN
 * An option to delete a replaced image's old files from cloud storage
+* An image replaced with Enable Media Replace is treated as one replaced in PhotoPress: its terms and alt text read from the new file, cleared from CloudFront, and purged from the page cache with the posts that show it
 
 == Frequently Asked Questions ==
 
@@ -214,6 +215,9 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   images, the whole cache emptied. A post whose gallery gains or loses an
   image, and a replaced image with its files and the posts that show it,
   are purged too.
+* Enable Media Replace: an image it replaces is treated as one replaced in
+  PhotoPress (its terms and alt text read from the new file, CloudFront,
+  the page cache), through its enable-media-replace-upload-done action.
 * Image templates for block themes: image taxonomy archives show their
   images in the Masonry layout (Taxonomy Gallery, a Gallery block variation
   whose layout can be changed), and image pages show

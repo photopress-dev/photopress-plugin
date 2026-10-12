@@ -1,8 +1,9 @@
 /**
  * The page cache, through Proxy Cache Purge: what it purges, and Varnish
  * lets through, as an image is given a term, edited, its term renamed and
- * deleted, attached to a page with a dynamic gallery, and deleted, taking it
- * out of a page's static gallery too.
+ * deleted, attached to a page with a dynamic gallery, replaced by Enable
+ * Media Replace (when active; else its hook is fired), and deleted, taking it out of a
+ * page's static gallery too.
  *
  * Each step is a request of its own, at whose end Proxy Cache Purge sends
  * its purges, as it would on the site. Each must reach Varnish and be
@@ -122,6 +123,33 @@ test( 'an image given a term, edited, its term renamed and deleted, attached to 
 		// The dynamic gallery's page shows it now.
 		const attached = run( `wp_update_post( [ 'ID' => ${ id }, 'post_parent' => ${ pages.dynamic } ] );` );
 		expect( attached.purged ).toContain( pages.dynamicUrl );
+
+		// Replaced by Enable Media Replace, as from its upload screen (or, not
+		// active, its hook fired): announced once as PhotoPress's own, and the
+		// image with its file and the dynamic gallery's page purged.
+		const replaced = run( `
+			$out['announced'] = 0;
+			add_action( 'photopress_attachment_file_replaced', function () use ( &$out ) { $out['announced']++; } );
+			$out['page'] = wp_make_link_relative( get_permalink( ${ id } ) );
+			$emr = '\\EnableMediaReplace\\Controller\\ReplaceController';
+			$out['emr'] = class_exists( $emr );
+			if ( $out['emr'] ) {
+				$tmp = wp_tempnam( 'pp-e2e-emr' );
+				copy( ${ JSON.stringify( path.join( __dirname, '../fixtures/images' ) ) } . '/01-portrait-2x3.jpg', $tmp );
+				$replace = new $emr( ${ id } );
+				$replace->setupParams( [ 'post_id' => ${ id }, 'replace_type' => 'replace', 'timestamp_replace' => $emr::TIME_UPDATEMODIFIED, 'new_date' => current_time( 'mysql' ), 'new_location' => false, 'location_dir' => null, 'is_custom_date' => false, 'remove_background' => false, 'uploadFile' => $tmp, 'new_filename' => 'pp-e2e-cache.jpg' ] );
+				$out['ran'] = $replace->run();
+			} else {
+				$url = wp_get_attachment_url( ${ id } );
+				do_action( 'enable-media-replace-upload-done', $url, $url, ${ id } );
+			}
+			$out['file'] = wp_make_link_relative( wp_get_attachment_url( ${ id } ) );
+		` );
+		if ( replaced.out.emr ) {
+			expect( replaced.out.ran ).toBe( true );
+		}
+		expect( replaced.out.announced ).toBe( 1 );
+		expect( replaced.purged ).toEqual( expect.arrayContaining( [ replaced.out.page, replaced.out.file, pages.dynamicUrl ] ) );
 
 		// The image by Proxy Cache Purge itself, with images among the
 		// statuses it purges; both pages, out of whose galleries it goes.

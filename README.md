@@ -136,6 +136,7 @@ With [WP Offload Media](https://wordpress.org/plugins/amazon-s3-and-cloudfront/)
 - How long browsers and the CDN cache offloaded images, 1 day by default
 - A replaced image cleared from CloudFront a few seconds later, so the new one shows, and a button to clear the whole CDN
 - An option to delete a replaced image's old files from cloud storage
+- An image replaced with Enable Media Replace is treated as one replaced in PhotoPress: its terms and alt text read from the new file, cleared from CloudFront, and purged from the page cache with the posts that show it
 
 ![The Offload Media tab](.wordpress-org/screenshot-15.png)
 

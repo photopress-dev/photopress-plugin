@@ -548,7 +548,7 @@ class MediaRest {
 	 *
 	 * @return int[]
 	 */
-	protected static function postsShowing( $id, $stem ) {
+	public static function postsShowing( $id, $stem ) {
 
 		global $wpdb;
 

@@ -32,6 +32,7 @@ class media extends photopress_module {
 
 		MediaRest::addHooks();
 		CdnInvalidator::addHooks();
+		EnableMediaReplace::addHooks();
 
 		add_filter( 'as3cf_object_meta', [ $this, 'setCacheControl' ] );
 		add_action( 'rest_api_init', [ $this, 'registerRoutes' ] );
