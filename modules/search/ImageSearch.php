@@ -35,8 +35,17 @@ class ImageSearch {
 	/** The job that adds every image to Relevanssi's index. */
 	const JOB = 'search.index';
 
+	/** The job that indexes again the images of renamed terms. */
+	const TERM_JOB = 'search.term';
+
+	/** Renamed terms waiting for the term job running to finish. */
+	const RENAMED = 'photopress_search_renamed_terms';
+
 	/** Images whose terms changed in this request, to index again. */
 	private static $changed = [];
+
+	/** Term names before an edit, by term_taxonomy_id. */
+	private static $names = [];
 
 	public static function addHooks() {
 
@@ -70,6 +79,8 @@ class ImageSearch {
 		add_filter( 'relevanssi_index_custom_fields', [ self::class, 'relevanssiAltText' ], 10, 2 );
 		add_filter( 'relevanssi_hits_filter', [ self::class, 'relevanssiOnlyImages' ], 10, 2 );
 		add_action( 'set_object_terms', [ self::class, 'termsChanged' ], 10, 4 );
+		add_action( 'edit_terms', [ self::class, 'termEditing' ], 10, 2 );
+		add_action( 'edited_term', [ self::class, 'termEdited' ], 10, 3 );
 
 		if ( self::relevanssi() ) {
 
@@ -81,6 +92,18 @@ class ImageSearch {
 				'process'     => [ self::class, 'indexImage' ],
 				// Indexing writes to the database: a few at a time, resting
 				// between batches, and not while the server is busy.
+				'batch_seconds' => 10,
+				'batch_items'   => 25,
+				'pace'          => true,
+			] );
+
+			Jobs::register( self::TERM_JOB, [
+				'label'         => __( 'Index the images of renamed terms', 'photopress' ),
+				'description'   => __( 'Indexes again in Relevanssi the images of image taxonomy terms that were renamed.', 'photopress' ),
+				'count'         => [ self::class, 'countTermImages' ],
+				'items'         => [ self::class, 'nextTermImages' ],
+				'process'       => [ self::class, 'indexImage' ],
+				'finish'        => [ self::class, 'startRenamed' ],
 				'batch_seconds' => 10,
 				'batch_items'   => 25,
 				'pace'          => true,
@@ -500,5 +523,116 @@ class ImageSearch {
 		foreach ( $ids as $id ) {
 			relevanssi_index_doc( $id, true, relevanssi_get_custom_fields(), true );
 		}
+	}
+
+	/** edit_terms: a term's name before it is saved. */
+	public static function termEditing( $term_id, $taxonomy ) {
+
+		if ( ! self::relevanssi() || ! in_array( $taxonomy, self::taxonomies(), true ) ) {
+			return;
+		}
+
+		$term = get_term( (int) $term_id, $taxonomy );
+
+		if ( $term && ! is_wp_error( $term ) ) {
+			self::$names[ (int) $term->term_taxonomy_id ] = $term->name;
+		}
+	}
+
+	/**
+	 * edited_term: Relevanssi indexes an image's term names, and leaves them
+	 * as they were when a term is renamed. Its images are indexed again: a
+	 * few at the end of the request, more in a job.
+	 */
+	public static function termEdited( $term_id, $tt_id, $taxonomy ) {
+
+		$tt_id = (int) $tt_id;
+
+		if ( ! isset( self::$names[ $tt_id ] ) ) {
+			return;
+		}
+
+		$before = self::$names[ $tt_id ];
+		unset( self::$names[ $tt_id ] );
+		$term = get_term( (int) $term_id, $taxonomy );
+
+		if ( ! $term || is_wp_error( $term ) || $term->name === $before || ! self::imagesOn() || ! function_exists( 'relevanssi_index_doc' ) ) {
+			return;
+		}
+
+		$ids = self::nextTermImages( null, 26, [ 'terms' => [ $tt_id ] ] );
+
+		if ( count( $ids ) <= 25 ) {
+
+			if ( $ids && ! self::$changed ) {
+				add_action( 'shutdown', [ self::class, 'indexChanged' ] );
+			}
+
+			foreach ( $ids as $id ) {
+				self::$changed[ $id ] = true;
+			}
+
+			return;
+		}
+
+		self::startTermJob( [ $tt_id ] );
+	}
+
+	/** The term job for these terms, or, while one runs, these terms after it. */
+	public static function startTermJob( array $tt_ids ) {
+
+		$job = Jobs::start( self::TERM_JOB, [ 'terms' => $tt_ids ] );
+
+		if ( is_wp_error( $job ) ) {
+			$waiting = array_map( 'intval', (array) get_option( self::RENAMED, [] ) );
+			update_option( self::RENAMED, array_values( array_unique( array_merge( $waiting, $tt_ids ) ) ), false );
+		}
+	}
+
+	/** The term job's finish: the terms renamed while it ran. */
+	public static function startRenamed() {
+
+		$waiting = array_map( 'intval', (array) get_option( self::RENAMED, [] ) );
+		delete_option( self::RENAMED );
+
+		if ( $waiting ) {
+			self::startTermJob( $waiting );
+		}
+	}
+
+	/** The term job's count: the images of its terms. */
+	public static function countTermImages( $args ) {
+
+		global $wpdb;
+
+		$in = self::termIn( $args );
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integers.
+		return $in ? (int) $wpdb->get_var( "SELECT COUNT( DISTINCT p.ID ) FROM {$wpdb->posts} p JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID WHERE tr.term_taxonomy_id IN ( {$in} ) AND p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%'" ) : 0;
+	}
+
+	/** The term job's items: the next images of its terms by ID. @return int[] */
+	public static function nextTermImages( $after, $limit, $args ) {
+
+		global $wpdb;
+
+		$in = self::termIn( $args );
+
+		if ( ! $in ) {
+			return [];
+		}
+
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- integers.
+		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+			"SELECT DISTINCT p.ID FROM {$wpdb->posts} p JOIN {$wpdb->term_relationships} tr ON tr.object_id = p.ID WHERE tr.term_taxonomy_id IN ( {$in} ) AND p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%%' AND p.ID > %d ORDER BY p.ID ASC LIMIT %d",
+			(int) $after,
+			(int) $limit
+		) ) );
+	}
+
+	/** The term job's terms, for IN (). */
+	private static function termIn( $args ) {
+
+		return implode( ',', array_filter( array_map( 'intval', (array) ( $args['terms'] ?? [] ) ) ) );
 	}
 }

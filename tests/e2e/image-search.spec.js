@@ -157,7 +157,7 @@ test( 'with core\'s search: public images by their terms and alt text, and posts
 	await expect( page.locator( 'body' ) ).toContainText( `PP E2E post about ${ WORD }` );
 } );
 
-test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change', async ( { page } ) => {
+test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change and are renamed', async ( { page } ) => {
 	relevanssi( true );
 	setSearch( { images_in_search: null } );
 	setSearch( { images_in_search: true, posts_in_search: null } );
@@ -187,5 +187,13 @@ test( 'with Relevanssi: its index has images and their terms, kept up to date as
 	wp( 'eval', `wp_set_object_terms( ${ byAlt }, '${ later }', 'photos_keywords', true );` );
 	await page.goto( `/?s=${ later }` );
 	await expect( gallery( page ).locator( `img.wp-image-${ byAlt }` ) ).toHaveCount( 1 );
-	wp( 'eval', `$t = get_term_by( 'name', '${ later }', 'photos_keywords' ); if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); }` );
+
+	// The term renamed: its images found by the new name, not the old.
+	const renamed = `${ WORD }renamed`;
+	wp( 'eval', `$t = get_term_by( 'name', '${ later }', 'photos_keywords' ); wp_update_term( $t->term_id, 'photos_keywords', [ 'name' => '${ renamed }' ] );` );
+	await page.goto( `/?s=${ renamed }` );
+	await expect( gallery( page ).locator( `img.wp-image-${ byAlt }` ) ).toHaveCount( 1 );
+	await page.goto( `/?s=${ later }` );
+	await expect( gallery( page ) ).toHaveCount( 0 );
+	wp( 'eval', `$t = get_term_by( 'name', '${ renamed }', 'photos_keywords' ); if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); }` );
 } );
