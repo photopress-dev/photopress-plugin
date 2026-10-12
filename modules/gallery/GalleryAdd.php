@@ -64,6 +64,29 @@ class GalleryAdd {
 		add_filter( 'rest_request_after_callbacks', [ self::class, 'addPending' ], 10, 3 );
 		add_action( 'add_attachment', [ self::class, 'attachmentAdded' ] );
 		add_action( 'attachment_updated', [ self::class, 'attachmentUpdated' ], 10, 3 );
+		add_filter( 'photopress_replace_file_args', [ self::class, 'replaceFileArgs' ] );
+		add_filter( 'photopress_replace_file_response', [ self::class, 'fileReplaced' ], 10, 3 );
+	}
+
+	/** photopress_replace_file_args: a gallery to add the image to, too. */
+	public static function replaceFileArgs( $args ) {
+
+		$args[ self::FIELD ] = self::schema()['arg_options'] + array_diff_key( self::schema(), [ 'arg_options' => 1, 'context' => 1 ] );
+
+		return $args;
+	}
+
+	/**
+	 * photopress_replace_file_response: the image added to the gallery the
+	 * request named, never by attaching it (it is published), and the result.
+	 */
+	public static function fileReplaced( $data, $id, $request ) {
+
+		if ( ! empty( $request[ self::FIELD ] ) ) {
+			$data[ self::FIELD ] = self::add( (int) $id, $request[ self::FIELD ], false );
+		}
+
+		return $data;
 	}
 
 	/**

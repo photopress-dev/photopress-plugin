@@ -2,7 +2,6 @@
 
 namespace PhotoPress\modules\media;
 
-use PhotoPress\modules\gallery\GalleryAdd;
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -82,7 +81,14 @@ class MediaRest {
 			'methods'             => WP_REST_Server::CREATABLE,
 			'callback'            => [ self::class, 'replaceFile' ],
 			'permission_callback' => [ self::class, 'canReplace' ],
-			'args'                => [
+			/**
+			 * Filters the arguments of the route that replaces an image's
+			 * file, for a module to add its own (the gallery module: an
+			 * image's gallery).
+			 *
+			 * @param array $args register_rest_route() arguments, by name.
+			 */
+			'args'                => apply_filters( 'photopress_replace_file_args', [
 				'id'                => [
 					'type' => 'integer',
 				],
@@ -101,8 +107,7 @@ class MediaRest {
 					'type'        => 'boolean',
 					'default'     => false,
 				],
-				GalleryAdd::FIELD   => GalleryAdd::schema()['arg_options'] + array_diff_key( GalleryAdd::schema(), [ 'arg_options' => 1, 'context' => 1 ] ),
-			],
+			] ),
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/media/limits', [
@@ -374,9 +379,6 @@ class MediaRest {
 			do_action( 'photopress_post_changed', (int) $post_id, [] );
 		}
 
-		// The gallery, when asked. Never by attaching: the image is published.
-		$gallery = ! empty( $request[ GalleryAdd::FIELD ] ) ? GalleryAdd::add( $id, $request[ GalleryAdd::FIELD ], false ) : null;
-
 		// The image as core returns it, plus what changed.
 		$get = new WP_REST_Request( 'GET', '/wp/v2/media/' . $id );
 		$get->set_param( 'context', 'edit' );
@@ -395,11 +397,16 @@ class MediaRest {
 			'embedded_synced'      => $synced,
 		];
 
-		if ( null !== $gallery ) {
-			$data[ GalleryAdd::FIELD ] = $gallery;
-		}
-
-		$response->set_data( $data );
+		/**
+		 * Filters the response once an image's file was replaced, for a
+		 * module to act on its own arguments and say what it did (the
+		 * gallery module: the image added to a gallery).
+		 *
+		 * @param array           $data    The image as core returns it, with photopress_replaced.
+		 * @param int             $id      Attachment ID.
+		 * @param WP_REST_Request $request The replace request.
+		 */
+		$response->set_data( apply_filters( 'photopress_replace_file_response', $data, $id, $request ) );
 
 		return $response;
 	}
