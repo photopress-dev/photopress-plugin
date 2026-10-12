@@ -64,6 +64,29 @@ class GalleryAdd {
 		add_filter( 'rest_request_after_callbacks', [ self::class, 'addPending' ], 10, 3 );
 		add_action( 'add_attachment', [ self::class, 'attachmentAdded' ] );
 		add_action( 'attachment_updated', [ self::class, 'attachmentUpdated' ], 10, 3 );
+		add_filter( 'photopress_replace_file_args', [ self::class, 'replaceFileArgs' ] );
+		add_filter( 'photopress_replace_file_response', [ self::class, 'fileReplaced' ], 10, 3 );
+	}
+
+	/** photopress_replace_file_args: a gallery to add the image to, too. */
+	public static function replaceFileArgs( $args ) {
+
+		$args[ self::FIELD ] = self::schema()['arg_options'] + array_diff_key( self::schema(), [ 'arg_options' => 1, 'context' => 1 ] );
+
+		return $args;
+	}
+
+	/**
+	 * photopress_replace_file_response: the image added to the gallery the
+	 * request named, never by attaching it (it is published), and the result.
+	 */
+	public static function fileReplaced( $data, $id, $request ) {
+
+		if ( ! empty( $request[ self::FIELD ] ) ) {
+			$data[ self::FIELD ] = self::add( (int) $id, $request[ self::FIELD ], false );
+		}
+
+		return $data;
 	}
 
 	/**
@@ -463,22 +486,35 @@ class GalleryAdd {
 			}
 		}
 
-		// The gallery's own markup before, between and after its inner blocks.
-		$content   = $added['innerContent'];
+		return self::withInnerBlocks( $added, $inner );
+	}
+
+	/**
+	 * The gallery with these inner blocks, in its own markup before, between
+	 * and after them.
+	 */
+	public static function withInnerBlocks( array $gallery, array $inner ) {
+
+		$content   = $gallery['innerContent'];
 		$nulls     = array_keys( $content, null, true );
-		$separator = implode( '', array_slice( $content, $nulls[0] + 1, $nulls[1] - $nulls[0] - 1 ) );
+
+		if ( ! $nulls ) {
+			return $gallery;
+		}
+
+		$separator = count( $nulls ) > 1 ? implode( '', array_slice( $content, $nulls[0] + 1, $nulls[1] - $nulls[0] - 1 ) ) : "\n\n";
 		$markup    = [ implode( '', array_slice( $content, 0, $nulls[0] ) ) ];
 
-		foreach ( $inner as $index => $block ) {
+		foreach ( array_values( $inner ) as $index => $block ) {
 			array_push( $markup, ...( $index ? [ $separator, null ] : [ null ] ) );
 		}
 
 		$markup[] = implode( '', array_slice( $content, end( $nulls ) + 1 ) );
 
-		$added['innerBlocks']  = $inner;
-		$added['innerContent'] = $markup;
+		$gallery['innerBlocks']  = array_values( $inner );
+		$gallery['innerContent'] = $markup;
 
-		return $added;
+		return $gallery;
 	}
 
 	/**
@@ -677,29 +713,64 @@ class GalleryAdd {
 	 */
 	public static function attachmentAdded( $id ) {
 
+		if ( ! wp_attachment_is_image( $id ) ) {
+			return;
+		}
+
 		$parent = (int) get_post_field( 'post_parent', $id );
 
 		if ( $parent && self::hasDynamicGallery( $parent ) ) {
-			MediaRest::announceEdit( $parent );
+			self::postChanged( $parent );
 		}
 	}
 
 	/**
 	 * attachment_updated: an image attached to, moved between or detached
-	 * from posts with dynamic galleries.
+	 * from posts with dynamic galleries, or given another date or title,
+	 * by which a dynamic gallery orders its images.
 	 */
 	public static function attachmentUpdated( $id, $after, $before ) {
 
-		if ( (int) $after->post_parent === (int) $before->post_parent ) {
+		if ( ! wp_attachment_is_image( $id ) ) {
 			return;
 		}
 
-		foreach ( [ (int) $before->post_parent, (int) $after->post_parent ] as $parent ) {
+		if ( (int) $after->post_parent !== (int) $before->post_parent ) {
+			$parents = [ (int) $before->post_parent, (int) $after->post_parent ];
+		} elseif ( $after->post_date !== $before->post_date || $after->post_title !== $before->post_title ) {
+			$parents = [ (int) $after->post_parent ];
+		} else {
+			return;
+		}
+
+		foreach ( $parents as $parent ) {
 
 			if ( $parent && self::hasDynamicGallery( $parent ) ) {
-				MediaRest::announceEdit( $parent );
+				self::postChanged( $parent );
 			}
 		}
+	}
+
+	/**
+	 * Announces that what a post shows changed, though it was not saved: its
+	 * dynamic gallery gained or lost an image, or shows them in another order.
+	 */
+	public static function postChanged( $post_id ) {
+
+		/**
+		 * Fires when what a post or image shows changed, though WordPress did
+		 * not save it as an edit, for what keeps copies of it, such as a page
+		 * cache or a search index.
+		 *
+		 * @param int   $id      Post or attachment ID.
+		 * @param array $context files: URLs of its files that changed.
+		 *                       content: true when its stored content was
+		 *                       rewritten in place.
+		 *                       gallery: true when the images its gallery
+		 *                       shows changed (one gained, lost, reordered
+		 *                       or replaced).
+		 */
+		do_action( 'photopress_post_changed', (int) $post_id, [ 'gallery' => true ] );
 	}
 
 	public static function hasDynamicGallery( $post_id ) {

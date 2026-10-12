@@ -1,0 +1,23 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "photopress/search-posts",
+	"title": "Search Posts",
+	"category": "theme",
+	"description": "On a search with images, the posts and pages found, a few, with a link to all of them; and a note when nothing was found.",
+	"keywords": [ "photopress", "search", "results", "posts" ],
+	"textdomain": "photopress",
+	"attributes": {
+		"showHeading": { "type": "boolean", "default": true },
+		"heading": { "type": "string", "default": "Posts and pages" },
+		"count": { "type": "number", "default": 5 }
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"spacing": { "margin": true, "padding": true },
+		"typography": { "fontSize": true }
+	},
+	"editorScript": "photopress-editor",
+	"style": "photopress-frontend"
+}

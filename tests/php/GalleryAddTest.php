@@ -233,7 +233,13 @@ final class GalleryAddTest extends TestCase {
 		$gallery = self::blocks( '<!-- wp:gallery {"dynamicContent":{"source":"core/attached-media"}} /-->' )[0];
 
 		// block_core_gallery_resolve_dynamic_source() is not loaded here, as on
-		// WordPress before 7.1.
+		// WordPress before 7.1 -- unless a test before this one stubbed it,
+		// which leaves it defined: then it finds nothing, as WordPress would
+		// for a post with no images.
+		if ( function_exists( 'block_core_gallery_resolve_dynamic_source' ) ) {
+			Functions\when( 'block_core_gallery_resolve_dynamic_source' )->justReturn( [] );
+		}
+
 		$this->assertSame( [], GallerySlideshow::imageIds( $gallery, 5 ) );
 	}
 }

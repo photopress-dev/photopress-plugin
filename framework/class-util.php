@@ -74,6 +74,31 @@ class photopress_util {
 	
 	
 	/**
+	 * A plugin "active", "inactive" (installed) or "missing", by whether it
+	 * is running and the folders it is installed in.
+	 */
+	public static function pluginState( $active, array $folders ) {
+
+		if ( $active ) {
+			return 'active';
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		foreach ( array_keys( get_plugins() ) as $file ) {
+			foreach ( $folders as $folder ) {
+				if ( 0 === strpos( $file, $folder ) ) {
+					return 'inactive';
+				}
+			}
+		}
+
+		return 'missing';
+	}
+
+	/**
 	 * Outputs Localized String
 	 *
 	 */

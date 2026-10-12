@@ -2,7 +2,6 @@
 
 namespace PhotoPress\modules\media;
 
-use PhotoPress\modules\gallery\GalleryAdd;
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -34,11 +33,11 @@ use WP_REST_Server;
  * files are deleted and stored links to them are rewritten. Title and caption
  * follow the new file as on upload.
  *
- * Caches: each step fires the hooks WordPress fires for an edit, so page cache
- * plugins purge the pages concerned. Offload Media re-uploads the files to the
- * same keys when the metadata is saved; the cache lifetime it gives files is
- * set by MediaOffload. _photopress_replaced_at records when, for a CDN
- * invalidation.
+ * Caches and the search index: the image, with its files, and the posts
+ * that changed or show it are announced with photopress_post_changed.
+ * Offload Media re-uploads the files to the same keys when the metadata is
+ * saved; the cache lifetime it gives files is set by the media module.
+ * _photopress_replaced_at records when, for a CDN invalidation.
  */
 class MediaRest {
 
@@ -82,7 +81,14 @@ class MediaRest {
 			'methods'             => WP_REST_Server::CREATABLE,
 			'callback'            => [ self::class, 'replaceFile' ],
 			'permission_callback' => [ self::class, 'canReplace' ],
-			'args'                => [
+			/**
+			 * Filters the arguments of the route that replaces an image's
+			 * file, for a module to add its own (the gallery module: an
+			 * image's gallery).
+			 *
+			 * @param array $args register_rest_route() arguments, by name.
+			 */
+			'args'                => apply_filters( 'photopress_replace_file_args', [
 				'id'                => [
 					'type' => 'integer',
 				],
@@ -101,8 +107,7 @@ class MediaRest {
 					'type'        => 'boolean',
 					'default'     => false,
 				],
-				GalleryAdd::FIELD   => GalleryAdd::schema()['arg_options'] + array_diff_key( GalleryAdd::schema(), [ 'arg_options' => 1, 'context' => 1 ] ),
-			],
+			] ),
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/media/limits', [
@@ -259,10 +264,6 @@ class MediaRest {
 			return new WP_Error( 'rest_upload_invalid_image', __( 'The file is not an image this site can display.' ), [ 'status' => 400 ] );
 		}
 
-		// Page caches: the image's pages as they are now, before its terms
-		// can change, so that a term it loses is purged too.
-		self::announceEdit( $id );
-
 		// 4. Into place: over the original when the type is the same, in one
 		// step, so its URL never misses a file.
 		if ( ! @rename( $saved['file'], $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
@@ -279,9 +280,7 @@ class MediaRest {
 		// 5. The sizes, and -scaled for large images, over the old ones where
 		// the names are the same. WordPress saves the metadata as it goes;
 		// Offload Media waits for the finished set, then uploads it.
-		add_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
-		$new_meta = wp_generate_attachment_metadata( $id, $target );
-		remove_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
+		$new_meta = OffloadMedia::withUploadHeld( static fn() => wp_generate_attachment_metadata( $id, $target ) );
 
 		wp_update_attachment_metadata( $id, $new_meta );
 		clean_attachment_cache( $id );
@@ -352,8 +351,8 @@ class MediaRest {
 
 		update_post_meta( $id, self::REPLACED_AT_META_KEY, time() );
 
-		// Page caches: the image's pages again, its files, and the posts that
-		// changed or show text that changed.
+		// What changed, for page caches: the image with its files, and the
+		// posts that changed or show text that changed.
 		$file_urls = [];
 		$baseurl = wp_get_upload_dir()['baseurl'];
 
@@ -364,15 +363,26 @@ class MediaRest {
 		// Its parent post too: a dynamic gallery there shows the image without
 		// a link to it in the content.
 		$parent = (int) get_post_field( 'post_parent', $id );
-		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] );
-		self::announceEdit( $id, $file_urls );
+		$rewritten_in_place = array_unique( array_merge( $rewritten, $synced ) );
+		$showing = array_diff( array_unique( $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [] ), $rewritten_in_place, [ $parent ] );
 
-		foreach ( array_unique( $posts ) as $post_id ) {
-			self::announceEdit( (int) $post_id );
+		/** This action is documented in modules/gallery/GalleryAdd.php */
+		do_action( 'photopress_post_changed', $id, [ 'files' => $file_urls ] );
+
+		foreach ( $rewritten_in_place as $post_id ) {
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', (int) $post_id, [ 'content' => true ] );
 		}
 
-		// The gallery, when asked. Never by attaching: the image is published.
-		$gallery = ! empty( $request[ GalleryAdd::FIELD ] ) ? GalleryAdd::add( $id, $request[ GalleryAdd::FIELD ], false ) : null;
+		foreach ( $showing as $post_id ) {
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', (int) $post_id, [] );
+		}
+
+		if ( $parent ) {
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', $parent, [ 'gallery' => true, 'content' => in_array( $parent, $rewritten_in_place, true ) ] );
+		}
 
 		// The image as core returns it, plus what changed.
 		$get = new WP_REST_Request( 'GET', '/wp/v2/media/' . $id );
@@ -392,47 +402,18 @@ class MediaRest {
 			'embedded_synced'      => $synced,
 		];
 
-		if ( null !== $gallery ) {
-			$data[ GalleryAdd::FIELD ] = $gallery;
-		}
-
-		$response->set_data( $data );
+		/**
+		 * Filters the response once an image's file was replaced, for a
+		 * module to act on its own arguments and say what it did (the
+		 * gallery module: the image added to a gallery).
+		 *
+		 * @param array           $data    The image as core returns it, with photopress_replaced.
+		 * @param int             $id      Attachment ID.
+		 * @param WP_REST_Request $request The replace request.
+		 */
+		$response->set_data( apply_filters( 'photopress_replace_file_response', $data, $id, $request ) );
 
 		return $response;
-	}
-
-	/**
-	 * Fires edit_post for a post, as WordPress does when one is edited, so
-	 * page cache plugins purge its pages; nothing is saved. WordPress does
-	 * not fire it for attachments itself, so their pages would not be
-	 * purged otherwise.
-	 *
-	 * @param int      $id    Post ID.
-	 * @param string[] $files URLs of files to purge with it, through Proxy
-	 *                        Cache Purge's vhp_purge_urls filter; other plugins
-	 *                        ignore it.
-	 */
-	public static function announceEdit( $id, array $files = [] ) {
-
-		$post = get_post( $id );
-
-		if ( ! $post ) {
-			return;
-		}
-
-		$add_files = static function ( $urls, $post_id = 0 ) use ( $id, $files ) {
-			return (int) $post_id === (int) $id ? array_merge( (array) $urls, $files ) : $urls;
-		};
-
-		if ( $files ) {
-			add_filter( 'vhp_purge_urls', $add_files, 10, 2 );
-		}
-
-		do_action( 'edit_post', $id, $post );
-
-		if ( $files ) {
-			remove_filter( 'vhp_purge_urls', $add_files, 10 );
-		}
 	}
 
 	/**
@@ -584,7 +565,7 @@ class MediaRest {
 	 *
 	 * @return int[]
 	 */
-	protected static function postsShowing( $id, $stem ) {
+	public static function postsShowing( $id, $stem ) {
 
 		global $wpdb;
 
@@ -653,7 +634,7 @@ class MediaRest {
 	 */
 	public static function attachmentFiles( $file, array $meta ) {
 
-		$full = _wp_relative_upload_path( $file );
+		$full = self::relativeUploadPath( $file );
 		$dir = self::uploadSubdir( $full );
 		$files = [ 'full' => $full ];
 
@@ -934,6 +915,17 @@ class MediaRest {
 		}
 
 		return array_values( array_unique( $updated ) );
+	}
+
+	/**
+	 * "2024/05/photo.jpg" for a file in uploads, given its full path; any
+	 * other path as it is.
+	 */
+	protected static function relativeUploadPath( $path ) {
+
+		$base = rtrim( (string) wp_get_upload_dir()['basedir'], '/' );
+
+		return '' !== $base && str_starts_with( (string) $path, $base . '/' ) ? substr( $path, strlen( $base ) + 1 ) : $path;
 	}
 
 	/**

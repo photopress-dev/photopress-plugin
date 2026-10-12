@@ -45,6 +45,34 @@ final class GalleryLayoutTest extends TestCase {
 		$this->assertSame( self::GALLERY, $this->render( [ 'photopressLayout' => 'carousel' ] ) );
 	}
 
+	/** The sizes attribute of each image in the rendered gallery. */
+	private static function sizesOf( string $html ): array {
+
+		$p = new \WP_HTML_Tag_Processor( $html );
+		$sizes = [];
+
+		while ( $p->next_tag( 'img' ) ) {
+			$sizes[] = $p->get_attribute( 'sizes' );
+		}
+
+		return $sizes;
+	}
+
+	public function test_each_image_is_sized_for_its_layout(): void {
+
+		Functions\when( 'wp_enqueue_style' )->justReturn( null );
+		Functions\when( 'wp_enqueue_script' )->justReturn( null );
+
+		// Masonry: the column width. Rows and mosaic: the image's shape at
+		// the row height (image 10 is 3:4, image 11 2:1).
+		$this->assertSame( [ '(max-width: 400px) 100vw, 400px', '(max-width: 400px) 100vw, 400px' ], self::sizesOf( $this->render( [ 'photopressLayout' => 'masonry', 'photopressColumnWidth' => 400 ] ) ) );
+		$this->assertSame( [ '(max-width: 188px) 100vw, 188px', '(max-width: 500px) 100vw, 500px' ], self::sizesOf( $this->render( [ 'photopressLayout' => 'rows', 'photopressRowHeight' => 250 ] ) ) );
+		$this->assertSame( [ '(max-width: 225px) 100vw, 225px', '(max-width: 600px) 100vw, 600px' ], self::sizesOf( $this->render( [ 'photopressLayout' => 'mosaic' ] ) ) );
+
+		// The slideshow alone leaves them to WordPress.
+		$this->assertSame( [ null, null ], self::sizesOf( $this->render( [ 'photopressSlideshow' => true ] ) ) );
+	}
+
 	public function test_classes_variables_and_per_image_hooks(): void {
 
 		Functions\expect( 'wp_enqueue_style' )->once()->with( 'photopress-frontend' );
@@ -168,7 +196,7 @@ final class GalleryLayoutTest extends TestCase {
 		$module = ( new \ReflectionClass( gallery::class ) )->newInstanceWithoutConstructor();
 
 		$args = $module->addGalleryAttributes( [ 'attributes' => [ 'columns' => [ 'type' => 'number' ] ] ], 'core/gallery' );
-		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions' ], array_keys( $args['attributes'] ) );
+		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions', 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder', 'photopressShowHeading', 'photopressHeading', 'photopressDetails' ], array_keys( $args['attributes'] ) );
 
 		$this->assertSame( [ 'x' => 1 ], $module->addGalleryAttributes( [ 'x' => 1 ], 'core/image' ) );
 	}

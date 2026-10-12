@@ -31,6 +31,8 @@ import MetadataSettings from './options/metadata.js';
 import SlideshowSettings from './options/slideshow.js';
 import MediaSettings from './options/media.js';
 import ImagesSettings from './options/images.js';
+import GallerySettings from './options/gallery.js';
+import SearchSettings from './options/search.js';
 
 class SettingsPage extends Component {
 	
@@ -61,12 +63,18 @@ class SettingsPage extends Component {
 		this.state = {
 			isAPILoaded: false,
 			isAPISaving: false,
+			// The tab, and a page within it: photopress_core_metadata/taxonomy/parent/new.
+			hash: window.location.hash.substring( 1 ),
 		};
+
+		this.onHashChange = () => this.setState( { hash: window.location.hash.substring( 1 ) } );
 		
 		//console.log(this.props);
 	}
 
 	componentDidMount() {
+		
+		window.addEventListener( 'hashchange', this.onHashChange );
 			
 		// load site settings
 		apiFetch( { path: '/wp/v2/settings' } ).then( response => {
@@ -76,10 +84,17 @@ class SettingsPage extends Component {
 				photopress_core_slideshow: response.photopress_core_slideshow ,
 				photopress_core_media: response.photopress_core_media ,
 				photopress_core_images: response.photopress_core_images ,
+				photopress_core_gallery: response.photopress_core_gallery ,
+				photopress_core_search: response.photopress_core_search ,
 				photopress_core_base: response.photopress_core_base,
 				isAPILoaded: true
 			});
 		});
+	}
+	
+	componentWillUnmount() {
+		
+		window.removeEventListener( 'hashchange', this.onHashChange );
 	}
 	
 	getSettingsModuleNames() {
@@ -140,6 +155,8 @@ class SettingsPage extends Component {
 				key = {"metadataoptionspage'"}
 				data= {this.state.photopress_core_metadata}
 				settingsGroup={"photopress_core_metadata"}
+				route={ this.state.hash.split( '/' ).slice( 1 ).join( '/' ) }
+				archivePages={ false !== ( this.state.photopress_core_search || {} ).taxonomy_pages }
 			/>	
 		);
 		
@@ -170,10 +187,29 @@ class SettingsPage extends Component {
 			/>	
 		);
 		
+		const renderGallerySettings = () => (
+			
+			<GallerySettings
+				key = {"galleryoptionspage"}
+				data= {this.state.photopress_core_gallery}
+				settingsGroup={"photopress_core_gallery"}
+			/>	
+		);
+		
+		const renderSearchSettings = () => (
+			
+			<SearchSettings
+				key = {"searchoptionspage"}
+				data= {this.state.photopress_core_search}
+				settingsGroup={"photopress_core_search"}
+				onChange={ ( settings ) => this.setState( { photopress_core_search: settings } ) }
+			/>	
+		);
+		
 		const renderTab = (tab) => { 
 			//console.log(tab);
 			let rf = function() {};
-			let anchor = window.location.hash ? window.location.hash.substring(1) : tab.name;
+			let anchor = this.state.hash.split( '/' )[ 0 ] || tab.name;
 			
 			switch( anchor ) {
 				
@@ -198,6 +234,18 @@ class SettingsPage extends Component {
 				case "photopress_core_images":
 					
 					rf = renderImagesSettings;
+				
+					break;	
+					
+				case "photopress_core_gallery":
+					
+					rf = renderGallerySettings;
+				
+					break;	
+					
+				case "photopress_core_search":
+					
+					rf = renderSearchSettings;
 				
 					break;	
 			}
@@ -232,8 +280,14 @@ class SettingsPage extends Component {
 					
 						<TabPanel className="tab-navigation row"
 					        activeClass="active-tab"
-					        initialTabName={window.location.hash.substring(1) || null} 
-					        onSelect={ (tabName) => { window.location.hash = tabName } }
+					        initialTabName={ this.state.hash.split( '/' )[ 0 ] || null } 
+					        onSelect={ ( tabName ) => {
+					        	// Not when it is the tab already shown, as on load: that
+					        	// would drop the page within it.
+					        	if ( tabName !== this.state.hash.split( '/' )[ 0 ] ) {
+					        		window.location.hash = tabName;
+					        	}
+					        } }
 					        tabs={ this.generateNavTabs() }
 					    >
 					        {

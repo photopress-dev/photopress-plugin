@@ -37,7 +37,18 @@ function statusText( job ) {
 	}
 }
 
-export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange } ) {
+/**
+ * refresh: changing it asks for the most recent job again, as when a save
+ * may have started one. note( job ): words shown with a job's progress.
+ * startable: false for a job started elsewhere (Save and reprocess), shown
+ * here only once there is one, with its progress and Cancel. compact: the
+ * button (startLabel) with the progress beside it, no heading. after: shown
+ * right after the button, as an Advanced options link. starting: true from
+ * the click on a Save and reprocess until the job has started, shown at once
+ * as a moving bar; started: the job that click started, as the server
+ * returned it, shown without asking again.
+ */
+export default function JobPanel( { type, label, description, args = {}, confirm = '', onChange, refresh, note, startable = true, compact = false, startLabel, after, starting = false, started } ) {
 	const [ job, setJob ] = useState( null );
 	const [ error, setError ] = useState( null );
 	const [ busy, setBusy ] = useState( false );
@@ -45,12 +56,23 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 
 	const fail = ( e ) => setError( e.message || __( 'The request failed.' ) );
 
-	// The most recent job of this type, if any.
+	// The most recent job of this type while it runs. One that has ended
+	// stays only if it was shown running here, so a new visit to the page
+	// starts without it.
 	useEffect( () => {
 		apiFetch( { path: `/photopress/v1/jobs?type=${ encodeURIComponent( type ) }` } )
-			.then( ( jobs ) => setJob( jobs[ 0 ] || null ) )
+			.then( ( jobs ) => setJob( ( shown ) => {
+				const latest = jobs[ 0 ] || null;
+				return latest && ( isRunning( latest ) || ( shown && shown.id === latest.id ) ) ? latest : null;
+			} ) )
 			.catch( fail );
-	}, [ type ] );
+	}, [ type, refresh ] );
+
+	useEffect( () => {
+		if ( started ) {
+			setJob( started );
+		}
+	}, [ started ] );
 
 	useEffect( () => {
 		if ( onChange && job ) {
@@ -91,6 +113,63 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 	};
 
 	const processed = job ? job.done + job.failed : 0;
+	// Started here or by a Save and reprocess, not yet running.
+	const pending = ( starting || busy ) && ! isRunning( job );
+
+	if ( ! startable && ! job && ! error && ! pending ) {
+		return null;
+	}
+
+	const progress = pending ? (
+		<div className="photopress-job__progress" data-status="starting">
+			<progress />
+			<p>{ __( 'Starting…' ) }</p>
+		</div>
+	) : job && (
+		<div className="photopress-job__progress" data-status={ job.status }>
+			<progress max={ Math.max( job.total, 1 ) } value={ processed } />
+			<p>
+				{ sprintf( __( '%1$d of %2$d' ), processed, job.total ) }
+				{ note && note( job ) && ' · ' + note( job ) }
+				{ job.failed > 0 && ' · ' + sprintf( __( '%d failed' ), job.failed ) }
+				{ ' · ' + statusText( job ) }
+			</p>
+			{ job.errors.length > 0 && (
+				<details>
+					<summary>{ __( 'Errors' ) }</summary>
+					<ul>
+						{ job.errors.map( ( e, i ) => (
+							<li key={ i }>{ `${ e.item }: ${ e.message }` }</li>
+						) ) }
+					</ul>
+				</details>
+			) }
+		</div>
+	);
+
+	const button = isRunning( job ) ? (
+		<Button variant="secondary" onClick={ cancel } disabled={ busy }>
+			{ __( 'Cancel' ) }
+		</Button>
+	) : startable && (
+		<Button variant="primary" onClick={ start } disabled={ busy || starting }>
+			{ startLabel || ( job ? __( 'Run again' ) : __( 'Start' ) ) }
+		</Button>
+	);
+
+	// The button, with the progress beside it.
+	if ( compact ) {
+		return (
+			<div className="photopress-job photopress-job--compact" data-job-type={ type }>
+				{ error && <Notice status="error" isDismissible={ false }>{ error }</Notice> }
+				<div className="photopress-job__row">
+					{ button }
+					{ after }
+					{ progress }
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="photopress-job" data-job-type={ type }>
@@ -103,36 +182,9 @@ export default function JobPanel( { type, label, description, args = {}, confirm
 				</Notice>
 			) }
 
-			{ job && (
-				<div className="photopress-job__progress" data-status={ job.status }>
-					<progress max={ Math.max( job.total, 1 ) } value={ processed } />
-					<p>
-						{ sprintf( __( '%1$d of %2$d' ), processed, job.total ) }
-						{ job.failed > 0 && ' · ' + sprintf( __( '%d failed' ), job.failed ) }
-						{ ' · ' + statusText( job ) }
-					</p>
-					{ job.errors.length > 0 && (
-						<details>
-							<summary>{ __( 'Errors' ) }</summary>
-							<ul>
-								{ job.errors.map( ( e, i ) => (
-									<li key={ i }>{ `${ e.item }: ${ e.message }` }</li>
-								) ) }
-							</ul>
-						</details>
-					) }
-				</div>
-			) }
+			{ progress }
 
-			{ isRunning( job ) ? (
-				<Button variant="secondary" onClick={ cancel } disabled={ busy }>
-					{ __( 'Cancel' ) }
-				</Button>
-			) : (
-				<Button variant="primary" onClick={ start } disabled={ busy }>
-					{ job ? __( 'Run again' ) : __( 'Start' ) }
-				</Button>
-			) }
+			{ button }
 		</div>
 	);
 }

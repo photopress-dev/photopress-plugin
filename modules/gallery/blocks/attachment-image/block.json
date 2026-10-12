@@ -1,0 +1,23 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "photopress/attachment-image",
+	"title": "Attachment Image",
+	"category": "media",
+	"description": "The image of an image (attachment) page, at the size you choose, with its caption.",
+	"keywords": [ "photopress", "attachment", "image", "photo" ],
+	"textdomain": "photopress",
+	"attributes": {
+		"sizeSlug": { "type": "string", "default": "large" },
+		"linkToFile": { "type": "boolean", "default": false },
+		"showCaption": { "type": "boolean", "default": true }
+	},
+	"usesContext": [ "postId", "postType" ],
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"spacing": { "margin": true, "padding": true }
+	},
+	"editorScript": "photopress-editor",
+	"style": "photopress-frontend"
+}

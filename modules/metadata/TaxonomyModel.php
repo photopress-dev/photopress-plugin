@@ -34,8 +34,8 @@ final class TaxonomyModel {
 	public array $standard = [];
 
 	/**
-	 * [ 'id', 'tag', 'nested', 'names' ]: names are paths, each a list of
-	 * lower-cased levels ("Clients|Acme" is [ 'clients', 'acme' ]).
+	 * [ 'id', 'tag', 'names' ]: the parent keyword and the other names it
+	 * is written as, lower-cased.
 	 */
 	public array $parents = [];
 
@@ -44,6 +44,12 @@ final class TaxonomyModel {
 
 	/** What separates a prefix from the rest of a keyword ("people: Jane"). */
 	public array $separators = [];
+
+	/**
+	 * The Keywords taxonomy's id, also when it is turned off: its terms stay,
+	 * and are where keywords no parent keyword took were filed.
+	 */
+	public ?string $keywordsId = null;
 
 	public static function fromSettings(): self {
 
@@ -69,7 +75,11 @@ final class TaxonomyModel {
 			$id  = (string) ( $def['id'] ?? '' );
 			$tag = (string) ( $def['tag'] ?? '' );
 
-			if ( '' === $id || '' === $tag ) {
+			if ( 'dc:subject' === $tag && empty( $def['parseTagValue'] ) && null === $model->keywordsId ) {
+				$model->keywordsId = $id;
+			}
+
+			if ( '' === $id || '' === $tag || ! empty( $def['disabled'] ) ) {
 				continue;
 			}
 
@@ -84,8 +94,7 @@ final class TaxonomyModel {
 				$model->parents[] = [
 					'id'     => $id,
 					'tag'    => $tag,
-					'nested' => ! empty( $def['nested'] ),
-					'names'  => array_values( array_filter( array_map( [ self::class, 'levels' ], $names ) ) ),
+					'names'  => array_values( array_filter( array_map( [ self::class, 'name' ], $names ), 'strlen' ) ),
 				];
 				continue;
 			}
@@ -107,12 +116,15 @@ final class TaxonomyModel {
 		return array_values( array_filter( preg_split( '/\s+/', trim( $delimiter ) ), 'strlen' ) );
 	}
 
-	/** A parent keyword's name as lower-cased levels: "Clients|Acme". */
-	public static function levels( $name ): array {
+	/**
+	 * A parent keyword's name, lower-cased; '' for a path ("Clients|Acme",
+	 * saved by an earlier version): a parent keyword is one keyword.
+	 */
+	public static function name( $name ): string {
 
-		$levels = array_map( 'trim', explode( '|', (string) $name ) );
+		$name = trim( (string) $name );
 
-		return array_values( array_filter( array_map( [ self::class, 'lower' ], $levels ), 'strlen' ) );
+		return false === strpos( $name, '|' ) ? self::lower( $name ) : '';
 	}
 
 	public static function lower( string $text ): string {
@@ -142,14 +154,12 @@ final class TaxonomyModel {
 		return null;
 	}
 
-		public function isNested( string $id ): bool {
+	/**
+	 * Whether the taxonomy's terms are nested, as keyword hierarchies are:
+	 * Keywords and the parent keywords'.
+	 */
+	public function isNested( string $id ): bool {
 
-		foreach ( $this->parents as $parent ) {
-			if ( $parent['id'] === $id && $parent['nested'] ) {
-				return true;
-			}
-		}
-
-		return false;
+		return in_array( $id, array_column( $this->parents, 'id' ), true ) || $id === ( $this->standard['keywords']['id'] ?? null );
 	}
 }

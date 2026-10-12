@@ -20,7 +20,7 @@ final class MediaRestTest extends TestCase {
 		Functions\stubs( [
 			// WordPress's implementations, minus the filters.
 			'wp_basename'              => static fn( $path ) => urldecode( basename( str_replace( [ '%2F', '%5C' ], '/', urlencode( $path ) ) ) ),
-			'_wp_relative_upload_path' => static fn( $path ) => preg_replace( '#^/srv/wp-content/uploads/#', '', $path ),
+			'wp_get_upload_dir'        => [ 'basedir' => '/srv/wp-content/uploads' ],
 			'is_serialized'            => static fn( $data ) => is_string( $data ) && ( 'b:0;' === trim( $data ) || false !== @unserialize( trim( $data ), [ 'allowed_classes' => false ] ) ),
 		] );
 	}
@@ -285,20 +285,19 @@ final class MediaRestTest extends TestCase {
 	}
 
 	#[DataProvider( 'cacheControls' )]
-	public function test_cache_control_from_the_two_durations( $cache, $stale, string $expected ): void {
+	public function test_cache_control_from_the_cache_lifetime( $cache, string $expected ): void {
 
-		$this->assertSame( $expected, \PhotoPress\modules\media\media::cacheControl( $cache, $stale ) );
+		$this->assertSame( $expected, \PhotoPress\modules\media\media::cacheControl( $cache ) );
 	}
 
 	public static function cacheControls(): array {
 
 		return [
-			'not set: a day, then an hour' => [ null, null, 'max-age=86400, stale-while-revalidate=3600' ],
-			'two days, then six hours'     => [ 172800, 21600, 'max-age=172800, stale-while-revalidate=21600' ],
-			'as strings, as saved'         => [ '3600', '600', 'max-age=3600, stale-while-revalidate=600' ],
-			'no stale period'              => [ 3600, 0, 'max-age=3600' ],
-			'invalid: the defaults'        => [ 'a year', -5, 'max-age=86400, stale-while-revalidate=3600' ],
-			'zero lifetime: the default'   => [ 0, 60, 'max-age=86400, stale-while-revalidate=60' ],
+			'not set: a day'             => [ null, 'max-age=86400, stale-while-revalidate=300' ],
+			'two days'                   => [ 172800, 'max-age=172800, stale-while-revalidate=300' ],
+			'as a string, as saved'      => [ '3600', 'max-age=3600, stale-while-revalidate=300' ],
+			'invalid: the default'       => [ 'a year', 'max-age=86400, stale-while-revalidate=300' ],
+			'zero lifetime: the default' => [ 0, 'max-age=86400, stale-while-revalidate=300' ],
 		];
 	}
 
@@ -324,7 +323,7 @@ final class MediaRestTest extends TestCase {
 
 	public function test_offload_media_installed_or_not(): void {
 
-		$state = [ \PhotoPress\modules\media\CdnInvalidator::class, 'pluginState' ];
+		$state = [ \PhotoPress\modules\media\OffloadMedia::class, 'pluginState' ];
 
 		Functions\when( 'get_plugins' )->justReturn( [ 'akismet/akismet.php' => [] ] );
 		$this->assertSame( 'missing', $state() );
@@ -340,13 +339,12 @@ final class MediaRestTest extends TestCase {
 
 		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 
-		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
 		$as3cf = new class() {
 			public function get_setting( $key ) {
 				return [ 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
 			}
 		};
-		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
 		$key = [ \PhotoPress\modules\media\CdnInvalidator::class, 'objectKey' ];
 
 		try {
@@ -354,19 +352,18 @@ final class MediaRestTest extends TestCase {
 			$this->assertSame( 'wp-content/uploads/a b.jpg', $key( 'https://images.example.com.s3.us-east-1.amazonaws.com/wp-content/uploads/a%20b.jpg', 'images.example.com' ), 'served from the bucket' );
 			$this->assertNull( $key( 'https://www.example.com/wp-content/uploads/photo.jpg', 'images.example.com' ), 'served from this server' );
 		} finally {
-			$invalidator->setStaticPropertyValue( 'as3cf', null );
+			\PhotoPress\modules\media\OffloadMedia::init( null );
 		}
 	}
 
 	public function test_replaced_files_stay_in_the_bucket_unless_the_setting_is_on(): void {
 
-		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
 		$as3cf = new class() {
 			public function get_setting( $key ) {
 				return [ 'bucket' => 'images.example.com', 'region' => 'us-east-1', 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
 			}
 		};
-		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
 		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 		$urls = [ 'https://cdn.example.com/wp-content/uploads/2026/10/photo-300x200.jpg' ];
 
@@ -383,7 +380,7 @@ final class MediaRestTest extends TestCase {
 			);
 			\PhotoPress\modules\media\CdnInvalidator::scheduleDeletion( 12, $urls );
 		} finally {
-			$invalidator->setStaticPropertyValue( 'as3cf', null );
+			\PhotoPress\modules\media\OffloadMedia::init( null );
 		}
 	}
 }

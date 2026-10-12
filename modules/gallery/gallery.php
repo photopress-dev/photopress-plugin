@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\gallery;
 use photopress_module;
+use pp_api;
 use WP_HTML_Tag_Processor;
 
 /**
@@ -11,6 +12,8 @@ use WP_HTML_Tag_Processor;
  * (masonry, rows, mosaic) that run on core/gallery.
  */
 class gallery extends photopress_module {
+
+	public $label = 'Gallery';
 
 	const LAYOUTS = [ 'masonry', 'rows', 'mosaic' ];
 
@@ -41,10 +44,97 @@ class gallery extends photopress_module {
 		] );
 
 		GalleryAdd::addHooks();
+		ChildPagesGallery::addHooks();
+
+		if ( pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ) {
+			GalleryRemove::addHooks();
+		}
+
+		add_action( 'enqueue_block_editor_assets', [ $this, 'shareEnabledLayouts' ] );
+
+		ImageTemplates::addHooks();
 
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
 		add_filter( 'render_block_core/gallery', [ GallerySlideshow::class, 'hideSourceGallery' ], 10, 2 );
+	}
+
+	/**
+	 * The layouts turned on in the Gallery tab, as offered in the editor.
+	 * A gallery that already has one turned off keeps it.
+	 */
+	public static function enabledLayouts() {
+
+		return array_values( array_filter( self::LAYOUTS, static fn( $layout ) => (bool) pp_api::getOption( 'core', 'gallery', 'layout_' . $layout ) ) );
+	}
+
+	/**
+	 * enqueue_block_editor_assets: the layouts the editor offers; see
+	 * src/variations/gallery-layouts.js.
+	 */
+	public function shareEnabledLayouts() {
+
+		wp_add_inline_script( 'photopress-editor', 'window.photopressGalleryLayouts = ' . wp_json_encode( self::enabledLayouts() ) . ';', 'before' );
+	}
+
+	public function registerOptions() {
+
+		$options = [];
+
+		foreach ( [ 'masonry' => 'Masonry', 'rows' => 'Rows', 'mosaic' => 'Mosaic' ] as $layout => $title ) {
+
+			$options[ 'layout_' . $layout ] = [
+				'default_value' => true,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => $title . ' layout',
+					'page_name'     => 'gallery',
+					'section'       => 'general',
+					'description'   => 'Offer the ' . $title . ' layout for the Gallery block in the editor.',
+					'label_for'     => $title . ' layout',
+					'error_message' => '',
+				],
+			];
+		}
+
+		$options['remove_deleted_images'] = [
+			'default_value' => true,
+			'field'         => [
+				'type'          => 'boolean',
+				'title'         => 'Remove deleted images from galleries',
+				'page_name'     => 'gallery',
+				'section'       => 'general',
+				'description'   => 'Remove images from galleries that are deleted from the Media Library.',
+				'label_for'     => 'Remove deleted images from galleries',
+				'error_message' => '',
+			],
+		];
+
+		return $options;
+	}
+
+	public function registerSettingsPages() {
+
+		return [
+
+			'gallery' => [
+
+				'parent_slug'         => 'photopress-core-base',
+				'title'               => 'Gallery',
+				'menu_title'          => 'Gallery',
+				'required_capability' => 'manage_options',
+				'menu_slug'           => 'photopress-gallery',
+				'description'         => 'The Gallery block\'s PhotoPress layouts, and galleries of deleted images.',
+				'sections'            => [
+					'general' => [
+						'id'          => 'general',
+						'title'       => 'General',
+						'description' => '',
+					],
+				],
+				'noPhpRender'         => true,
+			],
+		];
 	}
 
 	/**
@@ -63,6 +153,18 @@ class gallery extends photopress_module {
 			'photopressRowHeight'   => [ 'type' => 'number', 'default' => 300 ],
 			'photopressSlideshow'   => [ 'type' => 'boolean', 'default' => false ],
 			'photopressHideCaptions' => [ 'type' => 'boolean', 'default' => false ],
+			// Taxonomy Gallery (ImageTemplates): "archive", the archive page's
+			// images; "query", those of a taxonomy term, or the latest.
+			'photopressSource'      => [ 'type' => 'string' ],
+			'photopressTaxonomy'    => [ 'type' => 'string' ],
+			'photopressTerm'        => [ 'type' => 'number' ],
+			'photopressCount'       => [ 'type' => 'number', 'default' => 12 ],
+			'photopressOrder'       => [ 'type' => 'string', 'default' => 'date-desc' ],
+			// Shown above a Taxonomy Gallery's images, when on and it found some.
+			'photopressShowHeading' => [ 'type' => 'boolean', 'default' => false ],
+			'photopressHeading'     => [ 'type' => 'string', 'default' => 'Images' ],
+			// Each image's file name and title under it, as a search result.
+			'photopressDetails'     => [ 'type' => 'boolean', 'default' => false ],
 		] );
 
 		return $args;
@@ -130,6 +232,10 @@ class gallery extends photopress_module {
 				$id    = $p->get_attribute( 'data-id' );
 				$ratio = $this->aspectRatio( $p );
 
+				if ( $layout ) {
+					$p->set_attribute( 'sizes', self::layoutSizes( $layout, $column_width, $row_height, $ratio ) );
+				}
+
 				$p->seek( 'item' );
 
 				if ( $id ) {
@@ -191,6 +297,90 @@ class gallery extends photopress_module {
 		}
 
 		return $before . $gallery . wp_get_inline_script_tag( 'window.photopressLayout&&photopressLayout(document.currentScript.previousElementSibling);' );
+	}
+
+	/**
+	 * The first image of a post's first gallery: of a dynamic gallery, the
+	 * first WordPress shows (its own resolver, in its order: by date or title
+	 * as the gallery is set); of one that keeps its images, the first of them
+	 * (image blocks, or the ids of a gallery from before WordPress 5.9 or
+	 * the legacy photopress/gallery block). 0 when it has none.
+	 *
+	 * @param int|\WP_Post $post
+	 */
+	public static function firstImage( $post ) {
+
+		$post = get_post( $post );
+
+		if ( ! $post ) {
+			return 0;
+		}
+
+		foreach ( self::galleriesIn( parse_blocks( $post->post_content ) ) as $block ) {
+
+			if ( ! empty( $block['attrs']['dynamicContent'] ) ) {
+
+				// WordPress 7.0's, rendering the gallery as part of this post.
+				$shown = function_exists( 'block_core_gallery_resolve_dynamic_source' )
+					? (array) block_core_gallery_resolve_dynamic_source( $block['attrs']['dynamicContent'], (object) [ 'context' => [ 'postId' => $post->ID ] ] )
+					: [];
+
+				$id = (int) ( reset( $shown ) ?: 0 );
+
+			} else {
+
+				$ids = array_merge(
+					array_map( static fn( $image ) => (int) ( $image['attrs']['id'] ?? 0 ), array_filter( $block['innerBlocks'] ?? [], static fn( $inner ) => 'core/image' === ( $inner['blockName'] ?? '' ) ) ),
+					array_map( 'intval', (array) ( $block['attrs']['ids'] ?? [] ) )
+				);
+
+				$id = (int) ( current( array_filter( $ids ) ) ?: 0 );
+			}
+
+			if ( $id && wp_attachment_is_image( $id ) ) {
+				return $id;
+			}
+		}
+
+		return 0;
+	}
+
+	/** The gallery blocks among these, at any depth, in order. */
+	private static function galleriesIn( array $blocks ) {
+
+		$galleries = [];
+
+		foreach ( $blocks as $block ) {
+
+			if ( in_array( $block['blockName'] ?? '', [ 'core/gallery', 'photopress/gallery' ], true ) ) {
+				$galleries[] = $block;
+			} elseif ( ! empty( $block['innerBlocks'] ) ) {
+				$galleries = array_merge( $galleries, self::galleriesIn( $block['innerBlocks'] ) );
+			}
+		}
+
+		return $galleries;
+	}
+
+	/**
+	 * The sizes attribute of an image in a layout: the widest it is shown,
+	 * or the window's width when that is narrower. A masonry column is the
+	 * column width; an image in a row is at most its aspect ratio times the
+	 * row height (a filled mosaic row is no taller than that, and rows only
+	 * scale an image down). WordPress keeps it when it adds the srcset, and
+	 * puts "auto" before it for a lazy-loaded image, which a browser that
+	 * knows auto then sizes by its layout instead.
+	 *
+	 * @param string $layout       masonry, rows or mosaic.
+	 * @param int    $column_width Masonry's column width, in pixels.
+	 * @param int    $row_height   The rows' height, in pixels.
+	 * @param float  $ratio        The image's width / height, or 0 unknown (taken as square).
+	 */
+	public static function layoutSizes( $layout, $column_width, $row_height, $ratio ) {
+
+		$width = 'masonry' === $layout ? (int) $column_width : (int) ceil( ( $ratio > 0 ? $ratio : 1 ) * $row_height );
+
+		return sprintf( '(max-width: %1$dpx) 100vw, %1$dpx', max( 1, $width ) );
 	}
 
 	/**

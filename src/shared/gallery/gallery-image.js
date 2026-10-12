@@ -97,7 +97,11 @@ class GalleryImage extends Component {
 			__unstableMarkNextChangeAsNotPersistent,
 		} = this.props;
 		if ( image && ! url ) {
-			__unstableMarkNextChangeAsNotPersistent();
+			// Filling in the URL is not an edit to undo. The function is
+			// Gutenberg's unstable API: without it, it is one more undo step.
+			if ( typeof __unstableMarkNextChangeAsNotPersistent === 'function' ) {
+				__unstableMarkNextChangeAsNotPersistent();
+			}
 			this.props.setAttributes( {
 				url: image.source_url,
 				alt: image.alt_text,

@@ -64,6 +64,25 @@ class ImageTaxonomyRest {
 		add_filter( 'rest_prepare_attachment', [ self::class, 'stripMediaTerms' ] );
 		add_filter( 'rest_attachment_query', [ self::class, 'ignoreMediaTermFilters' ] );
 		add_filter( 'rest_queried_resource_route', [ self::class, 'noAlternateLink' ] );
+		add_action( 'rest_api_init', [ self::class, 'registerFields' ] );
+	}
+
+	/**
+	 * photopress_public on each taxonomy in /wp/v2/taxonomies: whether
+	 * visitors may see its terms (not one for the admin only), for the Image
+	 * Metadata block's list of those it can show. (Its visibility is in the
+	 * edit context only.)
+	 */
+	public static function registerFields() {
+
+		register_rest_field( 'taxonomy', 'photopress_public', [
+			'get_callback' => static fn( $taxonomy ) => ImageTaxonomies::isShown( $taxonomy['slug'] ),
+			'schema'       => [
+				'type'     => 'boolean',
+				'context'  => [ 'view', 'edit' ],
+				'readonly' => true,
+			],
+		] );
 	}
 
 	/**

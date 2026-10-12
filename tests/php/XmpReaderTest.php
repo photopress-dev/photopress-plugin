@@ -299,4 +299,69 @@ final class XmpReaderTest extends TestCase {
 
 		$this->assertInstanceOf( \__PHP_Incomplete_Class::class, $md->getAllXmp()['dc:title'] );
 	}
+
+	public function test_getty_images_fields_capture_one_writes_are_read(): void {
+
+		$packet = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+			. '<rdf:Description rdf:about="" xmlns:GettyImagesGIFT="http://xmp.gettyimages.com/gift/1.0/">'
+			. '<GettyImagesGIFT:Personality><rdf:Bag><rdf:li>Jane Smith</rdf:li><rdf:li>John Doe</rdf:li></rdf:Bag></GettyImagesGIFT:Personality>'
+			. '</rdf:Description></rdf:RDF></x:xmpmeta>';
+
+		$md = ( new XmpReader() )->parsePacket( $packet );
+
+		$this->assertSame( [ 'Jane Smith', 'John Doe' ], $md['GettyImagesGIFT:Personality'] );
+	}
+
+	/**
+	 * Every field Photoshop's File Info writes, filled in: each one the
+	 * Custom Metadata list offers is read as text, or a list of text.
+	 */
+	public function test_every_listed_field_photoshop_writes_is_read(): void {
+
+		$md = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/photoshop-file-info.xmp' ) );
+
+		$listed = [
+			'photoshop:Headline', 'dc:title', 'Iptc4xmpCore:IntellectualGenre', 'Iptc4xmpCore:Scene', 'Iptc4xmpCore:SubjectCode',
+			'Iptc4xmpCore:Location', 'Iptc4xmpCore:CountryCode', 'dc:creator', 'photoshop:AuthorsPosition', 'photoshop:CaptionWriter',
+			'photoshop:Credit', 'photoshop:Source', 'dc:rights', 'xmpRights:UsageTerms', 'photoshop:Instructions',
+			'photoshop:TransmissionReference', 'Iptc4xmpExt:Event', 'Iptc4xmpExt:PersonInImage', 'Iptc4xmpExt:OrganisationInImageName',
+			'Iptc4xmpExt:OrganisationInImageCode', 'Iptc4xmpExt:ModelAge', 'Iptc4xmpExt:AddlModelInfo', 'xmp:Rating', 'xmp:CreatorTool',
+		];
+
+		foreach ( $listed as $tag ) {
+			$value = $md[ $tag ] ?? null;
+			$this->assertNotEmpty( $value, $tag );
+			foreach ( (array) $value as $item ) {
+				$this->assertIsString( $item, $tag );
+			}
+		}
+
+		$this->assertSame( [ '18', '24' ], $md['Iptc4xmpExt:ModelAge'] );
+		$this->assertSame( 'foo', $md['Iptc4xmpExt:Event'], 'one language of a language alternative' );
+		$this->assertSame( 'bar', $md['Iptc4xmpExt:LocationShown'][0]['Iptc4xmpExt:City'], 'structures keep their parts' );
+	}
+
+	/**
+	 * Every field Capture One's Metadata tool writes, filled in: each one the
+	 * Custom Metadata list offers is read, and none of IPTC Extension's, which
+	 * Capture One does not have, is there.
+	 */
+	public function test_every_listed_field_capture_one_writes_is_read(): void {
+
+		$md = ( new XmpReader() )->parsePacket( file_get_contents( dirname( __DIR__ ) . '/fixtures/xmp/capture-one.xmp' ) );
+
+		$listed = [
+			'photoshop:Headline', 'dc:title', 'photoshop:Category', 'photoshop:SupplementalCategories', 'Iptc4xmpCore:IntellectualGenre',
+			'Iptc4xmpCore:Scene', 'Iptc4xmpCore:SubjectCode', 'Iptc4xmpCore:Location', 'Iptc4xmpCore:CountryCode', 'dc:creator',
+			'photoshop:AuthorsPosition', 'photoshop:CaptionWriter', 'photoshop:Credit', 'photoshop:Source', 'dc:rights',
+			'xmpRights:UsageTerms', 'photoshop:Instructions', 'photoshop:TransmissionReference', 'GettyImagesGIFT:Personality',
+			'xmp:Rating', 'xmp:Label', 'xmp:CreatorTool',
+		];
+
+		foreach ( $listed as $tag ) {
+			$this->assertNotEmpty( $md[ $tag ] ?? null, $tag );
+		}
+
+		$this->assertSame( [], preg_grep( '/^Iptc4xmpExt:/', array_keys( $md ) ) );
+	}
 }

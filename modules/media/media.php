@@ -17,50 +17,49 @@ class media extends photopress_module {
 
 	/**
 	 * How long browsers and a CDN may keep an offloaded file before checking
-	 * back (max-age), and for how long after that they may still show their
-	 * copy while they check (stale-while-revalidate), in seconds. A file
-	 * replaced under the same URL shows within the first. Offload Media's own
-	 * is a year.
+	 * back (max-age), in seconds. A file replaced under the same URL shows
+	 * within it. Offload Media's own is a year.
 	 */
 	const DEFAULT_CACHE_SECONDS = 86400;
 
-	const DEFAULT_STALE_SECONDS = 3600;
+	/**
+	 * For how long after that they may still show their copy while they
+	 * check (stale-while-revalidate), in seconds.
+	 */
+	const STALE_SECONDS = 300;
 
 	public function definePublicHooks() {
 
+		OffloadMedia::addHooks();
 		MediaRest::addHooks();
 		CdnInvalidator::addHooks();
+		EnableMediaReplace::addHooks();
 
-		add_filter( 'as3cf_object_meta', [ $this, 'setCacheControl' ] );
+		OffloadMedia::filteringUploads( [ $this, 'setCacheControl' ] );
 		add_action( 'rest_api_init', [ $this, 'registerRoutes' ] );
 	}
 
 	/**
-	 * as3cf_object_meta: the Cache-Control header of each file Offload Media
-	 * uploads, from the two settings.
+	 * The Cache-Control header of each file Offload Media uploads.
 	 */
 	public function setCacheControl( $args ) {
 
 		if ( is_array( $args ) ) {
-			$args['CacheControl'] = self::cacheControl(
-				pp_api::getOption( 'core', 'media', 'cache_seconds' ),
-				pp_api::getOption( 'core', 'media', 'stale_seconds' )
-			);
+			$args['CacheControl'] = self::cacheControl( pp_api::getOption( 'core', 'media', 'cache_seconds' ) );
 		}
 
 		return $args;
 	}
 
 	/**
-	 * The Cache-Control header for the two durations, in seconds. A missing
-	 * or invalid one is its default; a stale period of 0 is left out.
+	 * The Cache-Control header for the cache lifetime, in seconds. A missing
+	 * or invalid one is the default.
 	 */
-	public static function cacheControl( $cache_seconds, $stale_seconds ) {
+	public static function cacheControl( $cache_seconds ) {
 
 		$cache = is_numeric( $cache_seconds ) && (int) $cache_seconds > 0 ? (int) $cache_seconds : self::DEFAULT_CACHE_SECONDS;
-		$stale = is_numeric( $stale_seconds ) && (int) $stale_seconds >= 0 ? (int) $stale_seconds : self::DEFAULT_STALE_SECONDS;
 
-		return 'max-age=' . $cache . ( $stale ? ', stale-while-revalidate=' . $stale : '' );
+		return 'max-age=' . $cache . ', stale-while-revalidate=' . self::STALE_SECONDS;
 	}
 
 	/**
@@ -104,20 +103,6 @@ class media extends photopress_module {
 					'section'       => 'general',
 					'description'   => 'With WP Offload Media: how long browsers and a CDN may keep an image before checking back, in seconds. A replaced image keeps its URL, so this is how long an old copy can still be shown where it was not cleared.',
 					'label_for'     => 'Keep images for',
-					'error_message' => '',
-				],
-			],
-
-			'stale_seconds' => [
-
-				'default_value' => self::DEFAULT_STALE_SECONDS,
-				'field'         => [
-					'type'          => 'integer',
-					'title'         => 'Then show the old copy while checking for',
-					'page_name'     => 'media',
-					'section'       => 'general',
-					'description'   => 'After that, how long the old copy may still be shown while a new one is fetched, in seconds, so nobody waits on the check.',
-					'label_for'     => 'Then show the old copy while checking for',
 					'error_message' => '',
 				],
 			],

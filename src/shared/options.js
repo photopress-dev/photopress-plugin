@@ -44,20 +44,31 @@ export function saveSettings( module ) {
 			this.setState({ isAPISaving: true });
 			
 			const module_name = this.props.settingsGroup;
+			const sent = this.state.settings;
+			savedSettings.call( this );
 			
 			return apiFetch( {
 				path: '/wp/v2/settings',
 				method: 'POST',
-				data: { [ module_name ]: this.state.settings },
+				data: { [ module_name ]: sent },
 			} ).then( response => {
 				
-				// merge response with any other defaults
-				let new_settings = { ...this.state.settings, ...response[module_name] };
-				this.setState({
-					settings: new_settings,
-					isAPISaving: false,
-					dirtyFields: []
-				});
+				// The saved settings, except fields changed while the save was
+				// on its way (typed into right after a switch saved), which
+				// keep what was typed and stay to be saved.
+				this.savedSettings = { ...this.savedSettings, ...response[ module_name ] };
+				this.setState( ( state ) => {
+					const changed = Object.keys( state.settings ).filter( ( key ) => state.settings[ key ] !== sent[ key ] );
+					const settings = { ...state.settings, ...response[ module_name ] };
+					changed.forEach( ( key ) => {
+						settings[ key ] = state.settings[ key ];
+					} );
+					return {
+						settings,
+						isAPISaving: false,
+						dirtyFields: state.dirtyFields.filter( ( key ) => changed.includes( key ) ),
+					};
+				} );
 				this.setError( 'save', null );
 				
 			} ).catch( error => {
@@ -126,7 +137,57 @@ export function	getSetting ( key ) {
 	}
 }
 	
+/**
+ * The settings as last saved (or loaded), kept the first time a setting
+ * changes, before it does.
+ */
+function savedSettings() {
+
+	if ( ! this.savedSettings ) {
+		this.savedSettings = { ...this.state.settings };
+	}
+
+	return this.savedSettings;
+}
+
+/**
+ * Saves one setting, as a switch does: the others are sent as last saved, so
+ * what is typed elsewhere on the tab is not saved with it, and stays on
+ * screen to be saved with its own Save.
+ */
+export function saveSetting( key, value ) {
+
+	const module_name = this.props.settingsGroup;
+	const saved = savedSettings.call( this );
+
+	this.setState( { isAPISaving: true } );
+
+	return apiFetch( {
+		path: '/wp/v2/settings',
+		method: 'POST',
+		data: { [ module_name ]: { ...saved, [ key ]: value } },
+	} ).then( ( response ) => {
+
+		const stored = response[ module_name ] || {};
+		this.savedSettings = { ...saved, ...stored };
+
+		this.setState( ( state ) => ( {
+			settings: state.settings[ key ] === value && key in stored ? { ...state.settings, [ key ]: stored[ key ] } : state.settings,
+			isAPISaving: false,
+			dirtyFields: state.dirtyFields.filter( ( name ) => name !== key ),
+		} ) );
+		this.setError( 'save', null );
+
+	} ).catch( ( error ) => {
+
+		this.setState( { isAPISaving: false } );
+		this.setError( 'save', error.message || 'The settings could not be saved.' );
+	} );
+}
+
 export function	setSetting ( key, value, persist ) {
+
+	savedSettings.call( this );
 
 	// A new array: pushing onto the one in state would mutate it.
 	let df = [ ...this.state.dirtyFields, key ];
@@ -139,14 +200,15 @@ export function	setSetting ( key, value, persist ) {
 	
 	if (persist) {
 		
-		this.setState( 
+		// Settled once the setting is saved (or not: see getError( 'save' )).
+		return new Promise( ( resolve ) => this.setState( 
 			{ 
 				settings: new_settings,
 				dirtyFields: df
 				
 			},
-			() => this.saveSettings()
-		);
+			() => saveSetting.call( this, key, value ).then( resolve )
+		) );
 		
 	} else {
 		
@@ -174,6 +236,8 @@ export function	deleteSetting ( key, subKey ) {
 	if ( ! this.state.settings || ! this.state.settings.hasOwnProperty( key ) ) {
 		return;
 	}
+
+	savedSettings.call( this );
 	
 	let settings = { ...this.state.settings };
 	

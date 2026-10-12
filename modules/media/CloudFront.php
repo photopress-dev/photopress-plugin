@@ -21,7 +21,7 @@ use WP_Error;
  */
 class CloudFront {
 
-	const SDK = '\\DeliciousBrains\\WP_Offload_Media\\Aws3\\Aws\\';
+	const SDK = OffloadMedia::SDK;
 
 	public static function available() {
 
@@ -70,19 +70,9 @@ class CloudFront {
 
 	protected static function offloadMediaCredentials() {
 
-		$settings = defined( 'AS3CF_SETTINGS' ) ? maybe_unserialize( AS3CF_SETTINGS ) : [];
+		$credentials = OffloadMedia::credentials();
 
-		if ( ! empty( $settings['access-key-id'] ) && ! empty( $settings['secret-access-key'] ) ) {
-			return [ 'key' => $settings['access-key-id'], 'secret' => $settings['secret-access-key'], 'token' => null, 'source' => 'offload-media' ];
-		}
-
-		foreach ( [ 'AS3CF_AWS', 'AWS' ] as $prefix ) {
-			if ( defined( "{$prefix}_ACCESS_KEY_ID" ) && defined( "{$prefix}_SECRET_ACCESS_KEY" ) ) {
-				return [ 'key' => constant( "{$prefix}_ACCESS_KEY_ID" ), 'secret' => constant( "{$prefix}_SECRET_ACCESS_KEY" ), 'token' => null, 'source' => 'offload-media' ];
-			}
-		}
-
-		return null;
+		return $credentials ? $credentials + [ 'token' => null, 'source' => 'offload-media' ] : null;
 	}
 
 	/**
