@@ -67,7 +67,7 @@ final class EnableMediaReplaceTest extends TestCase {
 			[ 'photopress_post_changed', 7, [ 'files' => [ 'https://example.com/wp-content/uploads/2026/10/ojai.jpg', 'https://example.com/wp-content/uploads/2026/10/ojai-dusk.jpg' ] ] ],
 			[ 'photopress_post_changed', 21, [] ],
 			[ 'photopress_post_changed', 22, [] ],
-			[ 'photopress_post_changed', 30, [] ],
+			[ 'photopress_post_changed', 30, [ 'gallery' => true ] ],
 		], $this->announced );
 	}
 

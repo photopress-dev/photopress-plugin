@@ -172,7 +172,7 @@ test( 'an image given a term, edited, its term renamed and deleted, attached to 
 	}
 } );
 
-test( 'a child page moved or given another featured image: the pages whose Child Pages Gallery shows it', () => {
+test( 'a child page moved, given another featured image, or its dynamic gallery other images: the pages whose Child Pages Gallery shows it', () => {
 	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() ? 'yes' : 'no';` ) );
 	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active.' );
 
@@ -183,6 +183,8 @@ test( 'a child page moved or given another featured image: the pages whose Child
 			$out[ $key . 'Url' ] = wp_make_link_relative( get_permalink( $out[ $key ] ) );
 		}
 		$out['child'] = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_parent' => $out['first'], 'post_title' => 'PP E2E cache child ${ stamp }' ] );
+		// No featured image: its dynamic gallery's first image stands in.
+		$out['dynamic'] = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_parent' => $out['second'], 'post_title' => 'PP E2E cache dynamic child ${ stamp }', 'post_content' => '<!-- wp:gallery {"dynamicContent":{"source":"core/attached-media"}} /-->' ] );
 		$tmp = wp_tempnam( 'pp-e2e-cache' );
 		copy( ${ JSON.stringify( path.join( __dirname, '../fixtures/images' ) ) } . '/03-square.jpg', $tmp );
 		$out['image'] = media_handle_sideload( [ 'name' => 'pp-e2e-cache-child.jpg', 'tmp_name' => $tmp ], 0, 'PP E2E cache child image' );
@@ -195,7 +197,16 @@ test( 'a child page moved or given another featured image: the pages whose Child
 		const featured = step( `set_post_thumbnail( ${ made.child }, ${ made.image } );` );
 		expect( featured.purged ).toContain( made.secondUrl );
 		expect( featured.purged ).not.toContain( made.firstUrl );
+
+		// The dynamic child's gallery gains the image, then shows it in
+		// another order (by date): its parent, and only its.
+		const attached = step( `wp_update_post( [ 'ID' => ${ made.image }, 'post_parent' => ${ made.dynamic } ] );` );
+		expect( attached.purged ).toContain( made.secondUrl );
+		expect( attached.purged ).not.toContain( made.firstUrl );
+
+		const redated = step( `wp_update_post( [ 'ID' => ${ made.image }, 'post_date' => '2001-01-01 12:00:00' ] );` );
+		expect( redated.purged ).toContain( made.secondUrl );
 	} finally {
-		wp( 'eval', `foreach ( [ ${ made.child }, ${ made.first }, ${ made.second } ] as $id ) { wp_delete_post( $id, true ); } wp_delete_attachment( ${ made.image }, true );` );
+		wp( 'eval', `foreach ( [ ${ made.child }, ${ made.dynamic }, ${ made.first }, ${ made.second } ] as $id ) { wp_delete_post( $id, true ); } wp_delete_attachment( ${ made.image }, true );` );
 	}
 } );

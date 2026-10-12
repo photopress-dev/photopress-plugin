@@ -49,8 +49,9 @@ final class ChildPagesGalleryHooksTest extends TestCase {
 			'get_posts'                 => static function () use ( &$templates ) { return $templates; },
 		] );
 
-		Actions\expectDone( 'photopress_post_changed' )->zeroOrMoreTimes()->whenHappen( static function ( $id ) use ( &$announced ) {
-			$announced[] = $id;
+		// Announced with gallery would show as "10 gallery": it would go on up.
+		Actions\expectDone( 'photopress_post_changed' )->zeroOrMoreTimes()->whenHappen( static function ( $id, $context = [] ) use ( &$announced ) {
+			$announced[] = empty( $context['gallery'] ) ? $id : "$id gallery";
 		} );
 	}
 
@@ -114,6 +115,19 @@ final class ChildPagesGalleryHooksTest extends TestCase {
 		ChildPagesGallery::pageDeleted( 5, self::page() );
 
 		$this->assertSame( [ 10, 10 ], $this->announced() );
+	}
+
+	public function test_its_gallery_changed_without_a_featured_image_one_level_up(): void {
+
+		Functions\when( 'get_post' )->alias( static fn( $id ) => self::page( [ 'ID' => $id ] ) );
+
+		ChildPagesGallery::galleryChanged( 5, [ 'gallery' => true ] );
+		ChildPagesGallery::galleryChanged( 6, [ 'gallery' => true ] );
+		ChildPagesGallery::galleryChanged( 5, [] );
+
+		// Page 6 has a featured image; and no gallery, nothing. The parent is
+		// announced without gallery, so it goes no further.
+		$this->assertSame( [ 10 ], $this->announced() );
 	}
 
 	public function test_a_template_edited_to_show_child_pages_counts_for_every_page(): void {

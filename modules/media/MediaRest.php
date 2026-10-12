@@ -364,7 +364,7 @@ class MediaRest {
 		// a link to it in the content.
 		$parent = (int) get_post_field( 'post_parent', $id );
 		$rewritten_in_place = array_unique( array_merge( $rewritten, $synced ) );
-		$showing = array_diff( array_unique( array_merge( $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] ) ), $rewritten_in_place );
+		$showing = array_diff( array_unique( $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [] ), $rewritten_in_place, [ $parent ] );
 
 		/** This action is documented in modules/gallery/GalleryAdd.php */
 		do_action( 'photopress_post_changed', $id, [ 'files' => $file_urls ] );
@@ -377,6 +377,11 @@ class MediaRest {
 		foreach ( $showing as $post_id ) {
 			/** This action is documented in modules/gallery/GalleryAdd.php */
 			do_action( 'photopress_post_changed', (int) $post_id, [] );
+		}
+
+		if ( $parent ) {
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', $parent, [ 'gallery' => true, 'content' => in_array( $parent, $rewritten_in_place, true ) ] );
 		}
 
 		// The image as core returns it, plus what changed.

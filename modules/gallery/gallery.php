@@ -300,8 +300,9 @@ class gallery extends photopress_module {
 	}
 
 	/**
-	 * The first image of a post's first gallery: of a dynamic gallery, its
-	 * first attached image; of one that keeps its images, the first of them
+	 * The first image of a post's first gallery: of a dynamic gallery, the
+	 * first WordPress shows (its own resolver, in its order: by date or title
+	 * as the gallery is set); of one that keeps its images, the first of them
 	 * (image blocks, or the ids of a gallery from before WordPress 5.9 or
 	 * the legacy photopress/gallery block). 0 when it has none.
 	 *
@@ -319,16 +320,12 @@ class gallery extends photopress_module {
 
 			if ( ! empty( $block['attrs']['dynamicContent'] ) ) {
 
-				$attached = get_children( [
-					'post_parent'    => $post->ID,
-					'post_type'      => 'attachment',
-					'post_mime_type' => 'image',
-					'orderby'        => [ 'menu_order' => 'ASC', 'ID' => 'ASC' ],
-					'numberposts'    => 1,
-					'fields'         => 'ids',
-				] );
+				// WordPress 7.0's, rendering the gallery as part of this post.
+				$shown = function_exists( 'block_core_gallery_resolve_dynamic_source' )
+					? (array) block_core_gallery_resolve_dynamic_source( $block['attrs']['dynamicContent'], (object) [ 'context' => [ 'postId' => $post->ID ] ] )
+					: [];
 
-				$id = (int) ( reset( $attached ) ?: 0 );
+				$id = (int) ( reset( $shown ) ?: 0 );
 
 			} else {
 

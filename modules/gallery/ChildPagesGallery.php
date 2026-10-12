@@ -11,7 +11,8 @@ namespace PhotoPress\modules\gallery;
  * A child page published, unpublished, trashed or deleted; moved to another
  * parent (both are announced); renamed, given a new slug or a new place in
  * the page order; given another featured image; or, without one, its
- * content changed, which may give its gallery another first image. Its
+ * content changed or its gallery's images (photopress_post_changed, with
+ * gallery), which may give it another first image. Its
  * parent is announced, with photopress_post_changed, when the parent shows
  * its child pages: a Child Pages Gallery or the legacy Child Pages block in
  * its content, or in a template edited in the Site Editor.
@@ -28,6 +29,7 @@ class ChildPagesGallery {
 
 		add_action( 'wp_after_insert_post', [ self::class, 'pageSaved' ], 10, 4 );
 		add_action( 'deleted_post', [ self::class, 'pageDeleted' ], 10, 2 );
+		add_action( 'photopress_post_changed', [ self::class, 'galleryChanged' ], 10, 2 );
 
 		foreach ( [ 'added_post_meta', 'updated_post_meta', 'deleted_post_meta' ] as $hook ) {
 			add_action( $hook, [ self::class, 'metaChanged' ], 10, 3 );
@@ -72,6 +74,24 @@ class ChildPagesGallery {
 	public static function pageDeleted( $post_id, $post = null ) {
 
 		if ( $post instanceof \WP_Post && is_post_type_hierarchical( $post->post_type ) && 'publish' === $post->post_status ) {
+			self::announce( [ $post->post_parent ] );
+		}
+	}
+
+	/**
+	 * photopress_post_changed, with gallery: a page's gallery shows other
+	 * images. Without a featured image, its first may now be another.
+	 * Announced without gallery, so it goes no further up.
+	 */
+	public static function galleryChanged( $id, $context = [] ) {
+
+		if ( empty( $context['gallery'] ) ) {
+			return;
+		}
+
+		$post = get_post( $id );
+
+		if ( $post && is_post_type_hierarchical( $post->post_type ) && 'publish' === $post->post_status && ! has_post_thumbnail( $post ) ) {
 			self::announce( [ $post->post_parent ] );
 		}
 	}

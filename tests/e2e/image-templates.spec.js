@@ -224,7 +224,7 @@ test( 'on a page, Taxonomy Gallery shows the images of a term, or the latest, pu
 } );
 
 test( 'Child Pages Gallery shows the published child pages, by featured image or else gallery image; the old Child Pages block lists them', async ( { page } ) => {
-	const [ featured, inGallery ] = made.images;
+	const [ featured, inGallery, attached ] = made.images;
 	const galleryOf = ( id ) => `<!-- wp:gallery {"linkTo":"none"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"><!-- wp:image {"id":${ id }} -->\n<figure class="wp-block-image"><img src="/x.jpg" alt="" class="wp-image-${ id }"/></figure>\n<!-- /wp:image --></figure>\n<!-- /wp:gallery -->`;
 	const content = `<!-- wp:gallery {"photopressSource":"children","photopressLayout":"masonry","sizeSlug":"medium","anchor":"children"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"></figure>\n<!-- /wp:gallery -->`
 		+ '<!-- wp:photopress/childpages {"columns":3} /-->';
@@ -240,17 +240,22 @@ test( 'Child Pages Gallery shows the published child pages, by featured image or
 		$c = $child( 'PP E2E child C ${ stamp }', 3, 'draft' );
 		set_post_thumbnail( $c, ${ featured } );
 		$d = $child( 'PP E2E child D ${ stamp }', 4 );
-		echo wp_json_encode( [ 'parent' => $parent, 'children' => [ $a, $b, $c, $d ], 'links' => array_map( static fn( $id ) => wp_make_link_relative( get_permalink( $id ) ), [ $a, $b ] ) ] );
+		// A dynamic gallery: the image attached to it, as WordPress shows it.
+		$e = $child( 'PP E2E child E ${ stamp }', 5, 'publish', '<!-- wp:gallery {"dynamicContent":{"source":"core/attached-media"}} /-->' );
+		wp_update_post( [ 'ID' => ${ attached }, 'post_parent' => $e ] );
+		echo wp_json_encode( [ 'parent' => $parent, 'children' => [ $a, $b, $c, $d, $e ], 'links' => array_map( static fn( $id ) => wp_make_link_relative( get_permalink( $id ) ), [ $a, $b ] ) ] );
 	` ) ) );
 
 	try {
 		await page.goto( `/?page_id=${ pages.parent }&preview=true` );
 
-		// A by its featured image, B by its gallery's; C a draft, D without either.
+		// A by its featured image, B by its gallery's, E by its dynamic
+		// gallery's; C a draft, D without either.
 		const gallery = page.locator( 'figure.wp-block-gallery#children' );
 		await expect( gallery ).toHaveClass( /photopress-layout-masonry/ );
 		const images = gallery.locator( 'img' );
-		await expect( images ).toHaveCount( 2 );
+		await expect( images ).toHaveCount( 3 );
+		await expect( images.nth( 2 ) ).toHaveClass( new RegExp( `wp-image-${ attached }\\b` ) );
 		await expect( images.nth( 0 ) ).toHaveClass( new RegExp( `wp-image-${ featured }\\b` ) );
 		await expect( images.nth( 1 ) ).toHaveClass( new RegExp( `wp-image-${ inGallery }\\b` ) );
 		await expect( images.nth( 0 ) ).toHaveAttribute( 'srcset', /\S/ );
@@ -264,12 +269,12 @@ test( 'Child Pages Gallery shows the published child pages, by featured image or
 		// The old block: the published children, A with its featured image,
 		// linked in the same tab.
 		const old = page.locator( '.photopress-childpages' );
-		await expect( old.locator( 'li' ) ).toHaveCount( 3 );
+		await expect( old.locator( 'li' ) ).toHaveCount( 4 );
 		await expect( old ).not.toContainText( `PP E2E child C ${ stamp }` );
 		await expect( old.locator( `img.wp-image-${ featured }` ) ).toHaveAttribute( 'srcset', /\S/ );
 		await expect( old.locator( 'a[target]' ) ).toHaveCount( 0 );
 	} finally {
-		wp( 'eval', `foreach ( ${ JSON.stringify( [ ...pages.children, pages.parent ] ) } as $id ) { wp_delete_post( $id, true ); }` );
+		wp( 'eval', `wp_update_post( [ 'ID' => ${ attached }, 'post_parent' => ${ made.draftPage } ] ); foreach ( ${ JSON.stringify( [ ...pages.children, pages.parent ] ) } as $id ) { wp_delete_post( $id, true ); }` );
 	}
 } );
 

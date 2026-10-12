@@ -50,12 +50,16 @@ class EnableMediaReplace {
 
 		// The posts that show it, and its parent: a dynamic gallery there
 		// shows it without a link to it in the content.
-		$parent  = (int) get_post_field( 'post_parent', $id );
-		$showing = MediaRest::postsShowing( $id, MediaRest::stem( $target_url ) );
+		$parent = (int) get_post_field( 'post_parent', $id );
 
-		foreach ( array_unique( array_merge( $showing, $parent ? [ $parent ] : [] ) ) as $post_id ) {
+		foreach ( array_diff( array_unique( MediaRest::postsShowing( $id, MediaRest::stem( $target_url ) ) ), [ $parent ] ) as $post_id ) {
 			/** This action is documented in modules/gallery/GalleryAdd.php */
 			do_action( 'photopress_post_changed', $post_id, [] );
+		}
+
+		if ( $parent ) {
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', $parent, [ 'gallery' => true ] );
 		}
 	}
 

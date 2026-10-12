@@ -41,7 +41,8 @@ final class ChildPagesGalleryTest extends TestCase {
 				return isset( $posts[ $id ] ) ? (object) [ 'ID' => $id, 'post_content' => $posts[ $id ][0] ] : null;
 			},
 			'parse_blocks'           => static fn( $content ) => ( new \WP_Block_Parser() )->parse( $content ),
-			'get_children'           => static fn( $args ) => 8 === $args['post_parent'] ? [ 41 ] : [],
+			// WordPress's resolver of a dynamic gallery, in its order.
+			'block_core_gallery_resolve_dynamic_source' => static fn( $source, $block ) => 8 === $block->context['postId'] ? [ 41, 40 ] : [],
 			'wp_attachment_is_image' => true,
 			'get_post_thumbnail_id'  => static fn( $post ) => $posts[ is_object( $post ) ? $post->ID : $post ][1] ?? 0,
 			'get_permalink'          => static fn( $post ) => '/parent/child-' . ( is_object( $post ) ? $post->ID : $post ) . '/',
@@ -57,7 +58,7 @@ final class ChildPagesGalleryTest extends TestCase {
 		$this->assertSame( 21, gallery::firstImage( 3 ) );
 		$this->assertSame( 31, gallery::firstImage( 6 ), 'the legacy gallery' );
 		$this->assertSame( 35, gallery::firstImage( 7 ), 'before WordPress 5.9' );
-		$this->assertSame( 41, gallery::firstImage( 8 ), 'dynamic: its first attached image' );
+		$this->assertSame( 41, gallery::firstImage( 8 ), 'dynamic: the first WordPress shows' );
 		$this->assertSame( 0, gallery::firstImage( 4 ) );
 		$this->assertSame( 0, gallery::firstImage( 99 ) );
 	}

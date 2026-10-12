@@ -726,15 +726,24 @@ class GalleryAdd {
 
 	/**
 	 * attachment_updated: an image attached to, moved between or detached
-	 * from posts with dynamic galleries.
+	 * from posts with dynamic galleries, or given another date or title,
+	 * by which a dynamic gallery orders its images.
 	 */
 	public static function attachmentUpdated( $id, $after, $before ) {
 
-		if ( (int) $after->post_parent === (int) $before->post_parent || ! wp_attachment_is_image( $id ) ) {
+		if ( ! wp_attachment_is_image( $id ) ) {
 			return;
 		}
 
-		foreach ( [ (int) $before->post_parent, (int) $after->post_parent ] as $parent ) {
+		if ( (int) $after->post_parent !== (int) $before->post_parent ) {
+			$parents = [ (int) $before->post_parent, (int) $after->post_parent ];
+		} elseif ( $after->post_date !== $before->post_date || $after->post_title !== $before->post_title ) {
+			$parents = [ (int) $after->post_parent ];
+		} else {
+			return;
+		}
+
+		foreach ( $parents as $parent ) {
 
 			if ( $parent && self::hasDynamicGallery( $parent ) ) {
 				self::postChanged( $parent );
@@ -744,7 +753,7 @@ class GalleryAdd {
 
 	/**
 	 * Announces that what a post shows changed, though it was not saved: its
-	 * dynamic gallery gained or lost an image.
+	 * dynamic gallery gained or lost an image, or shows them in another order.
 	 */
 	public static function postChanged( $post_id ) {
 
@@ -757,8 +766,11 @@ class GalleryAdd {
 		 * @param array $context files: URLs of its files that changed.
 		 *                       content: true when its stored content was
 		 *                       rewritten in place.
+		 *                       gallery: true when the images its gallery
+		 *                       shows changed (one gained, lost, reordered
+		 *                       or replaced).
 		 */
-		do_action( 'photopress_post_changed', (int) $post_id, [] );
+		do_action( 'photopress_post_changed', (int) $post_id, [ 'gallery' => true ] );
 	}
 
 	public static function hasDynamicGallery( $post_id ) {
