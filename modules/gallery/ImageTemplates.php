@@ -17,8 +17,8 @@ use PhotoPress\modules\search\search;
  * after taxonomy-{taxonomy}-{term} and taxonomy-{taxonomy} and before
  * taxonomy, as themes built on Frame (Ansel, Dorthea) do. An image page
  * already looks for attachment. A theme's own template of the same name, or
- * a more specific one, is used instead of these. Each is turned off with its
- * switch in the Pages & Search tab.
+ * a more specific one, is used instead of these. Each is there while its
+ * kind of page is on in the Pages & Search tab.
  *
  * Also what the templates are made of: Taxonomy Gallery, a core/gallery
  * variation filled here with images (photopressSource "archive", the
@@ -80,8 +80,8 @@ class ImageTemplates {
 	}
 
 	/**
-	 * The templates whose switches are on in the Pages & Search tab: each
-	 * under its kind of page, which must be on too.
+	 * The templates for the kinds of page turned on in the Pages & Search
+	 * tab: image taxonomy archives and image pages.
 	 *
 	 * @return string[] Template slugs.
 	 */
@@ -89,11 +89,11 @@ class ImageTemplates {
 
 		$enabled = [];
 
-		if ( search::enabled( 'taxonomy_pages' ) && search::enabled( 'archive_template' ) ) {
+		if ( search::enabled( 'taxonomy_pages' ) ) {
 			$enabled[] = 'taxonomy-attachment';
 		}
 
-		if ( search::enabled( 'attachment_pages' ) && search::enabled( 'image_page_template' ) ) {
+		if ( search::enabled( 'attachment_pages' ) ) {
 			$enabled[] = 'attachment';
 		}
 

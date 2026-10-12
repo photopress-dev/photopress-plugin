@@ -52,9 +52,6 @@ test( 'both switches are on by default; attachment pages off send an image\'s pa
 	await expect( page.getByRole( 'tab', { name: 'Pages & Search', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true', { timeout: 30000 } );
 	await expect( featureSwitch( page, 'Attachment pages' ) ).toBeChecked();
 	await expect( featureSwitch( page, 'Image taxonomy pages' ) ).toBeChecked();
-	// Each card's template switch, on.
-	await expect( page.getByRole( 'checkbox', { name: 'Image Pages template' } ) ).toBeChecked();
-	await expect( page.getByRole( 'checkbox', { name: 'Image Archives template' } ) ).toBeChecked();
 
 	if ( process.env.PP_E2E_SHOTS ) {
 		await page.locator( '.photopress-options-container .settings' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/search-settings.png` } );
@@ -63,8 +60,6 @@ test( 'both switches are on by default; attachment pages off send an image\'s pa
 	await featureSwitch( page, 'Attachment pages' ).click();
 	await expect.poll( () => settings()?.attachment_pages, { timeout: 15000 } ).toBe( false );
 	expect( settings().taxonomy_pages ).not.toBe( false );
-	// Its template switch goes with it.
-	await expect( page.getByRole( 'checkbox', { name: 'Image Pages template' } ) ).toHaveCount( 0 );
 
 	// WordPress's own setting follows; links go to the file.
 	expect( lastLine( wp( 'eval', `echo get_option( 'wp_attachment_pages_enabled' );` ) ) ).toBe( '0' );

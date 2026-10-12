@@ -3,8 +3,8 @@
  * (which has none of its own): an image taxonomy's archive shows its public
  * images with Taxonomy Gallery, a Gallery block variation whose layout is the
  * gallery's own setting; on a page it shows the images of a term, or the latest; and an image's page shows the image once, its
- * terms and its exposure details. Off with their switches in the Pages &
- * Search tab. And no other query on an archive page lists drafts.
+ * terms and its exposure details. Neither is offered while its kind of page
+ * is off in the Pages & Search tab. And no other query on an archive page lists drafts.
  *
  * The images, the keyword, the draft page and post made here are deleted
  * afterwards, and the Gallery settings put back.
@@ -22,8 +22,14 @@ let saved;
 
 const settings = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ KEY }', null ) );` ) ) );
 
+const SEARCH = 'photopress_core_search';
+let savedSearch;
+
 test.beforeAll( () => {
 	saved = settings();
+	// Image pages and taxonomy pages on, as by default, whatever ran before.
+	savedSearch = lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ SEARCH }', null ) );` ) );
+	wp( 'option', 'delete', SEARCH );
 
 	// Three images under the keyword: two public, one attached to a draft
 	// page; exposure details on the first; and a draft post.
@@ -71,6 +77,11 @@ test.afterAll( () => {
 		wp( 'option', 'delete', KEY );
 	} else {
 		wp( 'option', 'update', KEY, JSON.stringify( saved ), '--format=json' );
+	}
+	if ( 'null' === savedSearch ) {
+		wp( 'option', 'delete', SEARCH );
+	} else {
+		wp( 'option', 'update', SEARCH, savedSearch, '--format=json' );
 	}
 } );
 
@@ -211,22 +222,15 @@ test( 'on a page, Taxonomy Gallery shows the images of a term, or the latest, pu
 	}
 } );
 
-test( 'with the template switches off in Pages & Search, the theme\'s own templates are used', async ( { page } ) => {
-	const SEARCH = 'photopress_core_search';
-	const before = lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ SEARCH }', null ) );` ) );
-	wp( 'option', 'update', SEARCH, JSON.stringify( { archive_template: false, image_page_template: false } ), '--format=json' );
+test( 'with image pages and taxonomy pages off, no template is offered for them', async ( { page } ) => {
+	const registered = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_values( wp_list_pluck( get_block_templates( [ 'slug__in' => [ 'taxonomy-attachment', 'attachment' ] ] ), 'slug' ) ) );` ) ) );
+	expect( registered().sort() ).toEqual( [ 'attachment', 'taxonomy-attachment' ] );
+
+	wp( 'option', 'update', SEARCH, JSON.stringify( { attachment_pages: false, taxonomy_pages: false } ), '--format=json' );
 
 	try {
-		expect( ( await page.goto( made.archive ) ).status() ).toBe( 200 );
-		await expect( page.locator( 'main figure.wp-block-gallery' ) ).toHaveCount( 0 );
-
-		await page.goto( made.page );
-		await expect( page.locator( '.wp-block-photopress-attachment-image' ) ).toHaveCount( 0 );
+		expect( registered() ).toEqual( [] );
 	} finally {
-		if ( 'null' === before ) {
-			wp( 'option', 'delete', SEARCH );
-		} else {
-			wp( 'option', 'update', SEARCH, before, '--format=json' );
-		}
+		wp( 'option', 'delete', SEARCH );
 	}
 } );
