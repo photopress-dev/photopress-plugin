@@ -322,6 +322,12 @@ test.describe( 'settings', () => {
 			await expect( content ).toContainText( 'Thumbnail' );
 			await content.screenshot( { path: path.join( OUT, 'screenshot-5.png' ) } );
 		} );
+
+		test( 'screenshot-16: the Gallery tab', async ( { page } ) => {
+			const content = await tab( page, 'Gallery' );
+			await expect( feature( page, 'Remove deleted images' ) ).toBeVisible( { timeout: 30000 } );
+			await content.screenshot( { path: path.join( OUT, 'screenshot-16.png' ) } );
+		} );
 	} );
 
 	test( 'screenshot-11: a parent keyword in the photos given a taxonomy, and its images reprocessed', async ( { page } ) => {

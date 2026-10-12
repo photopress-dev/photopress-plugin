@@ -28,6 +28,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Open the full-screen slideshow when an image is clicked
 * Hide captions option
 * An image deleted from the Media Library is taken out of the galleries that show it
+* A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
 
 = FULL-SCREEN SLIDESHOW =
 
@@ -113,6 +114,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 13. Licensing metadata embedded into images
 14. Image Sizes tab: the quality images are saved at, and the sizes made
 15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
+16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
 
 == Changelog ==
 
