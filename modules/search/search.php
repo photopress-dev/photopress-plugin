@@ -1,6 +1,8 @@
 <?php
 
 namespace PhotoPress\modules\search;
+
+use photopress_util;
 use photopress_module;
 
 /**
@@ -86,36 +88,12 @@ class search extends photopress_module {
 			return;
 		}
 
-		$relevanssi = [ 'plugin' => self::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
-		$cache = [ 'plugin' => self::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
+		$relevanssi = [ 'plugin' => photopress_util::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
+		$cache = [ 'plugin' => photopress_util::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
 		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );
 	}
 
-	/**
-	 * A plugin "active", "inactive" (installed) or "missing", by whether it
-	 * is running and the folders it is installed in.
-	 */
-	public static function pluginState( $active, array $folders ) {
-
-		if ( $active ) {
-			return 'active';
-		}
-
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-
-		foreach ( array_keys( get_plugins() ) as $file ) {
-			foreach ( $folders as $folder ) {
-				if ( 0 === strpos( $file, $folder ) ) {
-					return 'inactive';
-				}
-			}
-		}
-
-		return 'missing';
-	}
 
 	public function registerOptions() {
 

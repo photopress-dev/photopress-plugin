@@ -47,7 +47,7 @@ function step( php ) {
 		// Every page of each archive of the image's terms.
 		$archives = static function ( $id ) {
 			$links = [];
-			foreach ( ${ NS }\\ImageSearch::taxonomies() as $taxonomy ) {
+			foreach ( \\PhotoPress\\modules\\metadata\\ImageTaxonomies::shownImageTaxonomies() as $taxonomy ) {
 				foreach ( get_the_terms( $id, $taxonomy ) ?: [] as $t ) {
 					$links[] = wp_make_link_relative( get_term_link( $t ) ) . '?vhp-regex';
 				}

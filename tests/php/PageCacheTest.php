@@ -164,9 +164,9 @@ final class PageCacheTest extends TestCase {
 		Functions\when( 'get_plugins' )->alias( static function () use ( &$plugins ) { return $plugins; } );
 
 		$this->assertTrue( PageCache::purges() );
-		$this->assertSame( 'active', search::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) );
-		$this->assertSame( 'missing', search::pluginState( false, [ 'varnish-http-purge/' ] ) );
+		$this->assertSame( 'active', \photopress_util::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) );
+		$this->assertSame( 'missing', \photopress_util::pluginState( false, [ 'varnish-http-purge/' ] ) );
 		$plugins['varnish-http-purge/varnish-http-purge.php'] = [];
-		$this->assertSame( 'inactive', search::pluginState( false, [ 'varnish-http-purge/' ] ) );
+		$this->assertSame( 'inactive', \photopress_util::pluginState( false, [ 'varnish-http-purge/' ] ) );
 	}
 }

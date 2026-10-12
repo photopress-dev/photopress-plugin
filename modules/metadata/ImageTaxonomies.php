@@ -93,6 +93,35 @@ class ImageTaxonomies {
 	}
 
 	/**
+	 * The image taxonomies visitors may see: for images alone, and shown.
+	 * Images are found, archived and kept current by these.
+	 *
+	 * @return string[]
+	 */
+	public static function shownImageTaxonomies() {
+
+		return array_values( array_filter( get_object_taxonomies( 'attachment', 'names' ), [ self::class, 'isShownImageTaxonomy' ] ) );
+	}
+
+	/** Whether a taxonomy is for images alone, and shown. */
+	public static function isShownImageTaxonomy( $name ) {
+
+		return metadata::areImageTaxonomies( [ $name ] ) && self::isShown( $name );
+	}
+
+	/** A term's archive address, while it has one; or ''. */
+	public static function archiveUrl( $term ) {
+
+		if ( ! is_taxonomy_viewable( $term->taxonomy ) ) {
+			return '';
+		}
+
+		$url = get_term_link( $term );
+
+		return is_wp_error( $url ) ? '' : $url;
+	}
+
+	/**
 	 * Whether visitors may see a taxonomy's terms: not one for the admin
 	 * only. Its terms link to their archives only when it has them
 	 * (is_taxonomy_viewable()); the Pages & Search tab can turn them off.

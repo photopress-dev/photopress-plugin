@@ -323,7 +323,7 @@ final class MediaRestTest extends TestCase {
 
 	public function test_offload_media_installed_or_not(): void {
 
-		$state = [ \PhotoPress\modules\media\CdnInvalidator::class, 'pluginState' ];
+		$state = [ \PhotoPress\modules\media\OffloadMedia::class, 'pluginState' ];
 
 		Functions\when( 'get_plugins' )->justReturn( [ 'akismet/akismet.php' => [] ] );
 		$this->assertSame( 'missing', $state() );
@@ -339,13 +339,12 @@ final class MediaRestTest extends TestCase {
 
 		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 
-		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
 		$as3cf = new class() {
 			public function get_setting( $key ) {
 				return [ 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
 			}
 		};
-		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
 		$key = [ \PhotoPress\modules\media\CdnInvalidator::class, 'objectKey' ];
 
 		try {
@@ -353,19 +352,18 @@ final class MediaRestTest extends TestCase {
 			$this->assertSame( 'wp-content/uploads/a b.jpg', $key( 'https://images.example.com.s3.us-east-1.amazonaws.com/wp-content/uploads/a%20b.jpg', 'images.example.com' ), 'served from the bucket' );
 			$this->assertNull( $key( 'https://www.example.com/wp-content/uploads/photo.jpg', 'images.example.com' ), 'served from this server' );
 		} finally {
-			$invalidator->setStaticPropertyValue( 'as3cf', null );
+			\PhotoPress\modules\media\OffloadMedia::init( null );
 		}
 	}
 
 	public function test_replaced_files_stay_in_the_bucket_unless_the_setting_is_on(): void {
 
-		$invalidator = new \ReflectionClass( \PhotoPress\modules\media\CdnInvalidator::class );
 		$as3cf = new class() {
 			public function get_setting( $key ) {
 				return [ 'bucket' => 'images.example.com', 'region' => 'us-east-1', 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
 			}
 		};
-		$invalidator->setStaticPropertyValue( 'as3cf', $as3cf );
+		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
 		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
 		$urls = [ 'https://cdn.example.com/wp-content/uploads/2026/10/photo-300x200.jpg' ];
 
@@ -382,7 +380,7 @@ final class MediaRestTest extends TestCase {
 			);
 			\PhotoPress\modules\media\CdnInvalidator::scheduleDeletion( 12, $urls );
 		} finally {
-			$invalidator->setStaticPropertyValue( 'as3cf', null );
+			\PhotoPress\modules\media\OffloadMedia::init( null );
 		}
 	}
 }

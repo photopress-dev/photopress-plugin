@@ -218,6 +218,8 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Enable Media Replace: an image it replaces is treated as one replaced in
   PhotoPress (its terms and alt text read from the new file, CloudFront,
   the page cache), through its enable-media-replace-upload-done action.
+* Relevanssi: posts in which a replaced image's links or text were updated
+  are indexed again.
 * Image templates for block themes: image taxonomy archives show their
   images in the Masonry layout (Taxonomy Gallery, a Gallery block variation
   whose layout can be changed), and image pages show

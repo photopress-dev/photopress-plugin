@@ -122,8 +122,8 @@ test( 'the page cache and search index card: Proxy Cache Purge and Relevanssi as
 	const status = JSON.parse( lastLine( wp( 'eval', `
 		use PhotoPress\\modules\\search\\{ search, PageCache, Relevanssi };
 		echo wp_json_encode( [
-			'cache'      => search::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ),
-			'relevanssi' => search::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ),
+			'cache'      => \\photopress_util::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ),
+			'relevanssi' => \\photopress_util::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ),
 			'images'     => search::enabled( 'images_in_search', false ),
 		] );
 	` ) ) );

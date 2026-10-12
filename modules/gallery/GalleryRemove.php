@@ -39,7 +39,7 @@ class GalleryRemove {
 	 */
 	public static function imageDeleted( $id ) {
 
-		if ( 0 !== strpos( (string) get_post_mime_type( $id ), 'image/' ) ) {
+		if ( ! wp_attachment_is_image( $id ) ) {
 			return;
 		}
 

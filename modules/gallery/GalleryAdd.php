@@ -690,6 +690,10 @@ class GalleryAdd {
 	 */
 	public static function attachmentAdded( $id ) {
 
+		if ( ! wp_attachment_is_image( $id ) ) {
+			return;
+		}
+
 		$parent = (int) get_post_field( 'post_parent', $id );
 
 		if ( $parent && self::hasDynamicGallery( $parent ) ) {
@@ -703,7 +707,7 @@ class GalleryAdd {
 	 */
 	public static function attachmentUpdated( $id, $after, $before ) {
 
-		if ( (int) $after->post_parent === (int) $before->post_parent ) {
+		if ( (int) $after->post_parent === (int) $before->post_parent || ! wp_attachment_is_image( $id ) ) {
 			return;
 		}
 
@@ -724,10 +728,12 @@ class GalleryAdd {
 		/**
 		 * Fires when what a post or image shows changed, though WordPress did
 		 * not save it as an edit, for what keeps copies of it, such as a page
-		 * cache.
+		 * cache or a search index.
 		 *
 		 * @param int   $id      Post or attachment ID.
 		 * @param array $context files: URLs of its files that changed.
+		 *                       content: true when its stored content was
+		 *                       rewritten in place.
 		 */
 		do_action( 'photopress_post_changed', (int) $post_id, [] );
 	}

@@ -112,7 +112,7 @@ class base extends photopress_module {
 		// The Offload Media tab only where WP Offload Media is installed,
 		// active or not. The media module itself stays: it has the image
 		// replacement route.
-		if ( ! empty( $modules['media'] ) && 'missing' === \PhotoPress\modules\media\CdnInvalidator::pluginState() ) {
+		if ( ! empty( $modules['media'] ) && 'missing' === \PhotoPress\modules\media\OffloadMedia::pluginState() ) {
 			unset( $modules['media'] );
 		}
 		

@@ -65,7 +65,7 @@ final class TermChangesTest extends TestCase {
 			},
 			'get_term_link'           => static fn( $term ) => "https://example.com/keywords/{$term->slug}/",
 			'is_taxonomy_viewable'    => true,
-			'get_post_type'           => static fn( $id ) => $id < 100 ? 'attachment' : 'post',
+			'wp_attachment_is_image'  => static fn( $id ) => $id < 100,
 			'get_object_taxonomies'   => [ 'photos_keywords', 'pp_client' ],
 			'get_taxonomy'            => static fn( $name ) => (object) [ 'object_type' => [ 'attachment' ], 'public' => 'pp_client' !== $name ],
 			'wp_cache_delete'         => true,

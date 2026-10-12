@@ -2,7 +2,9 @@
 
 namespace PhotoPress\modules\search;
 
+use PhotoPress\jobs\ImageQuery;
 use PhotoPress\jobs\Jobs;
+use PhotoPress\modules\metadata\ImageTaxonomies;
 
 /**
  * Changes to images' terms, from WordPress's hooks, as PhotoPress's own:
@@ -74,7 +76,7 @@ class TermChanges {
 	 */
 	public static function imageTermsChanged( $object_id, $tt_ids, $taxonomy ) {
 
-		if ( ! has_action( 'photopress_image_terms_changed' ) || ! in_array( $taxonomy, ImageSearch::taxonomies(), true ) || 'attachment' !== get_post_type( $object_id ) || self::deleting( $tt_ids ) ) {
+		if ( ! has_action( 'photopress_image_terms_changed' ) || ! ImageTaxonomies::isShownImageTaxonomy( $taxonomy ) || ! wp_attachment_is_image( $object_id ) || self::deleting( $tt_ids ) ) {
 			return;
 		}
 
@@ -85,7 +87,7 @@ class TermChanges {
 			$term = get_term_by( 'term_taxonomy_id', $tt_id, $taxonomy );
 
 			if ( $term ) {
-				$archives[] = self::archive( $term );
+				$archives[] = ImageTaxonomies::archiveUrl( $term );
 			}
 		}
 
@@ -98,7 +100,7 @@ class TermChanges {
 		$term = self::imageTerm( $term_id, $taxonomy );
 
 		if ( $term ) {
-			self::$before[ (int) $term->term_taxonomy_id ] = [ $term->name, $term->slug, self::archive( $term ) ];
+			self::$before[ (int) $term->term_taxonomy_id ] = [ $term->name, $term->slug, ImageTaxonomies::archiveUrl( $term ) ];
 		}
 	}
 
@@ -119,7 +121,7 @@ class TermChanges {
 			return;
 		}
 
-		self::changed( [ 'terms' => [ $tt_id ] ], [ $archive, self::archive( $term ) ] );
+		self::changed( [ 'terms' => [ $tt_id ] ], [ $archive, ImageTaxonomies::archiveUrl( $term ) ] );
 	}
 
 	/** pre_delete_term: the term's archive, while it still has one. */
@@ -128,7 +130,7 @@ class TermChanges {
 		$term = self::imageTerm( $term_id, $taxonomy );
 
 		if ( $term ) {
-			self::$deleting[ (int) $term->term_taxonomy_id ] = self::archive( $term );
+			self::$deleting[ (int) $term->term_taxonomy_id ] = ImageTaxonomies::archiveUrl( $term );
 		}
 	}
 
@@ -263,7 +265,7 @@ class TermChanges {
 			$of[] = 'p.ID IN ( ' . implode( ',', $args['images'] ) . ' )';
 		}
 
-		return $of ? "p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%' AND ( " . implode( ' OR ', $of ) . ' )' : '';
+		return $of ? ImageQuery::where( 'p' ) . ' AND ( ' . implode( ' OR ', $of ) . ' )' : '';
 	}
 
 	/** Job args together: terms and images, each positive integers, once. */
@@ -286,24 +288,12 @@ class TermChanges {
 	/** A term of an image taxonomy, or null. */
 	private static function imageTerm( $term_id, $taxonomy ) {
 
-		if ( ! in_array( $taxonomy, ImageSearch::taxonomies(), true ) ) {
+		if ( ! ImageTaxonomies::isShownImageTaxonomy( $taxonomy ) ) {
 			return null;
 		}
 
 		$term = get_term( (int) $term_id, $taxonomy );
 
 		return $term && ! is_wp_error( $term ) ? $term : null;
-	}
-
-	/** A term's archive address, while it has one; or ''. */
-	private static function archive( $term ) {
-
-		if ( ! is_taxonomy_viewable( $term->taxonomy ) ) {
-			return '';
-		}
-
-		$url = get_term_link( $term );
-
-		return is_wp_error( $url ) ? '' : $url;
 	}
 }

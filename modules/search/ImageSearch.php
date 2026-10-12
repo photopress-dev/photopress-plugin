@@ -2,6 +2,7 @@
 
 namespace PhotoPress\modules\search;
 
+use PhotoPress\jobs\ImageQuery;
 use PhotoPress\jobs\Jobs;
 use PhotoPress\modules\metadata\ImageTaxonomies;
 use PhotoPress\modules\metadata\metadata;
@@ -65,6 +66,7 @@ class ImageSearch {
 		Relevanssi::indexingFields( [ self::class, 'indexedFields' ] );
 		Relevanssi::filteringResults( [ self::class, 'onlyImages' ] );
 		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
+		add_action( 'photopress_post_changed', [ self::class, 'contentRewritten' ], 10, 2 );
 		add_filter( 'photopress_term_images_job', [ self::class, 'termImagesJob' ] );
 
 		if ( Relevanssi::active() ) {
@@ -72,8 +74,8 @@ class ImageSearch {
 			Jobs::register( self::JOB, [
 				'label'       => __( 'Add images to the search index', 'photopress' ),
 				'description' => __( 'Indexes every image in Relevanssi, with its terms and alt text.', 'photopress' ),
-				'count'       => [ self::class, 'countImages' ],
-				'items'       => [ self::class, 'nextImages' ],
+				'count'       => [ ImageQuery::class, 'count' ],
+				'items'       => [ ImageQuery::class, 'next' ],
 				'process'     => [ self::class, 'indexImage' ],
 				// Indexing writes to the database: a few at a time, resting
 				// between batches, and not while the server is busy.
@@ -112,26 +114,6 @@ class ImageSearch {
 		}
 	}
 
-	/** The job's count: every image. */
-	public static function countImages() {
-
-		global $wpdb;
-
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'" );
-	}
-
-	/** The job's items: the next images by ID. @return int[] */
-	public static function nextImages( $after, $limit ) {
-
-		global $wpdb;
-
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
-			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%%' AND ID > %d ORDER BY ID ASC LIMIT %d",
-			(int) $after,
-			(int) $limit
-		) ) );
-	}
-
 	/** The job's work: one image, indexed again. */
 	public static function indexImage( $id ) {
 
@@ -152,20 +134,6 @@ class ImageSearch {
 	public static function postsOn() {
 
 		return search::enabled( 'posts_in_search' );
-	}
-
-	/**
-	 * The taxonomies images are found by: those for images alone that
-	 * visitors may see.
-	 *
-	 * @return string[]
-	 */
-	public static function taxonomies() {
-
-		return array_values( array_filter(
-			get_object_taxonomies( 'attachment', 'names' ),
-			static fn( $name ) => metadata::areImageTaxonomies( [ $name ] ) && ImageTaxonomies::isShown( $name )
-		) );
 	}
 
 	/**
@@ -227,7 +195,7 @@ class ImageSearch {
 			return $search;
 		}
 
-		$taxonomies = self::taxonomies();
+		$taxonomies = ImageTaxonomies::shownImageTaxonomies();
 		$in         = $taxonomies ? implode( ', ', array_fill( 0, count( $taxonomies ), '%s' ) ) : '';
 		$exclusion  = apply_filters( 'wp_query_search_exclusion_prefix', '-' );
 		$clauses    = [];
@@ -406,7 +374,7 @@ class ImageSearch {
 	 */
 	public static function indexedTaxonomies( $taxonomies ) {
 
-		return array_values( array_unique( array_merge( is_array( $taxonomies ) ? $taxonomies : [], self::taxonomies() ) ) );
+		return array_values( array_unique( array_merge( is_array( $taxonomies ) ? $taxonomies : [], ImageTaxonomies::shownImageTaxonomies() ) ) );
 	}
 
 	/**
@@ -472,6 +440,18 @@ class ImageSearch {
 		}
 	}
 
+	/**
+	 * photopress_post_changed: a post whose stored content was rewritten in
+	 * place, without the save Relevanssi indexes it on, as when links to a
+	 * replaced image's files change. Indexed again at the end of the request.
+	 */
+	public static function contentRewritten( $id, $context = [] ) {
+
+		if ( ! empty( $context['content'] ) && Relevanssi::indexes() ) {
+			self::indexLater( $id );
+		}
+	}
+
 	/** photopress_term_images_job: needed while the index has images. */
 	public static function termImagesJob( $needed ) {
 
@@ -484,7 +464,7 @@ class ImageSearch {
 		return Relevanssi::indexes() && self::imagesOn();
 	}
 
-	/** An image, indexed again at the end of the request. */
+	/** A post or image, indexed again at the end of the request. */
 	public static function indexLater( $id ) {
 
 		if ( ! self::$changed ) {
@@ -494,7 +474,7 @@ class ImageSearch {
 		self::$changed[ (int) $id ] = true;
 	}
 
-	/** shutdown: the images whose terms changed, indexed again. */
+	/** shutdown: the posts and images that changed, indexed again. */
 	public static function indexChanged() {
 
 		$ids = array_keys( self::$changed );

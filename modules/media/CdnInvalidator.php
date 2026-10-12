@@ -47,23 +47,13 @@ class CdnInvalidator {
 	 */
 	const DELETE_DELAY = 2 * 86400; // two days
 
-	/**
-	 * Offload Media's main object, as its as3cf_init action passes it.
-	 */
-	protected static $as3cf = null;
-
 	public static function addHooks() {
 
-		add_action( 'as3cf_init', [ self::class, 'setOffloadMedia' ] );
 		add_action( 'photopress_attachment_file_replaced', [ self::class, 'queue' ], 20 );
 		add_action( self::HOOK, [ self::class, 'flush' ] );
 		add_action( 'photopress_attachment_files_removed', [ self::class, 'scheduleDeletion' ], 10, 2 );
+		add_action( 'photopress_image_sizes_regenerated', [ self::class, 'sizesRegenerated' ] );
 		add_action( self::DELETE_HOOK, [ self::class, 'deleteObjects' ], 10, 4 );
-	}
-
-	public static function setOffloadMedia( $as3cf ) {
-
-		self::$as3cf = $as3cf;
 	}
 
 	/**
@@ -71,11 +61,7 @@ class CdnInvalidator {
 	 */
 	public static function domain() {
 
-		if ( ! self::$as3cf || ! method_exists( self::$as3cf, 'get_setting' ) || ! self::$as3cf->get_setting( 'serve-from-s3' ) ) {
-			return '';
-		}
-
-		return self::$as3cf->get_setting( 'enable-delivery-domain' ) ? (string) self::$as3cf->get_setting( 'delivery-domain' ) : '';
+		return OffloadMedia::deliveryDomain();
 	}
 
 	/**
@@ -227,12 +213,12 @@ class CdnInvalidator {
 			return;
 		}
 
-		if ( ! self::$as3cf || ! $urls || ! function_exists( 'as_schedule_single_action' ) ) {
+		if ( ! OffloadMedia::active() || ! $urls || ! function_exists( 'as_schedule_single_action' ) ) {
 			return;
 		}
 
-		$bucket = (string) self::$as3cf->get_setting( 'bucket' );
-		$region = (string) self::$as3cf->get_setting( 'region' );
+		$bucket = (string) OffloadMedia::setting( 'bucket' );
+		$region = (string) OffloadMedia::setting( 'region' );
 		$keys = array_values( array_filter( array_map( static fn( $url ) => self::objectKey( $url, $bucket ), $urls ) ) );
 
 		if ( '' !== $bucket && $keys ) {
@@ -273,29 +259,6 @@ class CdnInvalidator {
 	}
 
 	/**
-	 * Whether WP Offload Media (or its Pro version) is "active", "inactive"
-	 * (installed) or "missing".
-	 */
-	public static function pluginState() {
-
-		if ( self::$as3cf ) {
-			return 'active';
-		}
-
-		if ( ! function_exists( 'get_plugins' ) ) {
-			require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		}
-
-		foreach ( array_keys( get_plugins() ) as $file ) {
-			if ( 0 === strpos( $file, 'amazon-s3-and-cloudfront/' ) || 0 === strpos( $file, 'amazon-s3-and-cloudfront-pro/' ) ) {
-				return 'inactive';
-			}
-		}
-
-		return 'missing';
-	}
-
-	/**
 	 * Invalidates paths on the distribution serving the delivery domain. If
 	 * CloudFront no longer has the one found before (it was deleted and
 	 * made again for the same domain), it is looked up again, once.
@@ -325,6 +288,17 @@ class CdnInvalidator {
 	}
 
 	/**
+	 * photopress_image_sizes_regenerated: the whole distribution, while
+	 * Offload Media serves a CDN domain.
+	 */
+	public static function sizesRegenerated() {
+
+		if ( '' !== self::domain() ) {
+			self::invalidateAll();
+		}
+	}
+
+	/**
 	 * Invalidates the whole distribution: one wildcard path.
 	 *
 	 * @return string|WP_Error The invalidation's ID.
@@ -349,15 +323,14 @@ class CdnInvalidator {
 	 */
 	public static function status() {
 
-		$distribution = self::$as3cf ? self::distribution() : null;
+		$distribution = OffloadMedia::active() ? self::distribution() : null;
 		$credentials = CloudFront::credentials();
-
-		$setting = static fn( $key ) => self::$as3cf && method_exists( self::$as3cf, 'get_setting' ) ? self::$as3cf->get_setting( $key ) : null;
+		$setting = [ OffloadMedia::class, 'setting' ];
 
 		return [
-			'offload_media' => (bool) self::$as3cf,
-			'plugin'        => self::pluginState(),
-			'storage'       => self::$as3cf ? [
+			'offload_media' => OffloadMedia::active(),
+			'plugin'        => OffloadMedia::pluginState(),
+			'storage'       => OffloadMedia::active() ? [
 				'provider'          => $setting( 'provider' ),
 				'bucket'            => $setting( 'bucket' ),
 				'region'            => $setting( 'region' ),

@@ -34,11 +34,11 @@ use WP_REST_Server;
  * files are deleted and stored links to them are rewritten. Title and caption
  * follow the new file as on upload.
  *
- * Caches: the image, with its files, and the posts that changed or show it
- * are announced with photopress_post_changed, for a page cache. Offload Media re-uploads the files to the
- * same keys when the metadata is saved; the cache lifetime it gives files is
- * set by MediaOffload. _photopress_replaced_at records when, for a CDN
- * invalidation.
+ * Caches and the search index: the image, with its files, and the posts
+ * that changed or show it are announced with photopress_post_changed.
+ * Offload Media re-uploads the files to the same keys when the metadata is
+ * saved; the cache lifetime it gives files is set by the media module.
+ * _photopress_replaced_at records when, for a CDN invalidation.
  */
 class MediaRest {
 
@@ -275,9 +275,7 @@ class MediaRest {
 		// 5. The sizes, and -scaled for large images, over the old ones where
 		// the names are the same. WordPress saves the metadata as it goes;
 		// Offload Media waits for the finished set, then uploads it.
-		add_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
-		$new_meta = wp_generate_attachment_metadata( $id, $target );
-		remove_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
+		$new_meta = OffloadMedia::withUploadHeld( static fn() => wp_generate_attachment_metadata( $id, $target ) );
 
 		wp_update_attachment_metadata( $id, $new_meta );
 		clean_attachment_cache( $id );
@@ -360,11 +358,18 @@ class MediaRest {
 		// Its parent post too: a dynamic gallery there shows the image without
 		// a link to it in the content.
 		$parent = (int) get_post_field( 'post_parent', $id );
-		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] );
+		$rewritten_in_place = array_unique( array_merge( $rewritten, $synced ) );
+		$showing = array_diff( array_unique( array_merge( $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] ) ), $rewritten_in_place );
+
 		/** This action is documented in modules/gallery/GalleryAdd.php */
 		do_action( 'photopress_post_changed', $id, [ 'files' => $file_urls ] );
 
-		foreach ( array_unique( $posts ) as $post_id ) {
+		foreach ( $rewritten_in_place as $post_id ) {
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', (int) $post_id, [ 'content' => true ] );
+		}
+
+		foreach ( $showing as $post_id ) {
 			/** This action is documented in modules/gallery/GalleryAdd.php */
 			do_action( 'photopress_post_changed', (int) $post_id, [] );
 		}

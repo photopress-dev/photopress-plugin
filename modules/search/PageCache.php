@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+use PhotoPress\modules\metadata\ImageTaxonomies;
+
 /**
  * The site's page cache, through Proxy Cache Purge's documented hooks. It
  * purges a post's pages, its terms' archives and the home page when the post
@@ -112,13 +114,13 @@ class PageCache {
 
 			if ( search::enabled( 'taxonomy_pages' ) ) {
 
-				foreach ( ImageSearch::taxonomies() as $taxonomy ) {
+				foreach ( ImageTaxonomies::shownImageTaxonomies() as $taxonomy ) {
 
 					$terms = get_the_terms( $post_id, $taxonomy );
 
 					foreach ( is_array( $terms ) ? $terms : [] as $term ) {
 
-						$url = self::archive( $term );
+						$url = ImageTaxonomies::archiveUrl( $term );
 
 						if ( $url ) {
 							$urls   = array_diff( $urls, [ $url ] );
@@ -218,17 +220,5 @@ class PageCache {
 	private static function imagePages() {
 
 		return search::enabled( 'attachment_pages' ) || search::enabled( 'taxonomy_pages' );
-	}
-
-	/** A term's archive address, while it has one; or ''. */
-	private static function archive( $term ) {
-
-		if ( ! is_taxonomy_viewable( $term->taxonomy ) ) {
-			return '';
-		}
-
-		$url = get_term_link( $term );
-
-		return is_wp_error( $url ) ? '' : $url;
 	}
 }

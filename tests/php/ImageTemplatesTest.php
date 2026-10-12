@@ -75,7 +75,8 @@ final class ImageTemplatesTest extends TestCase {
 
 		Functions\stubs( [
 			'taxonomy_exists' => static fn( $name ) => in_array( $name, [ 'photos_keywords', 'pp_client', 'category' ], true ),
-			'get_taxonomy'    => static fn( $name ) => (object) [ 'object_type' => 'category' === $name ? [ 'post' ] : [ 'attachment' ], 'public' => 'pp_client' !== $name ],
+			// false for a taxonomy that doesn't exist, as WordPress returns.
+			'get_taxonomy'    => static fn( $name ) => in_array( $name, [ 'photos_keywords', 'pp_client', 'category' ], true ) ? (object) [ 'object_type' => 'category' === $name ? [ 'post' ] : [ 'attachment' ], 'public' => 'pp_client' !== $name ] : false,
 		] );
 
 		// The latest, newest first, public images only.

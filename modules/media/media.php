@@ -30,17 +30,17 @@ class media extends photopress_module {
 
 	public function definePublicHooks() {
 
+		OffloadMedia::addHooks();
 		MediaRest::addHooks();
 		CdnInvalidator::addHooks();
 		EnableMediaReplace::addHooks();
 
-		add_filter( 'as3cf_object_meta', [ $this, 'setCacheControl' ] );
+		OffloadMedia::filteringUploads( [ $this, 'setCacheControl' ] );
 		add_action( 'rest_api_init', [ $this, 'registerRoutes' ] );
 	}
 
 	/**
-	 * as3cf_object_meta: the Cache-Control header of each file Offload Media
-	 * uploads.
+	 * The Cache-Control header of each file Offload Media uploads.
 	 */
 	public function setCacheControl( $args ) {
 

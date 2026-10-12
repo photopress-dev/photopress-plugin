@@ -217,17 +217,18 @@ final class ImagesTest extends TestCase {
 
 		$this->assertFalse( images::offloadRemovesLocalFiles() );
 
-		$GLOBALS['as3cf'] = new class() {
+		$as3cf = new class() {
 			public bool $remove = true;
 			public function get_setting( $key ) {
 				return 'remove-local-file' === $key && $this->remove;
 			}
 		};
+		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
 		$this->assertTrue( images::offloadRemovesLocalFiles() );
 
-		$GLOBALS['as3cf']->remove = false;
+		$as3cf->remove = false;
 		$this->assertFalse( images::offloadRemovesLocalFiles() );
-		unset( $GLOBALS['as3cf'] );
+		\PhotoPress\modules\media\OffloadMedia::init( null );
 	}
 
 	/** The image: its metadata and its quality. */

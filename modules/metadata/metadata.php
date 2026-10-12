@@ -3,6 +3,7 @@
 namespace PhotoPress\modules\metadata;
 use photopress_module;
 use pp_api;
+use PhotoPress\jobs\ImageQuery;
 use PhotoPress\modules\search\search;
 use photopress_util;
 
@@ -40,8 +41,8 @@ class metadata extends photopress_module {
 		\PhotoPress\jobs\Jobs::register( 'metadata.reprocess', [
 			'label'       => __( 'Re-read image metadata' ),
 			'description' => __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. For after changing the taxonomies or templates.' ),
-			'count'       => [ self::class, 'countImages' ],
-			'items'       => [ self::class, 'nextImages' ],
+			'count'       => [ ImageQuery::class, 'count' ],
+			'items'       => [ ImageQuery::class, 'next' ],
 			'process'     => [ $this, 'reprocessImage' ],
 			'finish'      => [ self::class, 'startQueuedReprocess' ],
 		] );
@@ -49,22 +50,22 @@ class metadata extends photopress_module {
 		// the alt text, description or embedded license of every image again
 		\PhotoPress\jobs\Jobs::register( 'metadata.alt_text', [
 			'label'   => __( 'Reprocess alt text' ),
-			'count'   => [ self::class, 'countImages' ],
-			'items'   => [ self::class, 'nextImages' ],
+			'count'   => [ ImageQuery::class, 'count' ],
+			'items'   => [ ImageQuery::class, 'next' ],
 			'process' => [ $this, 'reprocessAltText' ],
 		] );
 		
 		\PhotoPress\jobs\Jobs::register( 'metadata.description', [
 			'label'   => __( 'Reprocess descriptions' ),
-			'count'   => [ self::class, 'countImages' ],
-			'items'   => [ self::class, 'nextImages' ],
+			'count'   => [ ImageQuery::class, 'count' ],
+			'items'   => [ ImageQuery::class, 'next' ],
 			'process' => [ $this, 'reprocessDescription' ],
 		] );
 		
 		\PhotoPress\jobs\Jobs::register( 'metadata.license', [
 			'label'         => __( 'Reprocess licensing metadata' ),
-			'count'         => [ self::class, 'countImages' ],
-			'items'         => [ self::class, 'nextImages' ],
+			'count'         => [ ImageQuery::class, 'count' ],
+			'items'         => [ ImageQuery::class, 'next' ],
 			'process'       => [ $this, 'embedLicenseInImage' ],
 			'batch_seconds' => 10,
 			'batch_items'   => 5,
@@ -1370,43 +1371,6 @@ class metadata extends photopress_module {
 		$md->loadFromFile( $file );
 		
 		return $this->generateDescription( $md ) ?? $description;
-	}
-	
-	/**
-	 * The images, for the metadata.reprocess job: all of them, or those in
-	 * $args['ids'].
-	 */
-	public static function countImages( $args = [] ) {
-		
-		global $wpdb;
-		
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
-		return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'" . self::onlyIds( $args ) );
-	}
-	
-	/**
-	 * The next images after $after, by ID, for the metadata.reprocess job.
-	 */
-	public static function nextImages( $after, $limit, $args = [] ) {
-		
-		global $wpdb;
-		
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
-		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
-			"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%%' AND ID > %d" . self::onlyIds( $args ) . ' ORDER BY ID LIMIT %d',
-			(int) $after,
-			(int) $limit
-		) ) );
-	}
-	
-	/**
-	 * " AND ID IN (...)" for a job limited to some images; integers only.
-	 */
-	private static function onlyIds( $args ) {
-		
-		$ids = array_filter( array_map( 'intval', (array) ( $args['ids'] ?? [] ) ) );
-		
-		return $ids ? ' AND ID IN (' . implode( ',', $ids ) . ')' : '';
 	}
 	
 	/**

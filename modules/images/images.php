@@ -3,8 +3,9 @@
 namespace PhotoPress\modules\images;
 use photopress_module;
 use pp_api;
+use PhotoPress\jobs\ImageQuery;
 use PhotoPress\jobs\Jobs;
-use PhotoPress\modules\media\CdnInvalidator;
+use PhotoPress\modules\media\OffloadMedia;
 use WP_Error;
 
 /**
@@ -247,9 +248,7 @@ class images extends photopress_module {
 	 */
 	public static function offloadRemovesLocalFiles() {
 
-		global $as3cf;
-
-		return is_object( $as3cf ) && method_exists( $as3cf, 'get_setting' ) && (bool) $as3cf->get_setting( 'remove-local-file' );
+		return OffloadMedia::removesLocalFiles();
 	}
 
 	/**
@@ -319,11 +318,8 @@ class images extends photopress_module {
 	 */
 	public static function countImages( $args = [] ) {
 
-		global $wpdb;
-
 		if ( empty( $args['outdated'] ) ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
-			return (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'attachment' AND post_mime_type LIKE 'image/%'" . self::onlyIds( $args ) );
+			return ImageQuery::count( $args );
 		}
 
 		$count = 0;
@@ -367,11 +363,11 @@ class images extends photopress_module {
 
 		global $wpdb;
 
-		$where = "p.post_type = 'attachment' AND p.post_mime_type LIKE 'image/%%'" . self::onlyIds( $args, 'p.ID' ) . ' AND p.ID > %d ORDER BY p.ID LIMIT %d';
+		$where = ImageQuery::where( 'p', $args ) . $wpdb->prepare( ' AND p.ID > %d ORDER BY p.ID LIMIT %d', (int) $after, (int) $limit );
 
 		if ( ! $judge ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
-			return array_fill_keys( array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT p.ID FROM {$wpdb->posts} p WHERE $where", (int) $after, (int) $limit ) ) ), true );
+			return array_fill_keys( array_map( 'intval', $wpdb->get_col( "SELECT p.ID FROM {$wpdb->posts} p WHERE $where" ) ), true );
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.NotPrepared
@@ -379,11 +375,9 @@ class images extends photopress_module {
 			"SELECT p.ID, p.post_mime_type, a.meta_value AS meta, q.meta_value AS quality FROM {$wpdb->posts} p
 			LEFT JOIN {$wpdb->postmeta} a ON a.post_id = p.ID AND a.meta_key = '_wp_attachment_metadata'
 			LEFT JOIN {$wpdb->postmeta} q ON q.post_id = p.ID AND q.meta_key = %s
-			WHERE $where",
-			self::QUALITY_META,
-			(int) $after,
-			(int) $limit
-		) );
+			WHERE ",
+			self::QUALITY_META
+		) . $where );
 
 		$settings = self::settings( (array) ( $args['settings'] ?? [] ) );
 		$assumed = self::assumedQuality();
@@ -394,13 +388,6 @@ class images extends photopress_module {
 		}
 
 		return $out;
-	}
-
-	private static function onlyIds( $args, $column = 'ID' ) {
-
-		$ids = array_filter( array_map( 'intval', (array) ( $args['ids'] ?? [] ) ) );
-
-		return $ids ? " AND $column IN (" . implode( ',', $ids ) . ')' : '';
 	}
 
 	/**
@@ -438,8 +425,27 @@ class images extends photopress_module {
 		self::limitImagick();
 
 		// WordPress saves the metadata as it makes each size; Offload Media
-		// waits for the finished set, then uploads it.
-		add_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
+		// uploads the finished set once.
+		$meta = OffloadMedia::withUploadHeld( static fn() => self::makeSizes( $id, $meta, $work, $original ) );
+
+		if ( empty( $meta ) || ! is_array( $meta ) ) {
+			return new WP_Error( 'photopress_regenerate_failed', __( 'WordPress could not make this image\'s sizes.' ) );
+		}
+
+		wp_update_attachment_metadata( $id, $meta );
+		update_post_meta( $id, self::QUALITY_META, $settings['quality'] );
+		delete_post_meta( $id, self::SIGNATURE_META );
+
+		return true;
+	}
+
+	/**
+	 * An image's sizes made: every one from its original ('full'), or those
+	 * turned on that it lacks.
+	 *
+	 * @return array|false The metadata, not yet saved.
+	 */
+	private static function makeSizes( $id, $meta, $work, $original ) {
 
 		if ( 'full' === $work ) {
 			$before = is_array( $meta ) ? (array) ( $meta['sizes'] ?? [] ) : [];
@@ -471,17 +477,7 @@ class images extends photopress_module {
 			remove_filter( 'wp_get_missing_image_subsizes', $only );
 		}
 
-		remove_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' );
-
-		if ( empty( $meta ) || ! is_array( $meta ) ) {
-			return new WP_Error( 'photopress_regenerate_failed', __( 'WordPress could not make this image\'s sizes.' ) );
-		}
-
-		wp_update_attachment_metadata( $id, $meta );
-		update_post_meta( $id, self::QUALITY_META, $settings['quality'] );
-		delete_post_meta( $id, self::SIGNATURE_META );
-
-		return true;
+		return $meta;
 	}
 
 	/**
@@ -543,14 +539,18 @@ class images extends photopress_module {
 	}
 
 	/**
-	 * When the job is done: the files under their old names in a CDN's
-	 * cache are cleared, with one invalidation for them all.
+	 * When the job is done: announced, so the files under their old names
+	 * in a CDN's cache are cleared, with one invalidation for them all.
 	 */
 	public static function finished( $job ) {
 
-		if ( class_exists( CdnInvalidator::class ) && '' !== CdnInvalidator::domain() ) {
-			CdnInvalidator::invalidateAll();
-		}
+		/**
+		 * Fires when PhotoPress has made images' sizes again: their files
+		 * changed under the same URLs.
+		 *
+		 * @param array $job The images.regenerate job, as Jobs::get() returns it.
+		 */
+		do_action( 'photopress_image_sizes_regenerated', $job );
 	}
 
 	public function registerOptions() {

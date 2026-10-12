@@ -236,7 +236,7 @@ class ImageTemplates {
 			return $args;
 		}
 
-		if ( ! taxonomy_exists( $taxonomy ) || ! metadata::areImageTaxonomies( [ $taxonomy ] ) || ! ImageTaxonomies::isShown( $taxonomy ) ) {
+		if ( ! ImageTaxonomies::isShownImageTaxonomy( $taxonomy ) ) {
 			return null;
 		}
 
