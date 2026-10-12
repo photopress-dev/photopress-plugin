@@ -2,10 +2,12 @@
 // through the photopress-layout-* classes and --pp-* variables, which are added
 // at render time and never saved in the post. See src/variations/gallery-layouts.js.
 //
-// Selectors repeat core's `figure.wp-block-image:not(#individual-image)` so they
-// outrank its item width and margin rules by one class.
+// Items are core's `figure.wp-block-image:not(#individual-image)` with the
+// :not() three times, so the layouts outrank core's item width and margin
+// rules, including those for a gallery of one or two images, whose selector
+// for the second image has it twice.
 
-$item: "figure.wp-block-image:not(#individual-image)";
+$item: "figure.wp-block-image:not(#individual-image):not(#individual-image):not(#individual-image)";
 $gap: var(--wp--style--unstable-gallery-gap, 16px);
 
 // Hide captions: the image captions stay in the content but are not shown.
