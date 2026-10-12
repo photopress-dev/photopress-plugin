@@ -157,7 +157,7 @@ test( 'with core\'s search: public images by their terms and alt text, and posts
 	await expect( page.locator( 'body' ) ).toContainText( `PP E2E post about ${ WORD }` );
 } );
 
-test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change and are renamed', async ( { page } ) => {
+test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change, are renamed and are deleted', async ( { page } ) => {
 	relevanssi( true );
 	setSearch( { images_in_search: null } );
 	setSearch( { images_in_search: true, posts_in_search: null } );
@@ -195,5 +195,9 @@ test( 'with Relevanssi: its index has images and their terms, kept up to date as
 	await expect( gallery( page ).locator( `img.wp-image-${ byAlt }` ) ).toHaveCount( 1 );
 	await page.goto( `/?s=${ later }` );
 	await expect( gallery( page ) ).toHaveCount( 0 );
+
+	// The term deleted: its images no longer found by its name.
 	wp( 'eval', `$t = get_term_by( 'name', '${ renamed }', 'photos_keywords' ); if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); }` );
+	await page.goto( `/?s=${ renamed }` );
+	await expect( gallery( page ) ).toHaveCount( 0 );
 } );

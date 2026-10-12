@@ -145,9 +145,9 @@ test( 'the page cache and search index card: Proxy Cache Purge and Relevanssi as
 		return;
 	}
 
-	await expect( relevanssi ).toContainText( /Its index has ([\d,]+ images?|no images yet)\./ );
 	const reindex = relevanssi.getByRole( 'button', { name: 'Re-index all images' } );
 	if ( status.images ) {
+		await expect( relevanssi ).toContainText( 'PhotoPress has it index images and their terms as they’re added and changed' );
 		await expect( reindex ).toBeEnabled();
 	} else {
 		await expect( reindex ).toHaveCount( 0 );

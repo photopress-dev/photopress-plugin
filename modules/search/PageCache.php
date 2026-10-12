@@ -3,157 +3,242 @@
 namespace PhotoPress\modules\search;
 
 /**
- * The site's page cache. Proxy Cache Purge (a Varnish or NGINX cache) clears
- * a post's pages when the post is saved, and nothing when an image is edited
- * (an image's status is inherit, which it leaves alone) or its terms change.
- * Through it, PhotoPress clears:
+ * The site's page cache, through Proxy Cache Purge's documented hooks. It
+ * purges a post's pages, its terms' archives and the home page when the post
+ * is saved or deleted, but leaves out images (their status is inherit), and
+ * does nothing when a post's terms change.
  *
- * - an image's page, when the image is edited or deleted or its terms
- *   change, while attachment pages are on;
- * - every page of an image taxonomy term's archive, when an image joins or
- *   leaves the term or is edited or deleted, while image taxonomy pages are
- *   on. A renamed term's are cleared by RenamedTerms.
+ * PhotoPress gives it:
+ *
+ * - images, among the statuses it purges (varnish_http_purge_valid_post_statuses),
+ *   so an image deleted is purged by Proxy Cache Purge itself;
+ * - an event for an image (varnish_http_purge_events), fired at the end of a
+ *   request in which an image was edited or its terms changed
+ *   (photopress_image_terms_changed, from TermChanges);
+ * - an event to empty the cache (varnish_http_purge_events_full), for a
+ *   renamed or deleted term with more images than are worth purging one by
+ *   one (photopress_term_images_changed);
+ * - for an image's purge (vhp_purge_urls): every page of its image taxonomy
+ *   terms' archives, and of terms it left, while image taxonomy pages are on,
+ *   and not its own page while attachment pages are off.
+ *
+ * Proxy Cache Purge decides the rest: how it sends them, whether by WP-Cron,
+ * and when there are so many it empties the cache instead.
  *
  * The Pages & Search tab shows whether Proxy Cache Purge is active.
  */
 class PageCache {
 
-	/** Pages to clear at the end of the request, by URL. */
-	private static $urls = [];
+	/** Proxy Cache Purge's event for an image, with its ID. */
+	const IMAGE = 'photopress_purge_image';
+
+	/** Proxy Cache Purge's event to empty the cache. */
+	const ALL = 'photopress_purge_all';
+
+	/** Images to purge at the end of the request, by ID. */
+	private static $images = [];
+
+	/** Archives to purge with an image, by image ID: URLs. */
+	private static $archives = [];
+
+	/** Whether to empty the cache at the end of the request. */
+	private static $all = false;
 
 	public static function addHooks() {
 
-		if ( ! self::purges() ) {
-			return;
-		}
+		add_filter( 'varnish_http_purge_events', [ self::class, 'events' ] );
+		add_filter( 'varnish_http_purge_events_full', [ self::class, 'fullEvents' ] );
+		add_filter( 'varnish_http_purge_valid_post_statuses', [ self::class, 'statuses' ], 10, 2 );
+		add_filter( 'vhp_purge_urls', [ self::class, 'urls' ], 10, 2 );
 
-		add_action( 'added_term_relationship', [ self::class, 'termsChanged' ], 10, 3 );
-		add_action( 'deleted_term_relationships', [ self::class, 'termsChanged' ], 10, 3 );
+		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
+		add_action( 'photopress_term_images_changed', [ self::class, 'purgeAll' ] );
 		add_action( 'attachment_updated', [ self::class, 'imageEdited' ], 10, 3 );
-		add_action( 'delete_attachment', [ self::class, 'imageDeleted' ] );
-	}
-
-	/** Whether PhotoPress clears pages through Proxy Cache Purge. */
-	public static function purges() {
-
-		return class_exists( 'VarnishPurger' ) && is_callable( [ 'VarnishPurger', 'purge_url' ] );
 	}
 
 	/**
-	 * added_term_relationship, deleted_term_relationships: an image joining a
-	 * term or leaving terms, as when it is edited or PhotoPress reprocesses
-	 * it. Its page, and those terms' archives.
+	 * Whether Proxy Cache Purge purges for PhotoPress: it listens for the
+	 * image event, from its init on.
 	 */
-	public static function termsChanged( $object_id, $tt_ids, $taxonomy ) {
+	public static function purges() {
 
-		if ( ! in_array( $taxonomy, ImageSearch::taxonomies(), true ) || 'attachment' !== get_post_type( $object_id ) ) {
-			return;
+		return false !== has_action( self::IMAGE );
+	}
+
+	/** varnish_http_purge_events: the image event, and emptying the cache. */
+	public static function events( $events ) {
+
+		return array_merge( (array) $events, [ self::IMAGE, self::ALL ] );
+	}
+
+	/** varnish_http_purge_events_full: emptying the cache, which has no post. */
+	public static function fullEvents( $events ) {
+
+		return array_merge( (array) $events, [ self::ALL ] );
+	}
+
+	/** varnish_http_purge_valid_post_statuses: an image's, inherit. */
+	public static function statuses( $statuses, $post_id = 0 ) {
+
+		$statuses = (array) $statuses;
+
+		if ( $post_id && wp_attachment_is_image( $post_id ) && ! in_array( 'inherit', $statuses, true ) ) {
+			$statuses[] = 'inherit';
 		}
 
-		self::purgeImagePage( $object_id );
+		return $statuses;
+	}
 
-		foreach ( array_map( 'intval', (array) $tt_ids ) as $tt_id ) {
+	/**
+	 * vhp_purge_urls: the URLs of the request's purges so far, as an image's
+	 * are added. Its image taxonomy terms' archives become every page of
+	 * them, with the archives of terms it left, while image taxonomy pages
+	 * are on; its own page is left out while attachment pages are off.
+	 */
+	public static function urls( $urls, $post_id = 0 ) {
 
-			$term = get_term_by( 'term_taxonomy_id', $tt_id, $taxonomy );
+		$urls = (array) $urls;
 
-			if ( $term ) {
-				self::purgeArchive( $term );
+		if ( ! $post_id || ! wp_attachment_is_image( $post_id ) ) {
+			return $urls;
+		}
+
+		if ( ! search::enabled( 'attachment_pages' ) ) {
+			$urls = array_diff( $urls, [ get_permalink( $post_id ) ] );
+		}
+
+		if ( search::enabled( 'taxonomy_pages' ) ) {
+
+			$archives = self::$archives[ $post_id ] ?? [];
+
+			foreach ( ImageSearch::taxonomies() as $taxonomy ) {
+
+				$terms = get_the_terms( $post_id, $taxonomy );
+
+				foreach ( is_array( $terms ) ? $terms : [] as $term ) {
+
+					$url = self::archive( $term );
+
+					if ( $url ) {
+						$urls       = array_diff( $urls, [ $url ] );
+						$archives[] = $url . '?vhp-regex';
+					}
+				}
 			}
+
+			$urls = array_merge( $urls, $archives );
+		}
+
+		return array_values( array_unique( $urls ) );
+	}
+
+	/**
+	 * photopress_image_terms_changed: an image's pages, with the archives of
+	 * the terms that changed. Not from TermChanges's job: the cache was
+	 * emptied when it started.
+	 */
+	public static function imageTermsChanged( $id, $context = [] ) {
+
+		if ( empty( $context['job'] ) ) {
+			self::purgeImage( (int) $id, (array) ( $context['archives'] ?? [] ) );
 		}
 	}
 
 	/** attachment_updated: an image's title, caption, description or slug changed. */
 	public static function imageEdited( $id, $after, $before ) {
 
+		if ( ! self::purges() ) {
+			return;
+		}
+
 		foreach ( [ 'post_title', 'post_excerpt', 'post_content', 'post_name' ] as $field ) {
 
 			if ( $after->$field !== $before->$field ) {
-				self::purgeImage( $id );
+				self::purgeImage( (int) $id );
 				return;
 			}
 		}
 	}
 
-	/** delete_attachment: before its terms are removed. */
-	public static function imageDeleted( $id ) {
+	/**
+	 * An image's pages at the end of the request, with these archives (every
+	 * page of each), while there are image or taxonomy pages.
+	 */
+	public static function purgeImage( $id, array $archives = [] ) {
 
-		if ( wp_attachment_is_image( $id ) ) {
-			self::purgeImage( $id );
+		if ( ! self::pages() || ! wp_attachment_is_image( $id ) ) {
+			return;
 		}
-	}
 
-	/** An image's page, and the archives of its terms. */
-	public static function purgeImage( $id ) {
+		self::$images[ $id ] = true;
 
-		self::purgeImagePage( $id );
+		if ( search::enabled( 'taxonomy_pages' ) ) {
 
-		foreach ( ImageSearch::taxonomies() as $taxonomy ) {
-
-			$terms = get_the_terms( $id, $taxonomy );
-
-			foreach ( is_array( $terms ) ? $terms : [] as $term ) {
-				self::purgeArchive( $term );
+			foreach ( $archives as $url ) {
+				self::$archives[ $id ][] = strtok( $url, '?' ) . '?vhp-regex';
 			}
 		}
+
+		self::later();
 	}
 
-	/** An image's page, while images have pages. */
-	public static function purgeImagePage( $id ) {
+	/**
+	 * photopress_term_images_changed: the whole cache emptied at the end of
+	 * the request, while there are pages.
+	 */
+	public static function purgeAll() {
 
-		if ( ! search::enabled( 'attachment_pages' ) ) {
-			return;
-		}
-
-		$url = get_permalink( $id );
-
-		if ( $url ) {
-			self::queue( $url );
+		if ( self::pages() ) {
+			self::$all = true;
+			self::later();
 		}
 	}
 
-	/** Every page of a term's archive, while terms have archives. */
-	public static function purgeArchive( $term ) {
+	/** A term's archive address, while it has one; or ''. */
+	private static function archive( $term ) {
 
 		if ( ! is_taxonomy_viewable( $term->taxonomy ) ) {
-			return;
+			return '';
 		}
 
 		$url = get_term_link( $term );
 
-		if ( ! is_wp_error( $url ) ) {
-			self::purgeArchiveAt( $url );
-		}
+		return is_wp_error( $url ) ? '' : $url;
 	}
 
 	/**
-	 * Every page of the archive at this address: the archive, its pages and
-	 * its feed, in one regex purge (Proxy Cache Purge's ?vhp-regex).
+	 * shutdown, before Proxy Cache Purge sends the request's purges: the
+	 * events for the images, or emptying the cache.
 	 */
-	public static function purgeArchiveAt( $url ) {
+	public static function fire() {
 
-		if ( search::enabled( 'taxonomy_pages' ) ) {
-			self::queue( strtok( $url, '?' ) . '?vhp-regex' );
+		$images = array_keys( self::$images );
+		$all    = self::$all;
+		self::$images = [];
+		self::$all    = false;
+
+		if ( $all ) {
+			do_action( self::ALL );
+		} else {
+			foreach ( $images as $id ) {
+				do_action( self::IMAGE, $id );
+			}
 		}
+
+		self::$archives = [];
 	}
 
-	/** A page to clear at the end of the request, once. */
-	public static function queue( $url ) {
+	/** Whether images or terms have pages to purge. */
+	private static function pages() {
 
-		if ( ! self::$urls ) {
-			add_action( 'shutdown', [ self::class, 'purge' ] );
-		}
-
-		self::$urls[ $url ] = true;
+		return self::purges() && ( search::enabled( 'attachment_pages' ) || search::enabled( 'taxonomy_pages' ) );
 	}
 
-	/** shutdown: the pages, cleared. */
-	public static function purge() {
+	/** fire() at the end of the request, once. */
+	private static function later() {
 
-		$urls = array_keys( self::$urls );
-		self::$urls = [];
-
-		foreach ( $urls as $url ) {
-			\VarnishPurger::purge_url( $url );
+		if ( false === has_action( 'shutdown', [ self::class, 'fire' ] ) ) {
+			add_action( 'shutdown', [ self::class, 'fire' ], 5 );
 		}
 	}
 }

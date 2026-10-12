@@ -69,8 +69,8 @@ class ImageSearch {
 		}
 		add_filter( 'relevanssi_index_custom_fields', [ self::class, 'relevanssiAltText' ], 10, 2 );
 		add_filter( 'relevanssi_hits_filter', [ self::class, 'relevanssiOnlyImages' ], 10, 2 );
-		add_action( 'added_term_relationship', [ self::class, 'termsChanged' ], 10, 3 );
-		add_action( 'deleted_term_relationships', [ self::class, 'termsChanged' ], 10, 3 );
+		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
+		add_filter( 'photopress_term_images_job', [ self::class, 'termImagesJob' ] );
 
 		if ( self::relevanssi() ) {
 
@@ -95,16 +95,17 @@ class ImageSearch {
 
 	/**
 	 * When images are turned on in search results, the job that adds them to
-	 * Relevanssi's index: once, while its index has fewer images than the
-	 * site and none is running. After that Relevanssi indexes new and edited
-	 * images itself, and termsChanged() those whose terms change.
+	 * Relevanssi's index, unless one is queued or running. While they were
+	 * off, Relevanssi indexed none as they changed. After that Relevanssi
+	 * indexes new and edited images itself, and termsChanged() those whose
+	 * terms change.
 	 */
 	public static function maybeIndex( $before, $after ) {
 
 		$was = is_array( $before ) && ! empty( $before['images_in_search'] );
 		$is  = is_array( $after ) && ! empty( $after['images_in_search'] );
 
-		if ( $is && ! $was && self::indexedImages() < self::countImages() ) {
+		if ( $is && ! $was ) {
 
 			foreach ( Jobs::recent( self::JOB ) as $job ) {
 				if ( in_array( $job['status'] ?? '', [ 'queued', 'running' ], true ) ) {
@@ -114,17 +115,6 @@ class ImageSearch {
 
 			Jobs::start( self::JOB );
 		}
-	}
-
-	/** The images Relevanssi's index has. */
-	public static function indexedImages() {
-
-		global $wpdb;
-
-		$table = $wpdb->prefix . 'relevanssi';
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- the table name.
-		return (int) $wpdb->get_var( "SELECT COUNT( DISTINCT doc ) FROM {$table} WHERE type = 'attachment'" );
 	}
 
 	/** The job's count: every image. */
@@ -475,18 +465,28 @@ class ImageSearch {
 	}
 
 	/**
-	 * added_term_relationship, deleted_term_relationships: Relevanssi indexes
-	 * an image again when it is saved, not when only its terms change, as when
-	 * PhotoPress reprocesses it. An image joining or leaving a term of an
-	 * image taxonomy is indexed again at the end of the request.
+	 * photopress_image_terms_changed: Relevanssi indexes an image again when
+	 * it is saved, not when only its terms change, as when PhotoPress
+	 * reprocesses it or a term is renamed. The image is indexed again: at the
+	 * end of the request, or at once in TermChanges's job.
 	 */
-	public static function termsChanged( $object_id, $tt_ids, $taxonomy ) {
+	public static function imageTermsChanged( $id, $context = [] ) {
 
-		if ( ! self::relevanssi() || ! function_exists( 'relevanssi_index_doc' ) || ! in_array( $taxonomy, self::taxonomies(), true ) || 'attachment' !== get_post_type( $object_id ) ) {
+		if ( ! self::indexesImages() ) {
 			return;
 		}
 
-		self::indexLater( (int) $object_id );
+		if ( ! empty( $context['job'] ) ) {
+			self::indexImage( $id );
+		} else {
+			self::indexLater( $id );
+		}
+	}
+
+	/** photopress_term_images_job: needed while the index has images. */
+	public static function termImagesJob( $needed ) {
+
+		return $needed || self::indexesImages();
 	}
 
 	/** Whether Relevanssi's index has images, to keep current. */

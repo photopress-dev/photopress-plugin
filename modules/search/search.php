@@ -50,7 +50,7 @@ class search extends photopress_module {
 
 		ImageSearch::addHooks();
 		PageCache::addHooks();
-		RenamedTerms::addHooks();
+		TermChanges::addHooks();
 		add_action( 'admin_enqueue_scripts', [ self::class, 'shareStatus' ], 20 );
 
 		if ( ! self::enabled( 'attachment_pages' ) ) {
@@ -78,7 +78,7 @@ class search extends photopress_module {
 
 	/**
 	 * admin_enqueue_scripts: for the settings page, the state of Proxy Cache
-	 * Purge and Relevanssi, and how many images Relevanssi's index has.
+	 * Purge and Relevanssi.
 	 */
 	public static function shareStatus() {
 
@@ -87,11 +87,6 @@ class search extends photopress_module {
 		}
 
 		$relevanssi = [ 'plugin' => self::pluginState( ImageSearch::relevanssi(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
-
-		if ( 'active' === $relevanssi['plugin'] ) {
-			$relevanssi['images'] = ImageSearch::indexedImages();
-		}
-
 		$cache = [ 'plugin' => self::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
 		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );

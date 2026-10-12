@@ -4,7 +4,7 @@
  * templates for them in block themes; images in search results; and the
  * page cache and search index.
  */
-const { __, _n, sprintf } = wp.i18n;
+const { __ } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
 import { Notice } from '@wordpress/components';
 
@@ -22,13 +22,13 @@ import SwitchRow from '../shared/switch-row.js';
 import JobPanel from '../shared/jobs.js';
 import PluginState from '../shared/plugin-state.js';
 
-// Proxy Cache Purge and Relevanssi: active, inactive or missing, and the
-// images in Relevanssi's index (modules/search).
+// Proxy Cache Purge and Relevanssi: active, inactive or missing
+// (modules/search).
 const RELEVANSSI = window.photopressRelevanssi || { plugin: 'missing' };
 const PAGE_CACHE = window.photopressPageCache || { plugin: 'missing' };
 
 const PAGE_CACHE_TEXT = {
-	active: __( 'PhotoPress has it clear an image’s page when the image is edited or deleted or its terms change, while attachment pages are on, and every page of a term’s archive when its images change or the term is renamed, while image taxonomy pages are on.' ),
+	active: __( 'PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page, while attachment pages are on, and every page of its terms’ archives, while image taxonomy pages are on. A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied.' ),
 	inactive: __( 'Activate it to clear the pages of images and image taxonomy terms from the page cache when they change.' ),
 	missing: __( 'Proxy Cache Purge clears pages from a Varnish or NGINX page cache when posts change. Once it’s active, PhotoPress has it clear the pages of images and image taxonomy terms too.' ),
 };
@@ -136,11 +136,9 @@ class SearchSettings extends Component {
 						<PluginState name={ __( 'Relevanssi' ) } state={ RELEVANSSI.plugin } />
 						{ 'active' === RELEVANSSI.plugin ? (
 							<>
-								<p>
-									{ RELEVANSSI.images
-										? sprintf( _n( 'Its index has %s image.', 'Its index has %s images.', RELEVANSSI.images ), RELEVANSSI.images.toLocaleString() )
-										: __( 'Its index has no images yet.' ) }
-								</p>
+								{ !! this.getSetting( 'images_in_search' ) && (
+									<p>{ __( 'PhotoPress has it index images and their terms as they’re added and changed, and again when a term is renamed or deleted.' ) }</p>
+								) }
 								<JobPanel
 									type="search.index"
 									label={ __( 'Adding images to the search index' ) }
