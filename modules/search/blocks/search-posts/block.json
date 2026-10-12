@@ -8,6 +8,7 @@
 	"keywords": [ "photopress", "search", "results", "posts" ],
 	"textdomain": "photopress",
 	"attributes": {
+		"showHeading": { "type": "boolean", "default": true },
 		"heading": { "type": "string", "default": "Posts and pages" },
 		"count": { "type": "number", "default": 5 }
 	},

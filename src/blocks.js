@@ -20,6 +20,7 @@ import * as imageTaxonomies from './blocks/image-taxonomies/index.js';
 import * as gallerySlideshow from './blocks/gallery-slideshow/index.js';
 import * as attachmentImage from './blocks/attachment-image/index.js';
 import * as searchPosts from './blocks/search-posts/index.js';
+import * as searchSummary from './blocks/search-summary/index.js';
 import './variations/gallery-layouts.js';
 
 
@@ -55,6 +56,7 @@ export const registerPhotoPressBlocks = () => {
 		gallerySlideshow,
 		attachmentImage,
 		searchPosts,
+		searchSummary,
 	].forEach( registerBlock );
 };
 

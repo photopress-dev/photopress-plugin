@@ -42,10 +42,10 @@ final class ImageTemplatesTest extends TestCase {
 		] );
 
 		$gallery = [ 'linkTo' => 'attachment', 'sizeSlug' => 'medium', 'align' => 'wide', 'photopressLayout' => 'mosaic', 'photopressRowHeight' => 250, 'photopressSlideshow' => true, 'photopressHideCaptions' => true ];
-		$query   = [ 'photopressSource' => 'query', 'photopressTaxonomy' => 'photos_keywords', 'photopressTerm' => 3, 'photopressCount' => 8, 'photopressOrder' => 'rand' ];
+		$query   = [ 'photopressSource' => 'query', 'photopressTaxonomy' => 'photos_keywords', 'photopressTerm' => 3, 'photopressCount' => 8, 'photopressOrder' => 'rand', 'photopressShowHeading' => true, 'photopressHeading' => 'Portraits' ];
 		$blocks  = ( new \WP_Block_Parser() )->parse( ImageTemplates::galleryMarkup( [ 10, 11 ], $gallery + $query ) );
 
-		// Its own settings, less the query, so it renders as a saved gallery.
+		// Its own settings, less the query and heading, so it renders as a saved gallery.
 		$this->assertSame( 'core/gallery', $blocks[0]['blockName'] );
 		$this->assertSame( $gallery, $blocks[0]['attrs'] );
 		$this->assertStringStartsWith( '<figure class="wp-block-gallery has-nested-images columns-default is-cropped alignwide">', $blocks[0]['innerHTML'] );
@@ -98,5 +98,26 @@ final class ImageTemplatesTest extends TestCase {
 		$this->assertNull( ImageTemplates::renderTaxonomyGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [] ] ) );
 		$this->assertNull( ImageTemplates::renderTaxonomyGallery( null, [ 'blockName' => 'core/image', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
 		$this->assertSame( 'other', ImageTemplates::renderTaxonomyGallery( 'other', [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
+	}
+
+	public function test_each_images_file_name_and_title_under_it_as_a_search_result(): void {
+
+		Functions\stubs( [
+			'wp_get_attachment_image_url' => static fn( $id, $size ) => "/up/$id-$size.jpg",
+			'get_attachment_link'         => static fn( $id ) => "/image-$id/",
+			'get_post_meta'               => '',
+			'get_the_title'               => static fn( $id ) => "Ken & $id",
+			'get_attached_file'           => static fn( $id ) => "/var/www/uploads/2026/10/ken-$id.jpg",
+			'wp_basename'                 => static fn( $path ) => basename( $path ),
+		] );
+
+		$blocks = ( new \WP_Block_Parser() )->parse( ImageTemplates::galleryMarkup( [ 10 ], [ 'photopressLayout' => 'rows', 'photopressDetails' => true ] ) );
+
+		$this->assertStringContainsString( 'photopress-has-details', $blocks[0]['innerHTML'] );
+		$this->assertArrayNotHasKey( 'photopressDetails', $blocks[0]['attrs'] );
+		$this->assertStringEndsWith(
+			'<figcaption class="wp-element-caption photopress-details"><span class="photopress-details__file">ken-10.jpg</span><a class="photopress-details__title" href="/image-10/">Ken &amp; 10</a></figcaption></figure>',
+			$blocks[0]['innerBlocks'][0]['innerHTML']
+		);
 	}
 }

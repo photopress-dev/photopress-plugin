@@ -112,10 +112,12 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 - Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
 - Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
 - Both on by default; while each is on, block themes get PhotoPress's template for those pages
-- Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks: the images in a Taxonomy Gallery, and the posts and pages found in a Search Posts block, to order as you like
+- Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks, to order as you like: the search box, a Search Summary (the terms and the number of images found), the images in a Taxonomy Gallery in rows with each one's file name and title under it, with numbered pages, and the posts and pages found in a Search Posts block
 - With Relevanssi, PhotoPress has it index images, their alt text and the image taxonomies (its settings show the same), keeps an image's entry current as its terms change, and adds existing images to its index in the background
 
 ![The Pages & Search tab](.wordpress-org/screenshot-18.png)
+
+![Search results with images](.wordpress-org/screenshot-19.png)
 
 ### Image Sizes
 

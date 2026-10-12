@@ -47,6 +47,9 @@ class ImageSearch {
 		register_block_type( __DIR__ . '/blocks/search-posts', [
 			'render_callback' => [ self::class, 'renderPosts' ],
 		] );
+		register_block_type( __DIR__ . '/blocks/search-summary', [
+			'render_callback' => [ self::class, 'renderSummary' ],
+		] );
 
 		if ( self::imagesOn() && function_exists( 'register_block_template' ) ) {
 			$file = __DIR__ . '/templates/' . self::TEMPLATE . '.html';
@@ -306,8 +309,9 @@ class ImageSearch {
 
 	/**
 	 * render_callback of photopress/search-posts: on an image search, the
-	 * posts and pages found, a few, with a link to all of them; and when
-	 * neither they nor images were found, a note saying so.
+	 * posts and pages found, a few, under its heading when that is on, with a
+	 * link to all of them; and when neither they nor images were found, a
+	 * note saying so.
 	 */
 	public static function renderPosts( $attributes ) {
 
@@ -371,12 +375,48 @@ class ImageSearch {
 			);
 		}
 
+		$heading = isset( $attributes['showHeading'] ) && ! $attributes['showHeading'] ? '' : trim( (string) ( $attributes['heading'] ?? '' ) );
+
 		return sprintf(
-			'<section %s><h2>%s</h2><ul>%s</ul>%s</section>',
+			'<section %s>%s<ul>%s</ul>%s</section>',
 			get_block_wrapper_attributes(),
-			esc_html( (string) ( $attributes['heading'] ?? __( 'Posts and pages', 'photopress' ) ) ),
+			'' !== $heading ? '<h2 class="wp-block-heading">' . esc_html( $heading ) . '</h2>' : '',
 			$items,
 			$all
+		);
+	}
+
+	/**
+	 * render_callback of photopress/search-summary: on search results, its
+	 * label, the search terms as the page's title, and the number of images
+	 * the search found (the main query's), each to be turned off.
+	 */
+	public static function renderSummary( $attributes ) {
+
+		global $wp_query;
+
+		if ( ! is_search() ) {
+			return '';
+		}
+
+		$label = ! empty( $attributes['showLabel'] ) ? trim( (string) ( $attributes['label'] ?? '' ) ) : '';
+		$count = '';
+
+		if ( ! empty( $attributes['showCount'] ) && $wp_query instanceof WP_Query ) {
+			$found = (int) $wp_query->found_posts;
+			$count = $wp_query->get( self::FLAG )
+				/* translators: %s: a number of images. */
+				? sprintf( _n( '(%s image.)', '(%s images.)', $found, 'photopress' ), number_format_i18n( $found ) )
+				/* translators: %s: a number of results. */
+				: sprintf( _n( '(%s result.)', '(%s results.)', $found, 'photopress' ), number_format_i18n( $found ) );
+		}
+
+		return sprintf(
+			'<div %s>%s<h1 class="photopress-search-summary__terms">%s</h1>%s</div>',
+			get_block_wrapper_attributes(),
+			'' !== $label ? '<p class="photopress-search-summary__label">' . esc_html( $label ) . '</p>' : '',
+			esc_html( get_search_query( false ) ),
+			'' !== $count ? '<p class="photopress-search-summary__count">' . esc_html( $count ) . '</p>' : ''
 		);
 	}
 

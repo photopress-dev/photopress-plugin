@@ -159,6 +159,11 @@ class gallery extends photopress_module {
 			'photopressTerm'        => [ 'type' => 'number' ],
 			'photopressCount'       => [ 'type' => 'number', 'default' => 12 ],
 			'photopressOrder'       => [ 'type' => 'string', 'default' => 'date-desc' ],
+			// Shown above a Taxonomy Gallery's images, when on and it found some.
+			'photopressShowHeading' => [ 'type' => 'boolean', 'default' => false ],
+			'photopressHeading'     => [ 'type' => 'string', 'default' => 'Images' ],
+			// Each image's file name and title under it, as a search result.
+			'photopressDetails'     => [ 'type' => 'boolean', 'default' => false ],
 		] );
 
 		return $args;

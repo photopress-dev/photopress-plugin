@@ -124,9 +124,10 @@ class ImageTemplates {
 	}
 
 	/**
-	 * The Taxonomy Gallery settings, which are not the rendered gallery's.
+	 * The Taxonomy Gallery settings, which are not the rendered gallery's:
+	 * its query, its heading, and its details under each image.
 	 */
-	const QUERY_ATTRIBUTES = [ 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder' ];
+	const QUERY_ATTRIBUTES = [ 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder', 'photopressShowHeading', 'photopressHeading', 'photopressDetails' ];
 
 	/**
 	 * pre_render_block: a Taxonomy Gallery, a core/gallery with a
@@ -134,8 +135,8 @@ class ImageTemplates {
 	 * query's when it is an archive's, with links to the archive's other
 	 * pages; with "query", those queryArgs() gives. The gallery is rendered
 	 * as core renders one saved with those images, so the PhotoPress
-	 * layouts, slideshow and hidden captions apply as they do in a post.
-	 * With no images, nothing.
+	 * layouts, slideshow and hidden captions apply as they do in a post;
+	 * with its heading above, when that is on. With no images, nothing.
 	 *
 	 * @param string|null $pre    Markup another filter rendered, or null.
 	 * @param array       $parsed The parsed block.
@@ -189,7 +190,10 @@ class ImageTemplates {
 			return '';
 		}
 
-		return wp_filter_content_tags( do_blocks( self::galleryMarkup( $ids, $attributes ) ) ) . $pages;
+		$heading = empty( $attributes['photopressShowHeading'] ) ? '' : trim( (string) ( $attributes['photopressHeading'] ?? __( 'Images', 'photopress' ) ) );
+
+		return ( '' !== $heading ? '<h2 class="wp-block-heading photopress-gallery-heading">' . esc_html( $heading ) . '</h2>' : '' )
+			. wp_filter_content_tags( do_blocks( self::galleryMarkup( $ids, $attributes ) ) ) . $pages;
 	}
 
 	/**
@@ -271,10 +275,25 @@ class ImageTemplates {
 				$img = sprintf( '<a href="%s">%s</a>', esc_url( $href ), $img );
 			}
 
-			$caption = (string) wp_get_attachment_caption( $id );
+			if ( ! empty( $attributes['photopressDetails'] ) ) {
 
-			if ( '' !== trim( $caption ) ) {
-				$img .= '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
+				// As a search result: the file's name, and the title, linked.
+				$title = get_the_title( $id );
+				$img  .= sprintf(
+					'<figcaption class="wp-element-caption photopress-details"><span class="photopress-details__file">%s</span>%s</figcaption>',
+					esc_html( wp_basename( (string) get_attached_file( $id ) ) ),
+					'' === $title ? '' : ( $href
+						? sprintf( '<a class="photopress-details__title" href="%s">%s</a>', esc_url( $href ), esc_html( $title ) )
+						: '<span class="photopress-details__title">' . esc_html( $title ) . '</span>' )
+				);
+
+			} else {
+
+				$caption = (string) wp_get_attachment_caption( $id );
+
+				if ( '' !== trim( $caption ) ) {
+					$img .= '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
+				}
 			}
 
 			$images[] = sprintf(
@@ -302,6 +321,10 @@ class ImageTemplates {
 
 		if ( ! empty( $attributes['align'] ) ) {
 			$classes[] = 'align' . sanitize_html_class( $attributes['align'] );
+		}
+
+		if ( ! empty( $attributes['photopressDetails'] ) ) {
+			$classes[] = 'photopress-has-details';
 		}
 
 		if ( ! empty( $attributes['className'] ) ) {

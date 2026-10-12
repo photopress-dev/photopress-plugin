@@ -135,3 +135,88 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 	justify-content: center;
 	margin-top: 2em;
 }
+
+// File name and title under each image, as dorthea's search results show
+// them: under the image, not over it as core's captions are; each image fit
+// in a box as wide as it is tall (the row height), centered, so the text
+// lines up under every image whatever its shape.
+.wp-block-gallery.has-nested-images.photopress-has-details {
+
+	#{$item} {
+		flex-direction: column;
+		justify-content: flex-start;
+		max-width: var(--pp-row-height, 300px);
+	}
+
+	#{$item} > a,
+	#{$item} > img {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		height: var(--pp-row-height, 300px);
+		flex: none;
+	}
+
+	#{$item} > img {
+		object-fit: contain;
+	}
+
+	#{$item} img {
+		max-width: 100%;
+		max-height: var(--pp-row-height, 300px);
+	}
+
+	#{$item}:has(figcaption)::before {
+		content: none;
+	}
+
+	#{$item} figcaption.photopress-details {
+		position: static;
+		max-height: none;
+		padding: 0.75em 0 0;
+		overflow: visible;
+		color: inherit;
+		text-shadow: none;
+		text-align: left;
+		font-size: inherit;
+		background: none;
+		backdrop-filter: none;
+		flex: initial;
+	}
+}
+
+.photopress-details__file {
+	display: block;
+	padding-bottom: 5px;
+	font-size: 12px;
+	color: #9f9f9f;
+	overflow-wrap: anywhere;
+}
+
+.photopress-details__title {
+	display: block;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+// Search Summary: a small label, the terms, the count.
+.wp-block-photopress-search-summary {
+	margin-block: 1.5em;
+
+	.photopress-search-summary__label {
+		margin: 0 0 10px;
+		font-size: 10px;
+		letter-spacing: 1px;
+		text-transform: uppercase;
+	}
+
+	.photopress-search-summary__terms {
+		margin: 0;
+		font-size: 26px;
+	}
+
+	.photopress-search-summary__count {
+		margin: 0.5em 0 0;
+		font-size: 18px;
+	}
+}

@@ -270,6 +270,33 @@ test( 'screenshot-17: an image taxonomy archive, in the Image Archives template'
 	await page.screenshot( { path: path.join( OUT, 'screenshot-17.png' ), clip: { ...box, y: Math.floor( title.y - 20 ), height: box.y + box.height - Math.floor( title.y - 20 ) } } );
 } );
 
+test( 'screenshot-19: search results with images, in the Image Search template', async ( { page } ) => {
+	// Images in search results, for this shot only: the setting put back.
+	const before = lastLine( wp( 'eval', `$o = get_option( 'photopress_core_search' ); echo is_array( $o ) && array_key_exists( 'images_in_search', $o ) ? wp_json_encode( $o['images_in_search'] ) : 'unset';` ) );
+	const jobs = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_values( (array) get_option( 'photopress_jobs', [] ) ) );` ) ) );
+	wp( 'eval', `$o = get_option( 'photopress_core_search' ); $o = is_array( $o ) ? $o : []; $o['images_in_search'] = true; update_option( 'photopress_core_search', $o );` );
+	// With Relevanssi, the test images in its index now, as its own
+	// indexing would have them.
+	wp( 'eval', `if ( function_exists( 'relevanssi_index_doc' ) ) { foreach ( ${ JSON.stringify( Object.values( made.names ) ) } as $id ) { relevanssi_index_doc( $id, true, relevanssi_get_custom_fields(), true ); } }` );
+
+	try {
+		const results = await front( page, '/?s=fixture', { width: 1100, height: 1400 }, 'main' );
+		await expect( results.locator( 'figure.wp-block-gallery.photopress-has-details' ) ).toBeVisible();
+		await page.screenshot( { path: path.join( OUT, 'screenshot-19.png' ), clip: await around( results, page, 0 ) } );
+	} finally {
+		// The indexing job turning images on started.
+		wp( 'eval', `
+			$before = json_decode( '${ JSON.stringify( jobs ) }', true );
+			foreach ( array_diff( (array) get_option( 'photopress_jobs', [] ), $before ) as $id ) {
+				delete_option( "photopress_job_$id" );
+				as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' );
+			}
+			update_option( 'photopress_jobs', $before, false );
+		` );
+		wp( 'eval', `$o = get_option( 'photopress_core_search' ); $o = is_array( $o ) ? $o : []; if ( 'unset' === '${ before }' ) { unset( $o['images_in_search'] ); } else { $o['images_in_search'] = json_decode( '${ before }' ); } $o ? update_option( 'photopress_core_search', $o ) : delete_option( 'photopress_core_search' );` );
+	}
+} );
+
 test.describe( 'settings', () => {
 	// Shown on and filled in; the settings are put back afterwards.
 	const EXAMPLES = {

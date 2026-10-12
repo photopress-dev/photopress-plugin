@@ -101,7 +101,15 @@ test( 'with core\'s search: public images by their terms and alt text, and posts
 	const [ byTerm, byAlt, attachedToDraft ] = made.images;
 
 	await page.goto( `/?s=${ WORD }` );
-	await expect( gallery( page ) ).toHaveClass( /photopress-layout-masonry/ );
+	// As dorthea's results: the terms, the count, and images in rows with
+	// each one's file name and title under it.
+	const summary = page.locator( '.wp-block-photopress-search-summary' );
+	await expect( summary ).toContainText( 'Search results for:' );
+	await expect( summary.getByRole( 'heading', { level: 1 } ) ).toHaveText( WORD );
+	await expect( summary ).toContainText( '(2 images.)' );
+	await expect( gallery( page ) ).toHaveClass( /photopress-layout-rows/ );
+	await expect( gallery( page ).locator( 'figcaption.photopress-details' ).first() ).toContainText( /pp-e2e-search-\d\.jpg/ );
+	await expect( gallery( page ).locator( '.photopress-details__title' ).first() ).toHaveText( /PP E2E search image \d/ );
 	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 2 );
 	await expect( gallery( page ).locator( `img.wp-image-${ byTerm }` ) ).toHaveCount( 1 );
 	await expect( gallery( page ).locator( `img.wp-image-${ byAlt }` ) ).toHaveCount( 1 );
@@ -120,6 +128,27 @@ test( 'with core\'s search: public images by their terms and alt text, and posts
 	await page.goto( `/?s=${ WORD }` );
 	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 2 );
 	await expect( postsFound( page ) ).toHaveCount( 0 );
+
+	// Nothing found: a note.
+	await page.goto( `/?s=${ WORD }nothing` );
+	await expect( gallery( page ) ).toHaveCount( 0 );
+	await expect( page.locator( 'body' ) ).toContainText( `Nothing was found for “${ WORD }nothing”.` );
+
+	// More images than a page holds: numbered pages.
+	const perPage = lastLine( wp( 'option', 'get', 'posts_per_page' ) );
+	wp( 'option', 'update', 'posts_per_page', '1' );
+	try {
+		await page.goto( `/?s=${ WORD }` );
+		await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 1 );
+		const pages = page.locator( 'nav.photopress-archive-images__pages' );
+		await expect( pages.getByRole( 'link', { name: '2' } ) ).toBeVisible();
+		const first = await gallery( page ).locator( 'img' ).getAttribute( 'class' );
+		await pages.getByRole( 'link', { name: '2' } ).click();
+		await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 1 );
+		expect( await gallery( page ).locator( 'img' ).getAttribute( 'class' ) ).not.toBe( first );
+	} finally {
+		wp( 'option', 'update', 'posts_per_page', perPage );
+	}
 
 	// A search of posts of its own is the theme's.
 	setSearch( { posts_in_search: null } );

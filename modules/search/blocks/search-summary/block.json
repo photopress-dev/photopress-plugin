@@ -1,0 +1,23 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "photopress/search-summary",
+	"title": "Search Summary",
+	"category": "theme",
+	"description": "On search results, a label, the search terms as the page's title, and the number of images found.",
+	"keywords": [ "photopress", "search", "results", "count" ],
+	"textdomain": "photopress",
+	"attributes": {
+		"showLabel": { "type": "boolean", "default": true },
+		"label": { "type": "string", "default": "Search results for:" },
+		"showCount": { "type": "boolean", "default": true }
+	},
+	"supports": {
+		"html": false,
+		"align": [ "wide", "full" ],
+		"spacing": { "margin": true, "padding": true },
+		"color": { "text": true }
+	},
+	"editorScript": "photopress-editor",
+	"style": "photopress-frontend"
+}
