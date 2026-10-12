@@ -5,10 +5,10 @@
  * out of a page's static gallery too.
  *
  * Each step is a request of its own, at whose end Proxy Cache Purge sends
- * its purges, as it would on the site. Each must reach Varnish and be let
- * through, not refused (405) as from an address it doesn't trust. The test
- * site is never cached, so what is purged is checked, not that pages were
- * cached and then weren't.
+ * its purges, as it would on the site. Each must reach Varnish and be
+ * answered Purged (200), not refused (405) as from an address it doesn't
+ * trust. The test site is never cached, so what is purged is checked, not
+ * that pages were cached and then weren't.
  *
  * Needs Proxy Cache Purge active, attachment pages and image taxonomy pages
  * on, and Remove deleted images on in the Gallery tab, as they are by
@@ -35,7 +35,7 @@ function step( php ) {
 		add_action( 'after_purge_url', function ( $url, $purgeme, $response ) use ( &$purged ) {
 			$purged[] = [
 				wp_make_link_relative( $url ),
-				is_wp_error( $response ) ? $response->get_error_message() : wp_remote_retrieve_response_code( $response ) . ' ' . wp_remote_retrieve_header( $response, 'via' ),
+				is_wp_error( $response ) ? $response->get_error_message() : wp_remote_retrieve_response_code( $response ) . ' ' . wp_remote_retrieve_header( $response, 'server' ),
 			];
 		}, 10, 3 );
 		add_action( 'shutdown', function () use ( &$out, &$purged ) {
@@ -140,6 +140,6 @@ test( 'an image given a term, edited, its term renamed and deleted, attached to 
 
 	expect( answers.length ).toBeGreaterThan( 0 );
 	for ( const answer of answers ) {
-		expect( answer, 'a purge Varnish let through' ).toMatch( /^(?!405)\d{3} .*Varnish/ );
+		expect( answer, 'a purge Varnish let through' ).toBe( '200 Varnish' );
 	}
 } );
