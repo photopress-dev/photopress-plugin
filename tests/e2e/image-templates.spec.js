@@ -4,7 +4,8 @@
  * images with Taxonomy Gallery, a Gallery block variation whose layout is the
  * gallery's own setting; on a page it shows the images of a term, or the latest; and an image's page shows the image once, its
  * terms and its exposure details. Neither is offered while its kind of page
- * is off in the Pages & Search tab. And no other query on an archive page lists drafts.
+ * is off in the Pages & Search tab. Child Pages Gallery, the same variation,
+ * shows a page's published child pages. And no other query on an archive page lists drafts.
  *
  * The images, the keyword, the draft page and post made here are deleted
  * afterwards, and the Gallery settings put back.
@@ -219,6 +220,56 @@ test( 'on a page, Taxonomy Gallery shows the images of a term, or the latest, pu
 		await expect( latest.locator( `img.wp-image-${ attachedToDraft }` ) ).toHaveCount( 0 );
 	} finally {
 		wp( 'post', 'delete', String( post ), '--force' );
+	}
+} );
+
+test( 'Child Pages Gallery shows the published child pages, by featured image or else gallery image; the old Child Pages block lists them', async ( { page } ) => {
+	const [ featured, inGallery ] = made.images;
+	const galleryOf = ( id ) => `<!-- wp:gallery {"linkTo":"none"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"><!-- wp:image {"id":${ id }} -->\n<figure class="wp-block-image"><img src="/x.jpg" alt="" class="wp-image-${ id }"/></figure>\n<!-- /wp:image --></figure>\n<!-- /wp:gallery -->`;
+	const content = `<!-- wp:gallery {"photopressSource":"children","photopressLayout":"masonry","sizeSlug":"medium","anchor":"children"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"></figure>\n<!-- /wp:gallery -->`
+		+ '<!-- wp:photopress/childpages {"columns":3} /-->';
+
+	const pages = JSON.parse( lastLine( wp( 'eval', `
+		$parent = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'PP E2E parent ${ stamp }', 'post_content' => ${ JSON.stringify( content ) } ] );
+		$child = static function ( $title, $order, $status = 'publish', $content = '' ) use ( $parent ) {
+			return wp_insert_post( wp_slash( [ 'post_type' => 'page', 'post_status' => $status, 'post_parent' => $parent, 'menu_order' => $order, 'post_title' => $title, 'post_content' => $content ] ) );
+		};
+		$a = $child( 'PP E2E child A ${ stamp }', 1 );
+		set_post_thumbnail( $a, ${ featured } );
+		$b = $child( 'PP E2E child B ${ stamp }', 2, 'publish', ${ JSON.stringify( galleryOf( inGallery ) ) } );
+		$c = $child( 'PP E2E child C ${ stamp }', 3, 'draft' );
+		set_post_thumbnail( $c, ${ featured } );
+		$d = $child( 'PP E2E child D ${ stamp }', 4 );
+		echo wp_json_encode( [ 'parent' => $parent, 'children' => [ $a, $b, $c, $d ], 'links' => array_map( static fn( $id ) => wp_make_link_relative( get_permalink( $id ) ), [ $a, $b ] ) ] );
+	` ) ) );
+
+	try {
+		await page.goto( `/?page_id=${ pages.parent }&preview=true` );
+
+		// A by its featured image, B by its gallery's; C a draft, D without either.
+		const gallery = page.locator( 'figure.wp-block-gallery#children' );
+		await expect( gallery ).toHaveClass( /photopress-layout-masonry/ );
+		const images = gallery.locator( 'img' );
+		await expect( images ).toHaveCount( 2 );
+		await expect( images.nth( 0 ) ).toHaveClass( new RegExp( `wp-image-${ featured }\\b` ) );
+		await expect( images.nth( 1 ) ).toHaveClass( new RegExp( `wp-image-${ inGallery }\\b` ) );
+		await expect( images.nth( 0 ) ).toHaveAttribute( 'srcset', /\S/ );
+		await expect( images.nth( 0 ) ).toHaveAttribute( 'sizes', /\(max-width: 300px\) 100vw, 300px$/ );
+
+		const items = gallery.locator( 'figure.wp-block-image' );
+		await expect( items.nth( 0 ).locator( 'a' ).first() ).toHaveAttribute( 'href', new RegExp( `${ pages.links[ 0 ] }$` ) );
+		await expect( items.nth( 0 ).locator( 'figcaption' ) ).toHaveText( `PP E2E child A ${ stamp }` );
+		await expect( items.nth( 1 ).locator( 'figcaption a' ) ).toHaveAttribute( 'href', new RegExp( `${ pages.links[ 1 ] }$` ) );
+
+		// The old block: the published children, A with its featured image,
+		// linked in the same tab.
+		const old = page.locator( '.photopress-childpages' );
+		await expect( old.locator( 'li' ) ).toHaveCount( 3 );
+		await expect( old ).not.toContainText( `PP E2E child C ${ stamp }` );
+		await expect( old.locator( `img.wp-image-${ featured }` ) ).toHaveAttribute( 'srcset', /\S/ );
+		await expect( old.locator( 'a[target]' ) ).toHaveCount( 0 );
+	} finally {
+		wp( 'eval', `foreach ( ${ JSON.stringify( [ ...pages.children, pages.parent ] ) } as $id ) { wp_delete_post( $id, true ); }` );
 	}
 } );
 

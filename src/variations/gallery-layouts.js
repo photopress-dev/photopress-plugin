@@ -44,7 +44,8 @@ const ATTRIBUTES = {
 	photopressSlideshow: { type: 'boolean', default: false },
 	photopressHideCaptions: { type: 'boolean', default: false },
 	// Taxonomy Gallery (modules/gallery/ImageTemplates.php): "archive", the
-	// archive page's images; "query", those of a term, or the latest.
+	// archive page's images; "query", those of a term, or the latest. Child
+	// Pages Gallery: "children", the child pages of the page it is on.
 	photopressSource: { type: 'string' },
 	photopressTaxonomy: { type: 'string' },
 	photopressTerm: { type: 'number' },
@@ -67,6 +68,12 @@ const layoutOf = ( attributes ) =>
 
 /** A Taxonomy Gallery: its images are found when the page is viewed. */
 export const isTaxonomyGallery = ( attributes ) => [ 'archive', 'query' ].includes( attributes.photopressSource );
+
+/** A Child Pages Gallery: the child pages of the page it is on, found when it is viewed. */
+export const isChildPagesGallery = ( attributes ) => 'children' === attributes.photopressSource;
+
+/** A gallery whose images are found when the page is viewed, rather than saved in it. */
+const isSourcedGallery = ( attributes ) => isTaxonomyGallery( attributes ) || isChildPagesGallery( attributes );
 
 /** The slug of the template being edited, or '' when it is not a template. */
 export const templateSlugOf = ( postType, postId ) =>
@@ -146,7 +153,7 @@ Object.entries( LAYOUTS ).filter( ( [ layout ] ) => ENABLED.includes( layout ) )
 		attributes: { photopressLayout: layout },
 		// Recognized by this attribute alone, so editing the CSS classes or
 		// the block style cannot turn it back into a plain gallery.
-		isActive: ( attributes ) => layout === attributes.photopressLayout && ! isTaxonomyGallery( attributes ),
+		isActive: ( attributes ) => layout === attributes.photopressLayout && ! isSourcedGallery( attributes ),
 		scope: [ 'inserter', 'transform' ],
 	} );
 } );
@@ -178,6 +185,28 @@ registerBlockVariation( 'core/gallery', {
 } );
 
 /*
+ * Child Pages Gallery: the published child pages of the page it is on, each
+ * as its featured image (or the first image of its first gallery), linked to
+ * it, with its title as the caption. Like Taxonomy Gallery, it saves no
+ * images; the server fills it (modules/gallery/ImageTemplates.php).
+ */
+registerBlockVariation( 'core/gallery', {
+	name: 'photopress-child-pages-gallery',
+	title: __( 'Child Pages Gallery' ),
+	description: __( 'The pages under this one, each as its featured image or the first image of its gallery, linked to it with its title. In a PhotoPress layout.' ),
+	icon: galleryIcon,
+	keywords: [ 'photopress', 'child pages', 'subpages', 'pages' ],
+	attributes: {
+		photopressSource: 'children',
+		photopressLayout: ENABLED[ 0 ],
+		sizeSlug: 'large',
+		align: 'wide',
+	},
+	isActive: isChildPagesGallery,
+	scope: [ 'inserter' ],
+} );
+
+/*
  * WordPress's own gallery, in columns, for the variation switcher only: the
  * way back from a PhotoPress layout. The switcher lists registered
  * variations, and core's gallery is not one. Active when no layout is set,
@@ -190,7 +219,7 @@ registerBlockVariation( 'core/gallery', {
 	description: __( 'Display multiple images in a rich gallery.' ),
 	icon: galleryIcon,
 	attributes: { photopressLayout: undefined },
-	isActive: ( attributes ) => ! attributes.photopressLayout && ! isTaxonomyGallery( attributes ),
+	isActive: ( attributes ) => ! attributes.photopressLayout && ! isSourcedGallery( attributes ),
 	scope: [ 'transform' ],
 } );
 
@@ -451,6 +480,76 @@ function TaxonomyGalleryEdit( { attributes, setAttributes } ) {
 	);
 }
 
+/**
+ * What a Child Pages Gallery shows, in a sentence.
+ *
+ * @param {Object}      attributes The gallery's.
+ * @param {Object|null} pages      total and shown (with an image), when known.
+ */
+export function childPagesSummaryOf( attributes, pages = null ) {
+	const layout = LAYOUTS[ attributes.photopressLayout ] || __( 'Default (columns)' );
+
+	if ( ! pages ) {
+		/* translators: %s: a gallery layout, such as Masonry. */
+		return sprintf( __( 'The published pages under the page being viewed, each linked to it with its title, in the %s layout.' ), layout );
+	}
+
+	if ( ! pages.total ) {
+		return __( 'This page has no published pages under it yet. Pages added under it will show here.' );
+	}
+
+	/* translators: 1: a number of pages shown, 2: the number of pages under this one, 3: a gallery layout. */
+	return sprintf( __( '%1$d of the %2$d pages under this one, each linked to it with its title, in the %3$s layout. A page shows its featured image, or else the first image of its gallery; one with neither is left out.' ), pages.shown, pages.total, layout );
+}
+
+function ChildPagesGalleryEdit( { attributes, setAttributes } ) {
+	const pages = useSelect( ( select ) => {
+		const editor = select( 'core/editor' );
+		const postType = editor?.getCurrentPostType?.();
+		const postId = editor?.getCurrentPostId?.();
+
+		// In a template there is no page yet to count under.
+		if ( ! postType || 'number' !== typeof postId ) {
+			return null;
+		}
+
+		const children = select( coreStore ).getEntityRecords( 'postType', postType, { parent: postId, status: 'publish', per_page: 100, _fields: 'id,featured_media,content.rendered' } );
+
+		if ( ! Array.isArray( children ) ) {
+			return null;
+		}
+
+		// A gallery in its content may give it an image; the server decides.
+		const shown = children.filter( ( child ) => child.featured_media || /\b(wp-block-gallery|photopress-gallery)\b/.test( child.content?.rendered || '' ) ).length;
+
+		return { total: children.length, shown };
+	}, [] );
+
+	return (
+		<>
+			<div { ...useBlockProps() }>
+				{ attributes.photopressShowHeading && attributes.photopressHeading && <h2 className="wp-block-heading photopress-gallery-heading">{ attributes.photopressHeading }</h2> }
+				<Placeholder icon={ galleryIcon } label={ __( 'Child Pages Gallery' ) } instructions={ childPagesSummaryOf( attributes, pages ) } />
+			</div>
+			<InspectorControls>
+				<PanelBody title={ __( 'Pages' ) }>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Show heading' ) }
+						help={ __( 'Above the pages, when there are some.' ) }
+						checked={ !! attributes.photopressShowHeading }
+						onChange={ ( value ) => setAttributes( { photopressShowHeading: value } ) }
+					/>
+					{ attributes.photopressShowHeading && (
+						<TextControl __nextHasNoMarginBottom label={ __( 'Heading' ) } value={ attributes.photopressHeading ?? '' } onChange={ ( value ) => setAttributes( { photopressHeading: value } ) } />
+					) }
+					<SelectControl __nextHasNoMarginBottom label={ __( 'Image size' ) } value={ attributes.sizeSlug || 'large' } options={ IMAGE_SIZES } onChange={ ( value ) => setAttributes( { sizeSlug: value } ) } />
+				</PanelBody>
+			</InspectorControls>
+		</>
+	);
+}
+
 const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props ) => {
 	if ( ! isGallery( props.name ) ) {
 		return <BlockEdit { ...props } />;
@@ -469,7 +568,9 @@ const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props 
 
 	return (
 		<>
-			{ isTaxonomyGallery( attributes ) ? <TaxonomyGalleryEdit attributes={ attributes } setAttributes={ setAttributes } /> : <BlockEdit { ...props } /> }
+			{ isTaxonomyGallery( attributes ) && <TaxonomyGalleryEdit attributes={ attributes } setAttributes={ setAttributes } /> }
+			{ isChildPagesGallery( attributes ) && <ChildPagesGalleryEdit attributes={ attributes } setAttributes={ setAttributes } /> }
+			{ ! isSourcedGallery( attributes ) && <BlockEdit { ...props } /> }
 			<InspectorControls>
 				<PanelBody title={ __( 'PhotoPress' ) }>
 					<SelectControl

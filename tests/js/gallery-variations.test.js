@@ -6,7 +6,7 @@ vi.mock( '@wordpress/blocks', () => ( {
 	registerBlockVariation: ( block, variation ) => registered.push( { block, ...variation } ),
 } ) );
 
-const { isImageArchiveTemplate, sourceFor, summaryOf, templateSlugOf } = await import( '../../src/variations/gallery-layouts' );
+const { childPagesSummaryOf, isImageArchiveTemplate, sourceFor, summaryOf, templateSlugOf } = await import( '../../src/variations/gallery-layouts' );
 
 const variation = ( name ) => registered.find( ( v ) => v.name === name );
 
@@ -68,4 +68,26 @@ test( 'a sentence says what it shows', () => {
 	expect( summaryOf( { photopressSource: 'query', photopressLayout: 'mosaic', photopressCount: 8, photopressTaxonomy: 'photos_keywords', photopressTerm: 3, photopressOrder: 'rand' }, { taxonomy: 'Keywords', term: 'portrait' } ) )
 		.toBe( '8 images in Keywords: “portrait”, in random order, in the Mosaic layout.' );
 	expect( summaryOf( { photopressSource: 'query' } ) ).toBe( 'The 12 latest images, newest first, in the Default (columns) layout.' );
+} );
+
+test( 'Child Pages Gallery is inserted in Masonry, and only it is active for a gallery of child pages', () => {
+	const children = variation( 'photopress-child-pages-gallery' );
+
+	expect( children.scope ).toEqual( [ 'inserter' ] );
+	expect( children.attributes ).toMatchObject( { photopressSource: 'children', photopressLayout: 'masonry' } );
+
+	for ( const layout of [ 'masonry', 'rows', 'mosaic', undefined ] ) {
+		const attributes = { photopressSource: 'children', photopressLayout: layout };
+		const active = registered.filter( ( v ) => v.block === 'core/gallery' && v.isActive( attributes ) ).map( ( v ) => v.name );
+
+		expect( active ).toEqual( [ 'photopress-child-pages-gallery' ] );
+	}
+} );
+
+test( 'a sentence says which child pages it shows', () => {
+	const attributes = { photopressSource: 'children', photopressLayout: 'rows' };
+
+	expect( childPagesSummaryOf( attributes ) ).toBe( 'The published pages under the page being viewed, each linked to it with its title, in the Rows layout.' );
+	expect( childPagesSummaryOf( attributes, { total: 0, shown: 0 } ) ).toMatch( /^This page has no published pages under it yet/ );
+	expect( childPagesSummaryOf( attributes, { total: 5, shown: 4 } ) ).toMatch( /^4 of the 5 pages under this one, each linked to it with its title, in the Rows layout\./ );
 } );

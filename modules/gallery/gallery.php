@@ -44,6 +44,7 @@ class gallery extends photopress_module {
 		] );
 
 		GalleryAdd::addHooks();
+		ChildPagesGallery::addHooks();
 
 		if ( pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ) {
 			GalleryRemove::addHooks();
@@ -231,6 +232,10 @@ class gallery extends photopress_module {
 				$id    = $p->get_attribute( 'data-id' );
 				$ratio = $this->aspectRatio( $p );
 
+				if ( $layout ) {
+					$p->set_attribute( 'sizes', self::layoutSizes( $layout, $column_width, $row_height, $ratio ) );
+				}
+
 				$p->seek( 'item' );
 
 				if ( $id ) {
@@ -292,6 +297,93 @@ class gallery extends photopress_module {
 		}
 
 		return $before . $gallery . wp_get_inline_script_tag( 'window.photopressLayout&&photopressLayout(document.currentScript.previousElementSibling);' );
+	}
+
+	/**
+	 * The first image of a post's first gallery: of a dynamic gallery, its
+	 * first attached image; of one that keeps its images, the first of them
+	 * (image blocks, or the ids of a gallery from before WordPress 5.9 or
+	 * the legacy photopress/gallery block). 0 when it has none.
+	 *
+	 * @param int|\WP_Post $post
+	 */
+	public static function firstImage( $post ) {
+
+		$post = get_post( $post );
+
+		if ( ! $post ) {
+			return 0;
+		}
+
+		foreach ( self::galleriesIn( parse_blocks( $post->post_content ) ) as $block ) {
+
+			if ( ! empty( $block['attrs']['dynamicContent'] ) ) {
+
+				$attached = get_children( [
+					'post_parent'    => $post->ID,
+					'post_type'      => 'attachment',
+					'post_mime_type' => 'image',
+					'orderby'        => [ 'menu_order' => 'ASC', 'ID' => 'ASC' ],
+					'numberposts'    => 1,
+					'fields'         => 'ids',
+				] );
+
+				$id = (int) ( reset( $attached ) ?: 0 );
+
+			} else {
+
+				$ids = array_merge(
+					array_map( static fn( $image ) => (int) ( $image['attrs']['id'] ?? 0 ), array_filter( $block['innerBlocks'] ?? [], static fn( $inner ) => 'core/image' === ( $inner['blockName'] ?? '' ) ) ),
+					array_map( 'intval', (array) ( $block['attrs']['ids'] ?? [] ) )
+				);
+
+				$id = (int) ( current( array_filter( $ids ) ) ?: 0 );
+			}
+
+			if ( $id && wp_attachment_is_image( $id ) ) {
+				return $id;
+			}
+		}
+
+		return 0;
+	}
+
+	/** The gallery blocks among these, at any depth, in order. */
+	private static function galleriesIn( array $blocks ) {
+
+		$galleries = [];
+
+		foreach ( $blocks as $block ) {
+
+			if ( in_array( $block['blockName'] ?? '', [ 'core/gallery', 'photopress/gallery' ], true ) ) {
+				$galleries[] = $block;
+			} elseif ( ! empty( $block['innerBlocks'] ) ) {
+				$galleries = array_merge( $galleries, self::galleriesIn( $block['innerBlocks'] ) );
+			}
+		}
+
+		return $galleries;
+	}
+
+	/**
+	 * The sizes attribute of an image in a layout: the widest it is shown,
+	 * or the window's width when that is narrower. A masonry column is the
+	 * column width; an image in a row is at most its aspect ratio times the
+	 * row height (a filled mosaic row is no taller than that, and rows only
+	 * scale an image down). WordPress keeps it when it adds the srcset, and
+	 * puts "auto" before it for a lazy-loaded image, which a browser that
+	 * knows auto then sizes by its layout instead.
+	 *
+	 * @param string $layout       masonry, rows or mosaic.
+	 * @param int    $column_width Masonry's column width, in pixels.
+	 * @param int    $row_height   The rows' height, in pixels.
+	 * @param float  $ratio        The image's width / height, or 0 unknown (taken as square).
+	 */
+	public static function layoutSizes( $layout, $column_width, $row_height, $ratio ) {
+
+		$width = 'masonry' === $layout ? (int) $column_width : (int) ceil( ( $ratio > 0 ? $ratio : 1 ) * $row_height );
+
+		return sprintf( '(max-width: %1$dpx) 100vw, %1$dpx', max( 1, $width ) );
 	}
 
 	/**

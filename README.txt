@@ -27,6 +27,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * They look the same in the editor as on the site
 * Open the full-screen slideshow when an image is clicked
 * Hide captions option
+* Each image downloaded at the width its layout shows it, not the width of the window
 * An image deleted from the Media Library is taken out of the galleries that show it
 * A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
 
@@ -50,10 +51,11 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Option to hide the gallery and show only the slideshow
 * Works with dynamic galleries (WordPress 7.1)
 
-= CHILD PAGES BLOCK =
+= CHILD PAGES GALLERY =
 
-* Dynamic Gutenberg block
-* Create a gallery of child pages, from their featured images (useful as an index of gallery pages)
+* A Gallery block variation in any PhotoPress layout: the published pages under the page, in their page order, each as its featured image or else the first image of its gallery, linked to it with its title (useful as an index of gallery pages)
+* The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image
+* The older Child Pages block still shows where it was used; it is no longer offered, and turns into a Child Pages Gallery
 
 = IMAGE METADATA MANAGEMENT =
 
@@ -125,7 +127,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 5. Slideshow settings
 6. Gallery Slideshow block: press either side of the slideshow to move through a gallery on the same page
 7. Gallery Slideshow captions at 75% of the slideshow's width on a desktop, and the full width on a phone
-8. Child Pages block: a gallery of a page's child pages
+8. Child Pages Gallery: a page's child pages, in the Rows layout
 9. Image Metadata block on an image's page
 10. Image taxonomies filled from the photos' metadata: Standard Metadata, Hierarchical Keyword Metadata and Custom Metadata
 11. A parent keyword found in the photos given a taxonomy of its own, and the images it affects reprocessed
@@ -220,6 +222,16 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   the page cache), through its enable-media-replace-upload-done action.
 * Relevanssi: posts in which a replaced image's links or text were updated
   are indexed again.
+* Child Pages Gallery, a Gallery block variation: the published pages under
+  the page, each as its featured image or else the first image of its
+  gallery, linked with its title, in any PhotoPress layout; its page is
+  cleared from the page cache as they change. The Child Pages block it
+  supersedes now lists published child pages only (not drafts or attached
+  images), with their images' srcset, and opens them in the same tab.
+* Gallery layouts: each image's sizes attribute is the width its layout
+  shows it at (a Masonry column; a Rows or Mosaic image at the row height),
+  so browsers download smaller files; with lazy loading, WordPress's
+  sizes="auto" goes before it.
 * Image templates for block themes: image taxonomy archives show their
   images in the Masonry layout (Taxonomy Gallery, a Gallery block variation
   whose layout can be changed), and image pages show

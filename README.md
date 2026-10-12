@@ -23,6 +23,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 - They look the same in the editor as on the site
 - Open the full-screen slideshow when an image is clicked
 - Hide captions option
+- Each image downloaded at the width its layout shows it, not the width of the window
 - An image deleted from the Media Library is taken out of the galleries that show it
 - A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
 
@@ -62,12 +63,13 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 ![Caption max width on a desktop and a phone](.wordpress-org/screenshot-7.png)
 
-### Child Pages Block
+### Child Pages Gallery
 
-- Dynamic Gutenberg Block
-- Create a gallery of child pages, from their featured images (useful as an index of gallery pages)
+- A Gallery block variation in any PhotoPress layout: the published pages under the page, in their page order, each as its featured image or else the first image of its gallery, linked to it with its title (useful as an index of gallery pages)
+- The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image
+- The older Child Pages block still shows where it was used; it is no longer offered, and turns into a Child Pages Gallery
 
-![Child Pages block](.wordpress-org/screenshot-8.png)
+![Child Pages Gallery](.wordpress-org/screenshot-8.png)
 
 ### Metadata
 

@@ -23,13 +23,15 @@ use PhotoPress\modules\search\search;
  * Also what the templates are made of: Taxonomy Gallery, a core/gallery
  * variation filled here with images (photopressSource "archive", the
  * archive page's; "query", those of a chosen taxonomy term, or the latest),
- * and the Attachment Image block.
+ * and the Attachment Image block. And Child Pages Gallery, the same
+ * variation filled with the child pages of the page it is on
+ * (photopressSource "children").
  */
 class ImageTemplates {
 
 	public static function addHooks() {
 
-		add_filter( 'pre_render_block', [ self::class, 'renderTaxonomyGallery' ], 10, 2 );
+		add_filter( 'pre_render_block', [ self::class, 'renderSourcedGallery' ], 10, 2 );
 		register_block_type( __DIR__ . '/blocks/attachment-image', [
 			'render_callback' => [ self::class, 'renderAttachmentImage' ],
 		] );
@@ -129,33 +131,42 @@ class ImageTemplates {
 	 */
 	const QUERY_ATTRIBUTES = [ 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder', 'photopressShowHeading', 'photopressHeading', 'photopressDetails' ];
 
+	/** Where a gallery's images can come from when the page is viewed. */
+	const SOURCES = [ 'archive', 'query', 'children' ];
+
 	/**
-	 * pre_render_block: a Taxonomy Gallery, a core/gallery with a
-	 * photopressSource, as a gallery of its images: with "archive", the main
+	 * pre_render_block: a core/gallery with a photopressSource, as a gallery
+	 * of the images it finds. Taxonomy Gallery: with "archive", the main
 	 * query's when it is an archive's, with links to the archive's other
-	 * pages; with "query", those queryArgs() gives. The gallery is rendered
-	 * as core renders one saved with those images, so the PhotoPress
-	 * layouts, slideshow and hidden captions apply as they do in a post;
-	 * with its heading above, when that is on. With no images, nothing.
+	 * pages; with "query", those queryArgs() gives. Child Pages Gallery,
+	 * "children": an image for each child page (childPageItems()). The
+	 * gallery is rendered as core renders one saved with those images, so
+	 * the PhotoPress layouts, slideshow and hidden captions apply as they do
+	 * in a post; with its heading above, when that is on. With no images,
+	 * nothing.
 	 *
 	 * @param string|null $pre    Markup another filter rendered, or null.
 	 * @param array       $parsed The parsed block.
 	 */
-	public static function renderTaxonomyGallery( $pre, $parsed ) {
+	public static function renderSourcedGallery( $pre, $parsed ) {
 
 		$source = $parsed['attrs']['photopressSource'] ?? '';
 
-		if ( null !== $pre || 'core/gallery' !== ( $parsed['blockName'] ?? '' ) || ! in_array( $source, [ 'archive', 'query' ], true ) ) {
+		if ( null !== $pre || 'core/gallery' !== ( $parsed['blockName'] ?? '' ) || ! in_array( $source, self::SOURCES, true ) ) {
 			return $pre;
 		}
 
 		$attributes = (array) $parsed['attrs'];
 		$pages      = '';
 
-		if ( 'query' === $source ) {
+		if ( 'children' === $source ) {
 
-			$args = self::queryArgs( $attributes );
-			$ids  = $args ? array_map( 'intval', ( new \WP_Query( $args ) )->posts ) : [];
+			$items = self::childPageItems( $attributes );
+
+		} elseif ( 'query' === $source ) {
+
+			$args  = self::queryArgs( $attributes );
+			$items = self::imageItems( $args ? array_map( 'intval', ( new \WP_Query( $args ) )->posts ) : [], $attributes );
 
 		} else {
 
@@ -174,7 +185,9 @@ class ImageTemplates {
 				}
 			}
 
-			$links = $ids ? paginate_links( [
+			$items = self::imageItems( $ids, $attributes );
+
+			$links = $items ? paginate_links( [
 				'total'     => (int) $wp_query->max_num_pages,
 				'current'   => max( 1, (int) get_query_var( 'paged' ) ),
 				'prev_text' => __( 'Previous', 'photopress' ),
@@ -186,14 +199,104 @@ class ImageTemplates {
 			}
 		}
 
-		if ( ! $ids ) {
+		if ( ! $items ) {
 			return '';
 		}
 
 		$heading = empty( $attributes['photopressShowHeading'] ) ? '' : trim( (string) ( $attributes['photopressHeading'] ?? __( 'Images', 'photopress' ) ) );
 
 		return ( '' !== $heading ? '<h2 class="wp-block-heading photopress-gallery-heading">' . esc_html( $heading ) . '</h2>' : '' )
-			. wp_filter_content_tags( do_blocks( self::galleryMarkup( $ids, $attributes ) ) ) . $pages;
+			. wp_filter_content_tags( do_blocks( self::galleryMarkup( $items, $attributes ) ) ) . $pages;
+	}
+
+	/**
+	 * The child pages of the page being viewed, published, in page order
+	 * (up to 100): each as its featured image, or else the first image of
+	 * its first gallery (gallery::firstImage()), linked to it, with its
+	 * title as the caption. One with neither is left out.
+	 *
+	 * @param array $attributes The gallery's.
+	 * @return array[] As imageItems() gives them.
+	 */
+	public static function childPageItems( array $attributes ) {
+
+		$parent = (int) ( get_the_ID() ?: get_queried_object_id() );
+
+		if ( ! $parent || ! is_post_type_hierarchical( (string) get_post_type( $parent ) ) ) {
+			return [];
+		}
+
+		$children = get_posts( [
+			'post_type'   => get_post_type( $parent ),
+			'post_parent' => $parent,
+			'post_status' => 'publish',
+			'orderby'     => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
+			'numberposts' => 100,
+		] );
+
+		$items = [];
+
+		foreach ( $children as $child ) {
+
+			$id = (int) get_post_thumbnail_id( $child ) ?: gallery::firstImage( $child );
+
+			if ( ! $id ) {
+				continue;
+			}
+
+			$href  = (string) get_permalink( $child );
+			$title = get_the_title( $child );
+
+			$items[] = [
+				'id'         => $id,
+				'href'       => $href,
+				'link'       => 'custom',
+				'figcaption' => '' === $title ? '' : sprintf( '<figcaption class="wp-element-caption"><a href="%s">%s</a></figcaption>', esc_url( $href ), esc_html( $title ) ),
+			];
+		}
+
+		return $items;
+	}
+
+	/**
+	 * Images as gallery items, linked as the gallery says: to their page,
+	 * their file, or not; captioned with their caption, or, with
+	 * photopressDetails, their file name and title, as a search result.
+	 *
+	 * @param int[] $ids
+	 * @param array $attributes The gallery's.
+	 * @return array[] id, href, link (the image block's linkDestination) and figcaption.
+	 */
+	public static function imageItems( array $ids, array $attributes ) {
+
+		$link_to = in_array( $attributes['linkTo'] ?? '', [ 'attachment', 'media', 'none' ], true ) ? $attributes['linkTo'] : 'attachment';
+		$items   = [];
+
+		foreach ( $ids as $id ) {
+
+			$href = 'media' === $link_to ? wp_get_attachment_url( $id ) : ( 'attachment' === $link_to ? get_attachment_link( $id ) : '' );
+
+			if ( ! empty( $attributes['photopressDetails'] ) ) {
+
+				$title      = get_the_title( $id );
+				$figcaption = sprintf(
+					'<figcaption class="wp-element-caption photopress-details"><span class="photopress-details__file">%s</span>%s</figcaption>',
+					esc_html( wp_basename( (string) get_attached_file( $id ) ) ),
+					'' === $title ? '' : ( $href
+						? sprintf( '<a class="photopress-details__title" href="%s">%s</a>', esc_url( $href ), esc_html( $title ) )
+						: '<span class="photopress-details__title">' . esc_html( $title ) . '</span>' )
+				);
+
+			} else {
+
+				$caption    = (string) wp_get_attachment_caption( $id );
+				$figcaption = '' === trim( $caption ) ? '' : '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
+			}
+
+			$items[] = [ 'id' => (int) $id, 'href' => (string) $href, 'link' => $link_to, 'figcaption' => $figcaption ];
+		}
+
+		return $items;
 	}
 
 	/**
@@ -246,61 +349,40 @@ class ImageTemplates {
 	}
 
 	/**
-	 * The Taxonomy Gallery as a core/gallery block saved with the
-	 * images, as the editor would save it: its own attributes (layout,
-	 * slideshow, alignment and so on) less the query, and an image block for
-	 * each image, linked and sized as the gallery says, with its caption.
+	 * The gallery as a core/gallery block saved with these items, as the
+	 * editor would save it: its own attributes (layout, slideshow, alignment
+	 * and so on) less the query, and an image block for each item, sized as
+	 * the gallery says, with its link and caption.
 	 *
-	 * @param int[] $ids
-	 * @param array $attributes The gallery's.
+	 * @param array[] $items      id, href, link and figcaption (imageItems()).
+	 * @param array   $attributes The gallery's.
 	 */
-	public static function galleryMarkup( array $ids, array $attributes ) {
+	public static function galleryMarkup( array $items, array $attributes ) {
 
 		$size    = (string) ( $attributes['sizeSlug'] ?? 'large' );
 		$link_to = in_array( $attributes['linkTo'] ?? '', [ 'attachment', 'media', 'none' ], true ) ? $attributes['linkTo'] : 'attachment';
 		$images  = [];
 
-		foreach ( $ids as $id ) {
+		foreach ( $items as $item ) {
 
+			$id  = (int) $item['id'];
 			$src = wp_get_attachment_image_url( $id, $size ) ?: wp_get_attachment_url( $id );
 
 			if ( ! $src ) {
 				continue;
 			}
 
-			$img  = sprintf( '<img src="%s" alt="%s" class="wp-image-%d"/>', esc_url( $src ), esc_attr( (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) ), $id );
-			$href = 'media' === $link_to ? wp_get_attachment_url( $id ) : ( 'attachment' === $link_to ? get_attachment_link( $id ) : '' );
+			$img = sprintf( '<img src="%s" alt="%s" class="wp-image-%d"/>', esc_url( $src ), esc_attr( (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) ), $id );
 
-			if ( $href ) {
-				$img = sprintf( '<a href="%s">%s</a>', esc_url( $href ), $img );
-			}
-
-			if ( ! empty( $attributes['photopressDetails'] ) ) {
-
-				// As a search result: the file's name, and the title, linked.
-				$title = get_the_title( $id );
-				$img  .= sprintf(
-					'<figcaption class="wp-element-caption photopress-details"><span class="photopress-details__file">%s</span>%s</figcaption>',
-					esc_html( wp_basename( (string) get_attached_file( $id ) ) ),
-					'' === $title ? '' : ( $href
-						? sprintf( '<a class="photopress-details__title" href="%s">%s</a>', esc_url( $href ), esc_html( $title ) )
-						: '<span class="photopress-details__title">' . esc_html( $title ) . '</span>' )
-				);
-
-			} else {
-
-				$caption = (string) wp_get_attachment_caption( $id );
-
-				if ( '' !== trim( $caption ) ) {
-					$img .= '<figcaption class="wp-element-caption">' . wp_kses_post( $caption ) . '</figcaption>';
-				}
+			if ( '' !== (string) ( $item['href'] ?? '' ) ) {
+				$img = sprintf( '<a href="%s">%s</a>', esc_url( $item['href'] ), $img );
 			}
 
 			$images[] = sprintf(
 				'<!-- wp:image %s --><figure class="wp-block-image size-%s">%s</figure><!-- /wp:image -->',
-				wp_json_encode( [ 'id' => $id, 'sizeSlug' => $size, 'linkDestination' => $link_to ] ),
+				wp_json_encode( [ 'id' => $id, 'sizeSlug' => $size, 'linkDestination' => $item['link'] ?? 'none' ] ),
 				esc_attr( $size ),
-				$img
+				$img . ( $item['figcaption'] ?? '' )
 			);
 		}
 

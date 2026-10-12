@@ -57,10 +57,11 @@ test.beforeAll( async () => {
 	pages.lightbox = draft( 'Full-screen slideshow', gallery( { photopressLayout: 'masonry', photopressColumnWidth: 280, photopressSlideshow: true }, 'lightbox', MASONRY ) );
 	pages.slideshow = draft( 'Gallery Slideshow', `<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"shots","maxHeightOffset":40,"align":"wide"} /-->${ gallery( {}, 'shots' ) }` );
 
-	// A page of child pages, each with a test image as its featured image.
-	pages.parent = draft( 'Places', '<!-- wp:photopress/childpages {"columns":3,"align":"wide"} /-->' );
+	// A Child Pages Gallery: published child pages, each with a test image
+	// as its featured image.
+	pages.parent = draft( 'Places', '<!-- wp:gallery {"photopressSource":"children","photopressLayout":"rows","photopressRowHeight":260,"sizeSlug":"large","align":"wide","anchor":"places"} --><figure class="wp-block-gallery alignwide has-nested-images columns-default is-cropped"></figure><!-- /wp:gallery -->' );
 	[ [ 'Testville', '03-square' ], [ 'Exampleshire', '02-landscape-3x2' ], [ 'Nowhere', '05-portrait-4x5' ] ].forEach( ( [ title, name ], i ) => {
-		pages[ `child${ i }` ] = draft( title, '', `, 'post_parent' => ${ pages.parent }, 'menu_order' => ${ i }, 'meta_input' => [ '_thumbnail_id' => ${ made.names[ name ] } ]` );
+		pages[ `child${ i }` ] = draft( title, '', `, 'post_status' => 'publish', 'post_parent' => ${ pages.parent }, 'menu_order' => ${ i }, 'meta_input' => [ '_thumbnail_id' => ${ made.names[ name ] } ]` );
 	} );
 
 } );
@@ -220,8 +221,8 @@ test( 'screenshot-7: caption max width, on a desktop and a phone', async ( { pag
 	fs.rmSync( dir, { recursive: true, force: true } );
 } );
 
-test( 'screenshot-8: the Child Pages block', async ( { page } ) => {
-	const block = await front( page, draftUrl( pages.parent ), { width: 1100, height: 900 }, '.photopress-childpages' );
+test( 'screenshot-8: Child Pages Gallery', async ( { page } ) => {
+	const block = await front( page, draftUrl( pages.parent ), { width: 1100, height: 900 }, '#places' );
 	await page.screenshot( { path: path.join( OUT, 'screenshot-8.png' ), clip: await around( block, page ) } );
 } );
 

@@ -2,7 +2,6 @@
 
 namespace PhotoPress\modules\childpages;
 use photopress_module;
-use photopress_util;
 
 /**
  * Child Pages Module
@@ -59,84 +58,55 @@ class childpages extends photopress_module {
 	}
 	
 	/**
-	 * Dynamic block render function
+	 * render_callback: the published pages under the current one, in their
+	 * page order, each as its featured image (with srcset, sizes and lazy
+	 * loading from WordPress) and its title, linked to it.
 	 */
-	public function childpages_render($attrs, $content) {
-	
-		// get post id
-		
-		$id = get_the_ID();
-		
-		// determin image size
-		$size = photopress_util::get_image_sizes( $attrs['imageSize']);
-		
-		if ( $size['width'] > $size['height'] ) {
-			
-			$width = $size['width'] . 'px';
-			$height = $size['width'] . 'px';
-		} else {
-			
-			$width = $size['width'] . 'px';
-			$height = $size['width'] . 'px';
-		}
-		
-		// get child pages
-		$children = get_children( $id );
-		
-		$align = $attrs['align'];
-		$columns = $attrs['columns'];
-		$padding= $attrs['padding'];
-		$imageCrop = '';
-		//print_r($attrs);
-		if ( array_key_exists('imageCrop', $attrs) && $attrs['imageCrop'] ) {
-			
-			$imageCrop = 'is-cropped';	
-		}
-		
-		// loop
-		$content = "";
-		$content .= '<figure class="photopress-gallery photopress-childpages">';
-		$content .= '<ul class="photopress-gallery-columns align'. $align . ' columns-' . $columns . ' ' . $imageCrop .'" style="--pp-gallery-gutter: '. $padding. 'px">';
-					
-			
-		
-		foreach ($children as $k => $child ) {
-			
-			$link = get_permalink($k);
-			$fi_link = get_the_post_thumbnail_url( $k, $attrs['imageSize'] );
-			$fi_id = get_post_thumbnail_id( $k );
-			
-			$content .= '<li class="photopress-gallery-item">';
-			
-			$content .= '	<figure class="photopress-gallery-item__figure">';
-			
-			$content .=	"		<a href=\"$link\">";
-			
-			$content .= "			<img class=\"wp-image wp-image-$fi_id\" src=\"$fi_link\" sizes=\"( (100vw - 0 ) / $columns ) * 1)\" />";
-			
-			$content .= "		</a>";
-															
-			$content .= "	</figure>";	
-			
-			$content .= "		<div class=\"wp-block-photopress-childpages__content\">";							
-			
-			$content .=	"			<a href=\"$link\" target=\"_blank\" rel=\"noreferrer noopener\" alt=\"\">";
-			
-			$content .= 				$child->post_title;
-			
-			$content .= "			</a>";										
-			
-			$content .= "		</div>";
-			
-			$content .= "</li>";	
-		}
-		
-		$content .= "</figure>";	
-												
-		return $content;
-		
-	}
+	public function childpages_render( $attrs, $content ) {
 
+		$parent = get_the_ID();
+
+		if ( ! $parent ) {
+			return '';
+		}
+
+		$children = get_posts( [
+			'post_type'   => get_post_type( $parent ),
+			'post_parent' => $parent,
+			'post_status' => 'publish',
+			'orderby'     => [ 'menu_order' => 'ASC', 'title' => 'ASC' ],
+			'numberposts' => -1,
+		] );
+
+		if ( ! $children ) {
+			return '';
+		}
+
+		$size    = (string) ( $attrs['imageSize'] ?? 'medium' );
+		$classes = [ 'photopress-gallery-columns', 'align' . sanitize_html_class( (string) ( $attrs['align'] ?? '' ) ), 'columns-' . (int) ( $attrs['columns'] ?? 2 ) ];
+
+		if ( $attrs['imageCrop'] ?? true ) {
+			$classes[] = 'is-cropped';
+		}
+
+		$items = '';
+
+		foreach ( $children as $child ) {
+
+			$link  = esc_url( get_permalink( $child ) );
+			$image = get_the_post_thumbnail( $child, $size, [ 'class' => 'wp-image wp-image-' . (int) get_post_thumbnail_id( $child ) ] );
+
+			$items .= '<li class="photopress-gallery-item">'
+				. ( $image ? '<figure class="photopress-gallery-item__figure"><a href="' . $link . '">' . $image . '</a></figure>' : '' )
+				. '<div class="wp-block-photopress-childpages__content"><a href="' . $link . '">' . esc_html( get_the_title( $child ) ) . '</a></div>'
+				. '</li>';
+		}
+
+		return '<figure class="photopress-gallery photopress-childpages">'
+			. '<ul class="' . esc_attr( implode( ' ', $classes ) ) . '" style="--pp-gallery-gutter: ' . (int) ( $attrs['padding'] ?? 10 ) . 'px">'
+			. $items
+			. '</ul></figure>';
+	}
 }
 
 ?>

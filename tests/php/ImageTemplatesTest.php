@@ -11,6 +11,12 @@ use PhotoPress\modules\gallery\ImageTemplates;
  */
 final class ImageTemplatesTest extends TestCase {
 
+	/** The gallery markup of these images, as a Taxonomy Gallery renders it. */
+	private static function markup( array $ids, array $attributes ): string {
+
+		return ImageTemplates::galleryMarkup( ImageTemplates::imageItems( $ids, $attributes ), $attributes );
+	}
+
 	public function test_taxonomy_attachment_goes_before_taxonomy(): void {
 
 		$this->assertSame(
@@ -43,7 +49,7 @@ final class ImageTemplatesTest extends TestCase {
 
 		$gallery = [ 'linkTo' => 'attachment', 'sizeSlug' => 'medium', 'align' => 'wide', 'photopressLayout' => 'mosaic', 'photopressRowHeight' => 250, 'photopressSlideshow' => true, 'photopressHideCaptions' => true ];
 		$query   = [ 'photopressSource' => 'query', 'photopressTaxonomy' => 'photos_keywords', 'photopressTerm' => 3, 'photopressCount' => 8, 'photopressOrder' => 'rand', 'photopressShowHeading' => true, 'photopressHeading' => 'Portraits' ];
-		$blocks  = ( new \WP_Block_Parser() )->parse( ImageTemplates::galleryMarkup( [ 10, 11 ], $gallery + $query ) );
+		$blocks  = ( new \WP_Block_Parser() )->parse( self::markup( [ 10, 11 ], $gallery + $query ) );
 
 		// Its own settings, less the query and heading, so it renders as a saved gallery.
 		$this->assertSame( 'core/gallery', $blocks[0]['blockName'] );
@@ -64,7 +70,7 @@ final class ImageTemplatesTest extends TestCase {
 			'wp_get_attachment_caption'   => '',
 		] );
 
-		$blocks = ( new \WP_Block_Parser() )->parse( ImageTemplates::galleryMarkup( [ 10 ], [ 'photopressLayout' => 'carousel', 'linkTo' => 'elsewhere' ] ) );
+		$blocks = ( new \WP_Block_Parser() )->parse( self::markup( [ 10 ], [ 'photopressLayout' => 'carousel', 'linkTo' => 'elsewhere' ] ) );
 
 		$this->assertArrayNotHasKey( 'photopressLayout', $blocks[0]['attrs'] );
 		$this->assertSame( 'attachment', $blocks[0]['attrs']['linkTo'] );
@@ -96,9 +102,10 @@ final class ImageTemplatesTest extends TestCase {
 
 	public function test_only_an_image_query_gallery_is_filled(): void {
 
-		$this->assertNull( ImageTemplates::renderTaxonomyGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [] ] ) );
-		$this->assertNull( ImageTemplates::renderTaxonomyGallery( null, [ 'blockName' => 'core/image', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
-		$this->assertSame( 'other', ImageTemplates::renderTaxonomyGallery( 'other', [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
+		$this->assertNull( ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [] ] ) );
+		$this->assertNull( ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/image', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
+		$this->assertNull( ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'elsewhere' ] ] ) );
+		$this->assertSame( 'other', ImageTemplates::renderSourcedGallery( 'other', [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
 	}
 
 	public function test_each_images_file_name_and_title_under_it_as_a_search_result(): void {
@@ -112,7 +119,7 @@ final class ImageTemplatesTest extends TestCase {
 			'wp_basename'                 => static fn( $path ) => basename( $path ),
 		] );
 
-		$blocks = ( new \WP_Block_Parser() )->parse( ImageTemplates::galleryMarkup( [ 10 ], [ 'photopressLayout' => 'rows', 'photopressDetails' => true ] ) );
+		$blocks = ( new \WP_Block_Parser() )->parse( self::markup( [ 10 ], [ 'photopressLayout' => 'rows', 'photopressDetails' => true ] ) );
 
 		$this->assertStringContainsString( 'photopress-has-details', $blocks[0]['innerHTML'] );
 		$this->assertArrayNotHasKey( 'photopressDetails', $blocks[0]['attrs'] );

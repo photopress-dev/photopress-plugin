@@ -171,3 +171,31 @@ test( 'an image given a term, edited, its term renamed and deleted, attached to 
 		expect( answer, 'a purge Varnish let through' ).toBe( '200 Varnish' );
 	}
 } );
+
+test( 'a child page moved or given another featured image: the pages whose Child Pages Gallery shows it', () => {
+	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() ? 'yes' : 'no';` ) );
+	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active.' );
+
+	const gallery = '<!-- wp:gallery {"photopressSource":"children"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"></figure>\n<!-- /wp:gallery -->';
+	const made = step( `
+		foreach ( [ 'first', 'second' ] as $key ) {
+			$out[ $key ] = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => "PP E2E cache $key parent ${ stamp }", 'post_content' => ${ JSON.stringify( gallery ) } ] );
+			$out[ $key . 'Url' ] = wp_make_link_relative( get_permalink( $out[ $key ] ) );
+		}
+		$out['child'] = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_parent' => $out['first'], 'post_title' => 'PP E2E cache child ${ stamp }' ] );
+		$tmp = wp_tempnam( 'pp-e2e-cache' );
+		copy( ${ JSON.stringify( path.join( __dirname, '../fixtures/images' ) ) } . '/03-square.jpg', $tmp );
+		$out['image'] = media_handle_sideload( [ 'name' => 'pp-e2e-cache-child.jpg', 'tmp_name' => $tmp ], 0, 'PP E2E cache child image' );
+	` ).out;
+
+	try {
+		const moved = step( `wp_update_post( [ 'ID' => ${ made.child }, 'post_parent' => ${ made.second } ] );` );
+		expect( moved.purged ).toEqual( expect.arrayContaining( [ made.firstUrl, made.secondUrl ] ) );
+
+		const featured = step( `set_post_thumbnail( ${ made.child }, ${ made.image } );` );
+		expect( featured.purged ).toContain( made.secondUrl );
+		expect( featured.purged ).not.toContain( made.firstUrl );
+	} finally {
+		wp( 'eval', `foreach ( [ ${ made.child }, ${ made.first }, ${ made.second } ] as $id ) { wp_delete_post( $id, true ); } wp_delete_attachment( ${ made.image }, true );` );
+	}
+} );
