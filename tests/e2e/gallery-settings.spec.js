@@ -39,14 +39,14 @@ test( 'every switch is on by default, and a layout turned off is not offered in 
 	await page.goto( URL );
 
 	await expect( page.getByRole( 'tab', { name: 'Gallery', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true', { timeout: 30000 } );
-	for ( const title of [ 'Masonry layout', 'Rows layout', 'Mosaic layout', 'Remove deleted images' ] ) {
+	for ( const title of [ 'Masonry layout', 'Rows layout', 'Mosaic layout', 'Remove deleted images', 'Image templates' ] ) {
 		await expect( featureSwitch( page, title ) ).toBeChecked();
 	}
 	expect( editorLayouts() ).toEqual( [ 'masonry', 'rows', 'mosaic' ] );
 
 	await featureSwitch( page, 'Rows layout' ).click();
 	await expect.poll( () => settings()?.layout_rows, { timeout: 15000 } ).toBe( false );
-	expect( settings() ).toMatchObject( { layout_masonry: true, layout_mosaic: true, remove_deleted_images: true } );
+	expect( settings() ).toMatchObject( { layout_masonry: true, layout_mosaic: true, remove_deleted_images: true, image_templates: true } );
 	expect( editorLayouts() ).toEqual( [ 'masonry', 'mosaic' ] );
 
 	await page.reload();

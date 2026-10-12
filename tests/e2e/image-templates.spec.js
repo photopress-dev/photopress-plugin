@@ -1,0 +1,146 @@
+/**
+ * The templates PhotoPress gives block themes, on the site's own theme
+ * (which has none of its own): an image taxonomy's archive shows its public
+ * images with Archive Images, and an image's page shows the image once, its
+ * terms and its exposure details. Off with the Gallery tab's Image templates
+ * switch. And no other query on an archive page lists drafts.
+ *
+ * The images, the keyword, the draft page and post made here are deleted
+ * afterwards, and the Gallery settings put back.
+ */
+const path = require( 'path' );
+const { test, expect } = require( './test' );
+const { wp, lastLine } = require( './wp' );
+
+const KEY = 'photopress_core_gallery';
+const stamp = Date.now();
+const KEYWORD = `pp-e2e-archive-${ stamp }`;
+const DRAFT = `PP E2E draft ${ stamp }`;
+let made;
+let saved;
+
+const settings = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ KEY }', null ) );` ) ) );
+
+test.beforeAll( () => {
+	saved = settings();
+
+	// Three images under the keyword: two public, one attached to a draft
+	// page; exposure details on the first; and a draft post.
+	made = JSON.parse( lastLine( wp( 'eval', `
+		require_once ABSPATH . 'wp-admin/includes/admin.php';
+		wp_set_current_user( (int) get_users( [ 'role' => 'administrator', 'number' => 1, 'fields' => 'ID' ] )[0] );
+		$draft_page = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'draft', 'post_title' => 'PP E2E draft page ${ stamp }' ] );
+		$draft_post = wp_insert_post( [ 'post_type' => 'post', 'post_status' => 'draft', 'post_title' => '${ DRAFT }' ] );
+		$images = [];
+		foreach ( [ '01-portrait-2x3.jpg', '02-landscape-3x2.jpg', '03-square.jpg' ] as $i => $name ) {
+			$tmp = wp_tempnam( 'pp-e2e-archive' );
+			copy( ${ JSON.stringify( path.join( __dirname, '../fixtures/images' ) ) } . '/' . $name, $tmp );
+			$id = media_handle_sideload( [ 'name' => "pp-e2e-archive-$i.jpg", 'tmp_name' => $tmp ], 2 === $i ? $draft_page : 0, "PP E2E archive image $i" );
+			wp_set_object_terms( $id, '${ KEYWORD }', 'photos_keywords', true );
+			$images[] = $id;
+		}
+		$meta = wp_get_attachment_metadata( $images[0] );
+		$meta['image_meta'] = array_merge( (array) ( $meta['image_meta'] ?? [] ), [ 'aperture' => '2.8', 'shutter_speed' => '0.004', 'iso' => '400', 'focal_length' => '50', 'camera' => 'Canon EOS R5' ] );
+		wp_update_attachment_metadata( $images[0], $meta );
+		$term = get_term_by( 'slug', '${ KEYWORD }', 'photos_keywords' );
+		echo wp_json_encode( [
+			'images'    => $images,
+			'draftPage' => $draft_page,
+			'draftPost' => $draft_post,
+			'archive'   => wp_make_link_relative( get_term_link( $term ) ),
+			'page'      => wp_make_link_relative( get_attachment_link( $images[0] ) ),
+		] );
+	` ) ) );
+} );
+
+test.afterAll( () => {
+	if ( made ) {
+		wp( 'eval', `
+			foreach ( ${ JSON.stringify( made.images ) } as $id ) { wp_delete_attachment( $id, true ); }
+			wp_delete_post( ${ made.draftPage }, true );
+			wp_delete_post( ${ made.draftPost }, true );
+			$term = get_term_by( 'slug', '${ KEYWORD }', 'photos_keywords' );
+			if ( $term ) { wp_delete_term( $term->term_id, 'photos_keywords' ); }
+		` );
+	}
+	if ( null === saved ) {
+		wp( 'option', 'delete', KEY );
+	} else {
+		wp( 'option', 'update', KEY, JSON.stringify( saved ), '--format=json' );
+	}
+} );
+
+test( 'an image taxonomy archive shows its public images in a gallery layout', async ( { page } ) => {
+	wp( 'option', 'delete', KEY );
+	const response = await page.goto( made.archive );
+	expect( response.status() ).toBe( 200 );
+
+	const images = page.locator( '.wp-block-photopress-archive-images figure.wp-block-gallery' );
+	await expect( images ).toHaveClass( /photopress-layout-masonry/ );
+	const [ first, second, attachedToDraft ] = made.images;
+	await expect( images.locator( 'img' ) ).toHaveCount( 2 );
+	await expect( images.locator( `img.wp-image-${ first }` ) ).toHaveCount( 1 );
+	await expect( images.locator( `img.wp-image-${ second }` ) ).toHaveCount( 1 );
+	await expect( images.locator( `img.wp-image-${ attachedToDraft }` ) ).toHaveCount( 0 );
+	// Each links to its page.
+	await expect( images.locator( `a:has(img.wp-image-${ first })` ) ).toHaveAttribute( 'href', new RegExp( `${ made.page.replace( /[/]/g, '\\/' ) }$` ) );
+	await expect( page.locator( 'body' ) ).not.toContainText( DRAFT );
+
+	// Laid out in columns of the default width, side by side.
+	await expect( images ).toHaveClass( /photopress-laid-out/ );
+	const boxes = await images.locator( 'figure.wp-block-image' ).evaluateAll( ( items ) => items.map( ( item ) => {
+		const r = item.getBoundingClientRect();
+		return { x: Math.round( r.x ), width: Math.round( r.width ) };
+	} ) );
+	expect( boxes.map( ( b ) => b.width ) ).toEqual( [ 300, 300 ] );
+	expect( Math.abs( boxes[ 1 ].x - boxes[ 0 ].x ) ).toBeGreaterThanOrEqual( 300 );
+
+	if ( process.env.PP_E2E_SHOTS ) {
+		await page.screenshot( { path: `${ process.env.PP_E2E_SHOTS }/image-archive.png`, fullPage: true } );
+	}
+} );
+
+test( 'other queries on an archive page list published posts only', () => {
+	const statuses = JSON.parse( lastLine( wp( 'eval', `
+		global $wp_query, $wp_the_query;
+		$wp_the_query = $wp_query = new WP_Query();
+		$wp_query->query( [ 'photos_keywords' => '${ KEYWORD }' ] );
+		$main = array_map( 'intval', wp_list_pluck( $wp_query->posts, 'ID' ) );
+		$side = new WP_Query( [ 'post_type' => 'post', 'posts_per_page' => -1, 'fields' => 'ids' ] );
+		echo wp_json_encode( [ 'main' => $main, 'side' => array_values( array_unique( array_map( 'get_post_status', $side->posts ) ) ), 'draft' => in_array( ${ made.draftPost }, $side->posts, true ) ] );
+	` ) ) );
+
+	expect( statuses.main.sort() ).toEqual( made.images.slice( 0, 2 ).sort() );
+	expect( statuses.draft ).toBe( false );
+	expect( statuses.side.every( ( s ) => s === 'publish' ) ).toBe( true );
+} );
+
+test( 'an image page shows the image once, its terms and its exposure details', async ( { page } ) => {
+	wp( 'option', 'delete', KEY );
+	expect( ( await page.goto( made.page ) ).status() ).toBe( 200 );
+
+	const [ first ] = made.images;
+	await expect( page.locator( '.wp-block-photopress-attachment-image img' ) ).toHaveCount( 1 );
+	// Not again before the description.
+	await expect( page.locator( `img.wp-image-${ first }` ) ).toHaveCount( 1 );
+
+	const rows = page.locator( '.wp-block-photopress-image-taxonomies .container' );
+	await expect( rows.filter( { hasText: 'Keywords:' } ).getByRole( 'link', { name: KEYWORD } ) ).toHaveAttribute( 'href', new RegExp( `${ made.archive.replace( /[/]/g, '\\/' ) }$` ) );
+	for ( const [ label, value ] of [ [ 'Camera model', 'Canon EOS R5' ], [ 'Aperture', 'f/2.8' ], [ 'Shutter speed', '1/250 s' ], [ 'ISO', '400' ], [ 'Focal length', '50 mm' ] ] ) {
+		await expect( rows.filter( { hasText: `${ label }:` } ) ).toHaveText( `${ label }: ${ value }` );
+	}
+
+	if ( process.env.PP_E2E_SHOTS ) {
+		await page.screenshot( { path: `${ process.env.PP_E2E_SHOTS }/image-page.png`, fullPage: true } );
+	}
+} );
+
+test( 'with Image templates off, the theme\'s own templates are used', async ( { page } ) => {
+	wp( 'option', 'update', KEY, JSON.stringify( { image_templates: false } ), '--format=json' );
+
+	expect( ( await page.goto( made.archive ) ).status() ).toBe( 200 );
+	await expect( page.locator( '.wp-block-photopress-archive-images' ) ).toHaveCount( 0 );
+
+	await page.goto( made.page );
+	await expect( page.locator( '.wp-block-photopress-attachment-image' ) ).toHaveCount( 0 );
+} );

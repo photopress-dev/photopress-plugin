@@ -18,6 +18,8 @@ import * as childpages from './blocks/child_pages/index.js';
 import * as gallery from './blocks/gallery/index.js';
 import * as imageTaxonomies from './blocks/image-taxonomies/index.js';
 import * as gallerySlideshow from './blocks/gallery-slideshow/index.js';
+import * as archiveImages from './blocks/archive-images/index.js';
+import * as attachmentImage from './blocks/attachment-image/index.js';
 import './variations/gallery-layouts.js';
 
 
@@ -51,6 +53,8 @@ export const registerPhotoPressBlocks = () => {
 		gallery,
 		imageTaxonomies,
 		gallerySlideshow,
+		archiveImages,
+		attachmentImage,
 	].forEach( registerBlock );
 };
 

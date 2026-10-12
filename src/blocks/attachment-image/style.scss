@@ -1,0 +1,15 @@
+.wp-block-photopress-attachment-image {
+	margin-left: auto;
+	margin-right: auto;
+
+	img {
+		display: block;
+		max-width: 100%;
+		height: auto;
+		margin: 0 auto;
+	}
+
+	figcaption {
+		text-align: center;
+	}
+}
