@@ -24,7 +24,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 - Open the full-screen slideshow when an image is clicked
 - Hide captions option
 - An image deleted from the Media Library is taken out of the galleries that show it
-- A Gallery settings tab with a switch for each layout, for removing deleted images and for the image templates, all on by default
+- A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
 
 ![Masonry layout](.wordpress-org/screenshot-1.png)
 
@@ -101,7 +101,7 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 
 - Image archives: a keyword's, a camera's or any image taxonomy's archive page shows its images in the Masonry layout, with links to more pages
 - Image pages: the image, its caption and description, its taxonomy terms and its exposure details
-- Both are edited in the Site Editor, like the theme's own templates, and can be turned off in the Gallery tab
+- Both are edited in the Site Editor, like the theme's own templates, and each can be turned off in the Pages & Search tab
 - Taxonomy Gallery, a Gallery block variation in any PhotoPress layout: on an image archive template, the archive's images; anywhere else, the latest images or those of a keyword, camera or other term. And the Attachment Image block
 - An archive of an image taxonomy looks for a taxonomy-attachment template, as themes built on the Frame framework do
 
@@ -111,7 +111,7 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 
 - Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
 - Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
-- Both on by default
+- Each with a switch for PhotoPress's template for those pages; all on by default
 
 ![The Pages & Search tab](.wordpress-org/screenshot-18.png)
 
