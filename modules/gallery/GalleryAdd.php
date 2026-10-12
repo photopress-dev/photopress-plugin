@@ -693,7 +693,7 @@ class GalleryAdd {
 		$parent = (int) get_post_field( 'post_parent', $id );
 
 		if ( $parent && self::hasDynamicGallery( $parent ) ) {
-			MediaRest::announceEdit( $parent );
+			self::postChanged( $parent );
 		}
 	}
 
@@ -710,9 +710,26 @@ class GalleryAdd {
 		foreach ( [ (int) $before->post_parent, (int) $after->post_parent ] as $parent ) {
 
 			if ( $parent && self::hasDynamicGallery( $parent ) ) {
-				MediaRest::announceEdit( $parent );
+				self::postChanged( $parent );
 			}
 		}
+	}
+
+	/**
+	 * Announces that what a post shows changed, though it was not saved: its
+	 * dynamic gallery gained or lost an image.
+	 */
+	public static function postChanged( $post_id ) {
+
+		/**
+		 * Fires when what a post or image shows changed, though WordPress did
+		 * not save it as an edit, for what keeps copies of it, such as a page
+		 * cache.
+		 *
+		 * @param int   $id      Post or attachment ID.
+		 * @param array $context files: URLs of its files that changed.
+		 */
+		do_action( 'photopress_post_changed', (int) $post_id, [] );
 	}
 
 	public static function hasDynamicGallery( $post_id ) {

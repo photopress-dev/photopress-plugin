@@ -1,7 +1,8 @@
 /**
  * The page cache, through Proxy Cache Purge: what it purges, and Varnish
  * lets through, as an image is given a term, edited, its term renamed and
- * deleted, and the image deleted.
+ * deleted, attached to a page with a dynamic gallery, and deleted, taking it
+ * out of a page's static gallery too.
  *
  * Each step is a request of its own, at whose end Proxy Cache Purge sends
  * its purges, as it would on the site. Each must reach Varnish and be let
@@ -9,9 +10,10 @@
  * site is never cached, so what is purged is checked, not that pages were
  * cached and then weren't.
  *
- * Needs Proxy Cache Purge active, and attachment pages and image taxonomy
- * pages on, as they are by default; the settings are not changed. The image
- * and keyword made here are deleted.
+ * Needs Proxy Cache Purge active, attachment pages and image taxonomy pages
+ * on, and Remove deleted images on in the Gallery tab, as they are by
+ * default; the settings are not changed. The image, keyword and pages made
+ * here are deleted.
  */
 const path = require( 'path' );
 const { test, expect } = require( './test' );
@@ -55,9 +57,9 @@ function step( php ) {
 	` ) ) );
 }
 
-test( 'an image given a term, edited, its term renamed and deleted, and the image deleted', () => {
-	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() && ${ NS }\\search::enabled( 'attachment_pages' ) && ${ NS }\\search::enabled( 'taxonomy_pages' ) ? 'yes' : 'no';` ) );
-	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active, or attachment pages or image taxonomy pages are off.' );
+test( 'an image given a term, edited, its term renamed and deleted, attached to a gallery’s page, and deleted', () => {
+	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() && ${ NS }\\search::enabled( 'attachment_pages' ) && ${ NS }\\search::enabled( 'taxonomy_pages' ) && pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ? 'yes' : 'no';` ) );
+	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active, or attachment pages, image taxonomy pages or Remove deleted images are off.' );
 
 	const answers = [];
 	const run = ( php ) => {
@@ -73,6 +75,17 @@ test( 'an image given a term, edited, its term renamed and deleted, and the imag
 		$out['page'] = wp_make_link_relative( get_permalink( $out['id'] ) );
 	` ).out;
 	const { id, page } = made;
+
+	// A page with a dynamic gallery, and one whose static gallery shows the image.
+	const image = `<!-- wp:image {"id":${ id },"linkDestination":"none"} -->\n<figure class="wp-block-image"><img src="/pp-e2e-cache.jpg" alt="" class="wp-image-${ id }"/></figure>\n<!-- /wp:image -->`;
+	const galleries = {
+		dynamic: '<!-- wp:gallery {"dynamicContent":{"source":"core/attached-media"}} /-->',
+		static: `<!-- wp:gallery {"linkTo":"none"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped">${ image }</figure>\n<!-- /wp:gallery -->`,
+	};
+	const pages = run( Object.entries( galleries ).map( ( [ key, content ] ) => `
+		$out['${ key }'] = wp_insert_post( wp_slash( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'PP E2E cache: ${ key } gallery', 'post_content' => base64_decode( '${ Buffer.from( content ).toString( 'base64' ) }' ) ] ) );
+		$out['${ key }Url'] = wp_make_link_relative( get_permalink( $out['${ key }'] ) );
+	` ).join( '' ) ).out;
 
 	try {
 		const termed = run( `
@@ -106,15 +119,23 @@ test( 'an image given a term, edited, its term renamed and deleted, and the imag
 		const termDeleted = run( `wp_delete_term( ${ term }, 'photos_keywords' );` );
 		expect( termDeleted.purged ).toEqual( expect.arrayContaining( [ page, `${ newArchive }?vhp-regex` ] ) );
 
-		// By Proxy Cache Purge itself, with images among the statuses it purges.
+		// The dynamic gallery's page shows it now.
+		const attached = run( `wp_update_post( [ 'ID' => ${ id }, 'post_parent' => ${ pages.dynamic } ] );` );
+		expect( attached.purged ).toContain( pages.dynamicUrl );
+
+		// The image by Proxy Cache Purge itself, with images among the
+		// statuses it purges; both pages, out of whose galleries it goes.
+		// Its page is the gallery page's child now.
 		const deleted = run( `
 			$out['archives'] = $archives( ${ id } );
+			$out['page'] = wp_make_link_relative( get_permalink( ${ id } ) );
 			wp_delete_attachment( ${ id }, true );
 		` );
+		expect( deleted.out.page ).toBe( `${ pages.dynamicUrl }${ page.replace( /^\//, '' ) }` );
 		expect( deleted.out.archives ).not.toContain( `${ newArchive }?vhp-regex` );
-		expect( deleted.purged ).toEqual( expect.arrayContaining( [ page, ...deleted.out.archives ] ) );
+		expect( deleted.purged ).toEqual( expect.arrayContaining( [ deleted.out.page, ...deleted.out.archives, pages.dynamicUrl, pages.staticUrl ] ) );
 	} finally {
-		wp( 'eval', `if ( get_post( ${ id } ) ) { wp_delete_attachment( ${ id }, true ); } foreach ( [ '${ WORD }', '${ WORD } renamed' ] as $name ) { $t = get_term_by( 'name', $name, 'photos_keywords' ); if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); } }` );
+		wp( 'eval', `foreach ( [ ${ pages.dynamic }, ${ pages.static } ] as $p ) { wp_delete_post( $p, true ); } if ( get_post( ${ id } ) ) { wp_delete_attachment( ${ id }, true ); } foreach ( [ '${ WORD }', '${ WORD } renamed' ] as $name ) { $t = get_term_by( 'name', $name, 'photos_keywords' ); if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); } }` );
 	}
 
 	expect( answers.length ).toBeGreaterThan( 0 );

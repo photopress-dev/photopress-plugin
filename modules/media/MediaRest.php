@@ -34,8 +34,8 @@ use WP_REST_Server;
  * files are deleted and stored links to them are rewritten. Title and caption
  * follow the new file as on upload.
  *
- * Caches: each step fires the hooks WordPress fires for an edit, so page cache
- * plugins purge the pages concerned. Offload Media re-uploads the files to the
+ * Caches: the image, with its files, and the posts that changed or show it
+ * are announced with photopress_post_changed, for a page cache. Offload Media re-uploads the files to the
  * same keys when the metadata is saved; the cache lifetime it gives files is
  * set by MediaOffload. _photopress_replaced_at records when, for a CDN
  * invalidation.
@@ -259,10 +259,6 @@ class MediaRest {
 			return new WP_Error( 'rest_upload_invalid_image', __( 'The file is not an image this site can display.' ), [ 'status' => 400 ] );
 		}
 
-		// Page caches: the image's pages as they are now, before its terms
-		// can change, so that a term it loses is purged too.
-		self::announceEdit( $id );
-
 		// 4. Into place: over the original when the type is the same, in one
 		// step, so its URL never misses a file.
 		if ( ! @rename( $saved['file'], $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
@@ -352,8 +348,8 @@ class MediaRest {
 
 		update_post_meta( $id, self::REPLACED_AT_META_KEY, time() );
 
-		// Page caches: the image's pages again, its files, and the posts that
-		// changed or show text that changed.
+		// What changed, for page caches: the image with its files, and the
+		// posts that changed or show text that changed.
 		$file_urls = [];
 		$baseurl = wp_get_upload_dir()['baseurl'];
 
@@ -365,10 +361,12 @@ class MediaRest {
 		// a link to it in the content.
 		$parent = (int) get_post_field( 'post_parent', $id );
 		$posts = array_merge( $rewritten, $synced, $text_changed ? self::postsShowing( $id, self::stem( $name ) ) : [], $parent ? [ $parent ] : [] );
-		self::announceEdit( $id, $file_urls );
+		/** This action is documented in modules/gallery/GalleryAdd.php */
+		do_action( 'photopress_post_changed', $id, [ 'files' => $file_urls ] );
 
 		foreach ( array_unique( $posts ) as $post_id ) {
-			self::announceEdit( (int) $post_id );
+			/** This action is documented in modules/gallery/GalleryAdd.php */
+			do_action( 'photopress_post_changed', (int) $post_id, [] );
 		}
 
 		// The gallery, when asked. Never by attaching: the image is published.
@@ -399,40 +397,6 @@ class MediaRest {
 		$response->set_data( $data );
 
 		return $response;
-	}
-
-	/**
-	 * Fires edit_post for a post, as WordPress does when one is edited, so
-	 * page cache plugins purge its pages; nothing is saved. WordPress does
-	 * not fire it for attachments itself, so their pages would not be
-	 * purged otherwise.
-	 *
-	 * @param int      $id    Post ID.
-	 * @param string[] $files URLs of files to purge with it, through Proxy
-	 *                        Cache Purge's vhp_purge_urls filter; other plugins
-	 *                        ignore it.
-	 */
-	public static function announceEdit( $id, array $files = [] ) {
-
-		$post = get_post( $id );
-
-		if ( ! $post ) {
-			return;
-		}
-
-		$add_files = static function ( $urls, $post_id = 0 ) use ( $id, $files ) {
-			return (int) $post_id === (int) $id ? array_merge( (array) $urls, $files ) : $urls;
-		};
-
-		if ( $files ) {
-			add_filter( 'vhp_purge_urls', $add_files, 10, 2 );
-		}
-
-		do_action( 'edit_post', $id, $post );
-
-		if ( $files ) {
-			remove_filter( 'vhp_purge_urls', $add_files, 10 );
-		}
 	}
 
 	/**

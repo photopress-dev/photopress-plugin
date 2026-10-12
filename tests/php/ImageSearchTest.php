@@ -38,23 +38,23 @@ final class ImageSearchTest extends TestCase {
 
 	public function test_relevanssi_always_indexes_the_image_taxonomies_visitors_see(): void {
 
-		$this->assertSame( [ 'category', 'photos_keywords', 'pp_genre' ], ImageSearch::relevanssiTaxonomies( [ 'category', 'photos_keywords' ] ) );
-		$this->assertSame( [ 'photos_keywords', 'pp_genre' ], ImageSearch::relevanssiTaxonomies( '' ), 'never saved' );
+		$this->assertSame( [ 'category', 'photos_keywords', 'pp_genre' ], ImageSearch::indexedTaxonomies( [ 'category', 'photos_keywords' ] ) );
+		$this->assertSame( [ 'photos_keywords', 'pp_genre' ], ImageSearch::indexedTaxonomies( '' ), 'never saved' );
 	}
 
 	public function test_relevanssi_indexes_images_only_while_they_are_in_search(): void {
 
-		$this->assertSame( [ 'post', 'page' ], ImageSearch::relevanssiPostTypes( [ 'post', 'page' ] ), 'off by default' );
+		$this->assertSame( [ 'post', 'page' ], ImageSearch::indexedPostTypes( [ 'post', 'page' ] ), 'off by default' );
 
 		$this->saved = [ 'images_in_search' => true ];
-		$this->assertSame( [ 'post', 'page', 'attachment' ], ImageSearch::relevanssiPostTypes( [ 'post', 'page' ] ) );
-		$this->assertSame( [ 'attachment' ], ImageSearch::relevanssiPostTypes( [ 'attachment' ] ) );
+		$this->assertSame( [ 'post', 'page', 'attachment' ], ImageSearch::indexedPostTypes( [ 'post', 'page' ] ) );
+		$this->assertSame( [ 'attachment' ], ImageSearch::indexedPostTypes( [ 'attachment' ] ) );
 	}
 
 	public function test_relevanssi_indexes_an_images_alt_text(): void {
 
-		$this->assertSame( [ 'credit', '_wp_attachment_image_alt' ], ImageSearch::relevanssiAltText( [ 'credit' ], 7 ) );
-		$this->assertSame( [ 'credit' ], ImageSearch::relevanssiAltText( [ 'credit' ], 8 ), 'not for posts' );
+		$this->assertSame( [ 'credit', '_wp_attachment_image_alt' ], ImageSearch::indexedFields( [ 'credit' ], 7 ) );
+		$this->assertSame( [ 'credit' ], ImageSearch::indexedFields( [ 'credit' ], 8 ), 'not for posts' );
 	}
 
 	public function test_image_search_goes_before_the_themes_search_on_the_image_search_only(): void {

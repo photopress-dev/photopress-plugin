@@ -8,9 +8,9 @@ use PhotoPress\modules\search\PageCache;
 use PhotoPress\modules\search\search;
 
 /**
- * The page cache, through Proxy Cache Purge's documented hooks: an image's
- * event fired at the end of a request in which it was edited or its terms
- * changed, and, as Proxy Cache Purge purges an image, its own page while
+ * The page cache, through Proxy Cache Purge's documented hooks: a post's or
+ * image's event when what it shows changed, and, as Proxy Cache Purge
+ * purges it, the files given with it; for an image, its own page while
  * attachment pages are on and every page of its terms' archives while image
  * taxonomy pages are on.
  */
@@ -21,8 +21,8 @@ final class PageCacheTest extends TestCase {
 
 	/**
 	 * Proxy Cache Purge's purges, as it makes them on PhotoPress's events:
-	 * by image ID, the URLs from its permalink through vhp_purge_urls; or
-	 * 'all' for the cache emptied.
+	 * [ ID, the URLs from its permalink through vhp_purge_urls ], or 'all'
+	 * for the cache emptied.
 	 */
 	private array $purged = [];
 
@@ -35,6 +35,12 @@ final class PageCacheTest extends TestCase {
 		$this->saved = [];
 		$this->purged = [];
 
+		// A new request.
+		\Closure::bind( static function () {
+			static::$purged  = [];
+			static::$emptied = false;
+		}, null, PageCache::class )();
+
 		Functions\stubs( [
 			'get_option'            => static function ( $name, $default = false ) use ( &$saved ) {
 				return 'photopress_core_search' === $name ? $saved : $default;
@@ -43,34 +49,39 @@ final class PageCacheTest extends TestCase {
 			'get_taxonomy'          => static fn( $name ) => (object) [ 'object_type' => [ 'attachment' ], 'public' => 'pp_client' !== $name ],
 			'wp_attachment_is_image' => static fn( $id ) => $id < 100,
 			'is_taxonomy_viewable'  => true,
-			'get_permalink'         => static fn( $id ) => "https://example.com/image-$id/",
+			'get_permalink'         => static fn( $id ) => $id < 100 ? "https://example.com/image-$id/" : "https://example.com/post-$id/",
 			'get_term_link'         => static fn( $term ) => "https://example.com/keywords/{$term->slug}/",
 			'get_the_terms'         => static fn( $id, $taxonomy ) => 'photos_keywords' === $taxonomy ? [ (object) [ 'taxonomy' => $taxonomy, 'slug' => 'ojai' ] ] : false,
 		] );
 
 		// Proxy Cache Purge, listening.
-		add_action( PageCache::IMAGE, 'purge_post' );
-		Actions\expectDone( PageCache::IMAGE )->zeroOrMoreTimes()->whenHappen( static function ( $id ) use ( &$purged ) {
-			$purged[ $id ] = PageCache::urls( [ get_permalink( $id ) ], $id );
+		add_action( PageCache::POST, 'purge_post' );
+		Actions\expectDone( PageCache::POST )->zeroOrMoreTimes()->whenHappen( static function ( $id ) use ( &$purged ) {
+			$purged[] = [ $id, PageCache::urls( [ get_permalink( $id ) ], $id ) ];
 		} );
 		Actions\expectDone( PageCache::ALL )->zeroOrMoreTimes()->whenHappen( static function () use ( &$purged ) {
 			$purged[] = 'all';
 		} );
 	}
 
-	/** The end of the request: what Proxy Cache Purge was asked to purge. */
+	/** What Proxy Cache Purge was asked to purge since. */
 	private function purged(): array {
 
-		PageCache::fire();
 		$purged = $this->purged;
 		$this->purged = [];
 
 		return $purged;
 	}
 
+	/** photopress_image_terms_changed's context: these terms' archives. */
+	private static function context( array $slugs, bool $job = false ): array {
+
+		return [ 'archives' => array_map( static fn( $slug ) => "https://example.com/keywords/$slug/", $slugs ), 'job' => $job ];
+	}
+
 	public function test_proxy_cache_purge_has_the_events_and_purges_images(): void {
 
-		$this->assertSame( [ 'save_post', PageCache::IMAGE, PageCache::ALL ], PageCache::events( [ 'save_post' ] ) );
+		$this->assertSame( [ 'save_post', PageCache::POST, PageCache::ALL ], PageCache::events( [ 'save_post' ] ) );
 		$this->assertSame( [ 'switch_theme', PageCache::ALL ], PageCache::fullEvents( [ 'switch_theme' ] ) );
 		$this->assertSame( [ 'publish', 'inherit' ], PageCache::statuses( [ 'publish' ], 7 ) );
 		$this->assertSame( [ 'publish' ], PageCache::statuses( [ 'publish' ], 101 ), 'not for posts' );
@@ -87,25 +98,25 @@ final class PageCacheTest extends TestCase {
 		$this->assertSame( [ 'https://example.com/keywords/ojai/', 'https://example.com/' ], PageCache::urls( $urls, 7 ) );
 	}
 
-	/** photopress_image_terms_changed's context: these terms' archives. */
-	private static function context( array $slugs, bool $job = false ): array {
+	public function test_a_post_or_image_changed_with_its_files(): void {
 
-		return [ 'archives' => array_map( static fn( $slug ) => "https://example.com/keywords/$slug/", $slugs ), 'job' => $job ];
+		PageCache::postChanged( 101 );
+		PageCache::postChanged( 7, [ 'files' => [ 'https://example.com/ojai.jpg', 'https://example.com/ojai-300x200.jpg' ] ] );
+
+		$this->assertSame( [
+			[ 101, [ 'https://example.com/post-101/' ] ],
+			[ 7, [ 'https://example.com/image-7/', 'https://example.com/keywords/ojai/?vhp-regex', 'https://example.com/ojai.jpg', 'https://example.com/ojai-300x200.jpg' ] ],
+		], $this->purged() );
 	}
 
 	public function test_an_images_terms_changed(): void {
 
 		// big-sur added.
 		PageCache::imageTermsChanged( 7, self::context( [ 'big-sur' ] ) );
-		$this->assertSame( [ 7 => [ 'https://example.com/image-7/', 'https://example.com/keywords/big-sur/?vhp-regex', 'https://example.com/keywords/ojai/?vhp-regex' ] ], $this->purged() );
+		$this->assertSame( [ [ 7, [ 'https://example.com/image-7/', 'https://example.com/keywords/ojai/?vhp-regex', 'https://example.com/keywords/big-sur/?vhp-regex' ] ] ], $this->purged() );
 
-		// Both removed: the archives of terms it no longer has.
-		PageCache::imageTermsChanged( 7, self::context( [ 'ojai', 'big-sur' ] ) );
-		$this->assertSame( [ 7 => [ 'https://example.com/image-7/', 'https://example.com/keywords/ojai/?vhp-regex', 'https://example.com/keywords/big-sur/?vhp-regex' ] ], $this->purged() );
-
-		// From the job: the cache was emptied when it started. A post.
-		PageCache::imageTermsChanged( 7, self::context( [ 'ojai' ], true ) );
-		PageCache::imageTermsChanged( 101, self::context( [ 'ojai' ] ) );
+		// From the job: the cache was emptied when it started.
+		PageCache::imageTermsChanged( 8, self::context( [ 'ojai' ], true ) );
 		$this->assertSame( [], $this->purged() );
 	}
 
@@ -117,33 +128,33 @@ final class PageCacheTest extends TestCase {
 		$this->assertSame( [], $this->purged(), 'nothing visitors see changed' );
 
 		PageCache::imageEdited( 7, (object) ( [ 'post_title' => 'Ojai at dusk' ] + (array) $before ), $before );
-		$this->assertSame( [ 7 => [ 'https://example.com/image-7/', 'https://example.com/keywords/ojai/?vhp-regex' ] ], $this->purged() );
+		$this->assertSame( [ [ 7, [ 'https://example.com/image-7/', 'https://example.com/keywords/ojai/?vhp-regex' ] ] ], $this->purged() );
 	}
 
-	public function test_once_an_image_at_the_end_of_the_request_or_the_cache_emptied(): void {
+	public function test_once_a_request_unless_with_more_and_the_cache_emptied_once(): void {
 
-		PageCache::imageTermsChanged( 7, self::context( [ 'ojai' ] ) );
-		PageCache::imageTermsChanged( 7, self::context( [ 'big-sur' ] ) );
-		PageCache::imageTermsChanged( 8, self::context( [ 'ojai' ] ) );
+		PageCache::purge( 7 );
+		PageCache::purge( 7 );
+		PageCache::purge( 7, [ 'https://example.com/keywords/big-sur/' ] );
+		PageCache::purge( 7, [], [ 'https://example.com/ojai.jpg' ] );
+		$this->assertSame( [ 7, 7, 7 ], array_column( $this->purged(), 0 ) );
 
-		$this->assertSame( 5, has_action( 'shutdown', [ PageCache::class, 'fire' ] ) );
-		$this->assertSame( [ 7, 8 ], array_keys( $this->purged() ) );
-
-		PageCache::imageTermsChanged( 7, self::context( [ 'ojai' ] ) );
+		PageCache::purgeAll();
 		PageCache::purgeAll();
 		$this->assertSame( [ 'all' ], $this->purged() );
 	}
 
-	public function test_nothing_without_pages_or_proxy_cache_purge(): void {
+	public function test_nothing_without_image_pages_or_proxy_cache_purge(): void {
 
 		$this->saved = [ 'attachment_pages' => false, 'taxonomy_pages' => false ];
-		PageCache::imageTermsChanged( 7, self::context( [ 'big-sur' ] ) );
+		PageCache::purge( 7 );
 		PageCache::purgeAll();
-		$this->assertSame( [], $this->purged() );
+		PageCache::purge( 101 );
+		$this->assertSame( [ [ 101, [ 'https://example.com/post-101/' ] ] ], $this->purged(), 'a post’s, still' );
 
 		$this->saved = [];
-		remove_action( PageCache::IMAGE, 'purge_post' );
-		PageCache::imageTermsChanged( 7, self::context( [ 'big-sur' ] ) );
+		remove_action( PageCache::POST, 'purge_post' );
+		PageCache::purge( 8 );
 		$this->assertSame( [], $this->purged() );
 	}
 

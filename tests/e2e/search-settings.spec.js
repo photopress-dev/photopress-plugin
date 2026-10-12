@@ -120,10 +120,10 @@ test( 'image taxonomy pages off: no keyword archive, terms shown unlinked, and t
 
 test( 'the page cache and search index card: Proxy Cache Purge and Relevanssi as the Offload Media tab shows its plugin, with Re-index all images', async ( { page } ) => {
 	const status = JSON.parse( lastLine( wp( 'eval', `
-		use PhotoPress\\modules\\search\\{ search, PageCache, ImageSearch };
+		use PhotoPress\\modules\\search\\{ search, PageCache, Relevanssi };
 		echo wp_json_encode( [
 			'cache'      => search::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ),
-			'relevanssi' => search::pluginState( ImageSearch::relevanssi(), [ 'relevanssi/', 'relevanssi-premium/' ] ),
+			'relevanssi' => search::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ),
 			'images'     => search::enabled( 'images_in_search', false ),
 		] );
 	` ) ) );

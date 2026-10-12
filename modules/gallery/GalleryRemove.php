@@ -2,8 +2,6 @@
 
 namespace PhotoPress\modules\gallery;
 
-use PhotoPress\modules\media\MediaRest;
-
 /**
  * Takes an image deleted from the media library out of the galleries that
  * show it, so they are not left with a broken image.
@@ -13,7 +11,7 @@ use PhotoPress\modules\media\MediaRest;
  * modified date, and edit_post for page caches), whoever the post belongs
  * to. A gallery left with no images stays, empty. A dynamic gallery shows
  * the post's attached images, so it loses the image with the attachment;
- * the post is announced as edited for page caches.
+ * the post is announced as changed (photopress_post_changed).
  *
  * Galleries in the format of WordPress before 5.9 (an ids attribute and no
  * image blocks) and the legacy photopress/gallery block are left as they
@@ -45,8 +43,10 @@ class GalleryRemove {
 			return;
 		}
 
+		// Early at the end of the request: before plugins that act then on
+		// what it changed, as a page cache sends its purges.
 		if ( ! self::$deleted ) {
-			add_action( 'shutdown', [ self::class, 'removeDeleted' ] );
+			add_action( 'shutdown', [ self::class, 'removeDeleted' ], 1 );
 		}
 
 		self::$deleted[ (int) $id ] = (int) get_post_field( 'post_parent', $id );
@@ -63,7 +63,7 @@ class GalleryRemove {
 		foreach ( array_unique( array_filter( $deleted ) ) as $parent ) {
 
 			if ( GalleryAdd::hasDynamicGallery( $parent ) ) {
-				MediaRest::announceEdit( $parent );
+				GalleryAdd::postChanged( $parent );
 			}
 		}
 

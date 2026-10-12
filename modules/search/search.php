@@ -86,7 +86,7 @@ class search extends photopress_module {
 			return;
 		}
 
-		$relevanssi = [ 'plugin' => self::pluginState( ImageSearch::relevanssi(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
+		$relevanssi = [ 'plugin' => self::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
 		$cache = [ 'plugin' => self::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
 		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );

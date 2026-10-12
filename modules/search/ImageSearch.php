@@ -60,19 +60,14 @@ class ImageSearch {
 			] );
 		}
 
-		// Relevanssi's settings, as PhotoPress has them, wherever they are read.
-		foreach ( [ 'option_relevanssi_index_taxonomies_list', 'default_option_relevanssi_index_taxonomies_list' ] as $hook ) {
-			add_filter( $hook, [ self::class, 'relevanssiTaxonomies' ] );
-		}
-		foreach ( [ 'option_relevanssi_index_post_types', 'default_option_relevanssi_index_post_types' ] as $hook ) {
-			add_filter( $hook, [ self::class, 'relevanssiPostTypes' ] );
-		}
-		add_filter( 'relevanssi_index_custom_fields', [ self::class, 'relevanssiAltText' ], 10, 2 );
-		add_filter( 'relevanssi_hits_filter', [ self::class, 'relevanssiOnlyImages' ], 10, 2 );
+		// Relevanssi's index, as PhotoPress has it, and its results.
+		Relevanssi::indexing( [ self::class, 'indexedPostTypes' ], [ self::class, 'indexedTaxonomies' ] );
+		Relevanssi::indexingFields( [ self::class, 'indexedFields' ] );
+		Relevanssi::filteringResults( [ self::class, 'onlyImages' ] );
 		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
 		add_filter( 'photopress_term_images_job', [ self::class, 'termImagesJob' ] );
 
-		if ( self::relevanssi() ) {
+		if ( Relevanssi::active() ) {
 
 			Jobs::register( self::JOB, [
 				'label'       => __( 'Add images to the search index', 'photopress' ),
@@ -140,11 +135,11 @@ class ImageSearch {
 	/** The job's work: one image, indexed again. */
 	public static function indexImage( $id ) {
 
-		if ( ! function_exists( 'relevanssi_index_doc' ) ) {
+		if ( ! Relevanssi::indexes() ) {
 			return new \WP_Error( 'photopress_no_relevanssi', __( 'Relevanssi is not active.', 'photopress' ) );
 		}
 
-		relevanssi_index_doc( (int) $id, true, relevanssi_get_custom_fields(), true );
+		Relevanssi::index( $id );
 
 		return true;
 	}
@@ -157,12 +152,6 @@ class ImageSearch {
 	public static function postsOn() {
 
 		return search::enabled( 'posts_in_search' );
-	}
-
-	/** Whether Relevanssi is the site's search. */
-	public static function relevanssi() {
-
-		return function_exists( 'relevanssi_do_query' );
 	}
 
 	/**
@@ -228,7 +217,7 @@ class ImageSearch {
 
 		global $wpdb;
 
-		if ( '' === $search || ! $query instanceof WP_Query || ! $query->get( self::FLAG ) || self::relevanssi() ) {
+		if ( '' === $search || ! $query instanceof WP_Query || ! $query->get( self::FLAG ) || Relevanssi::active() ) {
 			return $search;
 		}
 
@@ -326,8 +315,8 @@ class ImageSearch {
 				'posts_per_page' => min( 20, max( 1, (int) ( $attributes['count'] ?? 5 ) ) ),
 			] );
 
-			if ( self::relevanssi() ) {
-				relevanssi_do_query( $found );
+			if ( Relevanssi::active() ) {
+				Relevanssi::search( $found );
 			} else {
 				$found->get_posts();
 			}
@@ -412,19 +401,19 @@ class ImageSearch {
 	}
 
 	/**
-	 * option_relevanssi_index_taxonomies_list: the image taxonomies visitors
-	 * may see are always indexed, with whatever else the site has chosen.
+	 * The taxonomies Relevanssi indexes: the image taxonomies visitors may
+	 * see always, with whatever else the site has chosen.
 	 */
-	public static function relevanssiTaxonomies( $taxonomies ) {
+	public static function indexedTaxonomies( $taxonomies ) {
 
 		return array_values( array_unique( array_merge( is_array( $taxonomies ) ? $taxonomies : [], self::taxonomies() ) ) );
 	}
 
 	/**
-	 * option_relevanssi_index_post_types: images, while they are in search
-	 * results.
+	 * The post types Relevanssi indexes: images too, while they are in
+	 * search results.
 	 */
-	public static function relevanssiPostTypes( $types ) {
+	public static function indexedPostTypes( $types ) {
 
 		$types = is_array( $types ) ? $types : [];
 
@@ -432,9 +421,9 @@ class ImageSearch {
 	}
 
 	/**
-	 * relevanssi_index_custom_fields: an image's alt text.
+	 * The custom fields Relevanssi indexes: an image's alt text too.
 	 */
-	public static function relevanssiAltText( $fields, $post_id ) {
+	public static function indexedFields( $fields, $post_id ) {
 
 		if ( 'attachment' !== get_post_type( $post_id ) ) {
 			return $fields;
@@ -444,13 +433,13 @@ class ImageSearch {
 	}
 
 	/**
-	 * relevanssi_hits_filter, for the image search: only images among the
+	 * Relevanssi's results, for the image search: only images among the
 	 * attachments found, as without Relevanssi.
 	 *
 	 * @param array    $hits  [ 0 => posts found, 1 => the search terms ].
 	 * @param WP_Query $query
 	 */
-	public static function relevanssiOnlyImages( $hits, $query = null ) {
+	public static function onlyImages( $hits, $query = null ) {
 
 		if ( ! $query instanceof WP_Query || ! $query->get( self::FLAG ) || empty( $hits[0] ) ) {
 			return $hits;
@@ -492,7 +481,7 @@ class ImageSearch {
 	/** Whether Relevanssi's index has images, to keep current. */
 	public static function indexesImages() {
 
-		return self::relevanssi() && function_exists( 'relevanssi_index_doc' ) && self::imagesOn();
+		return Relevanssi::indexes() && self::imagesOn();
 	}
 
 	/** An image, indexed again at the end of the request. */
@@ -512,7 +501,7 @@ class ImageSearch {
 		self::$changed = [];
 
 		foreach ( $ids as $id ) {
-			relevanssi_index_doc( $id, true, relevanssi_get_custom_fields(), true );
+			Relevanssi::index( $id );
 		}
 	}
 }
