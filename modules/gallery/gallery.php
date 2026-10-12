@@ -51,7 +51,7 @@ class gallery extends photopress_module {
 
 		add_action( 'enqueue_block_editor_assets', [ $this, 'shareEnabledLayouts' ] );
 
-		ImageTemplates::addHooks( (bool) pp_api::getOption( 'core', 'gallery', 'image_templates' ) );
+		ImageTemplates::addHooks();
 
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
@@ -109,19 +109,6 @@ class gallery extends photopress_module {
 			],
 		];
 
-		$options['image_templates'] = [
-			'default_value' => true,
-			'field'         => [
-				'type'          => 'boolean',
-				'title'         => 'Image templates',
-				'page_name'     => 'gallery',
-				'section'       => 'general',
-				'description'   => 'In block themes, templates for image taxonomy archives and image pages, where the theme has none.',
-				'label_for'     => 'Image templates',
-				'error_message' => '',
-			],
-		];
-
 		return $options;
 	}
 
@@ -136,7 +123,7 @@ class gallery extends photopress_module {
 				'menu_title'          => 'Gallery',
 				'required_capability' => 'manage_options',
 				'menu_slug'           => 'photopress-gallery',
-				'description'         => 'The Gallery block\'s PhotoPress layouts, galleries of deleted images, and templates for image archives and pages.',
+				'description'         => 'The Gallery block\'s PhotoPress layouts, and galleries of deleted images.',
 				'sections'            => [
 					'general' => [
 						'id'          => 'general',

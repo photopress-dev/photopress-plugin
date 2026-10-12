@@ -14,7 +14,8 @@ use photopress_module;
  * since 6.4), which this switch decides: off, an image's page redirects to
  * its file, and links to it go to the file. Taxonomy archive pages are left
  * out when the metadata module registers the image taxonomies; their terms
- * are still shown, unlinked.
+ * are still shown, unlinked. Under each, a switch for PhotoPress's template
+ * for those pages in block themes (modules/gallery/ImageTemplates.php).
  */
 class search extends photopress_module {
 
@@ -28,7 +29,8 @@ class search extends photopress_module {
 	 * ask while WordPress is starting, before this one has registered its
 	 * defaults.
 	 *
-	 * @param string $key attachment_pages or taxonomy_pages.
+	 * @param string $key attachment_pages, taxonomy_pages, image_page_template
+	 *                    or archive_template.
 	 */
 	public static function enabled( $key ) {
 
@@ -81,6 +83,19 @@ class search extends photopress_module {
 				],
 			],
 
+			'image_page_template' => [
+				'default_value' => true,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Image Pages template',
+					'page_name'     => 'search',
+					'section'       => 'general',
+					'description'   => 'In block themes without their own, PhotoPress\'s template for image pages.',
+					'label_for'     => 'Image Pages template',
+					'error_message' => '',
+				],
+			],
+
 			'taxonomy_pages' => [
 				'default_value' => true,
 				'field'         => [
@@ -90,6 +105,19 @@ class search extends photopress_module {
 					'section'       => 'general',
 					'description'   => 'Give each term of an image taxonomy, such as a keyword or a camera, an archive page of its images.',
 					'label_for'     => 'Image taxonomy pages',
+					'error_message' => '',
+				],
+			],
+
+			'archive_template' => [
+				'default_value' => true,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Image Archives template',
+					'page_name'     => 'search',
+					'section'       => 'general',
+					'description'   => 'In block themes without their own, PhotoPress\'s template for image taxonomy archives.',
+					'label_for'     => 'Image Archives template',
 					'error_message' => '',
 				],
 			],

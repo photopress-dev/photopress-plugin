@@ -4,6 +4,7 @@ namespace PhotoPress\modules\gallery;
 
 use PhotoPress\modules\metadata\ImageTaxonomies;
 use PhotoPress\modules\metadata\metadata;
+use PhotoPress\modules\search\search;
 
 /**
  * Templates for block themes: image taxonomy archives (a keyword's, a
@@ -16,7 +17,8 @@ use PhotoPress\modules\metadata\metadata;
  * after taxonomy-{taxonomy}-{term} and taxonomy-{taxonomy} and before
  * taxonomy, as themes built on Frame (Ansel, Dorthea) do. An image page
  * already looks for attachment. A theme's own template of the same name, or
- * a more specific one, is used instead of these.
+ * a more specific one, is used instead of these. Each is turned off with its
+ * switch in the Pages & Search tab.
  *
  * Also what the templates are made of: Taxonomy Gallery, a core/gallery
  * variation filled here with images (photopressSource "archive", the
@@ -25,10 +27,7 @@ use PhotoPress\modules\metadata\metadata;
  */
 class ImageTemplates {
 
-	/**
-	 * @param bool $register_templates The Gallery tab's Image templates switch.
-	 */
-	public static function addHooks( $register_templates ) {
+	public static function addHooks() {
 
 		add_filter( 'pre_render_block', [ self::class, 'renderTaxonomyGallery' ], 10, 2 );
 		register_block_type( __DIR__ . '/blocks/attachment-image', [
@@ -38,7 +37,7 @@ class ImageTemplates {
 		add_filter( 'taxonomy_template_hierarchy', [ self::class, 'addTaxonomyAttachment' ] );
 
 		// register_block_template() is WordPress 6.7 and later.
-		if ( $register_templates && function_exists( 'register_block_template' ) ) {
+		if ( function_exists( 'register_block_template' ) ) {
 			self::registerTemplates();
 		}
 	}
@@ -80,9 +79,30 @@ class ImageTemplates {
 		return $templates;
 	}
 
+	/**
+	 * The templates whose switches are on in the Pages & Search tab: each
+	 * under its kind of page, which must be on too.
+	 *
+	 * @return string[] Template slugs.
+	 */
+	public static function enabledTemplates() {
+
+		$enabled = [];
+
+		if ( search::enabled( 'taxonomy_pages' ) && search::enabled( 'archive_template' ) ) {
+			$enabled[] = 'taxonomy-attachment';
+		}
+
+		if ( search::enabled( 'attachment_pages' ) && search::enabled( 'image_page_template' ) ) {
+			$enabled[] = 'attachment';
+		}
+
+		return $enabled;
+	}
+
 	public static function registerTemplates() {
 
-		$templates = [
+		$templates = array_intersect_key( [
 			'taxonomy-attachment' => [
 				'title'       => __( 'Image Archives', 'photopress' ),
 				'description' => __( 'The archive pages of image taxonomies, such as a keyword’s or a camera’s: their images in a gallery layout. From PhotoPress.', 'photopress' ),
@@ -91,7 +111,7 @@ class ImageTemplates {
 				'title'       => __( 'Image Pages', 'photopress' ),
 				'description' => __( 'An image’s own page: the image, its caption and description, its taxonomy terms and its exposure details. From PhotoPress.', 'photopress' ),
 			],
-		];
+		], array_flip( self::enabledTemplates() ) );
 
 		foreach ( $templates as $slug => $args ) {
 

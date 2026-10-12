@@ -1,7 +1,7 @@
 /**
  * The Pages & Search settings tab: whether images and image taxonomy terms
- * have pages of their own on the site (modules/search). Searching images is
- * to come here too.
+ * have pages of their own on the site, and PhotoPress's templates for them
+ * in block themes (modules/search). Searching images is to come here too.
  */
 const { __ } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
@@ -17,6 +17,7 @@ import {
 	persistSetting,
 } from '../shared/options.js';
 import FeatureSection from '../shared/feature-section.js';
+import SwitchRow from '../shared/switch-row.js';
 
 class SearchSettings extends Component {
 	constructor() {
@@ -37,7 +38,9 @@ class SearchSettings extends Component {
 			errors: {},
 			settings: {
 				attachment_pages: true,
+				image_page_template: true,
 				taxonomy_pages: true,
+				archive_template: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -72,7 +75,14 @@ class SearchSettings extends Component {
 					] }
 					checked={ this.getSetting( 'attachment_pages' ) }
 					onChange={ ( value ) => this.persistSetting( 'attachment_pages', value ) }
-				/>
+				>
+					<SwitchRow
+						label={ __( 'Image Pages template' ) }
+						help={ __( 'In a block theme without its own, PhotoPress’s template: the image, its caption and description, its terms and its exposure details. It can be edited in the Site Editor.' ) }
+						checked={ this.getSetting( 'image_page_template' ) }
+						onChange={ ( value ) => this.persistSetting( 'image_page_template', value ) }
+					/>
+				</FeatureSection>
 
 				<FeatureSection
 					title={ __( 'Image taxonomy pages' ) }
@@ -83,7 +93,14 @@ class SearchSettings extends Component {
 					] }
 					checked={ this.getSetting( 'taxonomy_pages' ) }
 					onChange={ ( value ) => this.persistSetting( 'taxonomy_pages', value ) }
-				/>
+				>
+					<SwitchRow
+						label={ __( 'Image Archives template' ) }
+						help={ __( 'In a block theme without its own, PhotoPress’s template: the archive’s images in a Taxonomy Gallery, Masonry to start. It can be edited in the Site Editor.' ) }
+						checked={ this.getSetting( 'archive_template' ) }
+						onChange={ ( value ) => this.persistSetting( 'archive_template', value ) }
+					/>
+				</FeatureSection>
 			</Fragment>
 		);
 	}

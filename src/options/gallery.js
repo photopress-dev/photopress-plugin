@@ -1,7 +1,6 @@
 /**
  * The Gallery settings tab: which PhotoPress layouts the Gallery block
- * offers, taking deleted images out of galleries, and the templates for
- * image archives and pages (modules/gallery).
+ * offers, and taking deleted images out of galleries (modules/gallery).
  */
 const { __ } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
@@ -63,7 +62,6 @@ class GallerySettings extends Component {
 				layout_rows: true,
 				layout_mosaic: true,
 				remove_deleted_images: true,
-				image_templates: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -101,17 +99,6 @@ class GallerySettings extends Component {
 					] }
 					checked={ this.getSetting( 'remove_deleted_images' ) }
 					onChange={ ( value ) => this.persistSetting( 'remove_deleted_images', value ) }
-				/>
-
-				<FeatureSection
-					title={ __( 'Image templates' ) }
-					description={ __( 'Give image taxonomy archives and image pages templates of their own, in block themes that have none.' ) }
-					info={ [
-						<p key="0">{ __( 'An archive, such as a keyword’s or a camera’s, shows its images in the Masonry layout, in a Taxonomy Gallery whose layout can be changed in the Site Editor. An image’s page shows the image, its caption and description, its taxonomy terms and its exposure details.' ) }</p>,
-						<p key="1">{ __( 'Both can be edited in the Site Editor, as Image Archives and Image Pages. A theme’s own taxonomy-attachment or attachment template is used instead. Classic themes are not changed.' ) }</p>,
-					] }
-					checked={ this.getSetting( 'image_templates' ) }
-					onChange={ ( value ) => this.persistSetting( 'image_templates', value ) }
 				/>
 			</Fragment>
 		);

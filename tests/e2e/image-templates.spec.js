@@ -3,8 +3,8 @@
  * (which has none of its own): an image taxonomy's archive shows its public
  * images with Taxonomy Gallery, a Gallery block variation whose layout is the
  * gallery's own setting; on a page it shows the images of a term, or the latest; and an image's page shows the image once, its
- * terms and its exposure details. Off with the Gallery tab's Image templates
- * switch. And no other query on an archive page lists drafts.
+ * terms and its exposure details. Off with their switches in the Pages &
+ * Search tab. And no other query on an archive page lists drafts.
  *
  * The images, the keyword, the draft page and post made here are deleted
  * afterwards, and the Gallery settings put back.
@@ -211,12 +211,22 @@ test( 'on a page, Taxonomy Gallery shows the images of a term, or the latest, pu
 	}
 } );
 
-test( 'with Image templates off, the theme\'s own templates are used', async ( { page } ) => {
-	wp( 'option', 'update', KEY, JSON.stringify( { image_templates: false } ), '--format=json' );
+test( 'with the template switches off in Pages & Search, the theme\'s own templates are used', async ( { page } ) => {
+	const SEARCH = 'photopress_core_search';
+	const before = lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ SEARCH }', null ) );` ) );
+	wp( 'option', 'update', SEARCH, JSON.stringify( { archive_template: false, image_page_template: false } ), '--format=json' );
 
-	expect( ( await page.goto( made.archive ) ).status() ).toBe( 200 );
-	await expect( page.locator( 'main figure.wp-block-gallery' ) ).toHaveCount( 0 );
+	try {
+		expect( ( await page.goto( made.archive ) ).status() ).toBe( 200 );
+		await expect( page.locator( 'main figure.wp-block-gallery' ) ).toHaveCount( 0 );
 
-	await page.goto( made.page );
-	await expect( page.locator( '.wp-block-photopress-attachment-image' ) ).toHaveCount( 0 );
+		await page.goto( made.page );
+		await expect( page.locator( '.wp-block-photopress-attachment-image' ) ).toHaveCount( 0 );
+	} finally {
+		if ( 'null' === before ) {
+			wp( 'option', 'delete', SEARCH );
+		} else {
+			wp( 'option', 'update', SEARCH, before, '--format=json' );
+		}
+	}
 } );
