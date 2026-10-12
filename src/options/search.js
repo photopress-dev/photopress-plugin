@@ -20,22 +20,23 @@ import {
 import FeatureSection from '../shared/feature-section.js';
 import SwitchRow from '../shared/switch-row.js';
 import JobPanel from '../shared/jobs.js';
+import PluginState from '../shared/plugin-state.js';
 
-// Whether Relevanssi is the site's search, and its index; the page cache
-// plugin, and whether PhotoPress clears its pages (modules/search).
-const RELEVANSSI = window.photopressRelevanssi || { active: false };
-const PAGE_CACHE = window.photopressPageCache || { plugin: '', purges: false };
+// Proxy Cache Purge and Relevanssi: active, inactive or missing, and the
+// images in Relevanssi's index (modules/search).
+const RELEVANSSI = window.photopressRelevanssi || { plugin: 'missing' };
+const PAGE_CACHE = window.photopressPageCache || { plugin: 'missing' };
 
-/** The page cache in use, and whether PhotoPress clears its pages. */
-function pageCache() {
-	if ( PAGE_CACHE.purges ) {
-		return sprintf( __( 'Pages are cached by %s. PhotoPress clears the pages of images and image taxonomy terms when they change.' ), PAGE_CACHE.plugin );
-	}
+const PAGE_CACHE_TEXT = {
+	active: __( 'PhotoPress has it clear an image’s page when the image is edited or deleted or its terms change, while attachment pages are on, and every page of a term’s archive when its images change or the term is renamed, while image taxonomy pages are on.' ),
+	inactive: __( 'Activate it to clear the pages of images and image taxonomy terms from the page cache when they change.' ),
+	missing: __( 'Proxy Cache Purge clears pages from a Varnish or NGINX page cache when posts change. Once it’s active, PhotoPress has it clear the pages of images and image taxonomy terms too.' ),
+};
 
-	return PAGE_CACHE.plugin
-		? sprintf( __( 'Pages are cached by %s. PhotoPress doesn’t clear its pages; they are refreshed as its settings say.' ), PAGE_CACHE.plugin )
-		: __( 'No page cache plugin is active.' );
-}
+const RELEVANSSI_TEXT = {
+	inactive: __( 'Activate it to search the site with its index.' ),
+	missing: __( 'Relevanssi replaces WordPress’s search with one that ranks results by relevance. Once it’s active, PhotoPress has it index images and their terms.' ),
+};
 
 class SearchSettings extends Component {
 	constructor() {
@@ -124,33 +125,38 @@ class SearchSettings extends Component {
 				<FeatureSection
 					title={ __( 'Page cache and search index' ) }
 					className="photopress-search-cache"
-					description={ pageCache() }
-					info={ PAGE_CACHE.purges && [
-						<p key="0">{ __( 'Proxy Cache Purge clears a post’s pages when the post is saved, but not an image’s, or a term’s. PhotoPress clears an image’s page when the image is edited or deleted or its terms change, while attachment pages are on, and every page of a term’s archive when its images change or it is renamed, while image taxonomy pages are on.' ) }</p>,
-					] }
+					description={ __( 'PhotoPress keeps the site’s page cache and search index up to date as images and terms change, through these plugins.' ) }
 				>
-					{ RELEVANSSI.active ? (
-						<div className="photopress-search-relevanssi">
-							<p>
-								{ RELEVANSSI.images
-									? sprintf( _n( 'Relevanssi is the site’s search; its index has %s image.', 'Relevanssi is the site’s search; its index has %s images.', RELEVANSSI.images ), RELEVANSSI.images.toLocaleString() )
-									: __( 'Relevanssi is the site’s search, and its index has no images yet.' ) }
-							</p>
-							<JobPanel
-								type="search.index"
-								label={ __( 'Adding images to the search index' ) }
-								compact
-								startable={ !! this.getSetting( 'images_in_search' ) }
-								startLabel={ __( 'Re-index all images' ) }
-								refresh={ this.state.settings.images_in_search }
-							/>
-							{ ! this.getSetting( 'images_in_search' ) && (
-								<p className="components-base-control__help">{ __( 'Turn on Images in search results to add images to the index.' ) }</p>
-							) }
-						</div>
-					) : (
-						<p>{ __( 'The site’s search is WordPress’s own, which keeps no index.' ) }</p>
-					) }
+					<div className="photopress-plugin-status" data-plugin="varnish-http-purge">
+						<PluginState name={ __( 'Proxy Cache Purge' ) } state={ PAGE_CACHE.plugin } />
+						<p>{ PAGE_CACHE_TEXT[ PAGE_CACHE.plugin ] }</p>
+					</div>
+
+					<div className="photopress-plugin-status" data-plugin="relevanssi">
+						<PluginState name={ __( 'Relevanssi' ) } state={ RELEVANSSI.plugin } />
+						{ 'active' === RELEVANSSI.plugin ? (
+							<>
+								<p>
+									{ RELEVANSSI.images
+										? sprintf( _n( 'Its index has %s image.', 'Its index has %s images.', RELEVANSSI.images ), RELEVANSSI.images.toLocaleString() )
+										: __( 'Its index has no images yet.' ) }
+								</p>
+								<JobPanel
+									type="search.index"
+									label={ __( 'Adding images to the search index' ) }
+									compact
+									startable={ !! this.getSetting( 'images_in_search' ) }
+									startLabel={ __( 'Re-index all images' ) }
+									refresh={ this.state.settings.images_in_search }
+								/>
+								{ ! this.getSetting( 'images_in_search' ) && (
+									<p className="components-base-control__help">{ __( 'Turn on Images in search results to add images to the index.' ) }</p>
+								) }
+							</>
+						) : (
+							<p>{ RELEVANSSI_TEXT[ RELEVANSSI.plugin ] }</p>
+						) }
+					</div>
 				</FeatureSection>
 			</Fragment>
 		);

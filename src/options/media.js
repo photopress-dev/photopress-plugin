@@ -4,6 +4,7 @@
  */
 const { __, _n, sprintf } = wp.i18n;
 import SwitchRow from '../shared/switch-row.js';
+import PluginState from '../shared/plugin-state.js';
 import { Component, useEffect, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { BaseControl, Button, Notice, PanelBody, SelectControl, TextControl } from '@wordpress/components';
@@ -23,12 +24,6 @@ const CREDENTIAL_SOURCES = {
 	photopress: __( 'PHOTOPRESS_AWS_* constants in wp-config.php' ),
 	'instance-role': __( 'The server’s IAM role' ),
 	'offload-media': __( "WP Offload Media's credentials" ),
-};
-
-const PLUGIN_STATES = {
-	active: __( 'Active' ),
-	inactive: __( 'Disabled' ),
-	missing: __( 'Not installed' ),
 };
 
 const when = ( time ) => new Date( time * 1000 ).toLocaleString();
@@ -77,12 +72,7 @@ function OffloadStatus() {
 		return error ? <Notice status="error" isDismissible={ false }>{ error }</Notice> : <p>{ __( 'Checking…' ) }</p>;
 	}
 
-	const state = (
-		<p className="photopress-offload-state">
-			{ __( 'WP Offload Media:' ) }{ ' ' }
-			<span className={ `photopress-offload-state__value is-${ status.plugin }` }>{ PLUGIN_STATES[ status.plugin ] || status.plugin }</span>
-		</p>
-	);
+	const state = <PluginState name={ __( 'WP Offload Media' ) } state={ status.plugin } />;
 
 	if ( 'missing' === status.plugin ) {
 		return (

@@ -77,9 +77,8 @@ class search extends photopress_module {
 	}
 
 	/**
-	 * admin_enqueue_scripts: for the settings page, the page cache plugin
-	 * and whether PhotoPress clears its pages; whether Relevanssi is the
-	 * site's search and how many images its index has.
+	 * admin_enqueue_scripts: for the settings page, the state of Proxy Cache
+	 * Purge and Relevanssi, and how many images Relevanssi's index has.
 	 */
 	public static function shareStatus() {
 
@@ -87,15 +86,40 @@ class search extends photopress_module {
 			return;
 		}
 
-		$relevanssi = [ 'active' => ImageSearch::relevanssi() ];
+		$relevanssi = [ 'plugin' => self::pluginState( ImageSearch::relevanssi(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
 
-		if ( $relevanssi['active'] ) {
+		if ( 'active' === $relevanssi['plugin'] ) {
 			$relevanssi['images'] = ImageSearch::indexedImages();
 		}
 
-		$cache = [ 'plugin' => PageCache::plugin(), 'purges' => PageCache::purges() ];
+		$cache = [ 'plugin' => self::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
 		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );
+	}
+
+	/**
+	 * A plugin "active", "inactive" (installed) or "missing", by whether it
+	 * is running and the folders it is installed in.
+	 */
+	public static function pluginState( $active, array $folders ) {
+
+		if ( $active ) {
+			return 'active';
+		}
+
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+
+		foreach ( array_keys( get_plugins() ) as $file ) {
+			foreach ( $folders as $folder ) {
+				if ( 0 === strpos( $file, $folder ) ) {
+					return 'inactive';
+				}
+			}
+		}
+
+		return 'missing';
 	}
 
 	public function registerOptions() {

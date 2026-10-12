@@ -4,6 +4,7 @@ namespace PhotoPress\Tests;
 
 use Brain\Monkey\Functions;
 use PhotoPress\modules\search\PageCache;
+use PhotoPress\modules\search\search;
 
 /**
  * The pages PhotoPress clears through Proxy Cache Purge: an image's page,
@@ -101,9 +102,15 @@ final class PageCacheTest extends TestCase {
 		$this->assertSame( [ 'https://example.com/image-7/', 'https://example.com/keywords/ojai/?vhp-regex' ], $this->purged() );
 	}
 
-	public function test_the_page_cache_plugin_is_named(): void {
+	public function test_proxy_cache_purge_active_installed_or_not(): void {
+
+		$plugins = [ 'akismet/akismet.php' => [] ];
+		Functions\when( 'get_plugins' )->alias( static function () use ( &$plugins ) { return $plugins; } );
 
 		$this->assertTrue( PageCache::purges() );
-		$this->assertSame( 'Proxy Cache Purge', PageCache::plugin() );
+		$this->assertSame( 'active', search::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) );
+		$this->assertSame( 'missing', search::pluginState( false, [ 'varnish-http-purge/' ] ) );
+		$plugins['varnish-http-purge/varnish-http-purge.php'] = [];
+		$this->assertSame( 'inactive', search::pluginState( false, [ 'varnish-http-purge/' ] ) );
 	}
 }

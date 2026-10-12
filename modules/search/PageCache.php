@@ -14,8 +14,7 @@ namespace PhotoPress\modules\search;
  *   leaves the term or is edited or deleted, while image taxonomy pages are
  *   on. A renamed term's are cleared by RenamedTerms.
  *
- * Other page cache plugins are named on the Pages & Search tab, and left to
- * their own rules.
+ * The Pages & Search tab shows whether Proxy Cache Purge is active.
  */
 class PageCache {
 
@@ -38,24 +37,6 @@ class PageCache {
 	public static function purges() {
 
 		return class_exists( 'VarnishPurger' ) && is_callable( [ 'VarnishPurger', 'purge_url' ] );
-	}
-
-	/** The page cache plugin active, by name, or ''. */
-	public static function plugin() {
-
-		$plugins = [
-			'Proxy Cache Purge'  => self::purges(),
-			'WP Rocket'          => defined( 'WP_ROCKET_VERSION' ),
-			'W3 Total Cache'     => defined( 'W3TC' ),
-			'LiteSpeed Cache'    => defined( 'LSCWP_V' ),
-			'WP Super Cache'     => defined( 'WPCACHEHOME' ),
-			'WP Fastest Cache'   => class_exists( 'WpFastestCache' ),
-			'Cache Enabler'      => class_exists( 'Cache_Enabler' ),
-			'Breeze'             => defined( 'BREEZE_VERSION' ),
-			'Nginx Helper'       => defined( 'NGINX_HELPER_BASENAME' ),
-		];
-
-		return (string) array_search( true, $plugins, true );
 	}
 
 	/**

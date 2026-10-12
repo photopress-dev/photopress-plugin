@@ -358,15 +358,34 @@ input[type="checkbox"] {
 	margin-top: 8px;
 }
 
-// "Offload Media status: Active / Disabled / Not installed", colored as
-// WordPress colors success, warning and error, with a dot, so the color is
-// not the only signal.
-.photopress-offload-state {
+// A plugin PhotoPress works with, on the Pages & Search tab: its state, and
+// what PhotoPress does with it.
+.photopress-plugin-status {
+
+	+ .photopress-plugin-status {
+		margin-top: 24px;
+		padding-top: 20px;
+		border-top: 1px solid #f0f0f1;
+	}
+
+	p {
+		margin: 0 0 12px;
+	}
+
+	.photopress-plugin-state {
+		margin-bottom: 8px;
+	}
+}
+
+// Another plugin's state (src/shared/plugin-state.js): "Name: Active /
+// Disabled / Not installed", colored as WordPress colors success, warning
+// and error, with a dot, so the color is not the only signal.
+.photopress-plugin-state {
 	font-size: 14px;
 	font-weight: 600;
 }
 
-.photopress-offload-state__value {
+.photopress-plugin-state__value {
 
 	&::before {
 		content: "";
