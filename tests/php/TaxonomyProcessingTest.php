@@ -82,13 +82,9 @@ final class TaxonomyProcessingTest extends TestCase {
 			[ 'id' => 'pp_client', 'pluralLabel' => 'clients', 'singularLabel' => 'client', 'tag' => 'dc:subject', 'parseTagValue' => true, 'private' => true ],
 		];
 
-		$registered = [];
-		Functions\when( 'sanitize_title' )->alias( static fn( $text ) => strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', trim( $text ) ) ) );
-		Functions\when( 'register_taxonomy' )->alias( static function ( $id, $type, $args ) use ( &$registered ) {
-			$registered[ $id ] = $args;
-		} );
-
-		( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor()->registerTaxonomies();
+		// The Pages & Search tab never saved: archive pages on.
+		Functions\when( 'get_option' )->justReturn( false );
+		$registered = self::registered();
 
 		$this->assertSame( [ 'pp_acme_job', 'photos_keywords', 'photos_city', 'pp_client' ], array_keys( $registered ), 'a taxonomy turned off is not registered' );
 		$this->assertTrue( $registered['photos_keywords']['hierarchical'], 'keyword hierarchies' );
@@ -109,7 +105,44 @@ final class TaxonomyProcessingTest extends TestCase {
 		}
 	}
 
-		public function test_new_sites_start_with_the_standard_taxonomies_and_old_ones_keep_people(): void {
+	public function test_with_image_taxonomy_pages_off_no_taxonomy_has_archive_pages(): void {
+
+		if ( ! defined( 'EP_PERMALINK' ) ) {
+			define( 'EP_PERMALINK', 1 );
+		}
+
+		\pp_api::$options['core/metadata/custom_taxonomies'] = [
+			[ 'id' => 'photos_keywords', 'pluralLabel' => 'keywords', 'singularLabel' => 'keyword', 'tag' => 'dc:subject', 'parseTagValue' => false ],
+		];
+		Functions\when( 'get_option' )->alias( static fn( $key ) => 'photopress_core_search' === $key ? [ 'taxonomy_pages' => false ] : false );
+
+		$keywords = self::registered()['photos_keywords'];
+
+		// Still shown to visitors, unlinked; no pages, menus or tag clouds.
+		$this->assertTrue( $keywords['public'] );
+		foreach ( [ 'publicly_queryable', 'rewrite', 'query_var', 'show_in_nav_menus', 'show_tagcloud' ] as $arg ) {
+			$this->assertFalse( $keywords[ $arg ], $arg );
+		}
+	}
+
+	/**
+	 * The arguments metadata::registerTaxonomies() registers each taxonomy
+	 * with, by ID.
+	 */
+	private static function registered(): array {
+
+		$registered = [];
+		Functions\when( 'sanitize_title' )->alias( static fn( $text ) => strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', trim( $text ) ) ) );
+		Functions\when( 'register_taxonomy' )->alias( static function ( $id, $type, $args ) use ( &$registered ) {
+			$registered[ $id ] = $args;
+		} );
+
+		( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor()->registerTaxonomies();
+
+		return $registered;
+	}
+
+	public function test_new_sites_start_with_the_standard_taxonomies_and_old_ones_keep_people(): void {
 
 		global $wpdb;
 

@@ -26,7 +26,8 @@ final class ImageTaxonomiesTest extends TestCase {
 			'taxonomy_exists'        => static fn( $name ) => isset( $labels[ $name ] ),
 			'get_the_terms'          => static fn( $id, $name ) => 7 === $id ? ( $terms[ $name ] ?: false ) : false,
 			'get_term_link'          => static fn( $term, $name ) => "https://example.test/$name/{$term->slug}/",
-			'get_taxonomy'           => static fn( $name ) => (object) [ 'label' => $labels[ $name ] ],
+			// pp_client is for the admin only.
+			'get_taxonomy'           => static fn( $name ) => isset( $labels[ $name ] ) ? (object) [ 'label' => $labels[ $name ], 'public' => 'pp_client' !== $name ] : false,
 			'get_object_taxonomies'  => static fn() => array_keys( $labels ),
 			'is_taxonomy_viewable'   => static fn( $name ) => 'pp_client' !== $name,
 			'is_wp_error'            => static fn( $v ) => $v instanceof \WP_Error,
@@ -184,5 +185,17 @@ final class ImageTaxonomiesTest extends TestCase {
 		ob_start();
 		$widget->widget( [ 'before_widget' => '<section>', 'after_widget' => '</section>' ], [ 'keys' => 'iso' ] );
 		$this->assertSame( '', ob_get_clean() );
+	}
+
+	public function test_without_archive_pages_terms_are_shown_unlinked(): void {
+
+		// Image taxonomy pages off in the Pages & Search tab.
+		Functions\when( 'is_taxonomy_viewable' )->justReturn( false );
+
+		$this->assertSame(
+			'<div class="container"><div class="label">Cities: </div><div class="terms">Los Angeles</div></div>',
+			ImageTaxonomies::renderRows( 7, [ 'photos_city', 'pp_client' ], true, true )
+		);
+		$this->assertSame( [ 'photos_city', 'photos_keywords', 'photos_lens' ], ImageTaxonomies::allTaxonomies() );
 	}
 }

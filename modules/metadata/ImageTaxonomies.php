@@ -82,14 +82,26 @@ class ImageTaxonomies {
 	}
 
 	/**
-	 * Every public taxonomy registered for attachments, in registration
-	 * order. Shown when no taxonomies are chosen.
+	 * Every taxonomy registered for attachments that visitors may see, in
+	 * registration order. Shown when no taxonomies are chosen.
 	 *
 	 * @return string[]
 	 */
 	public static function allTaxonomies() {
 
-		return array_values( array_filter( get_object_taxonomies( 'attachment', 'names' ), 'is_taxonomy_viewable' ) );
+		return array_values( array_filter( get_object_taxonomies( 'attachment', 'names' ), [ self::class, 'isShown' ] ) );
+	}
+
+	/**
+	 * Whether visitors may see a taxonomy's terms: not one for the admin
+	 * only. Its terms link to their archives only when it has them
+	 * (is_taxonomy_viewable()); the Pages & Search tab can turn them off.
+	 */
+	public static function isShown( $name ) {
+
+		$taxonomy = get_taxonomy( $name );
+
+		return $taxonomy && ! empty( $taxonomy->public );
 	}
 
 	/**
@@ -146,7 +158,7 @@ class ImageTaxonomies {
 			}
 
 			// A taxonomy for the admin only is never shown to visitors.
-			if ( ! taxonomy_exists( $name ) || ! is_taxonomy_viewable( $name ) ) {
+			if ( ! taxonomy_exists( $name ) || ! self::isShown( $name ) ) {
 				continue;
 			}
 
@@ -157,10 +169,11 @@ class ImageTaxonomies {
 			}
 
 			$names = [];
+			$linked = $link && is_taxonomy_viewable( $name );
 
 			foreach ( $terms as $term ) {
 
-				if ( $link ) {
+				if ( $linked ) {
 
 					$url = get_term_link( $term, $name );
 

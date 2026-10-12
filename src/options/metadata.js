@@ -27,7 +27,7 @@ import {
 	
 } from '../shared/options.js';
 
-import TaxonomySettings from './taxonomies.js';
+import TaxonomySettings, { ArchivePages } from './taxonomies.js';
 import FeatureSection from '../shared/feature-section.js';
 import JobPanel from '../shared/jobs.js';
 import SaveBar from '../shared/save-bar.js';
@@ -234,7 +234,7 @@ class MetadataSettings extends Component {
 				<Fragment>
 					{ saveError }
 					<PanelBody>
-						<TaxonomySettings component={ this } route={ this.props.route } />
+						<ArchivePages.Provider value={ false !== this.props.archivePages }><TaxonomySettings component={ this } route={ this.props.route } /></ArchivePages.Provider>
 					</PanelBody>
 				</Fragment>
 			);
@@ -259,7 +259,7 @@ class MetadataSettings extends Component {
 				onChange={ ( value ) => this.persistSetting( 'custom_taxonomies_enable', value ) }
 				className="photopress-feature--taxonomies"
 			>
-				<TaxonomySettings component={ this } />
+				<ArchivePages.Provider value={ false !== this.props.archivePages }><TaxonomySettings component={ this } /></ArchivePages.Provider>
 			</FeatureSection>
 			
 			<FeatureSection

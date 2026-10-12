@@ -3,6 +3,7 @@
 namespace PhotoPress\modules\metadata;
 use photopress_module;
 use pp_api;
+use PhotoPress\modules\search\search;
 use photopress_util;
 
 /**
@@ -1110,6 +1111,8 @@ class metadata extends photopress_module {
 	
 		$taxonomies = pp_api::getOption('core', 'metadata', 'custom_taxonomies');
 		$model      = TaxonomyModel::build( (array) $taxonomies, (string) pp_api::getOption( 'core', 'metadata', 'custom_taxonomies_tag_delimiter' ) );
+		// The Pages & Search tab's Image taxonomy pages switch.
+		$archives   = search::enabled( 'taxonomy_pages' );
 		foreach ($taxonomies as $tax ) {
 			
 			// Turned off in the settings.
@@ -1129,8 +1132,11 @@ class metadata extends photopress_module {
 			// Not public: for the admin only, with no archive or term pages,
 			// menus or tag clouds; its terms screen and Media Library column stay.
 			$public = empty( $tax['private'] );
+			// Archive pages: a public taxonomy's, unless they are off for all.
+			// Its terms are still shown, unlinked (ImageTaxonomies).
+			$pages  = $public && $archives;
 			
-			if ( $public ) {
+			if ( $pages ) {
 				$this->rewrites[] = [ $id, $slug, $nested ];
 			}
 			
@@ -1157,21 +1163,21 @@ class metadata extends photopress_module {
 						'menu_name'         			=> __( $upper_plural )
 					),
 					
-					'query_var' => $public ? $id : false, 
+					'query_var' => $pages ? $id : false, 
 					// In REST for the editor and core blocks, but only for users
 					// who can edit posts; see ImageTaxonomyRest.
 					'show_in_rest'          => true,
 					'rest_controller_class' => TermsController::class,
 					// As the settings screen shows it: "Acme job" is /acme-job/.
-					'rewrite' => $public ? array('slug' => $slug, 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ) : false,
+					'rewrite' => $pages ? array('slug' => $slug, 'hierarchical' => $nested, 'ep_mask' => EP_PERMALINK  ) : false,
 					'update_count_callback'	=> '_update_generic_term_count',
 					'show_admin_column' => true,
 					'public'	=> $public,
-					'publicly_queryable' => $public,
+					'publicly_queryable' => $pages,
 					'show_ui' => true,
 					'show_in_menu' => true,
-					'show_in_nav_menus' => $public,
-					'show_tagcloud' => $public,
+					'show_in_nav_menus' => $pages,
+					'show_tagcloud' => $pages,
 				)
 			);
 		}

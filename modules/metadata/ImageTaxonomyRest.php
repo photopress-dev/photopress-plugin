@@ -68,14 +68,15 @@ class ImageTaxonomyRest {
 	}
 
 	/**
-	 * photopress_public on each taxonomy in /wp/v2/taxonomies: whether it has
-	 * pages on the site, for the Image Taxonomies block's list of those it
-	 * can show. (Its visibility is in the edit context only.)
+	 * photopress_public on each taxonomy in /wp/v2/taxonomies: whether
+	 * visitors may see its terms (not one for the admin only), for the Image
+	 * Metadata block's list of those it can show. (Its visibility is in the
+	 * edit context only.)
 	 */
 	public static function registerFields() {
 
 		register_rest_field( 'taxonomy', 'photopress_public', [
-			'get_callback' => static fn( $taxonomy ) => is_taxonomy_viewable( $taxonomy['slug'] ),
+			'get_callback' => static fn( $taxonomy ) => ImageTaxonomies::isShown( $taxonomy['slug'] ),
 			'schema'       => [
 				'type'     => 'boolean',
 				'context'  => [ 'view', 'edit' ],

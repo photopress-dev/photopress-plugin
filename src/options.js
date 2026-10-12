@@ -32,6 +32,7 @@ import SlideshowSettings from './options/slideshow.js';
 import MediaSettings from './options/media.js';
 import ImagesSettings from './options/images.js';
 import GallerySettings from './options/gallery.js';
+import SearchSettings from './options/search.js';
 
 class SettingsPage extends Component {
 	
@@ -84,6 +85,7 @@ class SettingsPage extends Component {
 				photopress_core_media: response.photopress_core_media ,
 				photopress_core_images: response.photopress_core_images ,
 				photopress_core_gallery: response.photopress_core_gallery ,
+				photopress_core_search: response.photopress_core_search ,
 				photopress_core_base: response.photopress_core_base,
 				isAPILoaded: true
 			});
@@ -154,6 +156,7 @@ class SettingsPage extends Component {
 				data= {this.state.photopress_core_metadata}
 				settingsGroup={"photopress_core_metadata"}
 				route={ this.state.hash.split( '/' ).slice( 1 ).join( '/' ) }
+				archivePages={ false !== ( this.state.photopress_core_search || {} ).taxonomy_pages }
 			/>	
 		);
 		
@@ -193,6 +196,16 @@ class SettingsPage extends Component {
 			/>	
 		);
 		
+		const renderSearchSettings = () => (
+			
+			<SearchSettings
+				key = {"searchoptionspage"}
+				data= {this.state.photopress_core_search}
+				settingsGroup={"photopress_core_search"}
+				onChange={ ( settings ) => this.setState( { photopress_core_search: settings } ) }
+			/>	
+		);
+		
 		const renderTab = (tab) => { 
 			//console.log(tab);
 			let rf = function() {};
@@ -227,6 +240,12 @@ class SettingsPage extends Component {
 				case "photopress_core_gallery":
 					
 					rf = renderGallerySettings;
+				
+					break;	
+					
+				case "photopress_core_search":
+					
+					rf = renderSearchSettings;
 				
 					break;	
 			}

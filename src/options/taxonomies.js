@@ -5,7 +5,7 @@
  * already uploaded. All are kept in the custom_taxonomies setting; see
  * taxonomy-model.js and modules/metadata/TaxonomyModel.php.
  */
-import { Fragment, useEffect, useRef, useState } from '@wordpress/element';
+import { Fragment, createContext, useContext, useEffect, useRef, useState } from '@wordpress/element';
 import apiFetch from '@wordpress/api-fetch';
 import { Button, CheckboxControl, ExternalLink, FormToggle, Notice, SelectControl, TextControl } from '@wordpress/components';
 import { __, _n, sprintf } from '@wordpress/i18n';
@@ -114,13 +114,21 @@ function withPublic( def, isPublic ) {
 
 const isPublicDef = ( def ) => ! def || ! def.private;
 
+/**
+ * Whether image taxonomies have archive pages at all: the Pages & Search
+ * tab's Image taxonomy pages switch. Off, a public taxonomy's terms are
+ * still shown, but have no pages.
+ */
+export const ArchivePages = createContext( true );
+
 /** A table's Public and Archive pages cells. */
 function PublicCells( { def } ) {
 	const shown = isPublicDef( def );
+	const archives = useContext( ArchivePages );
 	return (
 		<Fragment>
 			<td>{ shown ? __( 'Yes' ) : __( 'No' ) }</td>
-			<td>{ shown ? <code>{ archiveUrl( def ) }</code> : '—' }</td>
+			<td>{ shown && archives ? <code>{ archiveUrl( def ) }</code> : '—' }</td>
 		</Fragment>
 	);
 }
@@ -212,7 +220,8 @@ function Editor( { title, error, onSave, onCancel, saving, saveLabel, reprocess,
  * before: the archive pages' slug as saved, for a public taxonomy.
  */
 function Names( { plural, singular, onPlural, onSingular, isPublic, onPublic, urlTerm, before } ) {
-	const moved = before && ( ! isPublic || before !== slug( singular ) );
+	const archives = useContext( ArchivePages );
+	const moved = archives && before && ( ! isPublic || before !== slug( singular ) );
 
 	return (
 		<div className="photopress-taxonomies__names">
@@ -222,14 +231,14 @@ function Names( { plural, singular, onPlural, onSingular, isPublic, onPublic, ur
 			</div>
 			<SwitchRow
 				label={ __( 'Public' ) }
-				help={ __( 'Each term has an archive page on the site, and the Image Taxonomies block shows the terms. Turned off, the taxonomy is for the admin only: its terms are kept, and shown in the Media Library and under Media.' ) }
+				help={ __( 'Each term has an archive page on the site, and the Image Metadata block shows the terms. Turned off, the taxonomy is for the admin only: its terms are kept, and shown in the Media Library and under Media.' ) }
 				checked={ isPublic }
 				onChange={ onPublic }
 			/>
 			<p className="description">
-				{ isPublic
-					? <>{ __( 'Archive pages:' ) } <code>{ archiveUrl( { singularLabel: singular }, urlTerm ) }</code></>
-					: __( 'No archive pages.' ) }
+				{ isPublic && ! archives && __( 'No archive pages: image taxonomy pages are off in the Pages & Search tab.' ) }
+				{ isPublic && archives && <>{ __( 'Archive pages:' ) } <code>{ archiveUrl( { singularLabel: singular }, urlTerm ) }</code></> }
+				{ ! isPublic && __( 'No archive pages.' ) }
 				{ moved && (
 					<> { sprintf( __( '(they were at /%s/…, which will stop working)' ), before ) }</>
 				) }
@@ -272,6 +281,7 @@ function StandardEditor( { kind, def, list, onSave, onCancel, saving } ) {
 
 /** What a photo with these keywords gets from a parent keyword. */
 function ParentPreview( { parent, plural, singular, isPublic, example, separators } ) {
+	const archives = useContext( ArchivePages );
 	const term = example || __( 'Example' );
 	const sub = __( 'Group' );
 	const tax = plural || __( 'This taxonomy' );
@@ -296,7 +306,7 @@ function ParentPreview( { parent, plural, singular, isPublic, example, separator
 					<td>{ 0 === i && <code>{ keyword }</code> }</td>
 					<td>{ t }</td>
 					<td><strong>{ value }</strong>{ under && <span className="description"> { sprintf( __( 'under %s' ), under ) }</span> }</td>
-					<td>{ isPublic ? <code>{ url }</code> : '—' }</td>
+					<td>{ isPublic && archives ? <code>{ url }</code> : '—' }</td>
 				</tr>
 			) ) ) }
 		</Table>
@@ -436,6 +446,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 
 /** What a photo with a value in the field gets: a term in the taxonomy, with its page. */
 function CustomPreview( { tag, plural, singular, isPublic } ) {
+	const archives = useContext( ArchivePages );
 	const value = fieldOf( tag ).example || __( 'Example' );
 	const def = { singularLabel: singular };
 
@@ -447,7 +458,7 @@ function CustomPreview( { tag, plural, singular, isPublic } ) {
 					<td><code>{ value }</code></td>
 					<td>{ plural || __( 'This taxonomy' ) }</td>
 					<td><strong>{ value }</strong></td>
-					<td>{ isPublic ? <code>{ archiveUrl( def, value ) }</code> : '—' }</td>
+					<td>{ isPublic && archives ? <code>{ archiveUrl( def, value ) }</code> : '—' }</td>
 				</tr>
 			</Table>
 			<p className="description">{ __( 'Each value in the field becomes a term, as written. A field with several values gives the photo a term for each.' ) }</p>
