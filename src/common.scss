@@ -172,33 +172,36 @@ $content-width: 700px;
 	}
 }
 
-// tax widgets 
+// The Image Metadata block and the widgets: a label column, at least 8em
+// wide so separate blocks on a page line up, and the terms or values.
 
 .display-taxonomy-terms-widget, .display-exif-widget {
-	
-	display:flex;
-	flex-flow: column;
-	
+
+	display: grid;
+	grid-template-columns: minmax(8em, max-content) 1fr;
+	column-gap: 20px;
+
 	.container {
-		
-		display: flex;
-		align-items: flex-start;
-		padding: 5px 0 5px 0; 
-		
-		.label {
-			
-			font-weight: 600;
-			min-width: 80px;
-			padding-right: 20px;
-		}
-		
+
+		display: contents;
+
+		.label,
 		.terms {
-			
-			
+
+			padding: 5px 0;
 		}
 
+		.label {
+
+			font-weight: 600;
+		}
+
+		// Without labels, the terms take the whole row.
+		.terms:first-child {
+
+			grid-column: 1 / -1;
+		}
 	}
-	
 }
 
 .flex-column {
