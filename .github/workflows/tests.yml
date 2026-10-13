@@ -1,6 +1,9 @@
 name: Tests
+# Once a change: a pull request on each push to it, tested as merged with
+# master, and master as merged.
 on:
   push:
+    branches: [ master ]
   pull_request:
 
 jobs:
