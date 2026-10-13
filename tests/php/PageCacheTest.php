@@ -234,4 +234,18 @@ final class PageCacheTest extends TestCase {
 		PageCache::batchEnded( [ 'id' => 'j3', 'status' => 'cancelled' ] );
 		$this->assertSame( [ 'all' ], $this->purged() );
 	}
+
+	public function test_the_cache_is_emptied_once_after_photopress_is_updated(): void {
+
+		$this->options[ PageCache::VERSION ] = '1.9.0';
+
+		PageCache::versionChanged();
+		$this->assertSame( [ 'all' ], $this->purged() );
+		$this->assertSame( PHOTOPRESS_CORE_VERSION, $this->options[ PageCache::VERSION ] );
+
+		// The next request: the same version.
+		( new \ReflectionProperty( PageCache::class, 'emptied' ) )->setValue( null, false );
+		PageCache::versionChanged();
+		$this->assertSame( [], $this->purged() );
+	}
 }

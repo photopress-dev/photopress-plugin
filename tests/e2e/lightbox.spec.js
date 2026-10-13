@@ -67,18 +67,58 @@ test( 'press navigation, arrow columns and arrow keys', async ( { page, made } )
 	expect( selfRequests ).toEqual( [] );
 } );
 
-test( 'only a page whose gallery opens the slideshow loads its scripts, jQuery among them, and gives its images what it shows', async ( { page, made } ) => {
-	const slideshowScripts = 'script#photopress-js, script#photopress-slideshow-js, script#photopress-owl-carousel-js, script#jquery-core-js';
-
+test( 'only a page whose gallery opens the slideshow loads it, one script with no jQuery, and gives its images what it shows', async ( { page, made } ) => {
 	await page.goto( `/?page_id=${ made.pages.masonry }&preview=true` );
 	await expect( page.locator( '.wp-block-gallery img' ).first() ).toBeVisible();
-	await expect( page.locator( slideshowScripts ) ).toHaveCount( 0 );
+	await expect( page.locator( 'script#photopress-lightbox-js' ) ).toHaveCount( 0 );
 	await expect( page.locator( 'img[data-orig-file]' ) ).toHaveCount( 0 );
 
 	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
 	await expect( page.locator( '.photopress-has-slideshow' ) ).toHaveCount( 1 );
-	await expect( page.locator( slideshowScripts ) ).toHaveCount( 4 );
+	await expect( page.locator( 'script#photopress-lightbox-js' ) ).toHaveCount( 1 );
 	await expect( page.locator( '.photopress-has-slideshow img[data-orig-file][data-aspectratio][data-attachment-url]' ) ).toHaveCount( made.images.length );
+
+	// Nor jQuery, nor a carousel library: none is on the page or in its scripts.
+	expect( await page.evaluate( () => [ typeof window.jQuery, typeof window.Owl ] ) ).toEqual( [ 'undefined', 'undefined' ] );
+	await expect( page.locator( 'script[src*="owl"], script[src*="jquery"], link[href*="owl"]' ) ).toHaveCount( 0 );
+} );
+
+test( 'the thumbnails: the current one brought to the middle, a click on another shows it, and the last slide goes round to the first', async ( { page, made } ) => {
+	await page.setViewportSize( { width: 700, height: 900 } );
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+
+	const items = page.locator( '.photopress-has-slideshow .photopress-gallery-item' );
+	await items.nth( 3 ).scrollIntoViewIfNeeded();
+	await items.nth( 3 ).click( { force: true } );
+	await expect.poll( () => current( page ) ).toBe( made.images[ 3 ] );
+
+	const thumbnails = page.locator( '.thumbnail-list .thumbnail-item' );
+	await expect( thumbnails ).toHaveCount( made.images.length );
+	await expect( thumbnails.nth( 3 ) ).toHaveClass( /is-current/ );
+
+	// The current thumbnail in the middle of the row, give or take, when the row is wider than the window.
+	const middle = async () => page.evaluate( () => {
+		const list = document.querySelector( '.thumbnail-list' );
+		const item = list.querySelector( '.is-current' ).getBoundingClientRect();
+		const box = list.getBoundingClientRect();
+		return { overflows: list.scrollWidth > list.clientWidth, off: Math.abs( item.left + item.width / 2 - ( box.left + box.width / 2 ) ), atEnd: list.scrollLeft <= 0 || list.scrollLeft >= list.scrollWidth - list.clientWidth - 1 };
+	} );
+	await expect.poll( async () => {
+		const m = await middle();
+		return ! m.overflows || m.atEnd || m.off < 20;
+	} ).toBe( true );
+
+	await thumbnails.nth( 5 ).click();
+	await expect.poll( () => current( page ) ).toBe( made.images[ 5 ] );
+	await expect( thumbnails.nth( 5 ) ).toHaveClass( /is-current/ );
+
+	await thumbnails.last().click();
+	await page.keyboard.press( 'ArrowRight' );
+	await expect.poll( () => current( page ) ).toBe( made.images[ 0 ] );
+	await expect( thumbnails.first() ).toHaveClass( /is-current/ );
+
+	await page.keyboard.press( 'Escape' );
+	await expect( page.locator( '.lightbox' ) ).toBeHidden();
 } );
 
 test( 'gallery images say how wide they are shown, so the browser does not take them for the width of the window', async ( { page, made } ) => {
@@ -219,13 +259,11 @@ test( 'details on the right: the preview matches the full image, and no thumbnai
 } );
 
 test( 'a page rendered by 1.6 and served from a page cache still opens the lightbox', async ( { page, made } ) => {
-	// What such a page lacks: the class marking slideshow galleries, and the
-	// press navigation script.
+	// What such a page lacks: the class marking slideshow galleries.
 	await page.addInitScript( () => document.addEventListener( 'DOMContentLoaded', () => {
 		document.querySelectorAll( '.photopress-has-slideshow' ).forEach( ( g ) => g.classList.remove( 'photopress-has-slideshow' ) );
 		document.querySelectorAll( '.wp-block-gallery' ).forEach( ( g ) => g.classList.add( 'photopress-gallery' ) );
 	} ) );
-	await page.route( /press-navigation\.build\.js/, ( route ) => route.abort() );
 
 	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
 
@@ -234,9 +272,30 @@ test( 'a page rendered by 1.6 and served from a page cache still opens the light
 	await item.click( { force: true } );
 	await expect( page.locator( '.panels .center img' ) ).toHaveAttribute( 'data-id', String( made.images[ 1 ] ), { timeout: 15000 } );
 
-	// No press navigation, so the arrows stay, and the arrow columns work.
-	await expect( page.locator( '.nav-control .arrow' ).first() ).toBeVisible();
 	const panels = await page.locator( '.photopress-slideshow .panels' ).boundingBox();
 	await page.mouse.click( panels.x + panels.width - 30, panels.y + panels.height / 2 );
 	await expect( page.locator( '.panels .center img' ) ).toHaveAttribute( 'data-id', String( made.images[ 2 ] ), { timeout: 15000 } );
+} );
+
+test( 'a page cached by 1.9, which asks for the old slideshow script after jQuery and Owl Carousel, still opens the lightbox', async ( { page, made } ) => {
+	const url = `/?page_id=${ made.pages.lightbox }&preview=true`;
+
+	// The page as 1.9 had it: the old script where the new one is.
+	await page.route( ( u ) => u.pathname === '/' && u.searchParams.get( 'page_id' ) === String( made.pages.lightbox ), async ( route ) => {
+		const response = await route.fetch();
+		const html = ( await response.text() ).replace(
+			/<script[^>]*id="photopress-lightbox-js"[^>]*><\/script>/,
+			( tag ) => '<script src="' + tag.match( /src="([^"]+)"/ )[ 1 ].replace( /dist\/lightbox\.build\.js[^"]*/, 'modules/slideshow/assets/js/owl.carousel.min.js?ver=1.9.0' ) + '"></script>'
+				+ '<script src="' + tag.match( /src="([^"]+)"/ )[ 1 ].replace( /dist\/lightbox\.build\.js[^"]*/, 'modules/slideshow/assets/js/slideshow.js?ver=1.9.0' ) + '"></script>'
+		);
+		await route.fulfill( { response, body: html } );
+	} );
+
+	await page.goto( url );
+	await expect( page.locator( 'script#photopress-lightbox-js' ) ).toHaveCount( 0 );
+
+	const item = page.locator( '.photopress-has-slideshow .photopress-gallery-item' ).nth( 2 );
+	await item.scrollIntoViewIfNeeded();
+	await item.click( { force: true } );
+	await expect.poll( () => current( page ) ).toBe( made.images[ 2 ] );
 } );

@@ -239,16 +239,20 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   cleared from the page cache as they change. The Child Pages block it
   supersedes now lists published child pages only (not drafts or attached
   images), with their images' srcset, and opens them in the same tab.
-* Pages load only what they use. PhotoPress's script, and jQuery with it,
-  come only with the full-screen slideshow; the data the slideshow reads is
-  added only to the images of galleries that open it; and a gallery's
-  images are loaded in one query, not one each. Action Scheduler is loaded
-  only while PhotoPress has background work, or when it schedules some, so
-  an idle site skips it and its every-minute WP-Cron run. Where another
-  plugin bundles Action Scheduler, the newest copy is still the one used.
-* The slideshow's Owl Carousel has handles of PhotoPress's own
-  (photopress-owl-carousel): a theme's or plugin's "owl" is often another
-  version, and WordPress keeps the first of two scripts with one handle.
+* Full-screen slideshow: one script of its own, with no jQuery and no
+  carousel library, loaded only on pages whose galleries open it. It had
+  needed jQuery, jQuery Migrate, imagesLoaded and Owl Carousel, which is no
+  longer maintained: some 59 KB compressed, now under 4 KB. Its thumbnails
+  are a row that scrolls, the current one brought to the middle; a click on
+  one shows it, and the last image goes round to the first.
+* Pages load only what they use: the data the slideshow reads is added only
+  to the images of galleries that open it, and a gallery's images are
+  loaded in one query, not one each. Action Scheduler is loaded only while
+  PhotoPress has background work, or when it schedules some, so an idle
+  site skips it and its every-minute WP-Cron run. Where another plugin
+  bundles Action Scheduler, the newest copy is still the one used.
+* With Proxy Cache Purge, the cache is emptied once after PhotoPress is
+  updated, so no cached page asks for the scripts an earlier version had.
 * Gallery layouts: each image's sizes attribute is the width its layout
   shows it at (a Masonry column; a Rows or Mosaic image at the row height),
   so browsers download smaller files; with lazy loading, WordPress's

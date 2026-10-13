@@ -27,6 +27,8 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  *   terms it left, while image taxonomy pages are on, and not its own page
  *   while attachment pages are off, nor its terms' REST API addresses,
  *   which page caches pass by and visitors cannot read;
+ * - an event to empty the cache once PhotoPress is updated, so pages cached
+ *   by the earlier version do not ask for its scripts;
  * - during a PhotoPress job's batch (photopress_job_batch_started and
  *   _ended), nothing for the items it changes: once the job has ended, the
  *   cache emptied, if any of its batches changed a page. Each batch would
@@ -44,6 +46,9 @@ class PageCache {
 
 	/** Proxy Cache Purge's event to empty the cache. */
 	const ALL = 'photopress_purge_all';
+
+	/** The version of PhotoPress the cache was last emptied for (versionChanged()). */
+	const VERSION = 'photopress_version';
 
 	/** URLs to purge with a post, by ID, while its event runs. */
 	private static $extra = [];
@@ -74,6 +79,8 @@ class PageCache {
 		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
 		add_action( 'photopress_term_images_changed', [ self::class, 'purgeAll' ] );
 		add_action( 'attachment_updated', [ self::class, 'imageEdited' ], 10, 3 );
+
+		add_action( 'wp_loaded', [ self::class, 'versionChanged' ] );
 
 		add_action( 'photopress_job_batch_started', [ self::class, 'batchStarted' ] );
 		add_action( 'photopress_job_batch_ended', [ self::class, 'batchEnded' ] );
@@ -312,6 +319,25 @@ class PageCache {
 	public static function purgeAll() {
 
 		if ( ! self::$emptied && self::purges() && self::imagePages() ) {
+			self::$emptied = true;
+			do_action( self::ALL );
+		}
+	}
+
+	/**
+	 * wp_loaded, on the first request after PhotoPress is updated: the cache
+	 * emptied, so no page cached by the earlier version asks for scripts and
+	 * styles that version had and this one does not.
+	 */
+	public static function versionChanged() {
+
+		if ( ! defined( 'PHOTOPRESS_CORE_VERSION' ) || get_option( self::VERSION ) === PHOTOPRESS_CORE_VERSION ) {
+			return;
+		}
+
+		update_option( self::VERSION, PHOTOPRESS_CORE_VERSION, true );
+
+		if ( ! self::$emptied && self::purges() ) {
 			self::$emptied = true;
 			do_action( self::ALL );
 		}

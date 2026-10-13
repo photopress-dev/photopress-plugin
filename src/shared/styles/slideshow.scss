@@ -121,24 +121,59 @@ $thumbnail-bottom-margin: 10px;
 		margin-bottom: $thumbnail-bottom-margin;
 		flex-grow: 0;
 		display: flex;
-		//justify-content: flex-start;
 		
+		// A row that scrolls, the current thumbnail brought to the middle
+		// (src/frontend/lightbox.js). Centered while it is narrower than
+		// the window: the auto margins give way once it overflows.
 		.thumbnail-list {
-			// needs to be 100% in order to get owl carousel to show	
+			
+			display: flex;
+			gap: 10px;
 			width: 100%;
+			overflow-x: auto;
+			overflow-y: hidden;
+			overscroll-behavior-x: contain;
+			scrollbar-width: none;
+			
+			&::-webkit-scrollbar {
+				display: none;
+			}
 			
 			.thumbnail-item {
 				
-				//margin-right: 10px;
-			
+				flex: 0 0 auto;
+				cursor: pointer;
+				
+				&:first-child {
+					margin-left: auto;
+				}
+				
+				&:last-child {
+					margin-right: auto;
+				}
 			
 				.thumbnail {
-					// must give an explicit height to each thumbnail	    
-					min-height: var(--pp-slideshow-thumbnail-height);	
-					width:auto;
 					
+					display: block;
+					height: var(--pp-slideshow-thumbnail-height);
+					width: auto;
+					max-width: none;
 				}
 			}	
+		}
+	}
+	
+	// The Show Thumbnails setting off.
+	&.no-thumbnails {
+		
+		justify-content: center;
+		
+		.thumbnails {
+			display: none;
+		}
+		
+		.panels .center {
+			padding: 20px;
 		}
 	}
 }

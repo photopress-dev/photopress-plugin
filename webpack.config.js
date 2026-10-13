@@ -9,7 +9,7 @@
  *   gallery-layouts.build.js  front-end masonry for core/gallery (modules/gallery/gallery.php)
  *   gallery-layouts-inline.build.js  the same, printed inline after each gallery
  *   gallery-slideshow.build.js  front end of the Gallery Slideshow block
- *   press-navigation.build.js   click-anywhere navigation for the lightbox (modules/slideshow/slideshow.php)
+ *   lightbox.build.js         the full-screen slideshow of galleries (modules/slideshow/slideshow.php)
  *
  * Each JS file is accompanied by a .asset.php listing its script dependencies,
  * which the PHP reads instead of hardcoding them.
@@ -60,7 +60,7 @@ module.exports = {
 		'gallery-layouts.build': './src/frontend/gallery-layouts.js',
 		'gallery-layouts-inline.build': './src/frontend/gallery-layouts-inline.js',
 		'gallery-slideshow.build': './src/frontend/gallery-slideshow.js',
-		'press-navigation.build': './src/frontend/press-navigation.js',
+		'lightbox.build': './src/frontend/lightbox.js',
 	},
 	output: {
 		...defaultConfig.output,
