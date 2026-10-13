@@ -223,6 +223,7 @@ test( 'a reprocess job: nothing purged for each image, the cache emptied once wh
 	// One batch, which is the job's last: run here, whatever the server's load.
 	const ran = step( `
 		add_filter( 'photopress_job_max_load', fn() => 1000 );
+		add_filter( 'photopress_job_min_memory', fn() => 0 );
 		$job = \\PhotoPress\\jobs\\Jobs::start( 'metadata.reprocess', [ 'ids' => [ ${ images.join( ', ' ) } ] ] );
 		$out['id'] = $job['id'];
 		\\PhotoPress\\jobs\\Jobs::runBatch( $job['id'] );

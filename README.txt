@@ -308,6 +308,15 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   block content; renaming or deleting a term loads its images together; the
   sitemap loads only the images it lists for each term.
 * Fixed: links in a slideshow's captions could not be clicked.
+* Image files that claim more than they hold (a damaged or crafted file)
+  no longer exhaust PHP's memory or time while PhotoPress reads their
+  metadata: reads stop at the end of the file, a metadata packet over 16 MB
+  is not read, and compressed metadata is inflated no further than that.
+  When the license is embedded with Imagick, the upload is replaced only by
+  a complete image, so a full disk can no longer truncate it.
+* A background job's image that stops a batch (out of memory or time) is
+  recorded as failed and skipped, rather than tried again for ever; paced
+  jobs also wait while less than 300 MB of memory is available.
 * Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
   out in WordPress's columns instead.
 
