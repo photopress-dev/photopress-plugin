@@ -1,0 +1,123 @@
+{
+    "photopress_core_metadata": {
+        "custom_taxonomies_enable": true,
+        "embed_licensor_enable": false,
+        "web_statement_of_rights": "",
+        "licensor_name": "",
+        "licensor_url": "",
+        "custom_taxonomies": [
+            {
+                "id": "photos_camera",
+                "pluralLabel": "cameras",
+                "singularLabel": "camera",
+                "tag": "photopress:camera",
+                "parseTagValue": false
+            },
+            {
+                "id": "photos_lens",
+                "pluralLabel": "lenses",
+                "singularLabel": "lens",
+                "tag": "aux:Lens",
+                "parseTagValue": false
+            },
+            {
+                "id": "photos_city",
+                "pluralLabel": "cities",
+                "singularLabel": "city",
+                "tag": "photoshop:City",
+                "parseTagValue": false
+            },
+            {
+                "id": "photos_state",
+                "pluralLabel": "states",
+                "singularLabel": "state",
+                "tag": "photoshop:State",
+                "parseTagValue": false
+            },
+            {
+                "id": "photos_country",
+                "pluralLabel": "countries",
+                "singularLabel": "country",
+                "tag": "photoshop:Country",
+                "parseTagValue": false
+            },
+            {
+                "id": "photos_people",
+                "pluralLabel": "People",
+                "singularLabel": "Person",
+                "tag": "dc:subject",
+                "parseTagValue": true,
+                "names": [
+                    "people",
+                    "person"
+                ]
+            },
+            {
+                "id": "photos_keywords",
+                "pluralLabel": "keywords",
+                "singularLabel": "keyword",
+                "tag": "dc:subject",
+                "parseTagValue": false
+            },
+            {
+                "id": "pp_organization",
+                "pluralLabel": "Organizations",
+                "singularLabel": "Organization",
+                "tag": "dc:subject",
+                "parseTagValue": true,
+                "names": [
+                    "organization"
+                ]
+            },
+            {
+                "id": "pp_gender",
+                "pluralLabel": "Genders",
+                "singularLabel": "Gender",
+                "tag": "dc:subject",
+                "parseTagValue": true,
+                "names": [
+                    "gender"
+                ]
+            },
+            {
+                "id": "pp_copyright_notice",
+                "pluralLabel": "Copyright notices",
+                "singularLabel": "Copyright notice",
+                "tag": "dc:rights",
+                "parseTagValue": false
+            }
+        ],
+        "custom_taxonomies_tag_delimiter": ":",
+        "alt_text_enable": true,
+        "alt_text_from_file": true,
+        "alt_text_template": "[photoshop:Headline]. [photopress:stringOfKeywords].",
+        "description_enable": true,
+        "description_template": "",
+        "alt_text_tag": "photoshop:Headline",
+        "strip_metadata_from_resized_image": false
+    },
+    "photopress_core_gallery": {
+        "layout_masonry": true,
+        "layout_rows": true,
+        "layout_mosaic": true,
+        "remove_deleted_images": true
+    },
+    "photopress_core_slideshow": {
+        "enable": false,
+        "showThumbnails": true,
+        "showCaptions": true,
+        "detail_position": "bottom",
+        "thumbnailHeight": 120,
+        "captionPadding": 0,
+        "showTitleInCaption": false,
+        "showDescriptionInCaption": false,
+        "showAttachmentLink": false,
+        "attachmentLinkText": "Read More..."
+    },
+    "photopress_core_search": {
+        "attachment_pages": true,
+        "images_in_search": true,
+        "posts_in_search": true,
+        "taxonomy_pages": true
+    }
+}

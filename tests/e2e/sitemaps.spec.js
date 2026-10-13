@@ -11,8 +11,8 @@
  * are not changed. The images, keyword and pages made here are deleted, with
  * any sitemap Jetpack stored that it had not before.
  *
- * Jetpack's and Yoast SEO's are tried while each is active; Jetpack's
- * Sitemaps module need not be.
+ * Jetpack's is tried while it is active; its Sitemaps module need not be.
+ * Yoast SEO's while it is installed, made active for the test if it is not.
  */
 const path = require( 'path' );
 const { test, expect } = require( './test' );
@@ -151,8 +151,24 @@ test( 'Jetpack’s: term archives among its pages, and each image with its own p
 } );
 
 test( 'Yoast SEO’s: the images on each term’s archive page, and, while it lists media pages, unattached images’ pages', () => {
-	const active = lastLine( wp( 'eval', `echo defined( 'WPSEO_VERSION' ) ? 'yes' : 'no';` ) );
-	test.skip( 'yes' !== active, 'Yoast SEO is not active.' );
+	// Made active for this test when it is only installed: its default
+	// sends images' pages to their files.
+	const state = lastLine( wp( 'eval', `echo defined( 'WPSEO_VERSION' ) ? 'active' : ( file_exists( WP_PLUGIN_DIR . '/wordpress-seo/wp-seo.php' ) ? 'installed' : 'missing' );` ) );
+	test.skip( 'missing' === state, 'Yoast SEO is not installed.' );
+	if ( 'installed' === state ) {
+		wp( 'plugin', 'activate', 'wordpress-seo' );
+	}
+	try {
+		yoastTest();
+	} finally {
+		if ( 'installed' === state ) {
+			wp( 'plugin', 'deactivate', 'wordpress-seo' );
+		}
+	}
+} );
+
+/** Yoast SEO's sitemap, while it is active. */
+function yoastTest() {
 
 	const yoast = `
 		$ours = array_values( array_filter( apply_filters( 'wpseo_sitemaps_providers', [] ), static fn( $p ) => $p->handles_type( 'photopress-image' ) ) )[0];
@@ -186,4 +202,4 @@ test( 'Yoast SEO’s: the images on each term’s archive page, and, while it li
 	// PhotoPress's attachment pages off: Yoast SEO lists no media pages.
 	const pagesOff = run( withMade( yoast ), YOAST_MEDIA_PAGES, PAGES_OFF );
 	expect( pagesOff.index ).toEqual( [] );
-} );
+}

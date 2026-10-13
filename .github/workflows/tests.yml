@@ -1,6 +1,9 @@
 name: Tests
+# Once a change: a pull request on each push to it, tested as merged with
+# master, and master as merged.
 on:
   push:
+    branches: [ master ]
   pull_request:
 
 jobs:
@@ -52,3 +55,87 @@ jobs:
       run: npm run test:unit
     - name: Build
       run: npm run build
+
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    # One run at a time: the offload spec shares the AWS test bucket.
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: wordpress
+        ports: [ '3306:3306' ]
+        options: --health-cmd="mysqladmin ping -h 127.0.0.1 -proot" --health-interval=5s --health-timeout=5s --health-retries=30
+    env:
+      PP_E2E_URL: http://localhost
+      PP_E2E_WP_PATH: /tmp/wordpress
+    steps:
+    - uses: actions/checkout@v6
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        extensions: mysqli, exif, gd, imagick, intl, zip
+        ini-values: upload_max_filesize=64M, post_max_size=64M, memory_limit=512M
+        tools: wp-cli
+        coverage: none
+    - name: Varnish and ExifTool
+      run: |
+        sudo apt-get update -q
+        sudo apt-get install -y --no-install-recommends varnish libimage-exiftool-perl
+        sudo systemctl stop varnish
+    - name: Composer
+      run: composer install --no-dev --no-interaction --no-progress
+    - uses: actions/setup-node@v6
+      with:
+        node-version: '24'
+        cache: npm
+    - name: Build
+      run: |
+        npm ci
+        npm run build
+    - name: Chromium
+      run: npx playwright install --with-deps chromium
+    - name: WordPress
+      run: bash tests/e2e/ci/setup.sh
+    # The IAM role for the AWS test bucket and distribution, which only this
+    # repository can take: not for pull requests from forks, which GitHub
+    # gives no token. Without it the offload spec skips.
+    - name: AWS
+      if: vars.PP_E2E_AWS_ROLE != '' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.PP_E2E_AWS_ROLE }}
+        aws-region: us-east-1
+        role-session-name: photopress-e2e-${{ github.run_id }}
+    - name: Offload spec
+      if: env.AWS_ACCESS_KEY_ID != ''
+      run: echo PP_E2E_OFFLOAD=1 >> "$GITHUB_ENV"
+    # PHP's built-in server with workers, behind Varnish on port 80 as Apache
+    # is on the test site.
+    - name: Servers
+      run: |
+        PHP_CLI_SERVER_WORKERS=8 nohup php -S 127.0.0.1:8080 -t "$PP_E2E_WP_PATH" tests/e2e/ci/router.php > /tmp/php-server.log 2>&1 &
+        # Where Varnish, which drops root, can read them.
+        sudo cp tests/e2e/ci/default.vcl tests/e2e/ci/purge.vcl /etc/varnish/
+        sudo varnishd -a :80 -f /etc/varnish/default.vcl -s malloc,64m -n /tmp/varnish
+        curl -sf -o /dev/null -w 'Home page: %{http_code}, through %header{via}\n' "$PP_E2E_URL/"
+    - name: Playwright
+      run: npm run test:e2e
+    - name: Results
+      if: failure()
+      run: cp /tmp/php-server.log "$PP_E2E_WP_PATH/wp-content/debug.log" tests/e2e/.results/ 2>/dev/null || true
+    - uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: e2e-results
+        path: tests/e2e/.results
+        retention-days: 7
