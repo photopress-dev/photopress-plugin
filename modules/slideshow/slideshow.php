@@ -3,6 +3,7 @@
 namespace PhotoPress\modules\slideshow;
 use photopress_module;
 use pp_api;
+use PhotoPress\modules\metadata\metadata;
 
 /**
  * Resize Module
@@ -74,7 +75,8 @@ class slideshow extends photopress_module {
 			add_action( 'wp_footer', [ $this, 'printLightbox' ] );
 		}
 
-		return $p->get_updated_html();
+		// What the slideshow shows of each image, which only it reads.
+		return metadata::addAttributesToImagesInContent( $p->get_updated_html() );
 	}
 
 	public function printLightbox() {
@@ -116,18 +118,21 @@ class slideshow extends photopress_module {
 	
 	private function enqueueAssets() {
 				
+		// Owl Carousel 2.3.4 under handles of PhotoPress's own: themes and
+		// plugins often register theirs as "owl", and WordPress keeps the
+		// first of two registrations with one handle, whatever its version.
 		wp_register_style( 
-			'owl', 
+			'photopress-owl-carousel', 
 			plugins_url('assets/css/owl.carousel.min.css',
 			__FILE__),
 			[],
 			PHOTOPRESS_CORE_VERSION 
 		 );
 		 
-		wp_enqueue_style( 'owl' );
+		wp_enqueue_style( 'photopress-owl-carousel' );
 		
 		wp_enqueue_script(
-			'owl',
+			'photopress-owl-carousel',
 			plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
 			[ 'jquery', ],
 			PHOTOPRESS_CORE_VERSION,
@@ -147,7 +152,7 @@ class slideshow extends photopress_module {
 		wp_enqueue_script(
 			'photopress-slideshow',
 			plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-			[ 'jquery', 'imagesloaded', 'owl', 'photopress', 'photopress-press-navigation' ],
+			[ 'jquery', 'imagesloaded', 'photopress-owl-carousel', 'photopress', 'photopress-press-navigation' ],
 			PHOTOPRESS_CORE_VERSION,
 			true
 		);

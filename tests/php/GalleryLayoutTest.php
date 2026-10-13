@@ -200,4 +200,21 @@ final class GalleryLayoutTest extends TestCase {
 
 		$this->assertSame( [ 'x' => 1 ], $module->addGalleryAttributes( [ 'x' => 1 ], 'core/image' ) );
 	}
+
+	public function test_a_gallerys_images_are_loaded_together_when_photopress_reads_them(): void {
+
+		$inner = [ [ 'blockName' => 'core/image', 'attrs' => [ 'id' => 10 ] ], [ 'blockName' => 'core/image', 'attrs' => [ 'id' => 11 ] ] ];
+		$looked_up = [];
+		Functions\when( 'wp_cache_get' )->alias( static function ( $id ) use ( &$looked_up ) {
+			$looked_up[] = $id;
+			return (object) [];
+		} );
+
+		// A plain gallery: WordPress loads its images as it needs them.
+		gallery::primeGalleryImages( [ 'blockName' => 'core/gallery', 'attrs' => [], 'innerBlocks' => $inner ] );
+		$this->assertSame( [], $looked_up );
+
+		gallery::primeGalleryImages( [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressLayout' => 'mosaic' ], 'innerBlocks' => $inner ] );
+		$this->assertSame( [ 10, 10, 11, 11 ], $looked_up, 'posts and metadata of both' );
+	}
 }

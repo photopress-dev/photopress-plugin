@@ -67,6 +67,20 @@ test( 'press navigation, arrow columns and arrow keys', async ( { page, made } )
 	expect( selfRequests ).toEqual( [] );
 } );
 
+test( 'only a page whose gallery opens the slideshow loads its scripts, jQuery among them, and gives its images what it shows', async ( { page, made } ) => {
+	const slideshowScripts = 'script#photopress-js, script#photopress-slideshow-js, script#photopress-owl-carousel-js, script#jquery-core-js';
+
+	await page.goto( `/?page_id=${ made.pages.masonry }&preview=true` );
+	await expect( page.locator( '.wp-block-gallery img' ).first() ).toBeVisible();
+	await expect( page.locator( slideshowScripts ) ).toHaveCount( 0 );
+	await expect( page.locator( 'img[data-orig-file]' ) ).toHaveCount( 0 );
+
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+	await expect( page.locator( '.photopress-has-slideshow' ) ).toHaveCount( 1 );
+	await expect( page.locator( slideshowScripts ) ).toHaveCount( 4 );
+	await expect( page.locator( '.photopress-has-slideshow img[data-orig-file][data-aspectratio][data-attachment-url]' ) ).toHaveCount( made.images.length );
+} );
+
 test( 'gallery images say how wide they are shown, so the browser does not take them for the width of the window', async ( { page, made } ) => {
 	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
 

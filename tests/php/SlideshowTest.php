@@ -54,6 +54,48 @@ final class SlideshowTest extends TestCase {
 		$this->assertStringContainsString( 'photopress-has-slideshow', $this->render( 'core/gallery', [ 'photopressLayout' => 'rows', 'photopressSlideshow' => true ], self::CORE ) );
 	}
 
+	public function test_a_slideshow_gallerys_images_get_what_the_slideshow_shows_and_no_others(): void {
+
+		Functions\stubs( [
+			'wp_cache_get'                => (object) [],
+			'get_post'                    => static fn( $id ) => (object) [ 'ID' => (int) $id, 'post_parent' => 0, 'post_title' => 'Bob', 'post_excerpt' => 'A caption', 'post_content' => '' ],
+			'wp_attachment_is_image'      => true,
+			'wp_get_attachment_image_src' => [ 'https://example.test/full.jpg', 1200, 800, false ],
+			'wptexturize'                 => static fn( $text ) => $text,
+			'wpautop'                     => static fn( $text ) => $text,
+			'get_attachment_link'         => 'https://example.test/attachment/',
+			'wp_get_attachment_metadata'  => [ 'width' => 1200, 'height' => 800 ],
+		] );
+		$gallery = '<figure class="wp-block-gallery has-nested-images"><figure class="wp-block-image"><img class="wp-image-7" src="a.jpg"></figure></figure>';
+
+		$this->assertSame( $gallery, $this->render( 'core/gallery', [ 'photopressLayout' => 'rows' ], $gallery ) );
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( 'core/gallery', [ 'photopressSlideshow' => true ], $gallery ) );
+		$p->next_tag( 'img' );
+		$this->assertSame( 'https://example.test/full.jpg', $p->get_attribute( 'data-orig-file' ) );
+		$this->assertSame( '1.5', $p->get_attribute( 'data-aspectratio' ) );
+		$this->assertSame( 'A caption', $p->get_attribute( 'data-caption' ) );
+	}
+
+	public function test_owl_carousel_has_photopresss_own_handles(): void {
+
+		$handles = [];
+		Functions\when( 'wp_enqueue_script' )->alias( static function ( $handle, $src = '', $deps = [] ) use ( &$handles ) {
+			$handles[ $handle ] = $deps;
+		} );
+		Functions\when( 'wp_enqueue_style' )->alias( static function ( $handle ) use ( &$handles ) {
+			$handles[ 'style:' . $handle ] = [];
+		} );
+
+		$this->render( 'core/gallery', [ 'photopressSlideshow' => true ], self::CORE );
+
+		$this->assertArrayHasKey( 'photopress-owl-carousel', $handles );
+		$this->assertArrayHasKey( 'style:photopress-owl-carousel', $handles );
+		$this->assertContains( 'photopress-owl-carousel', $handles['photopress-slideshow'] );
+		$this->assertContains( 'photopress', $handles['photopress-slideshow'], 'the base script comes with the slideshow' );
+		$this->assertArrayNotHasKey( 'owl', $handles );
+	}
+
 	public function test_other_blocks_are_untouched(): void {
 
 		$this->assertSame( '<p>x</p>', $this->render( 'core/paragraph', [ 'linkToSlideshow' => true ], '<p>x</p>' ) );

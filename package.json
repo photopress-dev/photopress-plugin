@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "build": "wp-scripts build",
+    "build": "wp-scripts build && npm run build:blocks-manifest",
+    "build:blocks-manifest": "for m in gallery metadata search; do wp-scripts build-blocks-manifest --input=modules/$m/blocks --output=dist/blocks-manifest/$m.php || exit 1; done",
     "start": "wp-scripts start",
     "test:unit": "wp-scripts test-unit-js",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.js"

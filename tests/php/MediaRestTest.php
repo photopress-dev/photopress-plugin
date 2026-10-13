@@ -365,6 +365,8 @@ final class MediaRestTest extends TestCase {
 		};
 		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
 		Functions\when( 'wp_parse_url' )->alias( 'parse_url' );
+		// Action Scheduler loaded, with work pending (jobs/Scheduler.php).
+		Functions\stubs( [ 'as_has_scheduled_action' => false, 'get_option' => 'pending' ] );
 		$urls = [ 'https://cdn.example.com/wp-content/uploads/2026/10/photo-300x200.jpg' ];
 
 		try {

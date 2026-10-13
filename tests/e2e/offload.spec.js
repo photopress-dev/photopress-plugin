@@ -53,7 +53,7 @@ test.afterAll( async ( { browser } ) => {
 		wp( 'post', 'delete', String( id ), '--force' );
 	}
 	wp( 'eval', `$before = json_decode( '${ imagesOption.replace( /'/g, "\\'" ) }', true ); null === $before ? delete_option( '${ IMAGES_OPTION }' ) : update_option( '${ IMAGES_OPTION }', $before );` );
-	wp( 'eval', "delete_option( 'photopress_cdn_last' ); delete_option( 'photopress_cdn_pending' ); as_unschedule_all_actions( 'photopress_cdn_invalidate', [], 'photopress' ); as_unschedule_all_actions( 'photopress_offload_delete_objects' );" );
+	wp( 'eval', "delete_option( 'photopress_cdn_last' ); delete_option( 'photopress_cdn_pending' ); function_exists( 'as_unschedule_all_actions' ) && as_unschedule_all_actions( 'photopress_cdn_invalidate', [], 'photopress' ); function_exists( 'as_unschedule_all_actions' ) && as_unschedule_all_actions( 'photopress_offload_delete_objects' );" );
 	wp( 'eval', `$before = json_decode( '${ mediaOption.replace( /'/g, "\\'" ) }', true ); null === $before ? delete_option( '${ MEDIA_OPTION }' ) : update_option( '${ MEDIA_OPTION }', $before );` );
 	wp( 'plugin', 'deactivate', 'amazon-s3-and-cloudfront' );
 } );

@@ -45,6 +45,7 @@ class ImageSearch {
 		add_filter( 'posts_search', [ self::class, 'searchSql' ], 10, 2 );
 		add_filter( 'search_template_hierarchy', [ self::class, 'addTemplate' ] );
 
+		\photopress_util::registerBlockManifest( __DIR__ . '/blocks', 'search' );
 		register_block_type( __DIR__ . '/blocks/search-posts', [
 			'render_callback' => [ self::class, 'renderPosts' ],
 		] );
