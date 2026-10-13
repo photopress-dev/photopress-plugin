@@ -32,8 +32,9 @@ class gallery extends photopress_module {
 			'editor_style'  		=> 'photopress-editor'
 		]);
 
-		// The Gallery Slideshow block. Its script is the block's viewScript, so it
-		// loads only on pages where the block renders.
+		// The slideshows' script: the Gallery Slideshow block's viewScript, so it
+		// loads only on pages where the block renders, and the full-screen
+		// slideshow's (modules/slideshow).
 		$asset = \photopress_util::getBuildAsset( 'gallery-slideshow.build' );
 		wp_register_script(
 			'photopress-gallery-slideshow',

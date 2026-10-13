@@ -108,6 +108,15 @@ class slideshow extends photopress_module {
 			$args_dom .= sprintf( ' data-%s="%s"', esc_attr( strtolower( $arg ) ), esc_attr( (string) $option ) );
 		}
 		
+		// The words the slideshow's controls are named by, as the Gallery
+		// Slideshow block's (modules/gallery/GallerySlideshow.php).
+		$args_dom .= sprintf( ' data-labels="%s"', esc_attr( wp_json_encode( [
+			'previous'  => __( 'Previous image', 'photopress' ),
+			'next'      => __( 'Next image', 'photopress' ),
+			'slideshow' => __( 'Slideshow', 'photopress' ),
+			'slide'     => __( 'slide', 'photopress' ),
+		] ) ) );
+
 		echo '<div class="lightbox" id="lightbox-gallery">';
 		$args_dom .= sprintf( ' style="--pp-slideshow-caption-padding:%dpx"', max( 0, (int) pp_api::getOption( 'core', 'slideshow', 'captionPadding' ) ) );
 		
@@ -117,21 +126,14 @@ class slideshow extends photopress_module {
 	}
 	
 	/**
-	 * The lightbox's script, src/frontend/lightbox.js: no jQuery and no
-	 * carousel library. Its styles are the gallery's (photopress-frontend).
+	 * The lightbox's script: the slideshows' one (gallery-slideshow.build.js,
+	 * registered by modules/gallery), the Gallery Slideshow block's slideshow
+	 * full screen; no jQuery and no carousel library. Its styles are the
+	 * gallery's (photopress-frontend).
 	 */
 	private function enqueueAssets() {
 
-		$asset = \photopress_util::getBuildAsset( 'lightbox.build' );
-
-		wp_enqueue_script(
-			'photopress-lightbox',
-			plugins_url( 'dist/lightbox.build.js', dirname( dirname( __FILE__ ) ) ),
-			$asset['dependencies'],
-			$asset['version'],
-			[ 'in_footer' => true, 'strategy' => 'defer' ]
-		);
-
+		wp_enqueue_script( 'photopress-gallery-slideshow' );
 		wp_enqueue_style( 'photopress-frontend' );
 	}
 	

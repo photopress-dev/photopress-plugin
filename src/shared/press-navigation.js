@@ -3,7 +3,7 @@
  * block and the lightbox: a mouse press on the left half of `area` goes back,
  * on the right half forward, and a large chevron drawn at the pointer shows
  * which. Touch screens get a swipe; taps fall through to the element's own
- * buttons.
+ * buttons, and the chevron shows for a moment where the tap landed.
  *
  * Navigation happens on the press, not the click, so it responds at once and
  * holding the button does not select text or start dragging the image.
@@ -124,6 +124,8 @@ export function pressNavigation( area, { prev, next, ignore = '' } ) {
 		( sideOf( event ) === 'prev' ? prev : next )();
 	} );
 
+	let tapTimer = 0;
+
 	on( area, 'pointerup', ( event ) => {
 		if ( ! swipeStart ) {
 			return;
@@ -135,11 +137,17 @@ export function pressNavigation( area, { prev, next, ignore = '' } ) {
 			swallowClick = true;
 			view.setTimeout( () => ( swallowClick = false ), 400 );
 			( dx < 0 ? next : prev )();
+		} else if ( Math.abs( dx ) < 10 && Math.abs( dy ) < 10 ) {
+			// A tap: the chevron for a moment, the way it went.
+			showCursor( event );
+			view.clearTimeout( tapTimer );
+			tapTimer = view.setTimeout( hideCursor, 400 );
 		}
 	} );
 	on( area, 'pointercancel', () => ( swipeStart = null ) );
 
 	return () => {
+		view.clearTimeout( tapTimer );
 		cleanup.forEach( ( fn ) => fn() );
 		cursor.remove();
 		area.classList.remove( ACTIVE_CLASS, 'has-press-navigation' );

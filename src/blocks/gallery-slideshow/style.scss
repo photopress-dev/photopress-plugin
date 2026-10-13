@@ -1,5 +1,7 @@
-// Gallery Slideshow block. Markup: modules/gallery/GallerySlideshow.php;
-// behavior: src/frontend/gallery-slideshow.js.
+// The slideshow: the Gallery Slideshow block's, and the full-screen one a
+// gallery opens. Markup: modules/gallery/GallerySlideshow.php, and
+// src/frontend/lightbox.js for the full-screen one; behavior:
+// src/shared/slideshow.js. The full-screen one's own: src/shared/styles/slideshow.scss.
 
 $return: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M20 26 L32 40 L44 26' fill='none' stroke='black' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E";
 $speed: 0.3s;
@@ -27,10 +29,17 @@ $speed: 0.3s;
 	cursor: none !important;
 }
 
-.wp-block-photopress-gallery-slideshow {
+.wp-block-photopress-gallery-slideshow,
+.photopress-gallery-slideshow {
 	--pp-slideshow-offset: 0px;
+	// The room the thumbnails take under the slides; none without them.
+	--pp-slideshow-thumbnails-space: 0px;
 	position: relative;
 	outline-offset: 4px;
+
+	&.has-thumbnails {
+		--pp-slideshow-thumbnails-space: calc(var(--pp-slideshow-thumbnail-height, 100px) + 10px);
+	}
 
 	// Every slide in one grid cell: the slideshow is as tall as its tallest
 	// slide at the slideshow's width, and keeps that height from slide to
@@ -46,8 +55,8 @@ $speed: 0.3s;
 	.photopress-gallery-slideshow__slide {
 		grid-area: 1 / 1;
 		min-height: 0;
-		max-height: calc(100vh - var(--pp-slideshow-offset));
-		max-height: calc(100svh - var(--pp-slideshow-offset));
+		max-height: calc(100vh - var(--pp-slideshow-offset) - var(--pp-slideshow-thumbnails-space));
+		max-height: calc(100svh - var(--pp-slideshow-offset) - var(--pp-slideshow-thumbnails-space));
 		margin: 0;
 		display: flex;
 		flex-direction: column;
@@ -76,8 +85,8 @@ $speed: 0.3s;
 		min-height: 0;
 		max-width: 100%;
 		height: auto;
-		max-height: calc(100vh - var(--pp-slideshow-offset));
-		max-height: calc(100svh - var(--pp-slideshow-offset));
+		max-height: calc(100vh - var(--pp-slideshow-offset) - var(--pp-slideshow-thumbnails-space));
+		max-height: calc(100svh - var(--pp-slideshow-offset) - var(--pp-slideshow-thumbnails-space));
 		object-fit: contain;
 	}
 
@@ -183,13 +192,14 @@ $speed: 0.3s;
 		.is-entering.from-left { transform: translateX(-100%); }
 	}
 
-	// The two halves are the previous and next buttons.
+	// The two halves are the previous and next buttons, over the slides and
+	// not the thumbnails.
 	.photopress-gallery-slideshow__prev,
 	.photopress-gallery-slideshow__next {
 		position: absolute;
 		z-index: 2;
 		top: 0;
-		bottom: 0;
+		bottom: var(--pp-slideshow-thumbnails-space);
 		width: 50%;
 		margin: 0;
 		padding: 0;
@@ -223,6 +233,56 @@ $speed: 0.3s;
 		cursor: pointer;
 
 		&[hidden] { display: none; }
+	}
+
+	// A row that scrolls, the current thumbnail brought to the middle, and
+	// centered while it is narrower than the slideshow: the auto margins
+	// give way once it overflows.
+	.photopress-gallery-slideshow__thumbnails {
+		display: flex;
+		gap: 10px;
+		height: var(--pp-slideshow-thumbnail-height, 100px);
+		margin-top: 10px;
+		overflow-x: auto;
+		overflow-y: hidden;
+		overscroll-behavior-x: contain;
+		scrollbar-width: none;
+
+		&::-webkit-scrollbar {
+			display: none;
+		}
+	}
+
+	.photopress-gallery-slideshow__thumbnail {
+		flex: 0 0 auto;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: pointer;
+		opacity: 0.6;
+		transition: opacity $speed ease;
+
+		&:first-child { margin-left: auto; }
+		&:last-child { margin-right: auto; }
+
+		&.is-current,
+		&:hover,
+		&:focus-visible {
+			opacity: 1;
+		}
+
+		&:focus-visible {
+			outline: 2px solid currentColor;
+			outline-offset: -2px;
+		}
+
+		img {
+			display: block;
+			width: auto;
+			max-width: none;
+			height: var(--pp-slideshow-thumbnail-height, 100px);
+		}
 	}
 
 	.photopress-gallery-slideshow__status {

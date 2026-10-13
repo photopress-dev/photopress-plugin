@@ -1,20 +1,23 @@
 /**
  * The full-screen slideshow (the lightbox) of galleries with the slideshow
- * on. Markup: modules/slideshow/slideshow.php (printLightbox); styles:
- * src/shared/styles/slideshow.scss.
+ * on: the Gallery Slideshow block's slideshow (src/shared/slideshow.js),
+ * built from the clicked gallery's images and shown over the page.
+ * Container: modules/slideshow/slideshow.php (printLightbox); styles:
+ * src/blocks/gallery-slideshow/style.scss, and src/shared/styles/slideshow.scss
+ * for what is its own.
  *
- * No jQuery and no carousel library: the thumbnails are a row that scrolls,
- * with the current one brought to the middle.
- *
- * What it shows of each image comes from the gallery's own markup (its
- * srcset, width and height, and caption), and from the data-* attributes
- * the metadata module adds to slideshow galleries: the full-size file, the
+ * Each slide first shows the copy of its image the page has already loaded,
+ * at the size of the full one, until the file its srcset picks arrives.
+ * What it shows of each image comes from the gallery's markup (its srcset,
+ * width and height, and caption) and from the data-* attributes the
+ * metadata module adds to slideshow galleries: the full-size file, the
  * shape, and the media library's caption, title, description and page.
  */
-import { pressNavigation } from '../shared/press-navigation';
+import { createSlideshow } from '../shared/slideshow';
 
 const GALLERY = '.photopress-has-slideshow';
 const ITEM = '.photopress-gallery-item';
+const PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 /** The settings, as printLightbox() gives them, and their defaults. */
 const DEFAULTS = {
@@ -26,11 +29,12 @@ const DEFAULTS = {
 	showdescriptionincaption: false,
 	showattachmentlink: false,
 	attachmentlinktext: 'Read More...',
+	labels: { previous: 'Previous image', next: 'Next image', slideshow: 'Slideshow', slide: 'slide' },
 };
 
-/** A setting from the slideshow's data-* attribute: true is "1", false is "". */
-function setting( root, key ) {
-	const value = root.getAttribute( `data-${ key }` );
+/** A setting from the container's data-* attribute: true is "1", false is "". */
+function setting( container, key ) {
+	const value = container.getAttribute( `data-${ key }` );
 	if ( value === null ) {
 		return DEFAULTS[ key ];
 	}
@@ -65,18 +69,6 @@ function ratioOf( img ) {
 	return img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0;
 }
 
-/** The width of the full image: the largest in its srcset, or the one the gallery shows. */
-function fullWidthOf( img ) {
-	const [ largest ] = candidates( img );
-	return largest ? largest.width : img.naturalWidth || 0;
-}
-
-/** The full image's file: the metadata module's, a legacy gallery's, or the largest in the srcset. */
-function fullFileOf( img ) {
-	const [ largest ] = candidates( img );
-	return img.dataset.origFile || img.dataset.fullUrl || ( largest && largest.url ) || img.currentSrc || img.src;
-}
-
 function element( tag, className, html ) {
 	const el = document.createElement( tag );
 	if ( className ) {
@@ -89,28 +81,15 @@ function element( tag, className, html ) {
 }
 
 class Lightbox {
-	constructor( root ) {
-		this.root = root;
-		this.box = root.closest( '.lightbox' ) || root;
+	constructor( container ) {
+		this.container = container;
+		this.box = container.closest( '.lightbox' ) || container;
 		this.gallery = null;
-		this.images = [];
-		this.index = 0;
-		this.request = 0;
+		this.slideshow = null;
 		this.isOpen = false;
-
-		this.setViewport();
-		window.addEventListener( 'resize', () => this.setViewport() );
-		window.addEventListener( 'orientationchange', () => this.setViewport() );
 
 		document.addEventListener( 'click', ( event ) => this.clicked( event ) );
 		document.addEventListener( 'keydown', ( event ) => this.key( event ) );
-	}
-
-	/** The --vh the slide's height is worked out from: the window's, as it changes. */
-	setViewport() {
-		this.viewportWidth = window.innerWidth;
-		this.viewportHeight = window.innerHeight;
-		document.documentElement.style.setProperty( '--vh', `${ this.viewportHeight }px` );
 	}
 
 	clicked( event ) {
@@ -127,13 +106,6 @@ class Lightbox {
 		}
 
 		if ( this.isOpen ) {
-			if ( target.closest( '.nav-control.left' ) ) {
-				this.previous();
-			} else if ( target.closest( '.nav-control.right' ) ) {
-				this.next();
-			} else if ( target.closest( '.thumbnail-item' ) ) {
-				this.show( parseInt( target.closest( '.thumbnail-item' ).dataset.position, 10 ) );
-			}
 			return;
 		}
 
@@ -155,58 +127,57 @@ class Lightbox {
 		event.preventDefault();
 
 		const gallery = item.closest( GALLERY );
-
-		// A different gallery than last time: its slides and thumbnails.
-		if ( gallery !== this.gallery ) {
-			this.use( gallery );
-		}
+		const images = Array.from( gallery.querySelectorAll( `${ ITEM } img` ) );
 
 		// The position of the clicked item in its gallery; the click may land
 		// on a caption or a link rather than the image.
-		const img = item.querySelector( 'img' );
-		let index = this.images.indexOf( img );
+		let index = images.indexOf( item.querySelector( 'img' ) );
 
 		if ( index < 0 ) {
 			index = Array.from( gallery.querySelectorAll( ITEM ) ).indexOf( item );
 		}
 
-		this.open( Math.max( 0, index ) );
+		this.opener = item;
+		this.open( gallery, images, Math.max( 0, index ) );
 	}
 
 	key( event ) {
-		// The keys are left alone while the lightbox is closed, and in fields.
-		if ( ! this.isOpen || event.target.closest?.( 'input, textarea, select, [contenteditable]' ) ) {
+		if ( ! this.isOpen ) {
 			return;
 		}
 
-		const actions = { Escape: () => this.close(), ArrowLeft: () => this.previous(), ArrowRight: () => this.next() };
-
-		if ( actions[ event.key ] ) {
+		if ( 'Escape' === event.key ) {
 			event.preventDefault();
-			actions[ event.key ]();
+			this.close();
+			return;
+		}
+
+		// The slideshow takes the arrow keys while it has the focus; and
+		// from anywhere else while it is open, as the page is behind it.
+		if ( this.root.contains( event.target ) || event.target.closest?.( 'input, textarea, select, [contenteditable]' ) ) {
+			return;
+		}
+
+		if ( 'ArrowLeft' === event.key || 'ArrowRight' === event.key ) {
+			event.preventDefault();
+			this.slideshow[ 'ArrowLeft' === event.key ? 'prev' : 'next' ]();
 		}
 	}
 
-	/** Points the slideshow at a gallery, discarding what was built from another. */
-	use( gallery ) {
-		this.gallery = gallery;
-		this.images = Array.from( gallery.querySelectorAll( `${ ITEM } img` ) );
-		this.root.replaceChildren();
-		this.built = false;
-	}
-
-	open( index ) {
+	open( gallery, images, index ) {
 		this.isOpen = true;
 
 		// At once: the slideshow is built while it shows.
 		Object.assign( this.box.style, { display: 'block', opacity: '1', zIndex: '99999' } );
 		document.body.style.overflow = 'hidden';
 
-		if ( ! this.built ) {
-			this.build();
+		if ( gallery !== this.gallery ) {
+			this.build( gallery, images, index );
+		} else {
+			this.slideshow.show( index, { instant: true } );
 		}
 
-		this.show( index, 'instant' );
+		this.root.focus( { preventScroll: true } );
 		this.box.dispatchEvent( new CustomEvent( 'pp-slideshow-opened', { bubbles: true } ) );
 	}
 
@@ -216,249 +187,124 @@ class Lightbox {
 		// the page background.
 		Object.assign( this.box.style, { display: 'none', opacity: '0', zIndex: '-100' } );
 		document.body.style.overflow = '';
+		this.opener?.querySelector( 'a, img' )?.focus?.( { preventScroll: true } );
 		this.box.dispatchEvent( new CustomEvent( 'pp-slideshow-closed', { bubbles: true } ) );
 	}
 
-	previous() {
-		this.show( this.index - 1 );
+	/**
+	 * The slideshow of a gallery, in the markup of the Gallery Slideshow
+	 * block (modules/gallery/GallerySlideshow.php), on slide `index`.
+	 */
+	build( gallery, images, index ) {
+		const options = Object.fromEntries( Object.keys( DEFAULTS ).map( ( key ) => [ key, setting( this.container, key ) ] ) );
+		const labels = { ...DEFAULTS.labels, ...( typeof options.labels === 'object' ? options.labels : {} ) };
+
+		this.slideshow?.destroy();
+		this.gallery = gallery;
+
+		const root = element( 'div', `photopress-gallery-slideshow is-effect-slide has-captions-${ 'right' === options.detail_position ? 'right' : 'below' }` );
+		Object.assign( root.dataset, { preview: '1', autoplay: '0' } );
+		if ( options.showthumbnails ) {
+			root.dataset.thumbnails = String( parseInt( options.thumbnailheight, 10 ) || 120 );
+		}
+		root.tabIndex = 0;
+		root.setAttribute( 'role', 'region' );
+		root.setAttribute( 'aria-roledescription', labels.slideshow.toLowerCase() );
+		root.setAttribute( 'aria-label', labels.slideshow );
+
+		const track = element( 'div', 'photopress-gallery-slideshow__track' );
+		track.append( ...images.map( ( source, i ) => this.slide( source, i === index, options, labels ) ) );
+
+		const previous = element( 'button', 'photopress-gallery-slideshow__prev' );
+		const next = element( 'button', 'photopress-gallery-slideshow__next' );
+		previous.type = next.type = 'button';
+		previous.setAttribute( 'aria-label', labels.previous );
+		next.setAttribute( 'aria-label', labels.next );
+
+		const status = element( 'p', 'photopress-gallery-slideshow__status screen-reader-text' );
+		status.setAttribute( 'aria-live', 'polite' );
+
+		root.append( track, previous, next, status );
+		this.container.replaceChildren( root );
+		this.root = root;
+
+		// Laid out, as it shows: the slideshow measures its slides.
+		this.slideshow = createSlideshow( root );
 	}
 
-	next() {
-		this.show( this.index + 1 );
-	}
+	/** A slide of the image, and its details; its image loaded as it comes near. */
+	slide( source, current, options, labels ) {
+		const ratio = ratioOf( source ) || 1.5;
+		const [ largest ] = candidates( source );
+		const fullWidth = largest ? largest.width : parseInt( source.getAttribute( 'width' ), 10 ) || source.naturalWidth || 1200;
+		const full = source.dataset.origFile || source.dataset.fullUrl || ( largest && largest.url ) || source.currentSrc || source.src;
+		const copy = source.currentSrc || source.getAttribute( 'src' ) || full;
 
-	/** The panels: arrows either side of the slide, and the thumbnails under it. */
-	build() {
-		// The settings, read as the lightbox is first built.
-		this.options = Object.fromEntries( Object.keys( DEFAULTS ).map( ( key ) => [ key, setting( this.root, key ) ] ) );
+		const img = element( 'img', 'photopress-gallery-slideshow__image' );
+		img.alt = source.alt;
+		img.width = fullWidth;
+		img.height = Math.round( fullWidth / ratio );
+		img.decoding = 'async';
+		img.style.aspectRatio = `${ img.width } / ${ img.height }`;
+		img.src = PLACEHOLDER;
+		img.dataset.src = copy;
 
-		const panels = element( 'div', 'panels' );
-		panels.append(
-			element( 'div', 'nav-control left', '<i class="arrow left"></i>' ),
-			( this.center = element( 'div', 'center', '<div class="loader-circle"></div>' ) ),
-			element( 'div', 'nav-control right', '<i class="arrow right"></i>' )
-		);
-
-		if ( 'right' === this.options.detail_position ) {
-			this.center.classList.add( 'info-right' );
-		}
-
-		this.strip = element( 'div', 'thumbnails' );
-		this.list = element( 'div', 'thumbnail-list' );
-		this.strip.append( this.list );
-		this.root.append( panels, this.strip );
-
-		// A press on the left or right half of the slide goes back or forward,
-		// as in the Gallery Slideshow block.
-		pressNavigation( panels, { prev: () => this.previous(), next: () => this.next(), ignore: 'a' } );
-
-		if ( this.options.showthumbnails ) {
-			this.buildThumbnails();
-		} else {
-			this.root.classList.add( 'no-thumbnails' );
-			document.documentElement.style.setProperty( '--pp-slideshow-thumbnails-total-height', '0px' );
-		}
-
-		this.built = true;
-	}
-
-	/** A thumbnail of each image, its width from its shape at the thumbnail height. */
-	buildThumbnails() {
-		const height = parseInt( this.options.thumbnailheight, 10 ) || 120;
-
-		this.thumbnails = this.images.map( ( source, position ) => {
-			const width = Math.round( height * ( ratioOf( source ) || 1 ) );
-			const img = source.cloneNode( false );
-
-			img.removeAttribute( 'id' );
-			img.removeAttribute( 'style' );
-			img.classList.add( 'thumbnail' );
-			img.setAttribute( 'sizes', `${ width }px` );
-			img.setAttribute( 'width', String( width ) );
-			img.setAttribute( 'height', String( height ) );
-			img.setAttribute( 'loading', 'lazy' );
-			img.setAttribute( 'decoding', 'async' );
-			img.style.aspectRatio = `${ width } / ${ height }`;
-
-			const item = element( 'div', 'thumbnail-item' );
-			item.dataset.position = String( position );
-			item.append( img );
-			return item;
-		} );
-
-		this.list.append( ...this.thumbnails );
-	}
-
-	/** Slide `index`, counting round from either end, and its thumbnail in the middle. */
-	show( index, behavior = 'smooth' ) {
-		const count = this.images.length;
-
-		if ( ! count ) {
-			return;
-		}
-
-		this.index = ( ( index % count ) + count ) % count;
-		this.showSlide( this.images[ this.index ] );
-
-		if ( this.thumbnails ) {
-			this.thumbnails.forEach( ( item, i ) => item.classList.toggle( 'is-current', i === this.index ) );
-			const item = this.thumbnails[ this.index ];
-			const left = item.offsetLeft - ( this.list.clientWidth - item.offsetWidth ) / 2;
-			this.list.scrollTo( { left: Math.max( 0, left ), behavior } );
-		}
-	}
-
-	showSlide( source ) {
-		const request = ++this.request;
-		const id = source.dataset.id || '';
-		const ratio = ratioOf( source );
-		const fullWidth = fullWidthOf( source );
-		const info = this.slideInfo( source );
-		const full = new Image();
-
-		full.className = 'fade-in';
-		full.dataset.id = id;
-		full.alt = source.alt;
-
-		// Until the full image arrives, the copy the page has already loaded,
-		// at the size the full image will have; a spinner if there is none.
-		const preview = this.previewOf( source );
-
-		if ( preview ) {
-			this.center.replaceChildren( preview, info );
-			this.sizePreview( preview, ratio, fullWidth );
-		} else {
-			this.center.replaceChildren( element( 'div', 'loader-circle' ) );
-		}
-
-		// The full image at the preview's size: its width is auto, so it is
-		// laid out at its sizes, which the browser also picks its file by,
-		// no larger than the image itself.
-		const shown = this.slideWidth( ratio, fullWidth );
-		const vh = getComputedStyle( document.body ).getPropertyValue( '--vh' );
-		const thumbs = getComputedStyle( document.body ).getPropertyValue( '--pp-slideshow-thumbnails-total-height' );
-
-		if ( shown ) {
-			full.sizes = `${ Math.round( shown ) }px`;
-		} else if ( this.viewportHeight <= this.viewportWidth && ratio ) {
-			full.sizes = `calc( ( ${ vh } - ${ thumbs } ) * ${ ratio } )`;
-		} else {
-			full.sizes = `${ this.viewportWidth }px`;
-		}
-
-		full.addEventListener( 'error', () => {
-			if ( request === this.request ) {
-				this.center.replaceChildren( element( 'div', 'slide-error', 'This image could not be loaded.' ) );
-			}
-		} );
-
-		full.addEventListener( 'load', () => {
-			// A later slide was asked for while this one was loading.
-			if ( request !== this.request ) {
-				return;
-			}
-			if ( preview && preview.isConnected ) {
-				// The same picture, sharper: no fade.
-				full.classList.remove( 'fade-in' );
-				preview.replaceWith( full );
-			} else {
-				this.center.replaceChildren( full, info );
-			}
-		} );
-
-		// An image with one size has no srcset.
+		// The srcset picks the file for the width shown; an image with one
+		// size has none, and is shown from its full file.
 		if ( source.getAttribute( 'srcset' ) ) {
-			full.srcset = source.getAttribute( 'srcset' );
+			img.dataset.srcset = source.getAttribute( 'srcset' );
+		} else if ( full !== copy ) {
+			img.dataset.srcset = `${ full } ${ fullWidth }w`;
 		}
-		full.src = fullFileOf( source );
+
+		const slide = element( 'figure', `photopress-gallery-slideshow__slide${ current ? ' is-current' : '' }` );
+		slide.dataset.id = source.dataset.id || '';
+		slide.setAttribute( 'role', 'group' );
+		slide.setAttribute( 'aria-roledescription', labels.slide );
+		slide.append( img );
+
+		const details = this.details( source, options );
+		if ( details ) {
+			slide.append( details );
+		}
+
+		return slide;
 	}
 
-	/** The title, caption, description and link shown with a slide. */
-	slideInfo( source ) {
-		const info = element( 'div', 'slide-info' );
+	/** The title, caption, description and link shown with a slide, if any. */
+	details( source, options ) {
+		const caption = element( 'figcaption', 'photopress-gallery-slideshow__caption wp-element-caption' );
 		const data = source.dataset;
 		const figcaption = source.closest( ITEM )?.querySelector( 'figcaption' );
-		const caption = data.caption || ( figcaption ? figcaption.innerHTML : '' );
+		const text = data.caption || ( figcaption ? figcaption.innerHTML : '' );
 
-		if ( data.imageTitle && this.options.showtitleincaption ) {
-			info.append( element( 'div', 'info title', data.imageTitle ) );
+		if ( data.imageTitle && options.showtitleincaption ) {
+			caption.append( element( 'div', 'info title', data.imageTitle ) );
 		}
-		if ( caption && this.options.showcaptions ) {
-			info.append( element( 'div', 'info caption', caption ) );
+		if ( text && options.showcaptions ) {
+			caption.append( element( 'div', 'info caption', text ) );
 		}
-		if ( data.imageDescription && this.options.showdescriptionincaption ) {
-			info.append( element( 'div', 'info description', data.imageDescription ) );
+		if ( data.imageDescription && options.showdescriptionincaption ) {
+			caption.append( element( 'div', 'info description', data.imageDescription ) );
 		}
-		if ( this.options.showattachmentlink && data.attachmentUrl ) {
+		if ( options.showattachmentlink && data.attachmentUrl ) {
 			const link = element( 'a' );
 			link.href = data.attachmentUrl;
-			link.textContent = this.options.attachmentlinktext;
+			link.textContent = options.attachmentlinktext;
 			const row = element( 'div', 'info attachment-link' );
 			row.append( link );
-			info.append( row );
+			caption.append( row );
 		}
 
-		return info;
-	}
-
-	/** A copy of the gallery's image of the slide, if the page has loaded it. */
-	previewOf( source ) {
-		if ( ! source.complete || ! source.naturalWidth ) {
-			return null;
-		}
-		const preview = new Image();
-		preview.src = source.currentSrc || source.src;
-		preview.className = 'slide-preview';
-		preview.alt = source.alt;
-		return preview;
-	}
-
-	/**
-	 * Gives the preview the size the full image will be shown at: as large
-	 * as fits the slide, keeping its shape and no larger than the image.
-	 */
-	sizePreview( preview, ratio, fullWidth ) {
-		const shape = ratio || preview.naturalWidth / preview.naturalHeight;
-		const width = this.slideWidth( shape, fullWidth );
-
-		if ( width ) {
-			// Not shrunk to make room for the details: the full image is not.
-			Object.assign( preview.style, { width: `${ Math.round( width ) }px`, height: `${ Math.round( width / shape ) }px`, flexShrink: '0' } );
-		}
-	}
-
-	/**
-	 * The width a slide shows an image at: as large as fits the slide,
-	 * keeping its shape, and no larger than the image itself. Null before
-	 * the slide is laid out. With the details on the right, the full image
-	 * still takes the whole width, and they wrap beside it.
-	 */
-	slideWidth( ratio, fullWidth ) {
-		const { width, height } = this.center.getBoundingClientRect();
-		const style = getComputedStyle( this.center );
-		const inner = {
-			width: width - parseFloat( style.paddingLeft ) - parseFloat( style.paddingRight ),
-			height: height - parseFloat( style.paddingTop ) - parseFloat( style.paddingBottom ),
-		};
-
-		if ( inner.width <= 0 || inner.height <= 0 || ! ratio ) {
-			return null;
-		}
-
-		return Math.min( inner.width, inner.height * ratio, fullWidth || Infinity );
+		return caption.childElementCount ? caption : null;
 	}
 }
 
-function start() {
-	const root = document.querySelector( '#lightbox-gallery .photopress-slideshow' );
+/** The lightbox, if the page has one (modules/slideshow/slideshow.php prints it). */
+export function startLightbox( doc = document ) {
+	const container = doc.querySelector( '#lightbox-gallery .photopress-slideshow' );
 
-	if ( root && ! window.photopressLightbox ) {
-		window.photopressLightbox = new Lightbox( root );
+	if ( container && ! window.photopressLightbox ) {
+		window.photopressLightbox = new Lightbox( container );
 	}
-}
-
-if ( document.readyState === 'loading' ) {
-	document.addEventListener( 'DOMContentLoaded', start );
-} else {
-	start();
 }

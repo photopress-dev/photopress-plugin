@@ -1,6 +1,7 @@
 /**
  * The Gallery Slideshow block on the front end: press navigation, the drawn
- * cursor, wrap-around, the jump from the gallery and the return button.
+ * cursor, wrap-around, the jump from the gallery, the return button, and
+ * thumbnails.
  */
 const { test, expect } = require( './test' );
 
@@ -391,3 +392,25 @@ test( 'Hide the gallery: visitors see only the slideshow, which still has every 
 	await page.goto( `/?page_id=${ made.pages.slideshow }&preview=true` );
 	await expect( page.locator( '#main-gallery' ) ).toBeVisible();
 } );
+
+test( 'with thumbnails: a row under the slides at their height, a click on one shows it, and the halves stop above the row', async ( { page, made } ) => {
+	await page.goto( `/?page_id=${ made.pages.slideshowThumbnails }&preview=true` );
+	const root = page.locator( ROOT );
+	await root.scrollIntoViewIfNeeded();
+
+	await expect( root ).toHaveClass( /has-thumbnails/ );
+	const thumbnails = root.locator( '.photopress-gallery-slideshow__thumbnail' );
+	await expect( thumbnails ).toHaveCount( made.images.length );
+	await expect( thumbnails.first() ).toHaveClass( /is-current/ );
+	expect( Math.round( ( await thumbnails.first().locator( 'img' ).boundingBox() ).height ) ).toBe( 80 );
+
+	await thumbnails.nth( 3 ).click();
+	expect( ( await state( page ) ).index ).toBe( 3 );
+	await expect( thumbnails.nth( 3 ) ).toHaveClass( /is-current/ );
+
+	// The halves end where the row begins.
+	const next = await root.locator( '.photopress-gallery-slideshow__next' ).boundingBox();
+	const row = await root.locator( '.photopress-gallery-slideshow__thumbnails' ).boundingBox();
+	expect( next.y + next.height ).toBeLessThanOrEqual( row.y + 1 );
+} );
+

@@ -77,18 +77,17 @@ final class SlideshowTest extends TestCase {
 		$this->assertSame( 'A caption', $p->get_attribute( 'data-caption' ) );
 	}
 
-	public function test_the_lightbox_is_one_script_without_jquery_or_a_carousel_library(): void {
+	public function test_the_lightbox_is_the_gallery_slideshows_script(): void {
 
 		$scripts = [];
-		Functions\when( 'wp_enqueue_script' )->alias( static function ( $handle, $src = '', $deps = [] ) use ( &$scripts ) {
-			$scripts[ $handle ] = [ $src, $deps ];
+		Functions\when( 'wp_enqueue_script' )->alias( static function ( $handle ) use ( &$scripts ) {
+			$scripts[] = $handle;
 		} );
 
 		$this->render( 'core/gallery', [ 'photopressSlideshow' => true ], self::CORE );
 
-		$this->assertSame( [ 'photopress-lightbox' ], array_keys( $scripts ) );
-		$this->assertStringEndsWith( 'dist/lightbox.build.js', $scripts['photopress-lightbox'][0] );
-		$this->assertNotContains( 'jquery', $scripts['photopress-lightbox'][1] );
+		// Registered by the gallery module, with no jQuery and no carousel library.
+		$this->assertSame( [ 'photopress-gallery-slideshow' ], $scripts );
 	}
 
 	public function test_other_blocks_are_untouched(): void {

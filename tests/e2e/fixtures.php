@@ -258,6 +258,7 @@ echo wp_json_encode( [
 		'rows'      => $page( 'E2E: rows', $gallery( [ 'photopressLayout' => 'rows', 'photopressRowHeight' => 200 ] ) . '<!-- wp:paragraph --><p id="after">After the gallery.</p><!-- /wp:paragraph -->' ),
 		'slideshowLandscapeFirst' => $page( 'E2E: gallery slideshow, landscape first', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"landscape-gallery","maxHeightOffset":150} /-->' . $spacer . $gallery( [], 'landscape-gallery', $landscape_blocks ) ),
 		'hidden'    => $page( 'E2E: hidden gallery', $gallery( [], 'hidden-gallery' ) . '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"hidden-gallery","hideGallery":true} /-->' ),
+		'slideshowThumbnails' => $page( 'E2E: gallery slideshow with thumbnails', '<!-- wp:photopress/gallery-slideshow {"galleryAnchor":"thumbnails-gallery","showThumbnails":true,"thumbnailHeight":80} /-->' . $spacer . $gallery( [], 'thumbnails-gallery' ) ),
 		// Galleries for the new image to take the format of: images linked
 		// to their files, with captions, the last resized and cropped; and
 		// images that open in the lightbox.
