@@ -13,7 +13,8 @@ class childpages extends photopress_module {
 	public function definePublicHooks() {
 			
 		register_block_type( 'photopress/childpages', [
-				
+
+			'api_version'   		=> 3,
 			// Enqueue blocks.style.build.css on both frontend & backend.
 			'style'         		=> 'photopress-frontend',
 			// Enqueue blocks.build.js in the editor only.

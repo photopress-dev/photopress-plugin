@@ -118,3 +118,20 @@ test( 'the legacy PhotoPress Gallery turns into a gallery in its layout, its ima
 	expect( result.images ).toBe( result.count );
 	expect( await invalidBlocks( page ) ).toEqual( [] );
 } );
+
+test( 'the editor warns about nothing of PhotoPress’s: no block on an old block API, no styles put into its canvas the wrong way', async ( { page } ) => {
+	const warnings = [];
+	page.on( 'console', ( message ) => {
+		if ( [ 'warning', 'error' ].includes( message.type() ) && /photopress/i.test( message.text() ) ) {
+			warnings.push( message.text().slice( 0, 300 ) );
+		}
+	} );
+
+	// With the legacy blocks in it, which load their code.
+	const id = makePost( '<!-- wp:photopress/childpages /-->' + fs.readFileSync( path.join( LEGACY, 'photopress-gallery-columns.html' ), 'utf8' ) );
+	made.push( id );
+	await openEditor( page, { id } );
+	await expect( canvas( page ).locator( '.wp-block-photopress-gallery' ) ).toBeVisible();
+
+	expect( warnings ).toEqual( [] );
+} );

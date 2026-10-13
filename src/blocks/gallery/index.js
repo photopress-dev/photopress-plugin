@@ -9,6 +9,7 @@ import { gallery as icon } from '@wordpress/icons';
  */
 //import deprecated from './deprecated';
 import edit from './edit';
+import withBlockProps from '../../shared/with-block-props';
 import metadata from './block.json';
 import save from './save';
 import transforms from './transforms';
@@ -25,6 +26,7 @@ const { name, category, attributes } = metadata;
 export { metadata, category, name };
 
 export const settings = {
+	apiVersion: 3,
 	title: __( 'PhotoPress Gallery' ),
 	description: __( 'Display multiple images in a rich gallery.' ),
 	icon,
@@ -53,7 +55,7 @@ export const settings = {
 	},
 	attributes,
 	transforms,
-	edit,
+	edit: withBlockProps( edit ),
 	save,
 	//deprecated,
 };
