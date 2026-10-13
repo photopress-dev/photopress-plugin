@@ -137,12 +137,15 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( [ 'enable' => true ], $this->page()->sanitizeOptions( 'garbage' ) );
 	}
 
-	public function test_a_stored_key_that_is_no_longer_a_field_is_left_out_when_read(): void {
+	public function test_read_as_exactly_its_fields_removed_keys_left_out_and_missing_ones_at_their_defaults(): void {
 
 		// stale_seconds, as 1.9.0 saved it, before it was removed.
 		$stored = [ 'enable' => false, 'thumbnailHeight' => 150, 'stale_seconds' => 3600 ];
 
-		$this->assertSame( [ 'enable' => false, 'thumbnailHeight' => 150 ], $this->page()->withoutRemovedKeys( $stored ) );
-		$this->assertFalse( $this->page()->withoutRemovedKeys( false ), 'nothing stored' );
+		$this->assertSame(
+			[ 'enable' => false, 'thumbnailHeight' => 150, 'detail_position' => 'bottom', 'attachmentLinkText' => 'Read More...', 'licensor_url' => '', 'custom_taxonomies' => [] ],
+			$this->page()->asFields( $stored )
+		);
+		$this->assertFalse( $this->page()->asFields( false ), 'nothing stored: WordPress gives the registered default' );
 	}
 }

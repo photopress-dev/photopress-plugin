@@ -323,20 +323,22 @@ class photopress_settingsPage {
 			
 			register_setting( $this->getOptionGroupName(), $this->getOptionKey(), $args );
 
-			// Its schema allows only its fields, and WordPress returns nothing
-			// at all for an option with any other key.
-			add_filter( 'option_' . $this->getOptionKey(), [ $this, 'withoutRemovedKeys' ] );
+			// Read where the settings tabs read it, as exactly its fields.
+			add_filter( 'option_' . $this->getOptionKey(), [ $this, 'asFields' ] );
 	}
 
 	/**
-	 * option_{key}: the stored value without keys that are no longer fields,
-	 * such as a setting a later version removed. With one, the settings
-	 * REST endpoint returned null for the whole option, and the tab, showing
-	 * its defaults, saved them over the site's settings.
+	 * option_{key}, in the admin and the REST API: the stored value as
+	 * exactly its fields. A key that is no longer a field, such as a setting
+	 * a later version removed, is left out: with one, the settings endpoint
+	 * returned null for the whole option, and the tab, showing its defaults,
+	 * saved them over the site's settings. A field it lacks, such as one a
+	 * later version added, is given its default, where the tab would have
+	 * shown its own.
 	 */
-	public function withoutRemovedKeys( $value ) {
+	public function asFields( $value ) {
 
-		return is_array( $value ) && $this->fields ? array_intersect_key( $value, $this->fields ) : $value;
+		return is_array( $value ) && $this->fields ? array_intersect_key( $value, $this->fields ) + $this->getDefaults() : $value;
 	}
 	
 	public function validateAndSanitize( $options ) {
