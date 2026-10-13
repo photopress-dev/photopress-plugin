@@ -117,7 +117,9 @@ class slideshow extends photopress_module {
 			'slide'     => __( 'slide', 'photopress' ),
 		] ) ) );
 
-		echo '<div class="lightbox" id="lightbox-gallery">';
+		// A dialog over the page while it shows (src/frontend/lightbox.js makes
+		// the page behind it inert).
+		printf( '<div class="lightbox" id="lightbox-gallery" role="dialog" aria-modal="true" aria-label="%s">', esc_attr__( 'Slideshow', 'photopress' ) );
 		$args_dom .= sprintf( ' style="--pp-slideshow-caption-padding:%dpx"', max( 0, (int) pp_api::getOption( 'core', 'slideshow', 'captionPadding' ) ) );
 		
 		echo '<div class="photopress-slideshow"' . $args_dom . '></div>';

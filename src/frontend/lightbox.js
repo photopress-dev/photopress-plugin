@@ -137,7 +137,6 @@ class Lightbox {
 			index = Array.from( gallery.querySelectorAll( ITEM ) ).indexOf( item );
 		}
 
-		this.opener = item;
 		this.open( gallery, images, Math.max( 0, index ) );
 	}
 
@@ -166,10 +165,13 @@ class Lightbox {
 
 	open( gallery, images, index ) {
 		this.isOpen = true;
+		// Given back on closing: the link a keyboard user opened it from.
+		this.returnFocus = document.activeElement !== document.body ? document.activeElement : null;
 
 		// At once: the slideshow is built while it shows.
 		Object.assign( this.box.style, { display: 'block', opacity: '1', zIndex: '99999' } );
 		document.body.style.overflow = 'hidden';
+		this.inertBehind( true );
 
 		if ( gallery !== this.gallery ) {
 			this.build( gallery, images, index );
@@ -187,8 +189,28 @@ class Lightbox {
 		// the page background.
 		Object.assign( this.box.style, { display: 'none', opacity: '0', zIndex: '-100' } );
 		document.body.style.overflow = '';
-		this.opener?.querySelector( 'a, img' )?.focus?.( { preventScroll: true } );
+		this.inertBehind( false );
+		if ( this.root.contains( document.activeElement ) ) {
+			document.activeElement.blur();
+		}
+		this.returnFocus?.focus?.( { preventScroll: true } );
 		this.box.dispatchEvent( new CustomEvent( 'pp-slideshow-closed', { bubbles: true } ) );
+	}
+
+	/**
+	 * The page behind the lightbox, while it shows: out of reach of the Tab
+	 * key, clicks and screen readers (inert), as for any dialog. Only what
+	 * this made inert is given back.
+	 */
+	inertBehind( on ) {
+		if ( on ) {
+			const own = Array.from( document.body.children ).find( ( child ) => child.contains( this.box ) );
+			this.inerted = Array.from( document.body.children ).filter( ( child ) => child !== own && ! child.inert && ! [ 'SCRIPT', 'STYLE', 'LINK' ].includes( child.tagName ) );
+			this.inerted.forEach( ( child ) => ( child.inert = true ) );
+		} else {
+			( this.inerted || [] ).forEach( ( child ) => ( child.inert = false ) );
+			this.inerted = [];
+		}
 	}
 
 	/**

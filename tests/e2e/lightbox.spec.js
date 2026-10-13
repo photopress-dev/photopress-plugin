@@ -130,8 +130,17 @@ test( 'the thumbnails: the current one brought to the middle, a click on another
 	await expect.poll( () => current( page ) ).toBe( made.images[ 0 ] );
 	await expect( thumbnails.first() ).toHaveClass( /is-current/ );
 
+	// A dialog: the page behind it out of reach while it shows.
+	await expect( page.locator( '.lightbox' ) ).toHaveAttribute( 'role', 'dialog' );
+	await expect( page.locator( '.lightbox' ) ).toHaveAttribute( 'aria-modal', 'true' );
+	const behind = () => page.evaluate( () => !! document.querySelector( '.photopress-has-slideshow' ).closest( '[inert]' ) );
+	expect( await behind() ).toBe( true );
+
 	await page.keyboard.press( 'Escape' );
 	await expect( page.locator( '.lightbox' ) ).toBeHidden();
+	expect( await behind() ).toBe( false );
+	// Nothing hidden keeps the focus.
+	expect( await page.evaluate( () => !! document.activeElement.closest( '.lightbox' ) ) ).toBe( false );
 } );
 
 test( 'gallery images say how wide they are shown, so the browser does not take them for the width of the window', async ( { page, made } ) => {
