@@ -53,6 +53,7 @@ final class SchedulerTest extends TestCase {
 
 	public function test_idle_once_none_of_photopresss_actions_is_left_and_its_cron_event_cleared(): void {
 
+		Functions\stubs( [ 'as_has_scheduled_action' => false, 'wp_cache_delete' => true ] );
 		$this->options[ Scheduler::STATE ] = 'pending';
 		$left = [ 'pending' => [ 5 ], 'in-progress' => [] ];
 		Functions\when( 'as_get_scheduled_actions' )->alias( static function ( $args ) use ( &$left ) {
@@ -71,7 +72,7 @@ final class SchedulerTest extends TestCase {
 	public function test_another_plugins_cron_event_is_left_alone(): void {
 
 		$this->others( true );
-		Functions\stubs( [ 'as_get_scheduled_actions' => [] ] );
+		Functions\stubs( [ 'as_get_scheduled_actions' => [], 'as_has_scheduled_action' => false, 'wp_cache_delete' => true ] );
 		Functions\expect( 'wp_clear_scheduled_hook' )->never();
 
 		Scheduler::settle();
@@ -85,4 +86,39 @@ final class SchedulerTest extends TestCase {
 
 		Scheduler::clearCron();
 	}
+
+	public function test_work_scheduled_while_settling_keeps_it_pending(): void {
+
+		Functions\stubs( [ 'as_has_scheduled_action' => false, 'wp_cache_delete' => true ] );
+		$this->options[ Scheduler::STATE ] = 'pending';
+		$calls = 0;
+		// Nothing at first; then another request schedules something.
+		Functions\when( 'as_get_scheduled_actions' )->alias( static function () use ( &$calls ) {
+			return ++$calls > 2 ? [ 9 ] : [];
+		} );
+		Functions\expect( 'wp_clear_scheduled_hook' )->never();
+
+		Scheduler::settle();
+		$this->assertSame( 'pending', $this->options[ Scheduler::STATE ] );
+	}
+
+	public function test_deactivating_unschedules_photopresss_actions_and_its_cron_event(): void {
+
+		Functions\stubs( [ 'as_has_scheduled_action' => false, 'delete_option' => function ( $key ) { unset( $this->options[ $key ] ); return true; } ] );
+		Functions\expect( 'as_unschedule_all_actions' )->once()->with( '', [], 'photopress' );
+		Functions\expect( 'wp_clear_scheduled_hook' )->once()->with( 'action_scheduler_run_queue', [ 'WP Cron' ] );
+		$this->options[ Scheduler::STATE ] = 'idle';
+
+		Scheduler::deactivate();
+		$this->assertArrayNotHasKey( Scheduler::STATE, $this->options, 'pending again until a queue run finds otherwise' );
+	}
+
+	public function test_a_running_action_is_not_pending(): void {
+
+		Functions\stubs( [ 'as_has_scheduled_action' => true ] );
+		Functions\when( 'as_get_scheduled_actions' )->alias( static fn( $query ) => 'pending' === $query['status'] ? [] : [ 7 ] );
+
+		$this->assertFalse( Scheduler::pending( 'photopress_job_batch', [ 'abc' ] ) );
+	}
 }
+

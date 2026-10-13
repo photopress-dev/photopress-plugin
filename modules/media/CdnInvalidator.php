@@ -132,7 +132,7 @@ class CdnInvalidator {
 		$pending[] = $path;
 		update_option( self::PENDING_OPTION, array_values( array_unique( $pending ) ), false );
 
-		if ( Scheduler::ensure() && ! as_has_scheduled_action( self::HOOK, [], Jobs::GROUP ) ) {
+		if ( Scheduler::ensure() && ! Scheduler::pending( self::HOOK ) ) {
 			as_schedule_single_action( time() + self::DELAY, self::HOOK, [], Jobs::GROUP );
 		}
 	}
@@ -169,7 +169,7 @@ class CdnInvalidator {
 			$again = array_values( array_unique( array_merge( (array) get_option( self::PENDING_OPTION, [] ), $pending ) ) );
 			update_option( self::PENDING_OPTION, $again, false );
 
-			if ( Scheduler::ensure() && ! as_has_scheduled_action( self::HOOK, [], Jobs::GROUP ) ) {
+			if ( Scheduler::ensure() && ! Scheduler::pending( self::HOOK ) ) {
 				as_schedule_single_action( time() + 5 * MINUTE_IN_SECONDS, self::HOOK, [], Jobs::GROUP );
 			}
 		}

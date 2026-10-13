@@ -153,6 +153,10 @@ class metadata extends photopress_module {
 			// Images on the archive pages of image taxonomies.
 			add_action( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
 			
+		} else {
+
+			// Switched off: the rules built again without their URLs, once.
+			$this->maybeFlushRewriteRules();
 		}
 	}	
 	

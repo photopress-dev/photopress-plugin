@@ -283,6 +283,18 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   plugins', every query on the page listed draft and private posts.
   Image taxonomy archives now list only public images: unattached, or
   attached to a published post.
+* Fixed: background jobs (re-reading metadata, regenerating images, the
+  search index, term changes) stopped after their first batch unless their
+  settings page was open, and blocked new jobs of their kind. Each batch now
+  queues the next; a job left without its next batch, as by a batch that
+  ran out of memory, is given one; and a job whose kind is no longer
+  available (a plugin it needs switched off) is stopped, saying why. A CDN
+  invalidation that failed is tried again five minutes later, as intended.
+* Deactivating PhotoPress unschedules its background work, and the every-
+  minute WP-Cron run of Action Scheduler when no other plugin uses it.
+  Activating it again rebuilds the image taxonomies' URLs, as does turning
+  the image taxonomies off. Deleting PhotoPress deletes its settings and
+  records; images, their terms and metadata stay.
 * Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
   out in WordPress's columns instead.
 

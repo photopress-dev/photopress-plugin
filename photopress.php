@@ -52,6 +52,7 @@ if ( ! defined( 'PHOTOPRESS_FRAMEWORK_PATH' ) ) {
 add_action('plugins_loaded', [ 'photopress_plugin', 'getInstance' ], 1 );
 
 register_activation_hook(__FILE__, [ 'photopress_plugin', 'activate' ] );
+register_deactivation_hook( __FILE__, [ 'photopress_plugin', 'deactivate' ] );
 
 
 /**
@@ -163,10 +164,21 @@ class photopress_plugin {
 	}	
 	
 	public static function activate() {
-		
-		// The vendored exiftool binary is gone -- license embedding now uses
-		// XmpFile, with Imagick as a fallback (see metadata module), so there is
-		// nothing to make executable.
+
+		// The image taxonomies' URLs built again on the next request: rules
+		// flushed while PhotoPress was off no longer have them.
+		delete_option( 'photopress_taxonomy_rewrites' );
+	}
+
+	/**
+	 * Its background work unscheduled (jobs/Scheduler.php), and the rewrite
+	 * rules built again without the image taxonomies on the next request.
+	 */
+	public static function deactivate() {
+
+		\PhotoPress\jobs\Scheduler::deactivate();
+		delete_option( 'photopress_taxonomy_rewrites' );
+		delete_option( 'rewrite_rules' );
 	}
 }
 

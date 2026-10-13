@@ -74,6 +74,7 @@ final class TermChangesTest extends TestCase {
 			'wp_convert_hr_to_bytes'  => -1,
 			'as_enqueue_async_action' => 1,
 			'as_has_scheduled_action' => false,
+			'as_get_scheduled_actions' => [],
 		] );
 
 		// The images of each term, by term_taxonomy_id; posts that aren't images.

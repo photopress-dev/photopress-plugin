@@ -115,9 +115,46 @@ class Scheduler {
 	}
 
 	/**
-	 * action_scheduler_after_process_queue: idle once none of PhotoPress's
-	 * actions is pending or running, and Action Scheduler's WP-Cron event
-	 * cleared if no other plugin uses it.
+	 * Whether an action of PhotoPress's is waiting to run: pending, and not
+	 * one that is running. as_has_scheduled_action() counts a running action
+	 * too, so an action asking whether its next one is scheduled found
+	 * itself, and never scheduled it.
+	 *
+	 * @param string     $hook
+	 * @param array|null $args Its arguments, or any.
+	 */
+	public static function pending( $hook = '', $args = null ) {
+
+		if ( ! self::ready() || ! function_exists( 'as_get_scheduled_actions' ) ) {
+			return false;
+		}
+
+		$query = [ 'group' => Jobs::GROUP, 'status' => 'pending', 'per_page' => 1 ];
+
+		if ( '' !== $hook ) {
+			$query['hook'] = $hook;
+		}
+
+		if ( null !== $args ) {
+			$query['args'] = $args;
+		}
+
+		return (bool) as_get_scheduled_actions( $query, 'ids' );
+	}
+
+	/**
+	 * Whether any of PhotoPress's actions is pending or running.
+	 */
+	private static function busy() {
+
+		return self::pending() || as_get_scheduled_actions( [ 'group' => Jobs::GROUP, 'status' => 'in-progress', 'per_page' => 1 ], 'ids' );
+	}
+
+	/**
+	 * action_scheduler_after_process_queue: a job left without its next
+	 * batch given one (Jobs::recover()); then, once nothing of PhotoPress's
+	 * is unfinished, idle, and Action Scheduler's WP-Cron event cleared if
+	 * no other plugin uses it.
 	 */
 	public static function settle() {
 
@@ -125,13 +162,37 @@ class Scheduler {
 			return;
 		}
 
-		foreach ( [ 'pending', 'in-progress' ] as $status ) {
-			if ( as_get_scheduled_actions( [ 'group' => Jobs::GROUP, 'status' => $status, 'per_page' => 1 ], 'ids' ) ) {
-				return;
-			}
+		if ( Jobs::recover() || self::busy() ) {
+			return;
 		}
 
 		update_option( self::STATE, 'idle', true );
+
+		// Work scheduled by another request since: pending again.
+		if ( self::busy() ) {
+			update_option( self::STATE, 'pending', true );
+			return;
+		}
+
+		if ( ! self::$others ) {
+			wp_clear_scheduled_hook( self::CRON_HOOK, self::CRON_ARGS );
+		}
+	}
+
+	/**
+	 * PhotoPress deactivated: its actions unscheduled, as nothing would run
+	 * them, and Action Scheduler's WP-Cron event cleared if no other plugin
+	 * uses it, or WP-Cron would run every minute for nothing. Unfinished jobs
+	 * are kept; they go on when PhotoPress is activated again (Jobs::recover()).
+	 */
+	public static function deactivate() {
+
+		if ( self::ready() && function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( '', [], Jobs::GROUP );
+		}
+
+		// Taken to be pending until a queue run finds otherwise.
+		delete_option( self::STATE );
 
 		if ( ! self::$others ) {
 			wp_clear_scheduled_hook( self::CRON_HOOK, self::CRON_ARGS );
