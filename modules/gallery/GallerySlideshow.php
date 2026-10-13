@@ -82,7 +82,9 @@ class GallerySlideshow {
 		$caption_max  = (int) ( $attributes['captionMaxWidth'] ?? 75 );
 
 		$wrapper = get_block_wrapper_attributes( [
-			'class'                     => 'is-effect-' . ( 'fade' === ( $attributes['effect'] ?? '' ) ? 'fade' : 'slide' ) . ' has-captions-' . $caption_side,
+			// photopress-gallery-slideshow: the markup the full-screen
+			// slideshow shares (src/shared/slideshow.js).
+			'class'                     => 'photopress-gallery-slideshow is-effect-' . ( 'fade' === ( $attributes['effect'] ?? '' ) ? 'fade' : 'slide' ) . ' has-captions-' . $caption_side,
 			'style'                     => sprintf(
 				'--pp-slideshow-offset:%dpx;--pp-slideshow-caption-padding:%dpx',
 				max( 0, (int) ( $attributes['maxHeightOffset'] ?? 0 ) ),
@@ -92,6 +94,8 @@ class GallerySlideshow {
 			'data-autoplay'             => ! empty( $attributes['autoplay'] ) ? '1' : '0',
 			'data-delay'                => (string) max( 1, (float) ( $attributes['delay'] ?? 3 ) ),
 			'data-gallery-navigation'   => ! empty( $attributes['galleryNavigation'] ) ? '1' : '0',
+			// The thumbnails' height; none without.
+			'data-thumbnails'           => ! empty( $attributes['showThumbnails'] ) ? (string) max( 40, min( 300, (int) ( $attributes['thumbnailHeight'] ?? 100 ) ) ) : null,
 			'data-scroll-behavior'      => 'smooth' === ( $attributes['scrollBehavior'] ?? '' ) ? 'smooth' : 'instant',
 			'role'                      => 'region',
 			'aria-roledescription'      => __( 'slideshow', 'photopress' ),

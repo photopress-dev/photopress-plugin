@@ -108,7 +108,18 @@ class slideshow extends photopress_module {
 			$args_dom .= sprintf( ' data-%s="%s"', esc_attr( strtolower( $arg ) ), esc_attr( (string) $option ) );
 		}
 		
-		echo '<div class="lightbox" id="lightbox-gallery">';
+		// The words the slideshow's controls are named by, as the Gallery
+		// Slideshow block's (modules/gallery/GallerySlideshow.php).
+		$args_dom .= sprintf( ' data-labels="%s"', esc_attr( wp_json_encode( [
+			'previous'  => __( 'Previous image', 'photopress' ),
+			'next'      => __( 'Next image', 'photopress' ),
+			'slideshow' => __( 'Slideshow', 'photopress' ),
+			'slide'     => __( 'slide', 'photopress' ),
+		] ) ) );
+
+		// A dialog over the page while it shows (src/frontend/lightbox.js makes
+		// the page behind it inert).
+		printf( '<div class="lightbox" id="lightbox-gallery" role="dialog" aria-modal="true" aria-label="%s">', esc_attr__( 'Slideshow', 'photopress' ) );
 		$args_dom .= sprintf( ' style="--pp-slideshow-caption-padding:%dpx"', max( 0, (int) pp_api::getOption( 'core', 'slideshow', 'captionPadding' ) ) );
 		
 		echo '<div class="photopress-slideshow"' . $args_dom . '></div>';
@@ -116,46 +127,16 @@ class slideshow extends photopress_module {
 		echo '</div>';
 	}
 	
+	/**
+	 * The lightbox's script: the slideshows' one (gallery-slideshow.build.js,
+	 * registered by modules/gallery), the Gallery Slideshow block's slideshow
+	 * full screen; no jQuery and no carousel library. Its styles are the
+	 * gallery's (photopress-frontend).
+	 */
 	private function enqueueAssets() {
-				
-		// Owl Carousel 2.3.4 under handles of PhotoPress's own: themes and
-		// plugins often register theirs as "owl", and WordPress keeps the
-		// first of two registrations with one handle, whatever its version.
-		wp_register_style( 
-			'photopress-owl-carousel', 
-			plugins_url('assets/css/owl.carousel.min.css',
-			__FILE__),
-			[],
-			PHOTOPRESS_CORE_VERSION 
-		 );
-		 
-		wp_enqueue_style( 'photopress-owl-carousel' );
-		
-		wp_enqueue_script(
-			'photopress-owl-carousel',
-			plugins_url( 'assets/js/owl.carousel.min.js' , __FILE__ ),
-			[ 'jquery', ],
-			PHOTOPRESS_CORE_VERSION,
-			true
-		);
-		
-		$asset = \photopress_util::getBuildAsset( 'press-navigation.build' );
-		
-		wp_enqueue_script(
-			'photopress-press-navigation',
-			plugins_url( 'dist/press-navigation.build.js', dirname( dirname( __FILE__ ) ) ),
-			array_merge( $asset['dependencies'], [ 'photopress' ] ),
-			$asset['version'],
-			true
-		);
-		
-		wp_enqueue_script(
-			'photopress-slideshow',
-			plugins_url( 'assets/js/slideshow.js' , __FILE__ ),
-			[ 'jquery', 'imagesloaded', 'photopress-owl-carousel', 'photopress', 'photopress-press-navigation' ],
-			PHOTOPRESS_CORE_VERSION,
-			true
-		);
+
+		wp_enqueue_script( 'photopress-gallery-slideshow' );
+		wp_enqueue_style( 'photopress-frontend' );
 	}
 	
 		

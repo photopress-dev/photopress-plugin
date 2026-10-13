@@ -24,6 +24,7 @@ final class SlideshowTest extends TestCase {
 			'wp_register_style' => null,
 			'wp_enqueue_style'  => null,
 			'wp_enqueue_script' => null,
+			'esc_attr__'        => static fn( $text ) => $text,
 		] );
 	}
 
@@ -77,23 +78,17 @@ final class SlideshowTest extends TestCase {
 		$this->assertSame( 'A caption', $p->get_attribute( 'data-caption' ) );
 	}
 
-	public function test_owl_carousel_has_photopresss_own_handles(): void {
+	public function test_the_lightbox_is_the_gallery_slideshows_script(): void {
 
-		$handles = [];
-		Functions\when( 'wp_enqueue_script' )->alias( static function ( $handle, $src = '', $deps = [] ) use ( &$handles ) {
-			$handles[ $handle ] = $deps;
-		} );
-		Functions\when( 'wp_enqueue_style' )->alias( static function ( $handle ) use ( &$handles ) {
-			$handles[ 'style:' . $handle ] = [];
+		$scripts = [];
+		Functions\when( 'wp_enqueue_script' )->alias( static function ( $handle ) use ( &$scripts ) {
+			$scripts[] = $handle;
 		} );
 
 		$this->render( 'core/gallery', [ 'photopressSlideshow' => true ], self::CORE );
 
-		$this->assertArrayHasKey( 'photopress-owl-carousel', $handles );
-		$this->assertArrayHasKey( 'style:photopress-owl-carousel', $handles );
-		$this->assertContains( 'photopress-owl-carousel', $handles['photopress-slideshow'] );
-		$this->assertContains( 'photopress', $handles['photopress-slideshow'], 'the base script comes with the slideshow' );
-		$this->assertArrayNotHasKey( 'owl', $handles );
+		// Registered by the gallery module, with no jQuery and no carousel library.
+		$this->assertSame( [ 'photopress-gallery-slideshow' ], $scripts );
 	}
 
 	public function test_other_blocks_are_untouched(): void {

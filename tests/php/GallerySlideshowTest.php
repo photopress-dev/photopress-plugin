@@ -39,7 +39,10 @@ final class GallerySlideshowTest extends TestCase {
 				$out = 'class="wp-block-photopress-gallery-slideshow ' . $extra['class'] . '"';
 				unset( $extra['class'] );
 				foreach ( $extra as $name => $value ) {
-					$out .= sprintf( ' %s="%s"', $name, htmlspecialchars( $value, ENT_QUOTES ) );
+					// As WordPress: values that are not strings or numbers are left out.
+					if ( is_scalar( $value ) && ! is_bool( $value ) ) {
+						$out .= sprintf( ' %s="%s"', $name, htmlspecialchars( (string) $value, ENT_QUOTES ) );
+					}
 				}
 				return $out;
 			},
@@ -70,6 +73,22 @@ final class GallerySlideshowTest extends TestCase {
 			$ids[] = $p->get_attribute( 'data-id' );
 		}
 		$this->assertSame( [ '10', '11', '12' ], $ids );
+	}
+
+	public function test_the_markup_the_full_screen_slideshow_shares_and_thumbnails_when_on(): void {
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [] ) );
+		$p->next_tag();
+		$this->assertTrue( $p->has_class( 'photopress-gallery-slideshow' ) );
+		$this->assertNull( $p->get_attribute( 'data-thumbnails' ), 'off by default' );
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'showThumbnails' => true, 'thumbnailHeight' => 80 ] ) );
+		$p->next_tag();
+		$this->assertSame( '80', $p->get_attribute( 'data-thumbnails' ) );
+
+		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'showThumbnails' => true, 'thumbnailHeight' => 5000 ] ) );
+		$p->next_tag();
+		$this->assertSame( '300', $p->get_attribute( 'data-thumbnails' ), 'no taller than 300' );
 	}
 
 	public function test_only_the_first_slide_loads_its_image(): void {

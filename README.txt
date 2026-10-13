@@ -33,9 +33,9 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 = FULL-SCREEN SLIDESHOW =
 
-* Opens over the whole window on the image that was clicked
-* Click the right half for the next image, the left half for the previous one; the arrow keys work too
-* Thumbnail navigation option, with adjustable height
+* Opens over the whole window on the image that was clicked: the Gallery Slideshow block's slideshow, full screen
+* Click or tap the right half for the next image, the left half for the previous one, or swipe; the arrow keys work too
+* A row of thumbnails under the image, with adjustable height; a click on one shows it
 * Configurable caption display (image title, caption and/or description, and a link to the attachment page)
 * Caption box below or to the right of the image, with adjustable padding
 
@@ -43,7 +43,8 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 * A slideshow of a gallery on the same page, placed anywhere on the page
 * Clicking an image in the gallery shows it in the slideshow
-* Press the right side of the slideshow for the next image, the left side for the previous one
+* Press or tap the right side of the slideshow for the next image, the left side for the previous one, or swipe
+* Optional row of thumbnails under the slideshow, with adjustable height
 * Slide or fade transitions, and autoplay
 * Fits the window's height, less an offset you set
 * Captions below, left or right of the image, with adjustable padding
@@ -250,16 +251,26 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   cleared from the page cache as they change. The Child Pages block it
   supersedes now lists published child pages only (not drafts or attached
   images), with their images' srcset, and opens them in the same tab.
-* Pages load only what they use. PhotoPress's script, and jQuery with it,
-  come only with the full-screen slideshow; the data the slideshow reads is
-  added only to the images of galleries that open it; and a gallery's
-  images are loaded in one query, not one each. Action Scheduler is loaded
-  only while PhotoPress has background work, or when it schedules some, so
-  an idle site skips it and its every-minute WP-Cron run. Where another
-  plugin bundles Action Scheduler, the newest copy is still the one used.
-* The slideshow's Owl Carousel has handles of PhotoPress's own
-  (photopress-owl-carousel): a theme's or plugin's "owl" is often another
-  version, and WordPress keeps the first of two scripts with one handle.
+* Full-screen slideshow: the Gallery Slideshow block's slideshow, full
+  screen, and the same script, loaded only on pages that have either. The
+  image takes the whole width, with no arrow columns beside it: a click,
+  press or tap on either half moves, as in the block, and so does a swipe.
+  It had needed jQuery, jQuery Migrate, imagesLoaded and Owl Carousel,
+  which is no longer maintained: some 59 KB compressed, now 5 KB. Its
+  thumbnails are a row that scrolls, the current one brought to the middle;
+  a click on one shows it, and the last image goes round to the first.
+* Gallery Slideshow block: Show thumbnails, a row under the slideshow with
+  a height to choose, as the full-screen slideshow has.
+* Both slideshows show the chevron for a moment where a tap lands, the way
+  it moved.
+* Pages load only what they use: the data the slideshow reads is added only
+  to the images of galleries that open it, and a gallery's images are
+  loaded in one query, not one each. Action Scheduler is loaded only while
+  PhotoPress has background work, or when it schedules some, so an idle
+  site skips it and its every-minute WP-Cron run. Where another plugin
+  bundles Action Scheduler, the newest copy is still the one used.
+* With Proxy Cache Purge, the cache is emptied once after PhotoPress is
+  updated, so no cached page asks for the scripts an earlier version had.
 * Gallery layouts: each image's sizes attribute is the width its layout
   shows it at (a Masonry column; a Rows or Mosaic image at the row height),
   so browsers download smaller files; with lazy loading, WordPress's

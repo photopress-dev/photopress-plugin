@@ -19,6 +19,8 @@
 		"captionPosition": { "type": "string", "enum": [ "below", "left", "right" ], "default": "below" },
 		"captionPadding": { "type": "number", "default": 0 },
 		"captionMaxWidth": { "type": "number", "default": 75 },
+		"showThumbnails": { "type": "boolean", "default": false },
+		"thumbnailHeight": { "type": "number", "default": 100 },
 		"galleryNavigation": { "type": "boolean", "default": true },
 		"scrollBehavior": { "type": "string", "enum": [ "instant", "smooth" ], "default": "instant" }
 	},

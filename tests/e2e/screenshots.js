@@ -144,7 +144,7 @@ test( 'screenshot-4: the full-screen slideshow, opened from a gallery', async ( 
 	test.setTimeout( 180000 );
 	const figure = await front( page, draftUrl( pages.lightbox ), { width: 1100, height: 700 }, '#lightbox' );
 	const rec = recorder( page, { x: 0, y: 0, width: 1100, height: 700 } );
-	const center = page.locator( '.panels .center img' );
+	const center = page.locator( '.lightbox .photopress-gallery-slideshow__slide.is-current img' );
 	const settle = async () => {
 		await center.evaluate( ( img ) => img.decode() );
 		await page.waitForTimeout( 600 );
@@ -160,7 +160,7 @@ test( 'screenshot-4: the full-screen slideshow, opened from a gallery', async ( 
 	await expect( center ).toBeVisible( { timeout: 30000 } );
 	await settle();
 
-	const panels = await page.locator( '.photopress-slideshow .panels' ).boundingBox();
+	const panels = await page.locator( '.lightbox .photopress-gallery-slideshow__track' ).boundingBox();
 	const y = panels.y + panels.height / 2;
 	for ( const fraction of [ 0.8, 0.8, 0.2 ] ) {
 		at = await glide( page, rec, at, { x: panels.x + panels.width * fraction, y } );

@@ -7,32 +7,11 @@ use pp_api;
 
 class base extends photopress_module {
 
-	public function definePublicHooks() {
-
-		$this->photopress_base_js();
-	}
-
 	public function defineAdminHooks() {
 
 		add_action( 'admin_enqueue_scripts', [ $this, 'option_assets' ] );
 	}
 
-	/**
-	 * The photopress object the slideshow's scripts build on, registered for
-	 * them to load as a dependency: a page without a slideshow gets neither
-	 * it nor jQuery.
-	 */
-	public function photopress_base_js() {
-
-		wp_register_script(
-			'photopress',
-			plugins_url( 'js/photopress.js' , __FILE__ ),
-			array( 'jquery' ),
-			PHOTOPRESS_CORE_VERSION,
-			true
-		);
-	}
-	
 	/**
 	 * admin_enqueue_scripts: the settings app and its styles, on PhotoPress's
 	 * own screens only. Elsewhere, in the block editor above all, they have

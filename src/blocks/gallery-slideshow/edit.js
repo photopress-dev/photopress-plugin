@@ -46,11 +46,12 @@ export function uniqueAnchor( galleries ) {
 }
 
 export default function Edit( { attributes, setAttributes } ) {
-	const { galleryAnchor, hideGallery, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, captionMaxWidth, galleryNavigation, scrollBehavior } = attributes;
+	const { galleryAnchor, hideGallery, sizeSlug, autoplay, delay, effect, maxHeightOffset, showCaptions, captionPosition, captionPadding, captionMaxWidth, showThumbnails, thumbnailHeight, galleryNavigation, scrollBehavior } = attributes;
 	const blockProps = useBlockProps( {
-		className: `is-effect-${ effect } has-captions-${ captionPosition }`,
+		className: `photopress-gallery-slideshow is-effect-${ effect } has-captions-${ captionPosition }${ showThumbnails ? ' has-thumbnails' : '' }`,
 		style: {
 			'--pp-slideshow-caption-padding': `${ captionPadding }px`,
+			'--pp-slideshow-thumbnail-height': `${ thumbnailHeight }px`,
 			...( captionMaxWidth > 0 && captionMaxWidth < 100 && { '--pp-slideshow-caption-max-width': `${ captionMaxWidth }%` } ),
 		},
 	} );
@@ -108,6 +109,20 @@ export default function Edit( { attributes, setAttributes } ) {
 				<span className="photopress-gallery-slideshow__count">{ sprintf( __( '1 of %d' ), source.images.length ) }</span>
 			</div>
 		);
+		if ( showThumbnails ) {
+			preview = (
+				<>
+					{ preview }
+					<div className="photopress-gallery-slideshow__thumbnails">
+						{ source.images.map( ( image, i ) => (
+							<span key={ image.clientId } className={ `photopress-gallery-slideshow__thumbnail${ i ? '' : ' is-current' }` }>
+								<img src={ image.attributes.url } alt="" />
+							</span>
+						) ) }
+					</div>
+				</>
+			);
+		}
 	} else {
 		preview = (
 			<Placeholder
@@ -191,6 +206,23 @@ export default function Edit( { attributes, setAttributes } ) {
 						options={ imageSizes.map( ( size ) => ( { value: size.slug, label: size.name } ) ) }
 						onChange={ ( value ) => setAttributes( { sizeSlug: value } ) }
 					/>
+					<ToggleControl
+						__nextHasNoMarginBottom
+						label={ __( 'Show thumbnails' ) }
+						help={ __( 'A row of the images under the slideshow; a click on one shows it.' ) }
+						checked={ showThumbnails }
+						onChange={ ( value ) => setAttributes( { showThumbnails: value } ) }
+					/>
+					{ showThumbnails && (
+						<RangeControl
+							__nextHasNoMarginBottom
+							label={ __( 'Thumbnail height (px)' ) }
+							value={ thumbnailHeight }
+							min={ 40 }
+							max={ 300 }
+							onChange={ ( value ) => setAttributes( { thumbnailHeight: value ?? 100 } ) }
+						/>
+					) }
 					<ToggleControl
 						__nextHasNoMarginBottom
 						label={ __( 'Show captions' ) }

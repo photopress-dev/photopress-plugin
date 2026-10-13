@@ -1,173 +1,52 @@
-$thumbnail-height: 120px;
-$slide-margin: 20px;
-$thumbnail-bottom-margin: 10px;
+// The full-screen slideshow (src/frontend/lightbox.js): the Gallery
+// Slideshow block's slideshow (src/blocks/gallery-slideshow/style.scss),
+// filling the window over the page. Only what is its own is here.
 
-:root {
-	--pp-slideshow-thumbnail-height: #{$thumbnail-height};
-	--pp-slideshow-thumbnails-total-height: calc( var(--pp-slideshow-thumbnail-height ) + ( #{$slide-margin} * 2 ) +  #{$thumbnail-bottom-margin} ) ;
-	--vh: 100vh;
-}
+$lightbox-top: 60px;		// room for Close
+$lightbox-bottom: 10px;
 
-
-.photopress-slideshow {
-	
+.lightbox .photopress-slideshow {
+	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
-	height: var(--vh);
-	align-items: center;
-	justify-content: space-between;
-	
-	.panels {
-		
+	height: 100%;
+	padding: $lightbox-top 20px $lightbox-bottom;
+
+	.photopress-gallery-slideshow {
+		// The slides as tall as the window allows, less the room above and
+		// below them (and the thumbnails, see the block's styles).
+		--pp-slideshow-offset: #{$lightbox-top + $lightbox-bottom};
 		display: flex;
-	
-		width: 100%;
-		align-items:center;
-		justify-content: space-between;
-		
-		.nav-control {
-			
-			width: 100px;
-		}
-		
-		// With a mouse, the chevron drawn at the pointer shows the way
-		// (src/shared/press-navigation.js); the arrows stay for touch, and
-		// where the press navigation is not loaded.
-		&.has-press-navigation .nav-control .arrow {
-			
-			@media (hover: hover) and (pointer: fine) {
-				visibility: hidden;
-			}
-		}
-		
-		.center {
-			
-			height: calc( var( --vh ) - var( --pp-slideshow-thumbnails-total-height ) );
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: center;
-			margin: $slide-margin;
-			width: 100%;
-			
-			img {
-				
-				max-height:100%;
-				// Wide images overflowed under the arrow columns.
-				max-width: 100%;
-				width: auto;
-			}
-			
-			.slide-info {
-				
-				// The Caption Padding setting.
-				padding: var(--pp-slideshow-caption-padding, 0);
-				font-size: 14px;
-				
-				.info {
-					
-					padding-bottom: 2px;
-				}
-				
-				.caption {
-					
-				}
-				
-				.title {
-					
-					font-weight: 600;
-				}
-				
-				.description {
-					
-					line-height: inherit;
-				}
-				
-			}
-		}
-		
-		.center.info-right {
-			
-			flex-direction: row;
-			flex-wrap:  nowrap;
-			justify-content: center;
-			
-			.slide-info {
-				
-				text-align: left;
-				width:auto;
-				max-width:400px;
-				margin-left: 100px;
-				//width:auto;
-			}
-		}
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-height: 0;
+		outline: none;
 	}
-	
-	.right-caption {
-		
-		flex-direction: row;
-		
-		.caption {
-			
-			max-width:200px;
-			
-		}
+
+	// The slides in the middle of the room above the thumbnails.
+	.photopress-gallery-slideshow__track {
+		flex: 1 1 auto;
+		align-items: center;
+		min-height: 0;
 	}
-	
-	.thumbnails {
-	  
-		width:100%;
-		height: var(--pp-slideshow-thumbnail-height);
-		margin-bottom: $thumbnail-bottom-margin;
-		flex-grow: 0;
-		display: flex;
-		//justify-content: flex-start;
-		
-		.thumbnail-list {
-			// needs to be 100% in order to get owl carousel to show	
-			width: 100%;
-			
-			.thumbnail-item {
-				
-				//margin-right: 10px;
-			
-			
-				.thumbnail {
-					// must give an explicit height to each thumbnail	    
-					min-height: var(--pp-slideshow-thumbnail-height);	
-					width:auto;
-					
-				}
-			}	
+
+	.photopress-gallery-slideshow__thumbnails {
+		flex: none;
+	}
+
+	// The details, as before: the title in bold, the parts one under another.
+	.photopress-gallery-slideshow__caption {
+
+		.info {
+			padding-bottom: 2px;
+		}
+
+		.title {
+			font-weight: 600;
 		}
 	}
 }
 
-//// mobile
-
-@media only screen and (max-width:700px) {
-	
-	:root {
-	
-		--pp-slideshow-thumbnail-height: 100px;
-	}
-	
-	.photopress-slideshow {
-	
-		.panels {
-			
-			.center.info-right {
-		
-				flex-direction: column;
-				
-				.slide-info {
-						
-					margin: 10px 0px 10px 0px;
-					max-width: 100%;
-				}
-				
-			}
-		}
-	}
+.lightbox__close {
+	z-index: 5;
 }
-

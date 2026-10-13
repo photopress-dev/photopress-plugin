@@ -37,9 +37,9 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 ### Full-Screen Slideshow
 
-- Opens over the whole window on the image that was clicked
-- Click the right half for the next image, the left half for the previous one; the arrow keys work too
-- Thumbnail navigation option, with adjustable height
+- Opens over the whole window on the image that was clicked: the Gallery Slideshow block's slideshow, full screen
+- Click or tap the right half for the next image, the left half for the previous one, or swipe; the arrow keys work too
+- A row of thumbnails under the image, with adjustable height; a click on one shows it
 - Configurable caption display (image title, caption and/or description, and a link to the attachment page)
 - Caption box below or to the right of the image, with adjustable padding
 
@@ -51,7 +51,8 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 - A slideshow of a gallery on the same page, placed anywhere on the page
 - Clicking an image in the gallery shows it in the slideshow
-- Press the right side of the slideshow for the next image, the left side for the previous one
+- Press or tap the right side of the slideshow for the next image, the left side for the previous one, or swipe
+- Optional row of thumbnails under the slideshow, with adjustable height
 - Slide or fade transitions, and autoplay
 - Fits the window's height, less an offset you set
 - Captions below, left or right of the image, with adjustable padding

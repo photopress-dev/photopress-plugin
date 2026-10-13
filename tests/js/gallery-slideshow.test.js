@@ -328,3 +328,73 @@ test( 'loaded images are measured again when the slideshow changes size', () => 
 
 	delete window.ResizeObserver;
 } );
+
+test( 'a touch tap shows the chevron for a moment, the way it went', () => {
+	vi.useFakeTimers();
+	const next = root.querySelector( '.photopress-gallery-slideshow__next' );
+	next.dispatchEvent( pointer( 'pointerdown', { x: 600, y: 40, kind: 'touch' } ) );
+	next.dispatchEvent( pointer( 'pointerup', { x: 601, y: 41, kind: 'touch' } ) );
+
+	expect( cursor().style.display ).toBe( 'block' );
+	expect( cursor().querySelector( 'path' ).getAttribute( 'd' ) ).toBe( 'M26 14 L42 32 L26 50' );
+
+	vi.advanceTimersByTime( 400 );
+	expect( cursor().style.display ).toBe( 'none' );
+	vi.useRealTimers();
+} );
+
+/** A slideshow as the lightbox builds it, or the block with thumbnails. */
+function withThumbnails( { preview = false } = {} ) {
+	slideshow.destroy();
+	document.body.innerHTML = `
+		<div class="photopress-gallery-slideshow" data-thumbnails="80" ${ preview ? 'data-preview="1"' : '' }>
+			<div class="photopress-gallery-slideshow__track">
+				${ SLIDES.map( ( id, i ) => `<figure class="photopress-gallery-slideshow__slide${ i ? '' : ' is-current' }" data-id="${ id }"><img alt="Image ${ id }" width="1200" height="800" src="data:," data-src="copy${ id }.jpg" data-srcset="s${ id }-300.jpg 300w, s${ id }.jpg 1200w"></figure>` ).join( '' ) }
+			</div>
+			<button class="photopress-gallery-slideshow__prev"></button>
+			<button class="photopress-gallery-slideshow__next"></button>
+		</div>`;
+	root = document.querySelector( '.photopress-gallery-slideshow' );
+	root.getBoundingClientRect = () => ( { left: 0, top: 0, width: 800, height: 600 } );
+	slideshow = createSlideshow( root );
+	return root;
+}
+
+test( 'thumbnails: one for each slide at their height, the current one marked, a click on one shows it', () => {
+	const changes = [];
+	withThumbnails().addEventListener( 'photopress-slideshow-change', ( event ) => changes.push( event.detail.index ) );
+
+	const buttons = root.querySelectorAll( '.photopress-gallery-slideshow__thumbnails .photopress-gallery-slideshow__thumbnail' );
+	expect( buttons ).toHaveLength( SLIDES.length );
+	expect( root.classList.contains( 'has-thumbnails' ) ).toBe( true );
+	expect( root.style.getPropertyValue( '--pp-slideshow-thumbnail-height' ) ).toBe( '80px' );
+
+	const img = buttons[ 2 ].querySelector( 'img' );
+	expect( img.getAttribute( 'sizes' ) ).toBe( '120px' );
+	expect( img.getAttribute( 'srcset' ) ).toBe( 's12-300.jpg 300w, s12.jpg 1200w' );
+	expect( img.getAttribute( 'loading' ) ).toBe( 'lazy' );
+	expect( buttons[ 2 ].getAttribute( 'aria-label' ) ).toBe( 'Image 12' );
+	expect( buttons[ 0 ].classList.contains( 'is-current' ) ).toBe( true );
+
+	click( img );
+	expect( slideshow.current() ).toBe( 2 );
+	expect( buttons[ 2 ].getAttribute( 'aria-current' ) ).toBe( 'true' );
+	expect( buttons[ 0 ].classList.contains( 'is-current' ) ).toBe( false );
+	expect( changes ).toEqual( [ 2 ] );
+
+	// A press on the thumbnails does not navigate the slides.
+	buttons[ 3 ].dispatchEvent( pointer( 'pointerdown', { x: 700 } ) );
+	expect( slideshow.current() ).toBe( 2 );
+} );
+
+test( 'a preview: the copy the page has shows first, the srcset once it has', () => {
+	withThumbnails( { preview: true } );
+	const img = root.querySelector( '.photopress-gallery-slideshow__slide.is-current img' );
+
+	expect( img.getAttribute( 'src' ) ).toBe( 'copy10.jpg' );
+	expect( img.hasAttribute( 'srcset' ) ).toBe( false );
+
+	img.dispatchEvent( new Event( 'load' ) );
+	expect( img.getAttribute( 'srcset' ) ).toBe( 's10-300.jpg 300w, s10.jpg 1200w' );
+} );
+

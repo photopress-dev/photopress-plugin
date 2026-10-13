@@ -26,61 +26,6 @@ $content-width: 700px;
   height: 0;
 }
 
-/////////// Fade
-
-.fade-in {
-  animation: fadeIn ease 1s;
-  -webkit-animation: fadeIn ease 1s;
-  -moz-animation: fadeIn ease 1s;
-  -o-animation: fadeIn ease 1s;
-  -ms-animation: fadeIn ease 1s;
-}
-
-@keyframes fadeIn {
-  0% {
-    opacity:0;
-  }
-  100% {
-    opacity:1;
-  }
-}
-
-@-moz-keyframes fadeIn {
-  0% {
-    opacity:0;
-  }
-  100% {
-    opacity:1;
-  }
-}
-
-@-webkit-keyframes fadeIn {
-  0% {
-    opacity:0;
-  }
-  100% {
-    opacity:1;
-  }
-}
-
-@-o-keyframes fadeIn {
-  0% {
-    opacity:0;
-  }
-  100% {
-    opacity:1;
-  }
-}
-
-@-ms-keyframes fadeIn {
-  0% {
-    opacity:0;
-  }
-  100% {
-    opacity:1;
-  }
-}
-
 ////////// Lightbox
 
 .lightbox {
@@ -112,65 +57,6 @@ $content-width: 700px;
 	right: 30px;
 }
 
-
-/////// loader
-
-.loader-circle {
-  height: 48px;
-  width: 48px;
-  color: rgba(90, 90, 90, 0.2);
-  position: relative;
-  display: inline-block;
-  border: 5px solid;
-  border-radius: 50%;
-  border-right-color: #5a5a5a;
-  animation: rotate 1s linear infinite; }
-
-@keyframes rotate {
-  0% {
-    transform: rotate(0); }
-  100% {
-    transform: rotate(360deg); } }
-    
-///// arrows
-
-
-  .arrow {
-	
-	display: inline-block;
-	width: 4vmin;
-	height: 4vmin;
-	background: transparent;
-	border-top: .5vmin solid lightgray;
-	border-right: .5vmin solid lightgray;
-	box-shadow: 0 0 0 lightgray;
-	transition: all 200ms ease;
-	
-	&.left {
-		left: 20;
-		transform: translate3d(0,-50%,0) rotate(-135deg);
-	}
-
-	&.right {
-		right: 20;
-		transform: translate3d(0,-50%,0) rotate(45deg);
-	}
-	
-	&:hover {
-		border-color: lightgray;
-		box-shadow: 0.5vmin -0.5vmin 0 black;
-	}
-	
-	&:before { // for better hit area
-		content: '';
-		position: relative;
-		top: 50%;
-		left: 50%;
-		transform: translate(-40%,-60%) rotate(45deg);
-		width: 200%;
-		height: 200%;
-	}
-}
 
 // The Image Metadata block and the widgets: a label column, at least 8em
 // wide so separate blocks on a page line up, and the terms or values.
