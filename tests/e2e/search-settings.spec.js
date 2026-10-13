@@ -154,3 +154,27 @@ test( 'the page cache and search index card: Proxy Cache Purge and Relevanssi as
 		await expect( relevanssi ).toContainText( 'Turn on Images in search results to add images to the index.' );
 	}
 } );
+
+test( 'the sitemap card: the sitemap in use, with a link to it', async ( { page } ) => {
+	const inUse = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( \\PhotoPress\\modules\\search\\ImageSitemap::inUse() );` ) ) );
+	const TEXT = {
+		core: 'WordPress’s sitemap is in use.',
+		jetpack: 'Jetpack’s sitemap is in use',
+		yoast: 'Yoast SEO’s sitemap is in use',
+		other: 'Another plugin has turned off WordPress’s sitemap.',
+		none: 'Search engines are discouraged from indexing this site',
+	};
+
+	await page.goto( URL );
+	const card = page.locator( '.photopress-search-sitemap' );
+	await expect( card.getByRole( 'heading', { name: 'Sitemap' } ) ).toBeVisible( { timeout: 30000 } );
+	await expect( card.getByRole( 'checkbox' ) ).toHaveCount( 0 );
+
+	const status = card.locator( `[data-sitemap="${ inUse.sitemap }"]` );
+	await expect( status ).toContainText( TEXT[ inUse.sitemap ] );
+	if ( inUse.url ) {
+		await expect( status.getByRole( 'link', { name: 'View the sitemap' } ) ).toHaveAttribute( 'href', inUse.url );
+	} else {
+		await expect( status.getByRole( 'link' ) ).toHaveCount( 0 );
+	}
+} );

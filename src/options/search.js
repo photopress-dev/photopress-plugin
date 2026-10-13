@@ -1,10 +1,10 @@
 /**
  * The Pages & Search settings tab: whether images and image taxonomy terms
  * have pages of their own on the site (modules/search), with PhotoPress's
- * templates for them in block themes; images in search results; and the
- * page cache and search index.
+ * templates for them in block themes; the sitemap they are listed in;
+ * images in search results; and the page cache and search index.
  */
-const { __ } = wp.i18n;
+const { __, sprintf } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
 import { Notice } from '@wordpress/components';
 
@@ -27,10 +27,22 @@ import PluginState from '../shared/plugin-state.js';
 const RELEVANSSI = window.photopressRelevanssi || { plugin: 'missing' };
 const PAGE_CACHE = window.photopressPageCache || { plugin: 'missing' };
 
+// The sitemap in use, which PhotoPress adds image and term pages to
+// (modules/search/ImageSitemap.php).
+const SITEMAP = window.photopressSitemap || { sitemap: 'other' };
+
 const PAGE_CACHE_TEXT = {
 	active: __( 'PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page, while attachment pages are on, and every page of its terms’ archives, while image taxonomy pages are on. A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied.' ),
 	inactive: __( 'Activate it to clear the pages of images and image taxonomy terms from the page cache when they change.' ),
 	missing: __( 'Proxy Cache Purge clears pages from a Varnish or NGINX page cache when posts change. Once it’s active, PhotoPress has it clear the pages of images and image taxonomy terms too.' ),
+};
+
+const SITEMAP_TEXT = {
+	core: () => __( 'WordPress’s sitemap is in use. PhotoPress adds images’ pages to it while attachment pages are on. It lists image taxonomy terms itself while image taxonomy pages are on.' ),
+	jetpack: ( built ) => sprintf( __( 'Jetpack’s sitemap is in use, last built %s ago. PhotoPress adds image taxonomy terms’ archive pages to it while image taxonomy pages are on, and lists each image with its own page while attachment pages are on.' ), built ),
+	yoast: ( built ) => sprintf( __( 'Yoast SEO’s sitemap is in use, last built %s ago. It lists image taxonomy terms itself, and PhotoPress adds the images on each term’s archive page. While attachment pages are on and Yoast SEO lists media pages, PhotoPress adds the pages of images not attached to a post, which Yoast SEO leaves out.' ), built ),
+	other: () => __( 'Another plugin has turned off WordPress’s sitemap. PhotoPress adds image and term pages to Jetpack’s and Yoast SEO’s, and shows which is in use here once it has been built.' ),
+	none: () => __( 'Search engines are discouraged from indexing this site (Settings › Reading), so it has no sitemap.' ),
 };
 
 const RELEVANSSI_TEXT = {
@@ -104,6 +116,22 @@ class SearchSettings extends Component {
 					checked={ this.getSetting( 'taxonomy_pages' ) }
 					onChange={ ( value ) => this.persistSetting( 'taxonomy_pages', value ) }
 				/>
+
+				<FeatureSection
+					title={ __( 'Sitemap' ) }
+					className="photopress-search-sitemap"
+					description={ __( 'The pages of images and image taxonomy terms are listed in the site’s sitemap for search engines, whichever plugin builds it.' ) }
+				>
+					<p data-sitemap={ SITEMAP.sitemap }>
+						{ ( SITEMAP_TEXT[ SITEMAP.sitemap ] || SITEMAP_TEXT.other )( SITEMAP.built ) }
+						{ SITEMAP.url && (
+							<>
+								{ ' ' }
+								<a href={ SITEMAP.url } target="_blank" rel="noreferrer">{ __( 'View the sitemap' ) }</a>
+							</>
+						) }
+					</p>
+				</FeatureSection>
 
 				<FeatureSection
 					title={ __( 'Images in search results' ) }

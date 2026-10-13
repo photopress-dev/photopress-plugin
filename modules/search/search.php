@@ -22,6 +22,9 @@ use photopress_module;
  *
  * And images in search results, found by their titles, captions, alt text
  * and terms, with Relevanssi or without (ImageSearch).
+ *
+ * The pages of both are listed in the site's sitemap, whichever builds it
+ * (ImageSitemap).
  */
 class search extends photopress_module {
 
@@ -46,6 +49,14 @@ class search extends photopress_module {
 		return is_array( $saved ) && array_key_exists( $key, $saved ) ? ! empty( $saved[ $key ] ) : $default;
 	}
 
+	public function __construct( $params ) {
+
+		parent::__construct( $params );
+
+		// Yoast SEO collects its sitemaps at after_setup_theme, before init.
+		YoastSitemap::addHooks();
+	}
+
 	public function definePublicHooks() {
 
 		add_filter( 'pre_option_wp_attachment_pages_enabled', [ self::class, 'attachmentPagesOption' ] );
@@ -53,6 +64,8 @@ class search extends photopress_module {
 		ImageSearch::addHooks();
 		PageCache::addHooks();
 		TermChanges::addHooks();
+		CoreSitemap::addHooks();
+		JetpackSitemap::addHooks();
 		add_action( 'admin_enqueue_scripts', [ self::class, 'shareStatus' ], 20 );
 
 		if ( ! self::enabled( 'attachment_pages' ) ) {
@@ -80,7 +93,7 @@ class search extends photopress_module {
 
 	/**
 	 * admin_enqueue_scripts: for the settings page, the state of Proxy Cache
-	 * Purge and Relevanssi.
+	 * Purge and Relevanssi, and the sitemap in use.
 	 */
 	public static function shareStatus() {
 
@@ -91,7 +104,7 @@ class search extends photopress_module {
 		$relevanssi = [ 'plugin' => photopress_util::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
 		$cache = [ 'plugin' => photopress_util::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
-		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );
+		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . '; window.photopressSitemap = ' . wp_json_encode( ImageSitemap::inUse() ) . ';', 'before' );
 	}
 
 
