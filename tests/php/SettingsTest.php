@@ -148,4 +148,15 @@ final class SettingsTest extends TestCase {
 		);
 		$this->assertFalse( $this->page()->asFields( false ), 'nothing stored: WordPress gives the registered default' );
 	}
+
+	public function test_a_taxonomy_id_is_not_one_of_wordpresss_nor_too_long(): void {
+
+		Functions\when( 'get_option' )->justReturn( [] );
+
+		$ids = array_column( $this->page()->sanitizeOptions( [
+			'custom_taxonomies' => [ [ 'id' => 'category' ], [ 'id' => 'post_tag' ], [ 'id' => str_repeat( 'y', 40 ) ] ],
+		] )['custom_taxonomies'], 'id' );
+
+		$this->assertSame( [ 'pp_category', 'pp_post_tag', str_repeat( 'y', 32 ) ], $ids );
+	}
 }

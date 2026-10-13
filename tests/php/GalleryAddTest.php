@@ -242,4 +242,17 @@ final class GalleryAddTest extends TestCase {
 
 		$this->assertSame( [], GallerySlideshow::imageIds( $gallery, 5 ) );
 	}
+
+	public function test_a_user_who_may_not_upload_learns_nothing_of_the_post(): void {
+
+		Functions\when( 'current_user_can' )->justReturn( false );
+		Functions\when( 'rest_validate_value_from_schema' )->justReturn( true );
+		Functions\when( 'rest_authorization_required_code' )->justReturn( 401 );
+		Functions\expect( 'get_post' )->never();
+
+		foreach ( [ 1, 999999 ] as $post ) {
+			$error = \PhotoPress\modules\gallery\GalleryAdd::validateTarget( [ 'post' => $post ], null, 'photopress_gallery' );
+			$this->assertSame( 'rest_cannot_create', $error->get_error_code() );
+		}
+	}
 }

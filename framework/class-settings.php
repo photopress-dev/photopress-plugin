@@ -258,6 +258,13 @@ class photopress_settingsPage {
 						'parseTagValue' => ! empty( $item['parseTagValue'] ),
 					];
 					
+					// No longer than WordPress allows a taxonomy's name, and not
+					// one of WordPress's own, which registering would replace.
+					$clean['id'] = substr( $clean['id'], 0, 32 );
+					if ( in_array( $clean['id'], [ 'category', 'post_tag', 'nav_menu', 'link_category', 'post_format', 'wp_theme', 'wp_template_part_area', 'wp_pattern_category' ], true ) ) {
+						$clean['id'] = substr( 'pp_' . $clean['id'], 0, 32 );
+					}
+
 					// Each id once: two entries with one id would register as
 					// one taxonomy, their terms mixed. A repeat gets a suffix,
 					// as the settings screen gives a new taxonomy.

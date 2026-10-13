@@ -16,6 +16,10 @@ use pp_api;
  */
 class media extends photopress_module {
 
+	/** Set for ten minutes once everything is cleared from the CDN. */
+	const ALL_CLEARED = 'photopress_cdn_all_cleared';
+
+
 	public $label = 'Offload Media';
 
 	/**
@@ -84,6 +88,23 @@ class media extends photopress_module {
 		register_rest_route( 'photopress/v1', '/cdn/invalidate', [
 			'methods'             => 'POST',
 			'callback'            => static function ( $request ) {
+
+				if ( 'all' === $request['scope'] ) {
+
+					// On a network, the distribution may serve other sites too.
+					if ( is_multisite() && ! current_user_can( 'manage_network_options' ) ) {
+						return new \WP_Error( 'photopress_cdn_network', __( 'On a network, only a network admin can clear everything.', 'photopress' ), [ 'status' => 403 ] );
+					}
+
+					// Clearing everything is costly for the CDN and the server
+					// that fills it again: once in ten minutes.
+					if ( get_transient( self::ALL_CLEARED ) ) {
+						return new \WP_Error( 'photopress_cdn_recent', __( 'Everything was cleared a few minutes ago. Try again in ten minutes.', 'photopress' ), [ 'status' => 429 ] );
+					}
+
+					set_transient( self::ALL_CLEARED, time(), 10 * MINUTE_IN_SECONDS );
+				}
+
 				$result = 'all' === $request['scope'] ? CdnInvalidator::invalidateAll() : CdnInvalidator::flush();
 				return is_wp_error( $result ) ? $result : CdnInvalidator::status();
 			},

@@ -693,4 +693,35 @@ final class XmpFileTest extends TestCase {
 		$this->assertArrayNotHasKey( 'Error', $after );
 		$this->assertSame( (array) ( $before['Warning'] ?? [] ), (array) ( $after['Warning'] ?? [] ), json_encode( $after ) );
 	}
+
+	/**
+	 * The license job run twice on an image: the second run finds the
+	 * packet already there and writes nothing, so the file, its date and
+	 * copies of it elsewhere are left alone, and a TIFF does not grow.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider( 'fixtureImages' )]
+	public function test_the_same_update_a_second_time_writes_nothing( string $name ): void {
+
+		$file  = $this->fixtureCopy( $name );
+		$merge = static fn( $existing ) => ( new \ReflectionMethod( \PhotoPress\modules\metadata\metadata::class, 'mergeLicenseIntoXmp' ) )
+			->invoke( null, $existing, 'https://example.test/license', 'Alice Photography', 'https://alice.example' );
+
+		$first = XmpFile::update( $file, $merge, $changed );
+
+		if ( true !== $first ) {
+			$this->markTestSkipped( "$name is not written in place: " . $first->get_error_message() );
+		}
+
+		$this->assertTrue( $changed );
+		// Dated in the past, so a write would show.
+		touch( $file, time() - 3600 );
+		clearstatcache();
+		$after_first = [ md5_file( $file ), filesize( $file ), filemtime( $file ) ];
+
+		$this->assertTrue( XmpFile::update( $file, $merge, $changed ) );
+		$this->assertFalse( $changed, 'nothing to write' );
+		clearstatcache();
+		$this->assertSame( $after_first, [ md5_file( $file ), filesize( $file ), filemtime( $file ) ] );
+	}
 }
+

@@ -192,7 +192,9 @@ class ImageSearch {
 			return $search;
 		}
 
-		$words = (array) $query->get( 'search_terms' );
+		// As WordPress's own search: nine words at most, each of a sensible
+		// length, so a long query does not become a long one for the database.
+		$words = array_slice( (array) $query->get( 'search_terms' ), 0, 9 );
 
 		if ( ! $words ) {
 			return $search;
@@ -211,6 +213,8 @@ class ImageSearch {
 				$word = substr( $word, strlen( $exclusion ) );
 			}
 
+			$word = mb_substr( $word, 0, 100 );
+
 			$like  = '%' . $wpdb->esc_like( $word ) . '%';
 			$parts = [
 				$wpdb->prepare( "{$wpdb->posts}.post_title LIKE %s", $like ),
@@ -220,8 +224,19 @@ class ImageSearch {
 			];
 
 			if ( $taxonomies ) {
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in is placeholders.
-				$parts[] = $wpdb->prepare( "EXISTS ( SELECT 1 FROM {$wpdb->term_relationships} AS photopress_tr INNER JOIN {$wpdb->term_taxonomy} AS photopress_tt ON photopress_tt.term_taxonomy_id = photopress_tr.term_taxonomy_id INNER JOIN {$wpdb->terms} AS photopress_t ON photopress_t.term_id = photopress_tt.term_id WHERE photopress_tr.object_id = {$wpdb->posts}.ID AND photopress_tt.taxonomy IN ( $in ) AND photopress_t.name LIKE %s )", ...array_merge( $taxonomies, [ $like ] ) );
+
+				// The terms the word matches, looked up once, so each post is
+				// checked by its relationships' key rather than by joining the
+				// terms again for every one.
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- $in is placeholders.
+				$tt_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT tt.term_taxonomy_id FROM {$wpdb->term_taxonomy} AS tt INNER JOIN {$wpdb->terms} AS t ON t.term_id = tt.term_id WHERE tt.taxonomy IN ( $in ) AND t.name LIKE %s LIMIT 1001", ...array_merge( $taxonomies, [ $like ] ) ) ) );
+
+				if ( count( $tt_ids ) > 1000 ) {
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in is placeholders.
+					$parts[] = $wpdb->prepare( "EXISTS ( SELECT 1 FROM {$wpdb->term_relationships} AS photopress_tr INNER JOIN {$wpdb->term_taxonomy} AS photopress_tt ON photopress_tt.term_taxonomy_id = photopress_tr.term_taxonomy_id INNER JOIN {$wpdb->terms} AS photopress_t ON photopress_t.term_id = photopress_tt.term_id WHERE photopress_tr.object_id = {$wpdb->posts}.ID AND photopress_tt.taxonomy IN ( $in ) AND photopress_t.name LIKE %s )", ...array_merge( $taxonomies, [ $like ] ) );
+				} elseif ( $tt_ids ) {
+					$parts[] = "EXISTS ( SELECT 1 FROM {$wpdb->term_relationships} AS photopress_tr WHERE photopress_tr.object_id = {$wpdb->posts}.ID AND photopress_tr.term_taxonomy_id IN ( " . implode( ', ', $tt_ids ) . ' ) )';
+				}
 			}
 
 			$clauses[] = ( $exclude ? 'NOT ' : '' ) . '(' . implode( ' OR ', $parts ) . ')';

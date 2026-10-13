@@ -110,6 +110,31 @@ class Jobs {
 			return new WP_Error( 'photopress_job_unknown', __( 'Unknown job type.' ), [ 'status' => 400 ] );
 		}
 
+		// One start of a type at a time: two at once (a double click, two
+		// admins) would each find none running and both start one.
+		$starting = self::OPTION_PREFIX . 'start_' . md5( $type );
+
+		if ( ! add_option( $starting, time(), '', false ) ) {
+
+			wp_cache_delete( $starting, 'options' );
+
+			if ( time() - (int) get_option( $starting ) < 30 ) {
+				return new WP_Error( 'photopress_job_running', __( 'A job of this type is already running.' ), [ 'status' => 409 ] );
+			}
+
+			update_option( $starting, time(), false );
+		}
+
+		try {
+			return self::startOne( $type, $args );
+		} finally {
+			delete_option( $starting );
+		}
+	}
+
+	/** start(), with no other start of the type running. */
+	protected static function startOne( $type, array $args ) {
+
 		// One of the type left without its next batch goes on, rather than
 		// holding this one back for ever.
 		self::recover();

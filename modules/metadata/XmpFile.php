@@ -62,25 +62,28 @@ class XmpFile {
 	 * Replaces the file's XMP packet with the one $merge returns for the
 	 * packet it has now ('' when it has none).
 	 *
-	 * @param string   $path  The file.
-	 * @param callable $merge function( string $existing ): string.
-	 * @return true|WP_Error True when the file was written; otherwise it is unchanged.
+	 * @param string   $path    The file.
+	 * @param callable $merge   function( string $existing ): string.
+	 * @param bool     $changed Set to whether the file was written: not when
+	 *                          it has that packet already.
+	 * @return true|WP_Error True when the file has the packet; otherwise it is unchanged.
 	 */
-	public static function update( $path, callable $merge ) {
+	public static function update( $path, callable $merge, &$changed = null ) {
 
+		$changed = false;
 		$in = Stream::open( $path );
 
 		if ( ! $in ) {
 			return self::error( 'unreadable', 'The file could not be read.' );
 		}
 
-		$result = self::write( $in, $path, $merge );
+		$result = self::write( $in, $path, $merge, $changed );
 		$in->close();
 
 		return $result;
 	}
 
-	protected static function write( Stream $in, $path, callable $merge ) {
+	protected static function write( Stream $in, $path, callable $merge, &$changed = null ) {
 
 		$format = self::format( $in );
 
@@ -95,6 +98,14 @@ class XmpFile {
 		}
 
 		$packet = (string) call_user_func( $merge, $before['packet'] );
+
+		// The packet the file has already, as when the same update runs a
+		// second time: the file, its date and copies of it elsewhere are left
+		// alone (a TIFF would otherwise grow by a packet each time).
+		if ( '' !== $packet && $packet === (string) $before['packet'] ) {
+			return true;
+		}
+
 		$pieces = $format->plan( $in, $before, $packet );
 
 		if ( is_wp_error( $pieces ) ) {
@@ -140,6 +151,8 @@ class XmpFile {
 			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 			return self::error( 'unwritable', 'The written file could not be moved into place.' );
 		}
+
+		$changed = true;
 
 		return true;
 	}

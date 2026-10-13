@@ -128,4 +128,27 @@ final class ImageTemplatesTest extends TestCase {
 			$blocks[0]['innerBlocks'][0]['innerHTML']
 		);
 	}
+
+	public function test_random_images_are_shuffled_from_ids_kept_for_ten_minutes(): void {
+
+		$kept = [];
+		$queries = 0;
+		Functions\when( 'get_transient' )->alias( static function ( $key ) use ( &$kept ) { return $kept[ $key ] ?? false; } );
+		Functions\when( 'set_transient' )->alias( static function ( $key, $value, $ttl ) use ( &$kept ) {
+			$kept[ $key ] = $value;
+			return 600 === $ttl;
+		} );
+		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+
+		$args = [ 'posts_per_page' => 3, 'orderby' => 'rand', 'post_type' => 'attachment' ];
+		$cached = ImageTemplates::RANDOM_IDS . md5( json_encode( array_merge( $args, [ 'orderby' => 'ID', 'order' => 'DESC', 'posts_per_page' => ImageTemplates::RANDOM_FROM ] ) ) );
+		$kept[ $cached ] = [ 1, 2, 3, 4, 5, 6, 7, 8 ];
+
+		$ids = ImageTemplates::randomIds( $args );
+
+		// From those kept, with no query: WP_Query would need a database.
+		$this->assertCount( 3, $ids );
+		$this->assertSame( [], array_diff( $ids, [ 1, 2, 3, 4, 5, 6, 7, 8 ] ) );
+		$this->assertCount( 3, array_unique( $ids ) );
+	}
 }
