@@ -19,7 +19,7 @@ const made = [];
 test.afterAll( () => deletePosts( made ) );
 
 const variation = ( page, name ) => page.evaluate( ( n ) => window.wp.blocks.getBlockVariations( 'core/gallery' ).find( ( v ) => v.name === n ).attributes, name );
-const panelOf = ( sidebar, title ) => sidebar.getByRole( 'button', { name: title, exact: true } ).locator( 'xpath=ancestor::*[contains(@class,"components-panel__body")][1]' );
+const panelOf = ( sidebar, title ) => sidebar.getByRole( 'button', { name: title, exact: true } ).locator( 'xpath=ancestor::*[contains(concat(" ",normalize-space(@class)," ")," components-panel__body ")][1]' );
 
 test( 'the inserter offers the PhotoPress galleries', async ( { page } ) => {
 	await openEditor( page );
@@ -27,7 +27,7 @@ test( 'the inserter offers the PhotoPress galleries', async ( { page } ) => {
 	await page.getByRole( 'searchbox' ).first().fill( 'gallery' );
 	await expect( page.getByRole( 'option', { name: 'Masonry Gallery', exact: true } ) ).toBeVisible();
 	await page.waitForTimeout( 800 );
-	await page.locator( '.block-editor-inserter__panel-content, .block-editor-inserter__main-area' ).first().screenshot( shot( 'editor-gallery-inserter-variations' ) );
+	await page.getByRole( 'listbox' ).first().screenshot( shot( 'editor-gallery-inserter-variations' ) );
 } );
 
 test( 'a gallery in a PhotoPress layout: its PhotoPress panel', async ( { page, made: fixtures } ) => {
