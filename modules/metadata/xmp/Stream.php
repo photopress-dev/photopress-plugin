@@ -42,6 +42,9 @@ class Stream {
 			return '';
 		}
 
+		// No more than the file has, whatever length the file says.
+		$length = min( $length, $this->size - $offset );
+
 		$data = '';
 
 		while ( strlen( $data ) < $length && ! feof( $this->fh ) ) {

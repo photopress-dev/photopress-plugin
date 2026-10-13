@@ -68,6 +68,10 @@ class Webp extends Format {
 					return self::error( 'unrecognised', 'The WebP has more than one XMP chunk.' );
 				}
 
+				if ( $length > self::MAX_XMP ) {
+					return self::error( 'too_large', 'The WebP XMP chunk is larger than is read.' );
+				}
+
 				$xmp = count( $blocks );
 				$block['kind'] = 'xmp';
 				$packet = $in->bytes( $pos + 8, $length );
@@ -77,7 +81,12 @@ class Webp extends Format {
 				$block['image'] = $in->bytes( $pos + 8, min( $length, 10 ) );
 			}
 
-			$blocks[] = $block;
+			// After VP8X, chunks are kept as runs, as an animation may have
+			// thousands of frames.
+			if ( ! self::append( $blocks, $block, null !== $vp8x ) ) {
+				return self::error( 'unrecognised', 'The WebP has more chunks than are read.' );
+			}
+
 			$pos += 8 + $padded;
 		}
 

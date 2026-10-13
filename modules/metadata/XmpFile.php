@@ -117,6 +117,14 @@ class XmpFile {
 		}
 
 		$written = fflush( $fh ) && $written;
+
+		// On disk before it replaces the original, so a crash straight after
+		// the rename does not leave an empty file. Plain files only: other
+		// stream wrappers (as tests use) cannot sync.
+		if ( function_exists( 'fsync' ) && 'plainfile' === ( stream_get_meta_data( $fh )['wrapper_type'] ?? '' ) ) {
+			$written = fsync( $fh ) && $written;
+		}
+
 		fclose( $fh );
 
 		$checked = $written ? self::check( $format, $in, $before, $tmp, $packet, $path ) : self::error( 'unwritable', 'The temporary file could not be written.' );

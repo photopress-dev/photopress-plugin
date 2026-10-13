@@ -465,6 +465,191 @@ final class XmpFileTest extends TestCase {
 	}
 
 	/**
+	 * zlib data that inflates to $megabytes of spaces, made a megabyte at a
+	 * time.
+	 */
+	private static function inflatesTo( int $megabytes ): string {
+
+		$z = deflate_init( ZLIB_ENCODING_DEFLATE );
+		$out = '';
+
+		for ( $i = 0; $i < $megabytes; $i++ ) {
+			$out .= deflate_add( $z, str_repeat( ' ', 1048576 ), ZLIB_NO_FLUSH );
+		}
+
+		return $out . deflate_add( $z, '', ZLIB_FINISH );
+	}
+
+	private static function box( string $type, string $payload ): string {
+
+		return pack( 'N', 8 + strlen( $payload ) ) . $type . $payload;
+	}
+
+	/**
+	 * A HEIF file with one item, XMP (ID 2), its extents [ offset, length ]
+	 * with offsets from the start of $data, which is in an mdat box at the
+	 * end.
+	 */
+	private static function heif( array $extents, string $data, string $encoding = '' ): string {
+
+		$ftyp = self::box( 'ftyp', "heic\0\0\0\0mif1heic" );
+		$pitm = self::box( 'pitm', "\0\0\0\0" . pack( 'n', 1 ) );
+		$infe = self::box( 'infe', "\2\0\0\0" . pack( 'nn', 2, 0 ) . "mimeXMP\0application/rdf+xml\0" . ( '' !== $encoding ? "$encoding\0" : '' ) );
+		$iinf = self::box( 'iinf', "\0\0\0\0" . pack( 'n', 1 ) . $infe );
+
+		// Version 1, 4-byte offsets and lengths, no base offset or index.
+		$iloc = static function ( int $at ) use ( $extents ) {
+			$out = "\1\0\0\0\x44\x00" . pack( 'nnnnn', 1, 2, 0, 0, count( $extents ) );
+			foreach ( $extents as [ $offset, $length ] ) {
+				$out .= pack( 'NN', $at + $offset, $length );
+			}
+			return self::box( 'iloc', $out );
+		};
+
+		$meta = static fn( int $at ) => self::box( 'meta', "\0\0\0\0" . $pitm . $iloc( $at ) . $iinf );
+		$at = strlen( $ftyp ) + strlen( $meta( 0 ) ) + 8;
+
+		return $ftyp . $meta( $at ) . self::box( 'mdat', $data );
+	}
+
+	public function test_a_heif_xmp_item_is_read_from_its_extents(): void {
+
+		$packet = self::packet();
+		$file = $this->tempFile( self::heif( [ [ 0, 100 ], [ 100, strlen( $packet ) - 100 ] ], $packet ), '.heic' );
+
+		$this->assertSame( $packet, XmpFile::read( $file ) );
+	}
+
+	/**
+	 * Files of a few hundred KB whose lengths, counts or compressed data
+	 * would have the reader allocate hundreds of MB or GB.
+	 *
+	 * @return array<string, array{\Closure, ?string, string}>
+	 */
+	public static function hugeClaims(): array {
+
+		$tiff = "II*\0" . pack( 'V', 8 ) . pack( 'v', 1 ) . pack( 'vvVV', 700, 7, 0x7FFFFFF0, 26 ) . pack( 'V', 0 ) . str_repeat( ' ', 100 );
+		$itxt = static fn() => substr_replace( $png = self::gdPng(), self::pngChunk( 'iTXt', "XML:com.adobe.xmp\0\1\0\0\0" . self::inflatesTo( 64 ) ), strpos( $png, 'IDAT' ) - 4, 0 );
+
+		return [
+			'a TIFF XMP tag counting 2 GB'          => [ static fn() => $tiff, null, '.tif' ],
+			'a HEIF extent of 2 GB'                 => [ static fn() => self::heif( [ [ 0, 0x7FFFFFF0 ] ], str_repeat( ' ', 100 ) ), null, '.heic' ],
+			'4000 HEIF extents of the same 64 KB'   => [ static fn() => self::heif( array_fill( 0, 4000, [ 0, 65536 ] ), str_repeat( ' ', 65536 ) ), null, '.heic' ],
+			'a deflated HEIF item of 64 MB'         => [ static fn() => self::heif( [ [ 0, strlen( $z = self::inflatesTo( 64 ) ) ] ], $z, 'deflate' ), '', '.heic' ],
+			'a PNG iTXt chunk inflating to 64 MB'   => [ $itxt, null, '.png' ],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider( 'hugeClaims' )]
+	public function test_a_size_claimed_by_the_file_is_not_allocated( \Closure $make, ?string $expected, string $suffix ): void {
+
+		$file = $this->tempFile( $make(), $suffix );
+		$this->assertLessThan( 1048576, filesize( $file ) );
+
+		$this->assertSame( $expected, $this->assertCheap( static fn() => XmpFile::read( $file ) ) );
+		$this->assertInstanceOf( \WP_Error::class, $this->assertCheap( fn() => $this->update( $file ) ) );
+		$this->assertSame( [], $this->assertCheap( static fn() => self::readXmp( $file ) ) );
+	}
+
+	public function test_a_read_is_no_longer_than_the_file(): void {
+
+		$file = $this->tempFile( 'twelve bytes' );
+		$in = \PhotoPress\modules\metadata\xmp\Stream::open( $file );
+
+		$this->assertSame( 'bytes', $this->assertCheap( static fn() => $in->bytes( 7, 0x7FFFFFF0 ) ) );
+		$in->close();
+	}
+
+	/**
+	 * Files of 5,000 empty blocks, more than MAX_BLOCKS: each was a PHP
+	 * array, so a file of a few hundred thousand used up PHP's memory.
+	 *
+	 * @return array<string, array{\Closure, string, string, bool}>
+	 */
+	public static function manyBlocks(): array {
+
+		$jpeg = static fn() => self::withSegments( self::gdJpeg(), str_repeat( "\xFF\xFE\x00\x02", 5000 ) );
+		$png = static fn() => substr_replace( $png = self::gdPng(), str_repeat( self::pngChunk( 'zzZz', '' ), 5000 ), -12, 0 );
+		$gif = static function () {
+			$gif = file_get_contents( __DIR__ . '/fixtures/images/plain.gif' );
+			$packed = ord( $gif[10] );
+			// After the screen descriptor and global color table.
+			return substr_replace( $gif, str_repeat( "\x21\xFE\x00", 5000 ), 13 + ( ( $packed & 0x80 ) ? 3 * ( 2 << ( $packed & 7 ) ) : 0 ), 0 );
+		};
+		$webp = static function () {
+			// An extended file: VP8X for the 40x30 canvas, then the image chunk.
+			$vp8x = 'VP8X' . pack( 'V', 10 ) . "\0\0\0\0" . substr( pack( 'V', 39 ), 0, 3 ) . substr( pack( 'V', 29 ), 0, 3 );
+			$webp = 'RIFF0000WEBP' . $vp8x . substr( self::gdWebp(), 12 ) . str_repeat( 'zzzz' . pack( 'V', 0 ), 5000 );
+			return substr_replace( $webp, pack( 'V', strlen( $webp ) - 8 ), 4, 4 );
+		};
+
+		return [
+			'JPEG segments before the image data are not read' => [ $jpeg, '.jpg', \PhotoPress\modules\metadata\xmp\Jpeg::class, false ],
+			'GIF extensions before the first frame are not read' => [ $gif, '.gif', \PhotoPress\modules\metadata\xmp\Gif::class, false ],
+			'PNG chunks are kept as one run'                   => [ $png, '.png', \PhotoPress\modules\metadata\xmp\Png::class, true ],
+			'WebP chunks after VP8X are kept as one run'       => [ $webp, '.webp', \PhotoPress\modules\metadata\xmp\Webp::class, true ],
+		];
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider( 'manyBlocks' )]
+	public function test_a_file_of_many_blocks_is_not_held_block_by_block( \Closure $make, string $suffix, string $format, bool $written ): void {
+
+		$contents = $make();
+		$file = $this->tempFile( $contents, $suffix );
+		$in = \PhotoPress\modules\metadata\xmp\Stream::open( $file );
+		$layout = ( new $format() )->parse( $in );
+		$in->close();
+
+		if ( ! $written ) {
+			$this->assertSame( 'photopress_xmp_unrecognised', $layout->get_error_code() );
+			$this->assertSame( 'photopress_xmp_unrecognised', $this->update( $file )->get_error_code() );
+			return;
+		}
+
+		$this->assertLessThan( 5, count( $layout['blocks'] ) );
+		$this->assertTrue( $this->update( $file ) );
+		$this->assertSame( 'https://example.test/license', self::readXmp( $file )['xmpRights:WebStatement'] );
+		$this->assertSame( substr_count( $contents, 'zzZz' ) + substr_count( $contents, 'zzzz' ), substr_count( file_get_contents( $file ), 'zzZz' ) + substr_count( file_get_contents( $file ), 'zzzz' ), 'every chunk kept' );
+	}
+
+	public function test_a_png_of_many_idat_chunks_keeps_them_all(): void {
+
+		$png = self::gdPng();
+		$idat = strpos( $png, 'IDAT' ) - 4;
+		$length = unpack( 'N', substr( $png, $idat, 4 ) )[1];
+		$data = substr( $png, $idat + 8, $length );
+
+		// The image data split into 5,000 chunks, as libpng writes large
+		// images: some of a byte, the rest empty.
+		$chunks = '';
+		for ( $i = 0; $i < 5000; $i++ ) {
+			$chunks .= self::pngChunk( 'IDAT', $i < strlen( $data ) ? $data[ $i ] : '' );
+		}
+		$chunks .= self::pngChunk( 'IDAT', (string) substr( $data, 5000 ) );
+
+		$png = substr( $png, 0, $idat ) . $chunks . substr( $png, $idat + 12 + $length );
+		$file = $this->tempFile( $png, '.png' );
+
+		$this->assertTrue( $this->update( $file ) );
+
+		$after = file_get_contents( $file );
+		$new = 12 + unpack( 'N', substr( $after, 33, 4 ) )[1];
+		$this->assertSame( $png, substr( $after, 0, 33 ) . substr( $after, 33 + $new ) );
+		$this->assertNotFalse( imagecreatefromstring( $after ) );
+	}
+
+	public function test_jpeg_fill_bytes_are_skipped_a_buffer_at_a_time(): void {
+
+		$jpeg = self::gdJpeg();
+		$jfif = 4 + unpack( 'n', substr( $jpeg, 4, 2 ) )[1];
+
+		// 8 MB of fill bytes took about 25 seconds one at a time.
+		$file = $this->tempFile( substr( $jpeg, 0, $jfif ) . str_repeat( "\xFF", 8 << 20 ) . substr( $jpeg, $jfif ) );
+
+		$this->assertSame( '', $this->assertCheap( static fn() => XmpFile::read( $file ), 32, 1.0 ) );
+	}
+
+	/**
 	 * ExifTool, when installed (CI installs it), as a reader written by
 	 * someone else: it must find the license, and find nothing wrong with the
 	 * file that it did not find with the original.

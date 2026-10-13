@@ -55,6 +55,10 @@ class Tiff extends Format {
 				return self::error( 'unrecognised', 'The TIFF has more than one XMP tag, or one of an unexpected type.' );
 			}
 
+			if ( $fields['count'] > self::MAX_XMP ) {
+				return self::error( 'too_large', 'The TIFF XMP packet is larger than is read.' );
+			}
+
 			$xmp = [ 'offset' => $fields['count'] > 4 ? $fields['value'] : $ifd + 2 + 12 * $i + 8, 'length' => $fields['count'], 'inline' => $fields['count'] <= 4 ];
 			$packet = $xmp['inline'] ? substr( $entry, 8, $fields['count'] ) : $in->bytes( $xmp['offset'], $xmp['length'] );
 

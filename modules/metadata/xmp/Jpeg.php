@@ -49,16 +49,21 @@ class Jpeg extends Format {
 				return self::error( 'unrecognised', 'A JPEG segment does not start with a marker.' );
 			}
 
-			// Markers may be preceded by 0xFF fill bytes, kept as part of the segment.
+			// Markers may be preceded by 0xFF fill bytes, kept as part of the
+			// segment; skipped a buffer at a time. The marker and its length
+			// are read with them.
 			do {
-				$type = $in->bytes( $pos++, 1 );
-			} while ( "\xFF" === $type );
+				$buf = $in->bytes( $pos, 4096 );
+				$fill = strspn( $buf, "\xFF" );
+				$pos += $fill;
+			} while ( '' !== $buf && strlen( $buf ) === $fill );
 
-			if ( '' === $type ) {
+			if ( '' === $buf ) {
 				return self::error( 'unrecognised', 'The JPEG ends before its image data.' );
 			}
 
-			$type = ord( $type );
+			$type = ord( $buf[ $fill ] );
+			$pos++;
 
 			// Start of scan: the image data, to the end of the file.
 			if ( 0xDA === $type ) {
@@ -71,7 +76,8 @@ class Jpeg extends Format {
 				return self::error( 'unrecognised', sprintf( 'Unexpected JPEG marker 0x%02X before the image data.', $type ) );
 			}
 
-			$length = $in->bytes( $pos, 2 );
+			$length = substr( $buf, $fill + 1, 2 );
+			$length = strlen( $length ) === 2 ? $length : $in->bytes( $pos, 2 );
 			$length = strlen( $length ) === 2 ? unpack( 'n', $length )[1] : 0;
 
 			if ( $length < 2 || $pos + $length > $in->size ) {
@@ -98,7 +104,10 @@ class Jpeg extends Format {
 				}
 			}
 
-			$blocks[] = $block;
+			if ( ! self::append( $blocks, $block ) ) {
+				return self::error( 'unrecognised', 'The JPEG has more segments before its image data than are read.' );
+			}
+
 			$pos += $length;
 		}
 

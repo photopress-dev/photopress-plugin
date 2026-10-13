@@ -16,6 +16,16 @@ use WP_Error;
 abstract class Format {
 
 	/**
+	 * Largest XMP packet read from a file.
+	 */
+	const MAX_XMP = 16777216;
+
+	/**
+	 * Most blocks (segments, chunks) of a file kept in its structure.
+	 */
+	const MAX_BLOCKS = 4096;
+
+	/**
 	 * Whether the file's first 16 bytes are this format's.
 	 */
 	abstract public function matches( $magic );
@@ -43,6 +53,29 @@ abstract class Format {
 	protected static function error( $code, $message ) {
 
 		return new WP_Error( 'photopress_xmp_' . $code, $message );
+	}
+
+	/**
+	 * Adds $block to the list; with $merge, a 'keep' block straight after
+	 * another 'keep' block extends that one instead. False when the list
+	 * already has MAX_BLOCKS.
+	 */
+	protected static function append( array &$blocks, array $block, $merge = false ) {
+
+		$last = count( $blocks ) - 1;
+
+		if ( $merge && $last >= 0 && 'keep' === $block['kind'] && 'keep' === $blocks[ $last ]['kind'] && $blocks[ $last ]['offset'] + $blocks[ $last ]['length'] === $block['offset'] ) {
+			$blocks[ $last ]['length'] += $block['length'];
+			return true;
+		}
+
+		if ( count( $blocks ) >= self::MAX_BLOCKS ) {
+			return false;
+		}
+
+		$blocks[] = $block;
+
+		return true;
 	}
 
 	/**

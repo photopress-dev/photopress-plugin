@@ -211,6 +211,31 @@ final class XmpReaderTest extends TestCase {
 		];
 	}
 
+	public function test_a_packet_not_closed_within_16_mb_is_given_up(): void {
+
+		// 48 MB: before, all of it was held and searched again for each
+		// 64 KB read.
+		$file = $this->tempFile( '<x:xmpmeta xmlns:x="adobe:ns:meta/">', '.bin' );
+		$fh = fopen( $file, 'ab' );
+		for ( $i = 0; $i < 48; $i++ ) {
+			fwrite( $fh, str_repeat( ' ', 1048576 ) );
+		}
+		fclose( $fh );
+
+		$this->assertSame( [], $this->assertCheap( static fn() => ( new XmpReader() )->extractXmp( $file ) ) );
+	}
+
+	public function test_a_closing_tag_split_across_reads_is_found(): void {
+
+		$open = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Make="Phase One"/></rdf:RDF>';
+		$close = '</x:xmpmeta>';
+
+		// Three reads in, the closing tag starting five bytes before a 64 KB boundary.
+		$contents = 'XX' . $open . str_repeat( ' ', 3 * 65536 - 5 - 2 - strlen( $open ) ) . $close;
+
+		$this->assertSame( 'Phase One', $this->read( $contents, '.bin' )->getXmp( 'tiff:Make' ) );
+	}
+
 	public function test_unreadable_or_invalid_input_gives_no_properties(): void {
 
 		$missing = new XmpReader();
