@@ -4,6 +4,8 @@ namespace PhotoPress\modules\media;
 
 defined( 'ABSPATH' ) || exit;
 
+use PhotoPress\jobs\Jobs;
+use PhotoPress\jobs\Scheduler;
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -67,10 +69,38 @@ class MediaRest {
 	 */
 	const REPLACE_SECONDS = 600;
 
+	/**
+	 * Action Scheduler's check on a replace once REPLACE_SECONDS have passed:
+	 * one that died is undone without waiting for the next replace.
+	 */
+	const SETTLE_HOOK = 'photopress_replace_settle';
+
 	public static function addHooks() {
 
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
 		add_filter( 'rest_namespace_index', [ self::class, 'addVersions' ], 10, 2 );
+		add_action( self::SETTLE_HOOK, [ self::class, 'settle' ] );
+	}
+
+	/**
+	 * SETTLE_HOOK: a replace of the image that has not ended by now died,
+	 * and is undone (or finished, if its files were kept); one still under
+	 * way, as far as anyone can tell, is looked at again later. Nothing,
+	 * once the replace has ended.
+	 */
+	public static function settle( $id ) {
+
+		if ( true !== self::endPending( (int) $id ) ) {
+			self::scheduleSettle( (int) $id );
+		}
+	}
+
+	/** A SETTLE_HOOK check on the image's replace, once REPLACE_SECONDS have passed. */
+	protected static function scheduleSettle( $id ) {
+
+		if ( function_exists( 'as_schedule_single_action' ) && Scheduler::ensure() && ! Scheduler::pending( self::SETTLE_HOOK, [ $id ] ) ) {
+			as_schedule_single_action( time() + self::REPLACE_SECONDS + 60, self::SETTLE_HOOK, [ $id ], Jobs::GROUP );
+		}
 	}
 
 	/**
@@ -475,13 +505,21 @@ class MediaRest {
 			return self::underWay();
 		}
 
+		// Should this request die before the end, the image is put back.
+		self::scheduleSettle( (int) $id );
+
 		foreach ( $backups as $path => $backup ) {
 
-			@unlink( $backup ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			// A backup left by a replace that died; none, usually.
+			if ( file_exists( $backup ) ) {
+				@unlink( $backup ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
 
 			if ( ! ( $path === $target && @link( $path, $backup ) ) && ! @copy( $path, $backup ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
 				foreach ( $backups as $copy ) {
-					@unlink( $copy ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+					if ( file_exists( $copy ) ) {
+						@unlink( $copy ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+					}
 				}
 				wp_delete_file( $saved );
 				delete_post_meta( $id, self::RESTORE_META_KEY );

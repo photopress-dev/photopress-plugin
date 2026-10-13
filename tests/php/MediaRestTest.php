@@ -13,6 +13,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
  */
 final class MediaRestTest extends TestCase {
 
+	/** The checks on replaces scheduled with Action Scheduler: their arguments. */
+	private array $settles = [];
+
+
 	protected function setUp(): void {
 
 		parent::setUp();
@@ -437,6 +441,14 @@ final class MediaRestTest extends TestCase {
 		}
 
 		Functions\stubs( [
+			// Action Scheduler, with work pending: each check on a replace scheduled is kept.
+			'get_option'                    => 'pending',
+			'as_has_scheduled_action'       => false,
+			'as_get_scheduled_actions'      => fn( $query ) => array_keys( array_filter( $this->settles, static fn( $args ) => $args === ( $query['args'] ?? $args ) ) ),
+			'as_schedule_single_action'     => function ( $when, $hook, $args ) {
+				$this->settles[] = $args;
+				return 1;
+			},
 			'wp_get_upload_dir'             => [ 'basedir' => $this->uploads ],
 			'path_join'                     => static fn( $base, $path ) => str_starts_with( $path, '/' ) ? $path : rtrim( $base, '/' ) . '/' . $path,
 			'is_wp_error'                   => static fn( $thing ) => $thing instanceof \WP_Error,
@@ -675,6 +687,33 @@ final class MediaRestTest extends TestCase {
 			$own = [ "$dir/photo-scaled.jpg", "$dir/photo.jpg", "$dir/photo-300x200.jpg", "$dir/photo-1024x683.jpg" ];
 			$this->assertTrue( $install->invoke( null, 12, "$dir/photo-photopress-replacing.jpg", "$dir/photo.jpg", 'image/jpeg', $this->store['file'], $this->store['meta'], $own ) );
 			$this->assertSame( self::REPLACED, $this->state( $dir ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_a_replace_that_died_is_undone_by_its_scheduled_check_without_another(): void {
+
+		$dir = $this->storedImage();
+		$before = $this->state( $dir );
+		unset( $before['files']['photo-photopress-replacing.jpg'] );
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, [], static function () {
+			throw new \RuntimeException( 'died' );
+		} ) );
+
+		try {
+			// The check is scheduled as the replace begins.
+			$this->install( $dir );
+			$this->assertSame( [ [ 12 ] ], $this->settles );
+
+			// As if the request had died: the record left, and its time past.
+			$this->store[ MediaRest::RESTORE_META_KEY ] = [ 'time' => time() - MediaRest::REPLACE_SECONDS - 1, 'file' => $before['store']['file'] ?? $this->store['file'], 'meta' => $this->store['meta'], 'mime' => $this->store['mime'], 'saved' => "$dir/photo-photopress-replacing.jpg", 'backups' => [] ];
+			MediaRest::settle( 12 );
+			$this->assertArrayNotHasKey( MediaRest::RESTORE_META_KEY, $this->store );
+
+			// Run again: nothing left to do, nothing scheduled.
+			MediaRest::settle( 12 );
+			$this->assertSame( [ [ 12 ] ], $this->settles );
 		} finally {
 			$this->removeUploads();
 		}

@@ -480,7 +480,21 @@ class XmpReader {
 	
 	function readExif( $file ) {
 		
-		$exif = @exif_read_data( $file );
+		// Exif is read from JPEG and TIFF files only. exif_read_data() warns
+		// on any other, and on a JPEG whose first APP1 is XMP; an error
+		// handler of our own takes those, which error logs and debuggers
+		// such as Query Monitor record even when silenced with @.
+		$head = (string) @file_get_contents( $file, false, null, 0, 4 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
+		$exif = false;
+
+		if ( str_starts_with( $head, "\xFF\xD8" ) || in_array( $head, [ "II*\0", "MM\0*" ], true ) ) {
+			set_error_handler( static fn() => true ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
+			try {
+				$exif = exif_read_data( $file );
+			} finally {
+				restore_error_handler();
+			}
+		}
 		$exif2 = array();
 	
 		if ($exif) {
