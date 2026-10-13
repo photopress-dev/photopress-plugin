@@ -131,7 +131,14 @@ jobs:
         sudo varnishd -a :80 -f /etc/varnish/default.vcl -s malloc,64m -n /tmp/varnish
         curl -sf -o /dev/null -w 'Home page: %{http_code}, through %header{via}\n' "$PP_E2E_URL/"
     - name: Playwright
-      run: npm run test:e2e
+      run: npx playwright test --config tests/e2e/playwright.config.js editor-wiki-shots
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: wiki-shots
+        path: tests/e2e/.results/wiki
+        include-hidden-files: true
+        retention-days: 3
     - name: Results
       if: failure()
       run: cp /tmp/php-server.log "$PP_E2E_WP_PATH/wp-content/debug.log" tests/e2e/.results/ 2>/dev/null || true
