@@ -28,6 +28,9 @@ use WP_Error;
  *   ] );
  *
  * Items are scalars (IDs) in a stable order; the cursor is the last one done.
+ * The item in hand is saved in the job before it is processed, so one that
+ * kills its batch (out of memory or time, which no catch sees) is recorded
+ * as failed and skipped by the next batch rather than tried for ever.
  *
  * A heavy job (image processing) can also give:
  *
@@ -65,6 +68,11 @@ class Jobs {
 	 * A paced job waiting for a busy server checks again this much later.
 	 */
 	const BUSY_WAIT_SECONDS = 60;
+
+	/**
+	 * Where busy() reads the memory available; another file in tests.
+	 */
+	public static $meminfo = '/proc/meminfo';
 
 	protected static $types = [];
 
@@ -123,6 +131,8 @@ class Jobs {
 			'failed'   => 0,
 			'errors'   => [],
 			'cursor'   => null,
+			// The item a batch is processing, until it is done.
+			'current'  => null,
 			'status'   => 'queued',
 			'created'  => time(),
 			'updated'  => time(),
@@ -256,6 +266,16 @@ class Jobs {
 		$job['status'] = 'running';
 		$job['waiting'] = '';
 
+		// An item still in hand: the batch processing it died, as this one
+		// has its lock.
+		if ( null !== ( $job['current'] ?? null ) ) {
+			self::recordFailure( $job, $job['current'], __( 'This item stopped its batch (out of memory or time); skipped.' ) );
+			$job['cursor'] = $job['current'];
+			$job['current'] = null;
+			$job['updated'] = time();
+			self::save( $job );
+		}
+
 		/**
 		 * A batch of a job starting, in this request: its items are processed
 		 * next, until photopress_job_batch_ended. As the page cache holds
@@ -279,6 +299,9 @@ class Jobs {
 				return true;
 			}
 
+			$job['current'] = $item;
+			self::save( $job );
+
 			try {
 				$result = call_user_func( $type['process'], $item, $job['args'] );
 			} catch ( \Throwable $e ) {
@@ -286,14 +309,13 @@ class Jobs {
 			}
 
 			if ( is_wp_error( $result ) ) {
-				$job['failed']++;
-				$job['errors'][] = [ 'item' => $item, 'message' => $result->get_error_message() ];
-				$job['errors'] = array_slice( $job['errors'], -self::MAX_ERRORS );
+				self::recordFailure( $job, $item, $result->get_error_message() );
 			} else {
 				$job['done']++;
 			}
 
 			$job['cursor'] = $item;
+			$job['current'] = null;
 			$job['updated'] = time();
 			self::save( $job );
 			// Still at work: the lock is not taken over while items take long.
@@ -348,11 +370,30 @@ class Jobs {
 	}
 
 	/**
-	 * Whether the server is busy: its load average over the last minute is
-	 * above 70% of its processors (filterable as photopress_job_max_load).
-	 * Unknown, as on Windows, counts as not busy.
+	 * An item that failed: counted, and its message kept with the most
+	 * recent ones.
+	 */
+	protected static function recordFailure( array &$job, $item, $message ) {
+
+		$job['failed']++;
+		$job['errors'][] = [ 'item' => $item, 'message' => $message ];
+		$job['errors'] = array_slice( $job['errors'], -self::MAX_ERRORS );
+	}
+
+	/**
+	 * Whether the server is busy: less memory available than 300 MB
+	 * (filterable as photopress_job_min_memory, in bytes), or its load
+	 * average over the last minute above 70% of its processors (filterable
+	 * as photopress_job_max_load). Unknown, as on Windows, counts as not
+	 * busy.
 	 */
 	public static function busy() {
+
+		$available = self::memoryAvailable();
+
+		if ( null !== $available && $available < (int) apply_filters( 'photopress_job_min_memory', 300 * 1048576 ) ) {
+			return true;
+		}
 
 		$load = function_exists( 'sys_getloadavg' ) ? sys_getloadavg() : false;
 
@@ -363,6 +404,17 @@ class Jobs {
 		$max = (float) apply_filters( 'photopress_job_max_load', 0.7 * self::processors() );
 
 		return (float) $load[0] > $max;
+	}
+
+	/**
+	 * The memory available in bytes, MemAvailable in /proc/meminfo; null
+	 * where there is none.
+	 */
+	protected static function memoryAvailable() {
+
+		$info = @file_get_contents( self::$meminfo ); // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
+
+		return $info && preg_match( '/^MemAvailable:\s*(\d+)\s*kB/mi', $info, $m ) ? 1024 * (int) $m[1] : null;
 	}
 
 	/**
