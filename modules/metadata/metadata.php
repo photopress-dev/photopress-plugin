@@ -24,6 +24,19 @@ class metadata extends photopress_module {
 	private $licensed = [];
 	
 	public $label = 'Metadata'; 
+
+	/**
+	 * Why the license could not be written into an image's file, on upload
+	 * or by the license job: message and time. Deleted once it is written.
+	 */
+	const LICENSE_ERROR_META = '_photopress_license_error';
+
+	/**
+	 * What embedLicense() made of this request's upload, for the image made
+	 * from it afterwards: the file it is moved to (file), and why the
+	 * license is not in it (error), null when it is.
+	 */
+	private static $licenseResult = null;
 	
 	public function definePublicHooks() {
 		
@@ -88,9 +101,15 @@ class metadata extends photopress_module {
 		if ( self::licensingEnabled() ) {
 			
 			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1, 4 );
+			// whether it was, on the image once it exists
+			add_action( 'add_attachment', [ self::class, 'licenseOnUpload' ] );
+			add_action( 'photopress_attachment_file_replaced', [ self::class, 'licenseOnReplace' ] );
 			// the license JSON-LD of the images in image blocks and galleries
 			add_filter( 'render_block', [ $this, 'addLicensingToContent' ], 11, 2 );
 		}
+		
+		// an image whose license could not be written, in the media library
+		add_filter( 'attachment_fields_to_edit', [ self::class, 'licenseErrorField' ], 10, 2 );
 		
 		// the license JSON-LD of the images an image page, search or archive shows
 		add_action( 'wp_footer', [ $this, 'printLicensingSchemaForPage' ] );
@@ -1662,6 +1681,8 @@ class metadata extends photopress_module {
 			wp_update_attachment_metadata( $id, wp_get_attachment_metadata( $id ) );
 		}
 
+		self::recordLicense( $id, $failed ? implode( ' ', $failed ) : null );
+
 		return $failed ? new \WP_Error( 'photopress_license_not_written', implode( ' ', $failed ) ) : true;
 	}
 
@@ -1707,6 +1728,8 @@ class metadata extends photopress_module {
 		$path  = isset( $file['tmp_name'] ) ? $file['tmp_name'] : null;
 		$merge = self::licenseMerge();
 
+		self::$licenseResult = null;
+
 		// Nothing configured, nothing to do. Raster images only: the Imagick
 		// fallback below would re-encode anything else it can read, turning a
 		// PDF or an SVG into pixels.
@@ -1724,6 +1747,7 @@ class metadata extends photopress_module {
 		$written = XmpFile::update( $path, $merge );
 
 		if ( true === $written ) {
+			self::$licenseResult = [ 'file' => $newfile, 'error' => null ];
 			return $move;
 		}
 
@@ -1732,6 +1756,7 @@ class metadata extends photopress_module {
 		if ( 'photopress_xmp_unwritable' === $written->get_error_code() ) {
 
 			photopress_util::debug( 'License not embedded: ' . $written->get_error_message() );
+			self::$licenseResult = [ 'file' => $newfile, 'error' => $written->get_error_message() ];
 
 			return $move;
 		}
@@ -1743,6 +1768,7 @@ class metadata extends photopress_module {
 		if ( ! class_exists( 'Imagick' ) ) {
 
 			photopress_util::debug( 'License not embedded: ' . $written->get_error_message() . ' Imagick is unavailable.' );
+			self::$licenseResult = [ 'file' => $newfile, 'error' => $written->get_error_message() . ' ' . __( 'Imagick, which could write it otherwise, is not installed.' ) ];
 
 			return $move;
 		}
@@ -1766,10 +1792,13 @@ class metadata extends photopress_module {
 				photopress_util::debug( 'Could not embed license meta-data: ' . $replaced->get_error_message() );
 			}
 
+			self::$licenseResult = [ 'file' => $newfile, 'error' => true === $replaced ? null : $replaced->get_error_message() ];
+
 		} catch ( \Exception $e ) {
 
 			// Never let a metadata problem block the upload itself.
 			photopress_util::debug( 'Could not embed license meta-data: ' . $e->getMessage() );
+			self::$licenseResult = [ 'file' => $newfile, 'error' => $e->getMessage() ];
 		}
 
 		/*
@@ -1779,6 +1808,72 @@ class metadata extends photopress_module {
 		 * second time. Normally $move is null and the two are identical.
 		 */
 		return $move;
+	}
+
+	/**
+	 * add_attachment: what embedLicense() made of the upload, recorded on the
+	 * image made from it (recordLicense()).
+	 */
+	public static function licenseOnUpload( $id ) {
+
+		if ( self::$licenseResult && get_attached_file( $id, true ) === self::$licenseResult['file'] ) {
+			self::recordLicense( $id, self::$licenseResult['error'] );
+			self::$licenseResult = null;
+		}
+	}
+
+	/**
+	 * photopress_attachment_file_replaced: what embedLicense() made of the
+	 * new file, the one upload of a replace, recorded on the image.
+	 */
+	public static function licenseOnReplace( $id ) {
+
+		if ( self::$licenseResult ) {
+			self::recordLicense( $id, self::$licenseResult['error'] );
+			self::$licenseResult = null;
+		}
+	}
+
+	/**
+	 * Records why an image's license could not be written into its file
+	 * (LICENSE_ERROR_META), or with a null $error that it was, deleting
+	 * what was recorded before.
+	 */
+	public static function recordLicense( $id, $error ) {
+
+		if ( null === $error ) {
+			delete_post_meta( $id, self::LICENSE_ERROR_META );
+			return;
+		}
+
+		update_post_meta( $id, self::LICENSE_ERROR_META, [ 'message' => (string) $error, 'time' => time() ] );
+	}
+
+	/**
+	 * attachment_fields_to_edit: on an image whose license could not be
+	 * written into its file, a notice saying so and why, in the media
+	 * library's attachment details and on its edit screen.
+	 */
+	public static function licenseErrorField( $fields, $post ) {
+
+		$error = get_post_meta( $post->ID, self::LICENSE_ERROR_META, true );
+
+		if ( ! is_array( $error ) || empty( $error['message'] ) ) {
+			return $fields;
+		}
+
+		$fields['photopress_license_error'] = [
+			'label' => __( 'License' ),
+			'input' => 'html',
+			'html'  => '<p class="description" style="color:#b32d2e">' . esc_html( sprintf(
+				/* translators: 1: date, 2: why */
+				__( 'The license could not be written into this image\'s file (%1$s): %2$s Run Reprocess licensing metadata to try again.' ),
+				wp_date( get_option( 'date_format' ), (int) ( $error['time'] ?? 0 ) ),
+				$error['message']
+			) ) . '</p>',
+		];
+
+		return $fields;
 	}
 
 	/**
