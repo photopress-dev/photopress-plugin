@@ -53,22 +53,48 @@ const urlsOf = ( id ) => JSON.parse( lastLine( wp( 'eval', `
 	] );
 ` ) ) );
 
-test( 'both switches are on by default; attachment pages off send an image\'s page and links to its file', async ( { page, made } ) => {
+/**
+ * WordPress's own Attachment pages setting as stored, which PhotoPress
+ * leaves alone, or null when it was never set.
+ */
+const wordpressSetting = () => JSON.parse( lastLine( wp( 'eval', `global $wpdb; echo wp_json_encode( $wpdb->get_var( "SELECT option_value FROM {$wpdb->options} WHERE option_name = 'wp_attachment_pages_enabled'" ) );` ) ) );
+const setWordPressSetting = ( value ) => wp( 'eval', null === value ? `delete_option( 'wp_attachment_pages_enabled' );` : `update_option( 'wp_attachment_pages_enabled', '${ value }' );` );
+
+test( 'until saved, Attachment pages follow WordPress\'s own setting; image taxonomy pages are on; attachment pages off send an image\'s page and links to its file', async ( { page, made } ) => {
 	defaults();
+	const stored = wordpressSetting();
 	const id = made.images[ 0 ];
-	const on = urlsOf( id );
-	expect( on.link ).not.toBe( on.file );
-	expect( lastLine( wp( 'eval', `echo get_option( 'wp_attachment_pages_enabled' );` ) ) ).toBe( '1' );
 
-	await page.goto( URL );
-	await expect( page.getByRole( 'tab', { name: 'Pages & Search', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true', { timeout: 30000 } );
-	await expect( featureSwitch( page, 'Attachment pages' ) ).toBeChecked();
-	await expect( featureSwitch( page, 'Image taxonomy pages' ) ).toBeChecked();
+	try {
+		// Installed since WordPress 6.4: off, and links go to the file.
+		setWordPressSetting( '0' );
+		const unsaved = urlsOf( id );
+		expect( unsaved.link ).toBe( unsaved.file );
+		await page.goto( URL );
+		await expect( page.getByRole( 'tab', { name: 'Pages & Search', exact: true } ) ).toHaveAttribute( 'aria-selected', 'true', { timeout: 30000 } );
+		await expect( featureSwitch( page, 'Attachment pages' ) ).not.toBeChecked();
+		await expect( featureSwitch( page, 'Image taxonomy pages' ) ).toBeChecked();
 
-	if ( process.env.PP_E2E_SHOTS ) {
-		await page.locator( '.photopress-options-container .settings' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/search-settings.png` } );
+		// Older sites: on.
+		setWordPressSetting( '1' );
+		const on = urlsOf( id );
+		expect( on.link ).not.toBe( on.file );
+		expect( lastLine( wp( 'eval', `echo get_option( 'wp_attachment_pages_enabled' );` ) ) ).toBe( '1' );
+		await page.goto( URL );
+		await expect( featureSwitch( page, 'Attachment pages' ) ).toBeChecked( { timeout: 30000 } );
+
+		if ( process.env.PP_E2E_SHOTS ) {
+			await page.locator( '.photopress-options-container .settings' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/search-settings.png` } );
+		}
+
+		await attachmentPagesTurnedOffAndOn( page, id, on );
+	} finally {
+		setWordPressSetting( stored );
 	}
+} );
 
+/** Saved off, then on again: WordPress's setting follows the switch. */
+async function attachmentPagesTurnedOffAndOn( page, id, on ) {
 	await featureSwitch( page, 'Attachment pages' ).click();
 	await expect.poll( () => settings()?.attachment_pages, { timeout: 15000 } ).toBe( false );
 	expect( settings().taxonomy_pages ).not.toBe( false );
@@ -86,10 +112,11 @@ test( 'both switches are on by default; attachment pages off send an image\'s pa
 	const back = await page.goto( on.page );
 	expect( back.status() ).toBe( 200 );
 	expect( page.url() ).not.toBe( on.file );
-} );
+}
 
 test( 'image taxonomy pages off: no keyword archive, terms shown unlinked, and the Metadata tab shows none', async ( { page, made } ) => {
-	defaults();
+	// Image pages, whatever WordPress's own setting is: the terms are on them.
+	setKeys( { attachment_pages: true, taxonomy_pages: null } );
 	const { page: imagePage, keyword, archive } = urlsOf( made.images[ 0 ] );
 	test.skip( ! archive, 'The test image has no keyword.' );
 	expect( ( await page.goto( archive ) ).status() ).toBe( 200 );

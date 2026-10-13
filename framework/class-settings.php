@@ -322,6 +322,21 @@ class photopress_settingsPage {
 			];
 			
 			register_setting( $this->getOptionGroupName(), $this->getOptionKey(), $args );
+
+			// Its schema allows only its fields, and WordPress returns nothing
+			// at all for an option with any other key.
+			add_filter( 'option_' . $this->getOptionKey(), [ $this, 'withoutRemovedKeys' ] );
+	}
+
+	/**
+	 * option_{key}: the stored value without keys that are no longer fields,
+	 * such as a setting a later version removed. With one, the settings
+	 * REST endpoint returned null for the whole option, and the tab, showing
+	 * its defaults, saved them over the site's settings.
+	 */
+	public function withoutRemovedKeys( $value ) {
+
+		return is_array( $value ) && $this->fields ? array_intersect_key( $value, $this->fields ) : $value;
 	}
 	
 	public function validateAndSanitize( $options ) {

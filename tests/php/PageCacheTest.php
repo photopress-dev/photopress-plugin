@@ -43,7 +43,8 @@ final class PageCacheTest extends TestCase {
 
 		Functions\stubs( [
 			'get_option'            => static function ( $name, $default = false ) use ( &$saved ) {
-				return 'photopress_core_search' === $name ? $saved : $default;
+				// WordPress's own Attachment pages on, as on a site older than 6.4.
+				return [ 'photopress_core_search' => $saved, 'wp_attachment_pages_enabled' => '1' ][ $name ] ?? $default;
 			},
 			'get_object_taxonomies' => [ 'photos_keywords', 'pp_client' ],
 			'get_taxonomy'          => static fn( $name ) => (object) [ 'object_type' => [ 'attachment' ], 'public' => 'pp_client' !== $name ],

@@ -136,4 +136,13 @@ final class SettingsTest extends TestCase {
 
 		$this->assertSame( [ 'enable' => true ], $this->page()->sanitizeOptions( 'garbage' ) );
 	}
+
+	public function test_a_stored_key_that_is_no_longer_a_field_is_left_out_when_read(): void {
+
+		// stale_seconds, as 1.9.0 saved it, before it was removed.
+		$stored = [ 'enable' => false, 'thumbnailHeight' => 150, 'stale_seconds' => 3600 ];
+
+		$this->assertSame( [ 'enable' => false, 'thumbnailHeight' => 150 ], $this->page()->withoutRemovedKeys( $stored ) );
+		$this->assertFalse( $this->page()->withoutRemovedKeys( false ), 'nothing stored' );
+	}
 }
