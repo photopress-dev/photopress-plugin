@@ -1,6 +1,9 @@
 <?php 
 
 namespace PhotoPress\modules\metadata;
+
+defined( 'ABSPATH' ) || exit;
+
 use pp_api;
 	
 class XmpReader {

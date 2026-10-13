@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 class pp_taxonomy_meta extends pp_meta {
 	
 	public function load() {

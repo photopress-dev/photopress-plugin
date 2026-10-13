@@ -2,6 +2,8 @@
 
 namespace PhotoPress\jobs;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Action Scheduler, which runs PhotoPress's background work (Jobs, and the
  * CDN's invalidations and deletions), loaded on the requests that need it

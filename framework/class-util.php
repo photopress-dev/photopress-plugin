@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 class photopress_util {
 
 	public static function getTaxonomies( $args ) {
@@ -10,11 +12,6 @@ class photopress_util {
 	public static function getPostTypes( $args, $type = 'names', $operator = 'and') {
 		
 		return get_post_types( $args, $type, $operator );
-	}
-	
-	public static function getRemoteUrl( $url ) {
-		
-		return wp_remote_get ( urlencode ( $url ) );
 	}
 	
 	/**

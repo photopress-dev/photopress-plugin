@@ -1,6 +1,9 @@
 <?php
 
 namespace PhotoPress\modules\metadata;
+
+defined( 'ABSPATH' ) || exit;
+
 use photopress_module;
 use pp_api;
 use PhotoPress\jobs\ImageQuery;
@@ -550,6 +553,17 @@ class metadata extends photopress_module {
 
 		while ( $p->next_tag( 'img' ) ) {
 
+			// Those the post already has, kept but made safe: the slideshow
+			// shows them as HTML, and post content can carry any data-*.
+			foreach ( self::SLIDESHOW_ATTRIBUTES as $name => $kind ) {
+
+				$value = $p->get_attribute( $name );
+
+				if ( is_string( $value ) ) {
+					$p->set_attribute( $name, self::safeAttribute( $value, $kind ) );
+				}
+			}
+
 			$id = self::attachmentIdOf( $p );
 
 			if ( ! $id || empty( $attributes_by_id[ $id ] ) ) {
@@ -566,6 +580,33 @@ class metadata extends photopress_module {
 		}
 
 		return $p->get_updated_html();
+	}
+
+	/** The data-* attributes the slideshow reads, and what each holds. */
+	const SLIDESHOW_ATTRIBUTES = [
+		'data-caption'           => 'html',
+		'data-image-title'       => 'html',
+		'data-image-description' => 'html',
+		'data-orig-file'         => 'url',
+		'data-attachment-url'    => 'url',
+		'data-aspectratio'       => 'number',
+	];
+
+	/**
+	 * An attribute's value as the slideshow may use it: HTML that post
+	 * content may hold, a web address, or a number.
+	 */
+	public static function safeAttribute( $value, $kind ) {
+
+		if ( 'url' === $kind ) {
+			return (string) esc_url_raw( $value, [ 'http', 'https' ] );
+		}
+
+		if ( 'number' === $kind ) {
+			return is_numeric( $value ) ? (string) (float) $value : '';
+		}
+
+		return wp_kses_post( $value );
 	}
 
 	/**
@@ -752,7 +793,7 @@ class metadata extends photopress_module {
 		$licensing_schema = $this->generateLicensingSchema( $attachment_ids );
 		
 		$content = "\n";
-		$content .= sprintf('<script type="application/ld+json">%s</script>', json_encode( $licensing_schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) );
+		$content .= sprintf('<script type="application/ld+json">%s</script>', wp_json_encode( $licensing_schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG ) );
 		
 		return $content;
 	}

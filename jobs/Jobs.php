@@ -2,6 +2,8 @@
 
 namespace PhotoPress\jobs;
 
+defined( 'ABSPATH' ) || exit;
+
 use WP_Error;
 
 /**

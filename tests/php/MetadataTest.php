@@ -212,6 +212,8 @@ final class MetadataTest extends TestCase {
 			'wpautop'                     => static fn( $text ) => $text,
 			'get_attachment_link'         => 'https://example.test/attachment/',
 			'wp_get_attachment_metadata'  => [ 'width' => 1200, 'height' => 800 ],
+			'wp_kses_post'                => static fn( $html ) => $html,
+			'esc_url_raw'                 => static fn( $url ) => $url,
 		] );
 	}
 
@@ -454,6 +456,22 @@ final class MetadataTest extends TestCase {
 		// People is emptied (the file has keywords, none of them people); the
 		// city is kept, as the file has no location at all.
 		$this->assertSame( [ 'photos_keywords' => [ 13 ], 'photos_people' => [] ], $set );
+	}
+
+	public function test_slideshow_attributes_the_post_already_has_are_made_safe(): void {
+
+		$this->cachedImage();
+		Functions\when( 'wp_kses_post' )->alias( static fn( $html ) => strip_tags( $html, '<em>' ) );
+		Functions\when( 'esc_url_raw' )->alias( static fn( $url, $protocols ) => preg_match( '#^https?://#', $url ) ? $url : '' );
+
+		// Any image, with or without an attachment ID: the slideshow reads them all.
+		$html = '<img src="a.jpg" data-caption="&lt;img src=x onerror=alert(1)&gt;&lt;em&gt;Hi&lt;/em&gt;" data-attachment-url="javascript:alert(1)" data-aspectratio="1.5;x">';
+		$p = new \WP_HTML_Tag_Processor( metadata::addAttributesToImagesInContent( $html . '<img class="wp-image-7" src="b.jpg">' ) );
+		$p->next_tag( 'img' );
+
+		$this->assertSame( '<em>Hi</em>', $p->get_attribute( 'data-caption' ) );
+		$this->assertSame( '', $p->get_attribute( 'data-attachment-url' ) );
+		$this->assertSame( '', $p->get_attribute( 'data-aspectratio' ) );
 	}
 }
 

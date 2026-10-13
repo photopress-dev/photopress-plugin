@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * TIFF: the packet is the value of tag 700 (XMLPacket) in the first image
  * directory (IFD0).

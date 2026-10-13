@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * WordPress's sitemap (wp-sitemap.xml), through its documented filters. It
  * lists image taxonomy terms itself, and leaves them out while image

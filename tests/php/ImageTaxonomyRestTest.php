@@ -165,4 +165,20 @@ final class ImageTaxonomyRestTest extends TestCase {
 		$parentError = new \WP_Error( 'rest_forbidden_context', 'no' );
 		$this->assertSame( $parentError, $gate->invoke( $controller, $parentError ), "the parent's own refusal stands" );
 	}
+
+	public function test_an_admin_only_taxonomys_terms_are_for_those_who_can_add_images(): void {
+
+		Functions\when( 'rest_authorization_required_code' )->justReturn( 403 );
+		Functions\when( 'get_taxonomy' )->justReturn( (object) [ 'name' => 'photos_people', 'public' => false ] );
+		Functions\when( 'current_user_can' )->alias( static fn( $cap ) => 'edit_posts' === $cap );
+		$controller = ( new \ReflectionClass( TermsController::class ) )->newInstanceWithoutConstructor();
+		( new \ReflectionProperty( \WP_REST_Terms_Controller::class, 'taxonomy' ) )->setValue( $controller, 'photos_people' );
+		$gate = new \ReflectionMethod( $controller, 'gate' );
+
+		$this->assertInstanceOf( \WP_Error::class, $gate->invoke( $controller, true ), 'a contributor' );
+
+		Functions\when( 'current_user_can' )->justReturn( true );
+		$this->assertTrue( $gate->invoke( $controller, true ), 'an author' );
+	}
 }
+

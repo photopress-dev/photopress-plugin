@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\gallery;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * The pages a Child Pages Gallery is on, announced when one of their child
  * pages changes in a way it shows. The gallery is filled when the page is

@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * WebP: the packet is an 'XMP ' chunk, and the VP8X chunk's XMP flag says it
  * is there. The RIFF header and VP8X chunk are rewritten; a simple file (one

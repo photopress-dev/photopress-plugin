@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * PNG: the packet is the text of an iTXt chunk with the keyword
  * XML:com.adobe.xmp. It is written uncompressed, straight after IHDR, as the

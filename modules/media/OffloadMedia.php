@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\media;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * WP Offload Media, when a site has it: the one place that knows it.
  *

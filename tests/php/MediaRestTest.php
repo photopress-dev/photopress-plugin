@@ -385,5 +385,18 @@ final class MediaRestTest extends TestCase {
 			\PhotoPress\modules\media\OffloadMedia::init( null );
 		}
 	}
+
+	public function test_references_are_looked_for_as_file_names_after_a_slash(): void {
+
+		global $wpdb;
+		$saved = $wpdb;
+		$wpdb = new class() { public function esc_like( $text ) { return addcslashes( $text, '_%\\' ); } };
+
+		$likes = ( new \ReflectionMethod( MediaRest::class, 'referenceLikes' ) )->invoke( null, 'a' );
+		$wpdb = $saved;
+
+		// A name as short as "a" no longer matches every row with an a in it.
+		$this->assertSame( [ '%/a.%', '%/a-%', '%\\\\/a.%', '%\\\\/a-%' ], $likes );
+	}
 }
 

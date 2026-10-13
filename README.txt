@@ -295,6 +295,19 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   Activating it again rebuilds the image taxonomies' URLs, as does turning
   the image taxonomies off. Deleting PhotoPress deletes its settings and
   records; images, their terms and metadata stay.
+* Security: the data the full-screen slideshow shows of an image (caption,
+  title, description, page link) is cleaned before it is shown, including
+  what post content carries itself, so it cannot run scripts. Replacing an
+  image's file puts its caption and alt text only into posts the user may
+  edit, and looks for references to it by file name rather than any text
+  containing its name. An admin-only taxonomy's terms are readable over the
+  REST API only by users who can add images, and anonymous media responses
+  no longer list image taxonomy terms as classes. PHP files exit when
+  requested directly.
+* Faster on large sites: deleting an image looks only through posts with
+  block content; renaming or deleting a term loads its images together; the
+  sitemap loads only the images it lists for each term.
+* Fixed: links in a slideshow's captions could not be clicked.
 * Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
   out in WordPress's columns instead.
 

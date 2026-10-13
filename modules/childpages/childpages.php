@@ -1,6 +1,9 @@
 <?php
 
 namespace PhotoPress\modules\childpages;
+
+defined( 'ABSPATH' ) || exit;
+
 use photopress_module;
 
 /**
@@ -50,7 +53,7 @@ class childpages extends photopress_module {
 		    if ( $request->get_param( 'post_parent' ) ) {
 		        //$args['post_parent'] = $meta_key;
 		        
-		        $args['post_parent'] = $request->get_param( 'post_parent' );
+		        $args['post_parent'] = absint( $request->get_param( 'post_parent' ) );
 		    }
 		    
 		    return $args;

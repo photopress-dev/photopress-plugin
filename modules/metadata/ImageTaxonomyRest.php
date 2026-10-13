@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata;
 
+defined( 'ABSPATH' ) || exit;
+
 use WP_Error;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -243,6 +245,11 @@ class ImageTaxonomyRest {
 
 			$base = get_taxonomy( $name )->rest_base ?: $name;
 			unset( $data[ $base ] );
+
+			// Its terms as classes too (photos_people-bob).
+			if ( isset( $data['class_list'] ) && is_array( $data['class_list'] ) ) {
+				$data['class_list'] = array_values( array_filter( $data['class_list'], static fn( $class ) => ! str_starts_with( (string) $class, $name . '-' ) ) );
+			}
 		}
 
 		$response->set_data( $data );

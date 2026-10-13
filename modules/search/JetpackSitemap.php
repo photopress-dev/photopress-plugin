@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Jetpack's sitemap (its Sitemaps module), through its documented filters.
  * It lists no taxonomy terms, and lists each image once in its image

@@ -105,64 +105,6 @@ class photopress_plugin {
 		}
 	}
 	
-	/**
-	 * move this to the gallery plugin
-	 */
-	public function random_gallery_taxonomy_query( $attachments, $attr ) {
-		
-		// discard any attachments we might get.
-		$attachments = array();
-		
-		if ( ! $attr ) {
-			
-			$attr = array();
-		}
-		
-		extract(  $attr  );
-		
-		// if there are taxonomy oriented attrs then do an image taxonomy query
-		if ( ! empty( $taxonomy ) && ! empty( $term ) && $post_type === 'attachment' && $query === 'random') {
-			
-			$term = strtolower( $term );
-			$taxonomy = strtolower( $taxonomy ); 
-			$paged = (get_query_var('page')) ? (int) get_query_var('page') : 1;
-			
-			// setup taxonomy query
-			$args = array(
-				'tax_query'			=> array(),
-				//'showposts' => $num_posts,
-				'posts_per_page' 	=> $numberposts,
-				'post_type' 		=> 'attachment',
-				'paged' 			=> $paged,
-				'post_status'		=> 'inherit',
-				'offset'			=> '',
-				'orderby'			=> 'rand'
-			);
-			
-			$args['tax_query'][] = array(
-			
-				'taxonomy'	=> $taxonomy,
-				'field' 	=> 'slug',
-				'terms' 	=> $term
-			);
-			
-			// perform taxonomy query
-			$attachment_query = new WP_Query( $args );
-			$r_attachments = $attachment_query->get_posts();
-		
-			if ( $r_attachments ) {
-				
-				foreach ($r_attachments as $a) {
-					
-					$attachments[$a->ID] = $a;
-				}
-			}
-		}
-		
-		// always return something so downstream plugins can operate.
-		return $attachments;
-	}	
-	
 	public static function activate() {
 
 		// The image taxonomies' URLs built again on the next request: rules

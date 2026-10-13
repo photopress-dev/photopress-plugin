@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\media;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Enable Media Replace, when a site has it: the one place that knows it.
  *

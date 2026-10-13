@@ -75,6 +75,8 @@ final class TermChangesTest extends TestCase {
 			'as_enqueue_async_action' => 1,
 			'as_has_scheduled_action' => false,
 			'as_get_scheduled_actions' => [],
+			'update_meta_cache'        => true,
+			'update_object_term_cache' => true,
 		] );
 
 		// The images of each term, by term_taxonomy_id; posts that aren't images.

@@ -2,6 +2,8 @@
 
 namespace PhotoPress\jobs;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * The media library's images, for a job over them: every image attachment,
  * or those in $args['ids'], by ID.

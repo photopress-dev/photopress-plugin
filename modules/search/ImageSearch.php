@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 use PhotoPress\jobs\ImageQuery;
 use PhotoPress\jobs\Jobs;
 use PhotoPress\modules\metadata\ImageTaxonomies;

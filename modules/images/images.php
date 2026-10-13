@@ -1,6 +1,9 @@
 <?php
 
 namespace PhotoPress\modules\images;
+
+defined( 'ABSPATH' ) || exit;
+
 use photopress_module;
 use pp_api;
 use PhotoPress\jobs\ImageQuery;

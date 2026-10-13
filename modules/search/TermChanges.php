@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 use PhotoPress\jobs\ImageQuery;
 use PhotoPress\jobs\Jobs;
 use PhotoPress\modules\metadata\ImageTaxonomies;
@@ -76,7 +78,9 @@ class TermChanges {
 	 */
 	public static function imageTermsChanged( $object_id, $tt_ids, $taxonomy ) {
 
-		if ( ! has_action( 'photopress_image_terms_changed' ) || ! ImageTaxonomies::isShownImageTaxonomy( $taxonomy ) || ! wp_attachment_is_image( $object_id ) || self::deleting( $tt_ids ) ) {
+		// deleting() before wp_attachment_is_image(): a term being deleted
+		// leaves each of its images here, and loading each would be wasted.
+		if ( ! has_action( 'photopress_image_terms_changed' ) || ! ImageTaxonomies::isShownImageTaxonomy( $taxonomy ) || self::deleting( $tt_ids ) || ! wp_attachment_is_image( $object_id ) ) {
 			return;
 		}
 
@@ -177,6 +181,11 @@ class TermChanges {
 		}
 
 		$archives = array_values( array_unique( array_filter( $archives ) ) );
+
+		// The images, their metadata and terms loaded together, not each in
+		// turn as each is purged.
+		update_meta_cache( 'post', $ids );
+		update_object_term_cache( $ids, 'attachment' );
 
 		foreach ( $ids as $id ) {
 			do_action( 'photopress_image_terms_changed', $id, [ 'archives' => $archives, 'job' => false ] );

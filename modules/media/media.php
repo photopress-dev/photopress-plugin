@@ -1,6 +1,9 @@
 <?php
 
 namespace PhotoPress\modules\media;
+
+defined( 'ABSPATH' ) || exit;
+
 use photopress_module;
 use pp_api;
 
