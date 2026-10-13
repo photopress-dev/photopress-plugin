@@ -23,6 +23,24 @@ wp config set WP_DEBUG_DISPLAY false --raw
 wp config set WP_DEBUG_LOG true --raw
 # Jetpack without a WordPress.com connection.
 wp config set JETPACK_DEV_DEBUG true --raw
+# WP Offload Media, for the test bucket and distribution, as on the test
+# site, but with the AWS credentials the workflow is given (an IAM role, by
+# GitHub's OpenID Connect): Offload Media finds them itself (use-server-roles);
+# PhotoPress's CloudFront invalidations take them from its own constants.
+wp config set AS3CF_SETTINGS "serialize( [ 'provider' => 'aws', 'use-server-roles' => true, 'bucket' => 'photopress-e2e-test-109862024820', 'region' => 'us-east-1', 'copy-to-s3' => true, 'serve-from-s3' => true, 'remove-local-file' => false, 'enable-object-prefix' => true, 'object-prefix' => 'wp-content/uploads/', 'use-yearmonth-folders' => true, 'object-versioning' => true, 'delivery-provider' => 'aws', 'enable-delivery-domain' => true, 'delivery-domain' => 'd3gw179dkybu04.cloudfront.net', 'force-https' => true, 'block-public-access' => true, 'object-ownership-enforced' => true, 'use-bucket-acls' => false, 'enable-signed-urls' => false ] )" --raw
+wp eval-file - "$wp_path/wp-config.php" <<'PHP'
+<?php
+$config = file_get_contents( $args[0] );
+$aws = <<<'CONFIG'
+if ( getenv( 'AWS_ACCESS_KEY_ID' ) ) {
+	define( 'PHOTOPRESS_AWS_ACCESS_KEY_ID', getenv( 'AWS_ACCESS_KEY_ID' ) );
+	define( 'PHOTOPRESS_AWS_SECRET_ACCESS_KEY', getenv( 'AWS_SECRET_ACCESS_KEY' ) );
+	define( 'PHOTOPRESS_AWS_SESSION_TOKEN', getenv( 'AWS_SESSION_TOKEN' ) );
+}
+
+CONFIG;
+file_put_contents( $args[0], str_replace( "/* That's all, stop editing!", $aws . "/* That's all, stop editing!", $config ) );
+PHP
 wp core install --url="$url" --title='PhotoPress E2E' --admin_user=admin --admin_password=admin --admin_email=admin@example.com --skip-email
 
 ln -s "$plugin" "$wp_path/wp-content/plugins/photopress-plugin"
@@ -31,8 +49,9 @@ wp rewrite structure '/%year%/%monthnum%/%day%/%postname%/'
 
 # As on the test site. Yoast SEO is installed, not active: its default
 # redirects images' pages to their files; the sitemaps spec makes it active
-# in its own requests.
-for p in relevanssi@4.28.4 enable-media-replace@4.2.2 varnish-http-purge@5.12.3 jetpack@16.3 wordpress-seo@28.6; do
+# in its own requests. WP Offload Media is made active by the offload spec
+# while it runs.
+for p in relevanssi@4.28.4 enable-media-replace@4.2.2 varnish-http-purge@5.12.3 jetpack@16.3 wordpress-seo@28.6 amazon-s3-and-cloudfront@3.4.3; do
 	wp plugin install "${p%@*}" --version="${p#*@}" --quiet
 done
 wp plugin activate photopress-plugin relevanssi enable-media-replace varnish-http-purge jetpack

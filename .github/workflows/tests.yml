@@ -57,6 +57,13 @@ jobs:
     name: End-to-end
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # One run at a time: the offload spec shares the AWS test bucket.
+    concurrency:
+      group: e2e
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
     services:
       mysql:
         image: mysql:8.4
@@ -96,6 +103,19 @@ jobs:
       run: npx playwright install --with-deps chromium
     - name: WordPress
       run: bash tests/e2e/ci/setup.sh
+    # The IAM role for the AWS test bucket and distribution, which only this
+    # repository can take: not for pull requests from forks, which GitHub
+    # gives no token. Without it the offload spec skips.
+    - name: AWS
+      if: vars.PP_E2E_AWS_ROLE != '' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ vars.PP_E2E_AWS_ROLE }}
+        aws-region: us-east-1
+        role-session-name: photopress-e2e-${{ github.run_id }}
+    - name: Offload spec
+      if: env.AWS_ACCESS_KEY_ID != ''
+      run: echo PP_E2E_OFFLOAD=1 >> "$GITHUB_ENV"
     # PHP's built-in server with workers, behind Varnish on port 80 as Apache
     # is on the test site.
     - name: Servers
