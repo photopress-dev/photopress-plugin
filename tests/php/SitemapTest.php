@@ -40,7 +40,8 @@ final class SitemapTest extends TestCase {
 		}
 
 		self::$yoastMediaPages = true;
-		$this->options = [ 'photopress_core_search' => [], 'blog_public' => '1', 'posts_per_page' => 10 ];
+		// WordPress's own Attachment pages on, as on a site older than 6.4.
+		$this->options = [ 'photopress_core_search' => [], 'wp_attachment_pages_enabled' => '1', 'blog_public' => '1', 'posts_per_page' => 10 ];
 		$this->coreSitemap = false;
 		\Closure::bind( static function () { static::$archives = null; }, null, ImageSitemap::class )();
 

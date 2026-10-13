@@ -37,7 +37,10 @@ class metadata extends photopress_module {
 		// the description of an image whose file was replaced (see MediaRest)
 		add_filter( 'photopress_attachment_description', [ $this, 'descriptionForReplacedFile' ], 10, 3 );
 		
-		// re-reading the metadata of every image, as a background job
+		// re-reading the metadata of every image, as a background job. Each
+		// image's terms, alt text and description are written, and its pages
+		// purged from the page cache: a few at a time, resting between
+		// batches and while the server is busy, on a shared database.
 		\PhotoPress\jobs\Jobs::register( 'metadata.reprocess', [
 			'label'       => __( 'Re-read image metadata' ),
 			'description' => __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. For after changing the taxonomies or templates.' ),
@@ -45,21 +48,27 @@ class metadata extends photopress_module {
 			'items'       => [ ImageQuery::class, 'next' ],
 			'process'     => [ $this, 'reprocessImage' ],
 			'finish'      => [ self::class, 'startQueuedReprocess' ],
+			'batch_items' => 10,
+			'pace'        => true,
 		] );
 		
 		// the alt text, description or embedded license of every image again
 		\PhotoPress\jobs\Jobs::register( 'metadata.alt_text', [
-			'label'   => __( 'Reprocess alt text' ),
-			'count'   => [ ImageQuery::class, 'count' ],
-			'items'   => [ ImageQuery::class, 'next' ],
-			'process' => [ $this, 'reprocessAltText' ],
+			'label'       => __( 'Reprocess alt text' ),
+			'count'       => [ ImageQuery::class, 'count' ],
+			'items'       => [ ImageQuery::class, 'next' ],
+			'process'     => [ $this, 'reprocessAltText' ],
+			'batch_items' => 10,
+			'pace'        => true,
 		] );
 		
 		\PhotoPress\jobs\Jobs::register( 'metadata.description', [
-			'label'   => __( 'Reprocess descriptions' ),
-			'count'   => [ ImageQuery::class, 'count' ],
-			'items'   => [ ImageQuery::class, 'next' ],
-			'process' => [ $this, 'reprocessDescription' ],
+			'label'       => __( 'Reprocess descriptions' ),
+			'count'       => [ ImageQuery::class, 'count' ],
+			'items'       => [ ImageQuery::class, 'next' ],
+			'process'     => [ $this, 'reprocessDescription' ],
+			'batch_items' => 10,
+			'pace'        => true,
 		] );
 		
 		\PhotoPress\jobs\Jobs::register( 'metadata.license', [

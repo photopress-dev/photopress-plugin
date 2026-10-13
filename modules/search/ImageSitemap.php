@@ -17,7 +17,7 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  *   or attached to a published post), as metadata::PUBLIC_IMAGES finds them.
  * - Image taxonomy terms' archive pages, while image taxonomy pages are on:
  *   terms with images (WordPress counts every image a term has).
- * - The images on a term's archive page: its first page, the newest.
+ * - The images on a term's archive page: the newest, up to TERM_IMAGES.
  * - Where an image is shown when it has no page of its own: its first
  *   term's archive.
  *
@@ -33,6 +33,18 @@ class ImageSitemap {
 
 	/** The archive addresses, once a request: Jetpack asks for each part. */
 	private static $archives = null;
+
+	/** Images listed with a term's archive page, at most. */
+	const TERM_IMAGES = 10;
+
+	/**
+	 * The newest images of a taxonomy looked through for its terms' images:
+	 * a term whose images are all older has none listed.
+	 */
+	const TERM_SCAN = 2000;
+
+	/** Each taxonomy's terms' images, once a request: [ taxonomy => [ term ID => files ] ]. */
+	private static $termImages = [];
 
 	/** Whether images have pages of their own to list. */
 	public static function listsImagePages() {
@@ -130,7 +142,8 @@ class ImageSitemap {
 
 	/**
 	 * The files of the images a term's archive page shows first: the
-	 * newest, as many as a page of posts.
+	 * newest, up to TERM_IMAGES. Found for all of its taxonomy's terms at
+	 * once, as a sitemap asks for one term after another.
 	 *
 	 * @return string[]
 	 */
@@ -142,17 +155,51 @@ class ImageSitemap {
 			return [];
 		}
 
-		$ids = ( new WP_Query( self::imagesQuery( [
-			'tax_query'              => [ [ 'taxonomy' => $term->taxonomy, 'field' => 'term_id', 'terms' => $term->term_id ] ],
-			'orderby'                => 'date',
-			'order'                  => 'DESC',
-			'posts_per_page'         => max( 1, (int) get_option( 'posts_per_page' ) ),
-			'fields'                 => 'ids',
-			'no_found_rows'          => true,
-			'update_post_term_cache' => false,
+		if ( ! isset( self::$termImages[ $term->taxonomy ] ) ) {
+			self::$termImages[ $term->taxonomy ] = self::imagesByTerm( $term->taxonomy );
+		}
+
+		return self::$termImages[ $term->taxonomy ][ $term->term_id ] ?? [];
+	}
+
+	/**
+	 * A taxonomy's newest public images, TERM_SCAN of them, shared out among
+	 * its terms: one query, with their terms and files' metadata loaded
+	 * with them.
+	 *
+	 * @return array term ID => files.
+	 */
+	private static function imagesByTerm( $taxonomy ) {
+
+		$images = ( new WP_Query( self::imagesQuery( [
+			'tax_query'      => [ [ 'taxonomy' => $taxonomy, 'operator' => 'EXISTS' ] ],
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+			'posts_per_page' => self::TERM_SCAN,
+			'no_found_rows'  => true,
 		] ) ) )->posts;
 
-		return array_values( array_filter( array_map( 'wp_get_attachment_url', $ids ) ) );
+		$by_term = [];
+
+		foreach ( $images as $image ) {
+
+			$file = null;
+
+			foreach ( (array) get_the_terms( $image, $taxonomy ) as $term ) {
+
+				if ( ! $term instanceof \WP_Term || count( $by_term[ $term->term_id ] ?? [] ) >= self::TERM_IMAGES ) {
+					continue;
+				}
+
+				$file = $file ?? (string) wp_get_attachment_url( $image->ID );
+
+				if ( '' !== $file ) {
+					$by_term[ $term->term_id ][] = $file;
+				}
+			}
+		}
+
+		return $by_term;
 	}
 
 	/**

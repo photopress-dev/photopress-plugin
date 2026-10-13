@@ -25,12 +25,14 @@ const settings = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( g
 
 const SEARCH = 'photopress_core_search';
 let savedSearch;
+const pagesOn = () => wp( 'option', 'update', SEARCH, JSON.stringify( { attachment_pages: true, taxonomy_pages: true } ), '--format=json' );
 
 test.beforeAll( () => {
 	saved = settings();
-	// Image pages and taxonomy pages on, as by default, whatever ran before.
+	// Image pages and taxonomy pages on, whatever ran before and whatever
+	// WordPress's own Attachment pages setting is.
 	savedSearch = lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ SEARCH }', null ) );` ) );
-	wp( 'option', 'delete', SEARCH );
+	pagesOn();
 
 	// Three images under the keyword: two public, one attached to a draft
 	// page; exposure details on the first; and a draft post.
@@ -287,6 +289,6 @@ test( 'with image pages and taxonomy pages off, no template is offered for them'
 	try {
 		expect( registered() ).toEqual( [] );
 	} finally {
-		wp( 'option', 'delete', SEARCH );
+		pagesOn();
 	}
 } );

@@ -13,8 +13,10 @@ use photopress_module;
  * until turned off. Searching images is to come here too.
  *
  * Attachment pages are WordPress's own setting (wp_attachment_pages_enabled,
- * since 6.4), which this switch decides: off, an image's page redirects to
- * its file, and links to it go to the file. Taxonomy archive pages are left
+ * since 6.4), which this switch decides once it is saved: off, an image's
+ * page redirects to its file, and links to it go to the file. Until then,
+ * WordPress's setting stands, and the switch shows it: off on sites
+ * installed since 6.4, on for older ones. Taxonomy archive pages are left
  * out when the metadata module registers the image taxonomies; their terms
  * are still shown, unlinked. While each is on, block themes without their
  * own get PhotoPress's template for those pages
@@ -46,7 +48,20 @@ class search extends photopress_module {
 
 		$saved = get_option( self::OPTION );
 
-		return is_array( $saved ) && array_key_exists( $key, $saved ) ? ! empty( $saved[ $key ] ) : $default;
+		if ( is_array( $saved ) && array_key_exists( $key, $saved ) ) {
+			return ! empty( $saved[ $key ] );
+		}
+
+		return 'attachment_pages' === $key ? self::wordpressAttachmentPages() : $default;
+	}
+
+	/**
+	 * WordPress's own Attachment pages setting, as it reads it
+	 * (redirect_canonical()): off when it was never set.
+	 */
+	public static function wordpressAttachmentPages() {
+
+		return (bool) get_option( 'wp_attachment_pages_enabled' );
 	}
 
 	public function __construct( $params ) {
@@ -75,11 +90,17 @@ class search extends photopress_module {
 
 	/**
 	 * pre_option_wp_attachment_pages_enabled: WordPress's setting, as the
-	 * Attachment pages switch has it.
+	 * Attachment pages switch has it once saved; until then, WordPress's own.
 	 */
-	public static function attachmentPagesOption() {
+	public static function attachmentPagesOption( $pre ) {
 
-		return self::enabled( 'attachment_pages' ) ? '1' : '0';
+		$saved = get_option( self::OPTION );
+
+		if ( ! is_array( $saved ) || ! array_key_exists( 'attachment_pages', $saved ) ) {
+			return $pre;
+		}
+
+		return empty( $saved['attachment_pages'] ) ? '0' : '1';
 	}
 
 	/**
@@ -113,7 +134,8 @@ class search extends photopress_module {
 		return [
 
 			'attachment_pages' => [
-				'default_value' => true,
+				// WordPress's own setting, until this one is saved.
+				'default_value' => self::wordpressAttachmentPages(),
 				'field'         => [
 					'type'          => 'boolean',
 					'title'         => 'Attachment pages',
