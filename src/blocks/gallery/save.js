@@ -6,7 +6,7 @@ import classnames from 'classnames';
 /**
  * WordPress dependencies
  */
-import { RichText } from '@wordpress/block-editor';
+import { RichText, useBlockProps } from '@wordpress/block-editor';
 import { Fragment } from '@wordpress/element';
 
 /**
@@ -201,7 +201,9 @@ export default function save( { attributes } ) {
 	
 	return (
 		
-		<figure className={ 'photopress-gallery' } >
+		// useBlockProps.save() gives it the block's class and alignment, as
+		// WordPress added them itself under block API version 1.
+		<figure { ...useBlockProps.save( { className: 'photopress-gallery' } ) } >
 			
 			<ul 
 				className={ classnames( galleryClasses ) } 

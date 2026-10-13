@@ -21,6 +21,8 @@ class gallery extends photopress_module {
 
 		register_block_type( 'photopress/gallery', [
 
+			'api_version'   		=> 3,
+
 			// Enqueue blocks.style.build.css on both frontend & backend.
 			'style'         		=> 'photopress-frontend',
 			// Enqueue blocks.build.js in the editor only.

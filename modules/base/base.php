@@ -13,11 +13,8 @@ class base extends photopress_module {
 	}
 	
 	public function defineAdminHooks() {
-		$page_hook_suffix = 'photopress-core-base-extensions';
-		//add_action( "admin_print_scripts-{$page_hook_suffix}", [$this, 'options_assets'] );
-		//add_action( "admin_init", [$this, 'options_assets'] );
-		
-		$this->option_assets();
+
+		add_action( 'admin_enqueue_scripts', [ $this, 'option_assets' ] );
 	}
 	
 	public function photopress_base_js() {
@@ -29,8 +26,21 @@ class base extends photopress_module {
 		);
 	}
 	
+	/**
+	 * admin_enqueue_scripts: the settings app and its styles, on PhotoPress's
+	 * own screens only. Elsewhere, in the block editor above all, they have
+	 * no place: the block editor copied the styles into its canvas, with a
+	 * warning.
+	 */
 	public function option_assets() {
-		
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- which screen, not an action.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+
+		if ( 0 !== strpos( $page, 'photopress' ) ) {
+			return;
+		}
+
 		// wp-i18n is used through the wp global rather than imported, so the
 		// build cannot list it in the .asset.php.
 		$asset = \photopress_util::getBuildAsset( 'options.build' );

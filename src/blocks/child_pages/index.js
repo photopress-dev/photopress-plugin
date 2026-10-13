@@ -3,6 +3,7 @@
  */
 
 import edit from './edit.js';
+import withBlockProps from '../../shared/with-block-props';
 import icon from './icon.js';
 import metadata from './block.json';
 
@@ -23,6 +24,7 @@ import './editor.scss';
 const { name, category, postFeedType, attributes } = metadata;
 
 const settings = {
+	apiVersion: 3,
 	/* translators: block name */
 	title: __( 'Child Pages', 'photopress' ),
 	/* translators: block description */
@@ -58,7 +60,7 @@ const settings = {
 		],
 	},
 	attributes,
-	edit,
+	edit: withBlockProps( edit ),
 	save() {
 		return null;
 	},
