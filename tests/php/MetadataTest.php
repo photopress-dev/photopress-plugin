@@ -200,21 +200,27 @@ final class MetadataTest extends TestCase {
 		$this->assertFalse( metadata::isRasterImage( 'image/svg+xml' ) );
 	}
 
+	/** The image builder's functions, for an image whose post is in the cache. */
+	private function cachedImage(): void {
+
+		Functions\stubs( [
+			'wp_cache_get'                => (object) [],
+			'get_post'                    => static fn( $id ) => (object) [ 'ID' => (int) $id, 'post_parent' => 0, 'post_title' => 'Bob', 'post_excerpt' => 'Media library caption', 'post_content' => '' ],
+			'wp_attachment_is_image'      => true,
+			'wp_get_attachment_image_src' => [ 'https://example.test/full.jpg?a=1&b=2', 1200, 800, false ],
+			'wptexturize'                 => static fn( $text ) => $text,
+			'wpautop'                     => static fn( $text ) => $text,
+			'get_attachment_link'         => 'https://example.test/attachment/',
+			'wp_get_attachment_metadata'  => [ 'width' => 1200, 'height' => 800 ],
+		] );
+	}
+
 	public function test_media_library_attributes_do_not_override_the_blocks_own(): void {
 
-		$m = $this->getMockBuilder( metadata::class )
-			->disableOriginalConstructor()
-			->onlyMethods( [ 'addAttributesToImages', 'renderLicensingSchema' ] )
-			->getMock();
-		$m->method( 'addAttributesToImages' )->willReturn( [
-			'data-caption'   => 'Media library caption',
-			'data-orig-file' => 'https://example.test/full.jpg?a=1&amp;b=2',
-		] );
-		$m->method( 'renderLicensingSchema' )->willReturn( '' );
-		Functions\when( 'get_posts' )->justReturn( [ (object) [ 'ID' => 7 ] ] );
+		$this->cachedImage();
 
 		$html = '<figure><img class="wp-image-7" data-caption="Block caption" src="a.jpg"><img data-id="7" src="b.jpg"></figure>';
-		$out = $m->addAttributesToImagesInContent( $html, [ 'blockName' => 'core/image' ] );
+		$out = metadata::addAttributesToImagesInContent( $html );
 
 		$p = new \WP_HTML_Tag_Processor( $out );
 		$p->next_tag( 'img' );
@@ -224,6 +230,24 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( 'Media library caption', $p->get_attribute( 'data-caption' ), 'every copy of the image gets the attributes' );
 		$this->assertSame( 1, substr_count( $out, 'data-caption="Block caption"' ) );
 		$this->assertSame( 2, substr_count( $out, 'data-caption=' ) );
+	}
+
+	public function test_images_already_in_the_cache_are_not_loaded_again(): void {
+
+		Functions\when( 'wp_cache_get' )->alias( static fn( $id, $group ) => ( 8 === $id || ( 9 === $id && 'post_meta' === $group ) ) ? false : (object) [] );
+
+		$this->assertSame( [ 8, 9 ], metadata::uncached( [ 7, 8, 9, 8, 0 ] ) );
+		$this->assertSame( [ 8 ], metadata::uncached( [ 7, 8, 9 ], false ), 'posts alone' );
+	}
+
+	public function test_nothing_is_looked_up_without_images(): void {
+
+		Functions\expect( 'get_post' )->never();
+		Functions\expect( 'wp_cache_get' )->never();
+
+		$this->assertSame( '<p>no images</p>', metadata::addAttributesToImagesInContent( '<p>no images</p>' ) );
+		$this->assertSame( [], metadata::imageIdsIn( '<figure><img src="a.jpg"></figure>' ) );
+		$this->assertSame( [ 7, 9 ], metadata::imageIdsIn( '<img class="wp-image-7"><img data-id="9"><img class="wp-image-7">' ) );
 	}
 
 	/**
@@ -243,19 +267,18 @@ final class MetadataTest extends TestCase {
 		] );
 		Functions\expect( 'wp_get_attachment_image_srcset' )->never();
 
-		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
-		$attr = $m->addAttributesToImages( [], (object) [ 'ID' => 7, 'post_title' => 'Bob', 'post_excerpt' => '', 'post_content' => '' ] );
+		$attr = metadata::addAttributesToImages( [], (object) [ 'ID' => 7, 'post_title' => 'Bob', 'post_excerpt' => '', 'post_content' => '' ] );
 
 		$this->assertArrayNotHasKey( 'srcset', $attr );
 		$this->assertSame( 'https://example.test/full.jpg', $attr['data-orig-file'] );
 	}
 
-	public function test_other_blocks_are_left_alone(): void {
+	public function test_other_blocks_get_no_license(): void {
 
 		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
 		$html = '<img class="wp-image-7" src="a.jpg">';
 
-		$this->assertSame( $html, $m->addAttributesToImagesInContent( $html, [ 'blockName' => 'core/paragraph' ] ) );
+		$this->assertSame( $html, $m->addLicensingToContent( $html, [ 'blockName' => 'core/paragraph' ] ) );
 	}
 
 	public function test_xmp_gives_the_title_and_caption_when_iptc_does_not(): void {

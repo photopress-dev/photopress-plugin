@@ -67,7 +67,7 @@ test.afterAll( () => {
 		$before = ${ php( jobsBefore ) };
 		foreach ( array_diff( (array) get_option( 'photopress_jobs', [] ), $before ) as $id ) {
 			delete_option( "photopress_job_$id" );
-			as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' );
+			function_exists( 'as_unschedule_all_actions' ) && as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' );
 		}
 		update_option( 'photopress_jobs', $before, false );
 	` );

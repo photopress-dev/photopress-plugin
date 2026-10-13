@@ -8,21 +8,28 @@ use pp_api;
 class base extends photopress_module {
 
 	public function definePublicHooks() {
-	
-		add_action( 'wp_enqueue_scripts', [ $this, 'photopress_base_js' ] );
+
+		$this->photopress_base_js();
 	}
-	
+
 	public function defineAdminHooks() {
 
 		add_action( 'admin_enqueue_scripts', [ $this, 'option_assets' ] );
 	}
-	
+
+	/**
+	 * The photopress object the slideshow's scripts build on, registered for
+	 * them to load as a dependency: a page without a slideshow gets neither
+	 * it nor jQuery.
+	 */
 	public function photopress_base_js() {
-		
-		wp_enqueue_script(
+
+		wp_register_script(
 			'photopress',
 			plugins_url( 'js/photopress.js' , __FILE__ ),
-			array( 'jquery' )
+			array( 'jquery' ),
+			PHOTOPRESS_CORE_VERSION,
+			true
 		);
 	}
 	

@@ -81,14 +81,12 @@ class metadata extends photopress_module {
 			'pace'          => true,
 		] );
 		
-		// add additional attributes to images
-		//add_filter( 'wp_get_attachment_image_attributes', [$this, 'addAttributesToImages' ], 11, 2 );
-		add_filter( 'render_block', [ $this, 'addAttributesToImagesInContent' ], 11, 3 );
-		
 		// embed license meta-data in all uploaded images even if it already exists.
 		if ( self::licensingEnabled() ) {
 			
 			add_filter( 'pre_move_uploaded_file', [ $this, 'embedLicense' ], 1, 4 );
+			// the license JSON-LD of the images in image blocks and galleries
+			add_filter( 'render_block', [ $this, 'addLicensingToContent' ], 11, 2 );
 		}
 		
 		// the license JSON-LD of the images an image page, search or archive shows
@@ -109,6 +107,7 @@ class metadata extends photopress_module {
 		
 		// The block counterpart of the taxonomy widget, for block themes, which
 		// have no widget areas.
+		photopress_util::registerBlockManifest( __DIR__ . '/blocks', 'metadata' );
 		register_block_type( __DIR__ . '/blocks/image-taxonomies', [
 			'render_callback' => [ ImageTaxonomies::class, 'renderBlock' ],
 		] );
@@ -475,60 +474,65 @@ class metadata extends photopress_module {
 	}
 	
 	/**
-	 * Adds data-* attributes required by img tags in post HTML
-	 * content. To be used by 'the_content' filter.
-	 *
-	 *
-	 * @param string $content HTML content of the post
-	 * @return string Modified HTML content of the post
+	 * render_block, while licensing is on: the license JSON-LD of the images
+	 * of an image block or a legacy PhotoPress Gallery.
 	 */
-	public function addAttributesToImagesInContent( $content, $block ) {
-		
-		$allowedBlocks = ['photopress/gallery', 'core/image'];
-		
-		if( ! in_array( $block['blockName'], $allowedBlocks ) ) {
-			
+	public function addLicensingToContent( $content, $block ) {
+
+		if ( ! in_array( $block['blockName'] ?? '', [ 'photopress/gallery', 'core/image' ], true ) ) {
 			return $content;
-  		}
-		
-		
-		// Attachment ids from wp-image-N classes or data-id attributes.
-		$p   = new \WP_HTML_Tag_Processor( $content );
-		$ids = [];
+		}
 
-		while ( $p->next_tag( 'img' ) ) {
+		$ids = self::imageIdsIn( $content );
 
-			$id = $this->attachmentIdOf( $p );
+		if ( ! $ids ) {
+			return $content;
+		}
 
-			if ( $id ) {
-				$ids[ $id ] = true;
+		self::primeImages( $ids );
+
+		return $content . $this->renderLicensingSchema( array_filter( $ids, 'get_post' ) );
+	}
+
+	/**
+	 * The data-* attributes the full-screen slideshow reads, added to the
+	 * images of a gallery that opens it (modules/slideshow): its file, shape,
+	 * caption, title, description and page. Nothing else reads them.
+	 *
+	 * @param string $content A gallery's HTML.
+	 */
+	public static function addAttributesToImagesInContent( $content ) {
+
+		$ids = self::imageIdsIn( $content );
+
+		if ( ! $ids ) {
+			return $content;
+		}
+
+		self::primeImages( $ids );
+
+		$attributes_by_id = [];
+		$parents          = [];
+
+		foreach ( $ids as $id ) {
+
+			$attachment = get_post( $id );
+
+			if ( $attachment ) {
+				$parents[] = (int) $attachment->post_parent;
 			}
 		}
 
-		if ( empty( $ids ) ) {
-			
-			return $content;
-		}
-		
-		$attachments = get_posts(
-			
-			[
-				'include'          => array_keys( $ids ),
-				'post_type'        => 'any',
-				'post_status'      => 'any',
-				'suppress_filters' => false,
-			]
-		);
-		
-		$attributes_by_id  = [];
-		$licensable_images = [];
-		
-		foreach ( $attachments as $attachment ) {
-			
-			$attributes_by_id[ $attachment->ID ] = $this->addAttributesToImages( [], $attachment );
-			
-			// add licensable image
-			$licensable_images[] = $attachment->ID;
+		// The posts the images are attached to, for their pages' addresses.
+		self::primeImages( array_filter( $parents ), false );
+
+		foreach ( $ids as $id ) {
+
+			$attachment = get_post( $id );
+
+			if ( $attachment ) {
+				$attributes_by_id[ $id ] = self::addAttributesToImages( [], $attachment );
+			}
 		}
 
 		/*
@@ -542,7 +546,7 @@ class metadata extends photopress_module {
 
 		while ( $p->next_tag( 'img' ) ) {
 
-			$id = $this->attachmentIdOf( $p );
+			$id = self::attachmentIdOf( $p );
 
 			if ( ! $id || empty( $attributes_by_id[ $id ] ) ) {
 				continue;
@@ -557,21 +561,80 @@ class metadata extends photopress_module {
 			}
 		}
 
-		$content = $p->get_updated_html();
-		
-		// add licensable images
-		if ( self::licensingEnabled() ) {
-			$content .= $this->renderLicensingSchema( $licensable_images );
+		return $p->get_updated_html();
+	}
+
+	/**
+	 * The attachment IDs of the images in some HTML, from their wp-image-N
+	 * classes or data-id attributes.
+	 *
+	 * @return int[]
+	 */
+	public static function imageIdsIn( $content ) {
+
+		$p   = new \WP_HTML_Tag_Processor( (string) $content );
+		$ids = [];
+
+		while ( $p->next_tag( 'img' ) ) {
+
+			$id = self::attachmentIdOf( $p );
+
+			if ( $id ) {
+				$ids[ $id ] = true;
+			}
 		}
-	
-		return $content;
+
+		return array_keys( $ids );
+	}
+
+	/**
+	 * Posts, with their metadata, loaded into the cache in one query, as
+	 * many as are not there already: the images of a gallery, rather than
+	 * each image's as its block is drawn.
+	 *
+	 * @param int[] $ids
+	 * @param bool  $meta Their metadata too.
+	 */
+	public static function primeImages( array $ids, $meta = true ) {
+
+		$missing = self::uncached( $ids, $meta );
+
+		if ( ! $missing ) {
+			return;
+		}
+
+		new \WP_Query( [
+			'post__in'               => $missing,
+			'post_type'              => 'any',
+			'post_status'            => 'any',
+			'posts_per_page'         => count( $missing ),
+			'orderby'                => 'post__in',
+			'ignore_sticky_posts'    => true,
+			'no_found_rows'          => true,
+			'suppress_filters'       => true,
+			'update_post_meta_cache' => $meta,
+			'update_post_term_cache' => false,
+		] );
 	}
 	
+	/**
+	 * Those of the posts not in the cache, or, with $meta, whose metadata is not.
+	 *
+	 * @param int[] $ids
+	 * @return int[]
+	 */
+	public static function uncached( array $ids, $meta = true ) {
+
+		return array_values( array_filter( array_unique( array_map( 'intval', $ids ) ), static function ( $id ) use ( $meta ) {
+			return $id > 0 && ( false === wp_cache_get( $id, 'posts' ) || ( $meta && false === wp_cache_get( $id, 'post_meta' ) ) );
+		} ) );
+	}
+
 	/**
 	 * The attachment id of the img the processor is on, from its wp-image-N
 	 * class or data-id attribute.
 	 */
-	private function attachmentIdOf( \WP_HTML_Tag_Processor $p ) {
+	private static function attachmentIdOf( \WP_HTML_Tag_Processor $p ) {
 
 		if ( preg_match( '/\bwp-image-(\d+)\b/', (string) $p->get_attribute( 'class' ), $m ) ) {
 			return absint( $m[1] );
@@ -580,7 +643,7 @@ class metadata extends photopress_module {
 		return absint( $p->get_attribute( 'data-id' ) );
 	}
 
-	public function addAttributesToImages( $attr, $attachment = null ) {
+	public static function addAttributesToImages( $attr, $attachment = null ) {
 		
 		$attachment_id = intval( $attachment->ID );
 		
@@ -637,7 +700,7 @@ class metadata extends photopress_module {
 	 * wp_footer: the license JSON-LD of the image an image page shows, or of
 	 * the images in search results or an archive, from the main query, so
 	 * any theme gets it. Images in post content get theirs with their block
-	 * (addAttributesToImagesInContent).
+	 * (addLicensingToContent).
 	 */
 	public function printLicensingSchemaForPage() {
 		

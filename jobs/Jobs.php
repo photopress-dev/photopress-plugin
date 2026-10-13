@@ -375,7 +375,7 @@ class Jobs {
 
 	protected static function queueBatch( $id ) {
 
-		if ( ! function_exists( 'as_enqueue_async_action' ) || as_has_scheduled_action( self::BATCH_HOOK, [ $id ], self::GROUP ) ) {
+		if ( ! Scheduler::ensure() || as_has_scheduled_action( self::BATCH_HOOK, [ $id ], self::GROUP ) ) {
 			return;
 		}
 

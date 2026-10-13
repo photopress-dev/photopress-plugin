@@ -40,6 +40,25 @@ class photopress_util {
 		];
 	}
 	
+	/**
+	 * A module's blocks registered from the manifest the build makes of
+	 * their block.json files (dist/blocks-manifest/), so WordPress 6.7 and
+	 * later reads one cached PHP file rather than reading and decoding each
+	 * block.json on every request. Without the build or on an earlier
+	 * WordPress, register_block_type() reads the block.json files.
+	 *
+	 * @param string $blocks The folder of the module's block folders.
+	 * @param string $name   Its manifest's name, e.g. 'gallery'.
+	 */
+	public static function registerBlockManifest( $blocks, $name ) {
+
+		$manifest = dirname( __DIR__ ) . '/dist/blocks-manifest/' . $name . '.php';
+
+		if ( function_exists( 'wp_register_block_metadata_collection' ) && is_readable( $manifest ) ) {
+			wp_register_block_metadata_collection( $blocks, $manifest );
+		}
+	}
+	
 	public static function getModuleOptionKey( $package_name, $module_name ) {
 		
 		return sprintf( '%s_%s_%s', 'photopress', $package_name, $module_name );

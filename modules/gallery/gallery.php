@@ -4,6 +4,7 @@ namespace PhotoPress\modules\gallery;
 use photopress_module;
 use pp_api;
 use WP_HTML_Tag_Processor;
+use PhotoPress\modules\metadata\metadata;
 
 /**
  * Gallery Module
@@ -41,6 +42,9 @@ class gallery extends photopress_module {
 			$asset['version'],
 			[ 'in_footer' => true, 'strategy' => 'defer' ]
 		);
+
+		\photopress_util::registerBlockManifest( __DIR__ . '/blocks', 'gallery' );
+
 		register_block_type( __DIR__ . '/blocks/gallery-slideshow', [
 			'render_callback' => [ GallerySlideshow::class, 'render' ],
 		] );
@@ -57,8 +61,40 @@ class gallery extends photopress_module {
 		ImageTemplates::addHooks();
 
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
+		add_filter( 'render_block_data', [ self::class, 'primeGalleryImages' ] );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
 		add_filter( 'render_block_core/gallery', [ GallerySlideshow::class, 'hideSourceGallery' ], 10, 2 );
+	}
+
+	/**
+	 * render_block_data: a gallery's images loaded in one query before its
+	 * image blocks are drawn, when PhotoPress reads them: for its layout, its
+	 * slideshow or their licenses. Each image block would otherwise load its
+	 * own.
+	 */
+	public static function primeGalleryImages( $parsed ) {
+
+		if ( 'core/gallery' !== ( $parsed['blockName'] ?? '' ) || empty( $parsed['innerBlocks'] ) ) {
+			return $parsed;
+		}
+
+		$attrs = (array) ( $parsed['attrs'] ?? [] );
+
+		if ( ! in_array( $attrs['photopressLayout'] ?? '', self::LAYOUTS, true ) && empty( $attrs['photopressSlideshow'] ) && ! metadata::licensingEnabled() ) {
+			return $parsed;
+		}
+
+		$ids = [];
+
+		foreach ( $parsed['innerBlocks'] as $inner ) {
+			if ( 'core/image' === ( $inner['blockName'] ?? '' ) && ! empty( $inner['attrs']['id'] ) ) {
+				$ids[] = (int) $inner['attrs']['id'];
+			}
+		}
+
+		metadata::primeImages( $ids );
+
+		return $parsed;
 	}
 
 	/**

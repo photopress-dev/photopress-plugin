@@ -25,7 +25,7 @@ test.afterAll( () => {
 		wp( 'eval', `delete_option( '${ KEY }' );` );
 	}
 	// The job records this test made.
-	wp( 'eval', `foreach ( (array) get_option( 'photopress_jobs', [] ) as $id ) { delete_option( "photopress_job_$id" ); as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' ); } delete_option( 'photopress_jobs' );` );
+	wp( 'eval', `foreach ( (array) get_option( 'photopress_jobs', [] ) as $id ) { delete_option( "photopress_job_$id" ); function_exists( 'as_unschedule_all_actions' ) && as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' ); } delete_option( 'photopress_jobs' );` );
 } );
 
 /** Each fixture image's sizes, their JPEG quality, and whether it is marked up to date. */
