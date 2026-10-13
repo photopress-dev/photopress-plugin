@@ -1717,6 +1717,15 @@ class metadata extends photopress_module {
 			return $move;
 		}
 
+		// A file XmpFile could not write (a full disk, a read-only folder) is
+		// left as it is: Imagick would fail the same way.
+		if ( 'photopress_xmp_unwritable' === $written->get_error_code() ) {
+
+			photopress_util::debug( 'License not embedded: ' . $written->get_error_message() );
+
+			return $move;
+		}
+
 		/*
 		 * Otherwise Imagick, which re-encodes the image: a format XmpFile
 		 * does not write, or a file it could not write safely.
@@ -1738,8 +1747,14 @@ class metadata extends photopress_module {
 			$existing = in_array( 'xmp', $profiles, true ) ? $im->getImageProfile( 'xmp' ) : '';
 
 			$im->setImageProfile( 'xmp', self::mergeLicenseIntoXmp( $existing, $wsr, $licensor_name, $licensor_url ) );
-			$im->writeImage( $path );
+			$replaced = self::replaceFile( $path, static function ( $tmp ) use ( $im ) {
+				$im->writeImage( $tmp );
+			} );
 			$im->clear();
+
+			if ( true !== $replaced ) {
+				photopress_util::debug( 'Could not embed license meta-data: ' . $replaced->get_error_message() );
+			}
 
 		} catch ( \Exception $e ) {
 
@@ -1754,6 +1769,56 @@ class metadata extends photopress_module {
 		 * second time. Normally $move is null and the two are identical.
 		 */
 		return $move;
+	}
+
+	/**
+	 * Replaces the file with the image $write writes to the path it is
+	 * given, a temporary file in the same folder. Moved into place only once
+	 * it is a nonempty file getimagesize() reads; on any failure the file is
+	 * left as it was and the temporary file removed.
+	 *
+	 * @param string   $path  The file.
+	 * @param callable $write function( string $tmp ), which may throw.
+	 * @return true|\WP_Error
+	 */
+	public static function replaceFile( $path, callable $write ) {
+
+		$dir = dirname( $path );
+		$tmp = @tempnam( $dir, 'pp-license-' ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+
+		// tempnam() falls back to the system's temporary folder, from which a
+		// rename would not be atomic.
+		if ( $tmp && realpath( dirname( $tmp ) ) !== realpath( $dir ) ) {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			$tmp = false;
+		}
+
+		if ( ! $tmp ) {
+			return new \WP_Error( 'photopress_unwritable', 'A temporary file could not be written next to the file.' );
+		}
+
+		try {
+			call_user_func( $write, $tmp );
+		} catch ( \Throwable $e ) {
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return new \WP_Error( 'photopress_unwritable', $e->getMessage() );
+		}
+
+		clearstatcache( true, $tmp );
+
+		if ( ! @filesize( $tmp ) || ! @getimagesize( $tmp ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return new \WP_Error( 'photopress_unwritable', 'The written file is not an image.' );
+		}
+
+		@chmod( $tmp, fileperms( $path ) & 0777 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+
+		if ( ! @rename( $tmp, $path ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return new \WP_Error( 'photopress_unwritable', 'The written file could not be moved into place.' );
+		}
+
+		return true;
 	}
 
 	/**
