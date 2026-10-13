@@ -68,7 +68,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 - A Gallery block variation in any PhotoPress layout: the published pages under the page, in their page order, each as its featured image or else the first image of its gallery, linked to it with its title (useful as an index of gallery pages)
 - The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image
-- The older Child Pages block still shows where it was used; it is no longer offered, and turns into a Child Pages Gallery
+- The older Child Pages block is converted to a Child Pages Gallery when PhotoPress is updated
 
 ![Child Pages Gallery](.wordpress-org/screenshot-8.png)
 

@@ -331,17 +331,18 @@ export function createSlideshow( root ) {
 		}
 	} );
 
-	// Autoplay keeps going when the slideshow is hovered or clicked, as the
-	// Jetpack slideshow did; it stops while the page is hidden, while a
-	// keyboard user is on the slideshow, and for visitors who ask for
-	// reduced motion.
+	// Autoplay pauses while a mouse pointer is over the slideshow and while
+	// a keyboard user is on it; it stops while the page is hidden, and is
+	// off for visitors who ask for reduced motion. A touch does not pause
+	// it: no pointer leaves to resume it.
 	if ( root.dataset.autoplay === '1' && ! reducedMotion ) {
 		const delay = Math.max( 1, Number( root.dataset.delay ) || 3 ) * 1000;
 		let timer = null;
-		let paused = false;
+		let hovered = false;
+		let focused = false;
 
 		const start = () => {
-			if ( ! timer && ! paused && ! doc.hidden ) {
+			if ( ! timer && ! hovered && ! focused && ! doc.hidden ) {
 				timer = view.setInterval( next, delay );
 			}
 		};
@@ -350,14 +351,26 @@ export function createSlideshow( root ) {
 			timer = null;
 		};
 
+		on( root, 'pointerenter', ( event ) => {
+			if ( event.pointerType === 'mouse' ) {
+				hovered = true;
+				stop();
+			}
+		} );
+		on( root, 'pointerleave', ( event ) => {
+			if ( event.pointerType === 'mouse' ) {
+				hovered = false;
+				start();
+			}
+		} );
 		on( root, 'focusin', () => {
 			if ( root.matches( ':focus-visible' ) || root.querySelector( ':focus-visible' ) ) {
-				paused = true;
+				focused = true;
 				stop();
 			}
 		} );
 		on( root, 'focusout', () => {
-			paused = false;
+			focused = false;
 			start();
 		} );
 		on( doc, 'visibilitychange', () => ( doc.hidden ? stop() : start() ) );

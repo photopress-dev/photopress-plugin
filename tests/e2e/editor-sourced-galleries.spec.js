@@ -91,19 +91,16 @@ test( 'a Child Pages Gallery on a page with none says so', async ( { page } ) =>
 	await expect( canvas( page ).locator( `[data-block="${ block }"]` ) ).toContainText( 'This page has no published pages under it yet.' );
 } );
 
-test( 'the legacy Child Pages block opens without errors and turns into a Child Pages Gallery', async ( { page } ) => {
-	const id = makePost( '<!-- wp:photopress/childpages {"columns":3,"imageSize":"medium"} /-->', 'page' );
+test( 'a legacy Child Pages block, converted by the upgrade, opens as a valid Child Pages Gallery', async ( { page } ) => {
+	const id = makePost( '<!-- wp:photopress/childpages {"columns":3,"imageSize":"medium","imageCrop":false,"align":"wide"} /-->', 'page' );
 	made.push( id );
+	wp( 'eval', `\\PhotoPress\\modules\\gallery\\GalleryUpgrade::upgrade( ${ id } );` );
+	expect( savedContent( id ) ).toContain( '"photopressSource":"children"' );
+
 	await openEditor( page, { id } );
 	expect( await invalidBlocks( page ) ).toEqual( [] );
 
-	const attributes = await page.evaluate( () => {
-		const { select, dispatch } = window.wp.data;
-		const old = select( 'core/block-editor' ).getBlocks()[ 0 ];
-		const [ gallery ] = window.wp.blocks.switchToBlockType( old, 'core/gallery' );
-		dispatch( 'core/block-editor' ).replaceBlocks( old.clientId, gallery );
-		return gallery.attributes;
-	} );
-	expect( attributes ).toMatchObject( { photopressSource: 'children', columns: 3, sizeSlug: 'medium' } );
+	const attributes = await page.evaluate( () => window.wp.data.select( 'core/block-editor' ).getBlocks()[ 0 ].attributes );
+	expect( attributes ).toMatchObject( { photopressSource: 'children', columns: 3, sizeSlug: 'medium', imageCrop: false, align: 'wide' } );
 	await expect( canvas( page ).getByRole( 'document', { name: 'Block: Child Pages Gallery' } ) ).toHaveCount( 1 );
 } );

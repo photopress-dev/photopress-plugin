@@ -19,6 +19,12 @@ use WP_Error;
  * seconds later (DELAY), so replacing many images makes a few invalidations,
  * not one each. CloudFront allows 15 wildcard paths in progress at once; a
  * larger batch is widened to folder wildcards, or the whole distribution.
+ *
+ * A job that rewrites images' files under the same URLs (regenerating every
+ * size, writing the license) announces each image
+ * (photopress_image_files_rewritten). Their paths are kept with the job,
+ * narrowed as they are added, and sent as one invalidation when the job
+ * ends, done or cancelled.
  */
 class CdnInvalidator {
 
@@ -44,6 +50,12 @@ class CdnInvalidator {
 
 	const DELETE_HOOK = 'photopress_offload_delete_objects';
 
+	/** The paths a job's rewritten images need cleared: this, then the job ID. */
+	const JOB_OPTION_PREFIX = 'photopress_cdn_job_';
+
+	/** The job whose batch is running in this request, if any. */
+	protected static $job = null;
+
 	/**
 	 * How long a removed file stays in the bucket: longer than any page
 	 * cache keeps a page that may still show it.
@@ -55,7 +67,10 @@ class CdnInvalidator {
 		add_action( 'photopress_attachment_file_replaced', [ self::class, 'queue' ], 20 );
 		add_action( self::HOOK, [ self::class, 'flush' ] );
 		add_action( 'photopress_attachment_files_removed', [ self::class, 'scheduleDeletion' ], 10, 2 );
-		add_action( 'photopress_image_sizes_regenerated', [ self::class, 'sizesRegenerated' ] );
+		add_action( 'photopress_image_files_rewritten', [ self::class, 'rewritten' ] );
+		add_action( 'photopress_job_batch_started', [ self::class, 'batchStarted' ] );
+		add_action( 'photopress_job_batch_ended', [ self::class, 'batchEnded' ] );
+		add_action( 'photopress_job_ended', [ self::class, 'jobEnded' ] );
 		add_action( self::DELETE_HOOK, [ self::class, 'deleteObjects' ], 10, 4 );
 	}
 
@@ -156,11 +171,23 @@ class CdnInvalidator {
 
 		delete_option( self::PENDING_OPTION );
 
-		$result = self::invalidatePaths( self::batch( $pending ) );
+		return self::send( $pending );
+	}
+
+	/**
+	 * Sends paths as one invalidation, narrowed (batch()). On failure they
+	 * are queued again and retried in five minutes.
+	 *
+	 * @param string[] $paths
+	 * @return string|WP_Error The invalidation's ID.
+	 */
+	protected static function send( array $paths ) {
+
+		$result = self::invalidatePaths( self::batch( $paths ) );
 
 		update_option( self::LAST_OPTION, [
 			'time'         => time(),
-			'paths'        => count( $pending ),
+			'paths'        => count( $paths ),
 			'invalidation' => is_wp_error( $result ) ? null : $result,
 			'error'        => is_wp_error( $result ) ? $result->get_error_message() : null,
 		], false );
@@ -168,7 +195,7 @@ class CdnInvalidator {
 		// Queued again unless there is nothing to send them to.
 		if ( is_wp_error( $result ) && 'photopress_cdn_none' !== $result->get_error_code() ) {
 
-			$again = array_values( array_unique( array_merge( (array) get_option( self::PENDING_OPTION, [] ), $pending ) ) );
+			$again = array_values( array_unique( array_merge( (array) get_option( self::PENDING_OPTION, [] ), $paths ) ) );
 			update_option( self::PENDING_OPTION, $again, false );
 
 			if ( Scheduler::ensure() && ! Scheduler::pending( self::HOOK ) ) {
@@ -177,6 +204,79 @@ class CdnInvalidator {
 		}
 
 		return $result;
+	}
+
+	/**
+	 * photopress_image_files_rewritten: an image's files changed under the
+	 * same URLs. Kept with the job whose batch rewrote it; otherwise queued
+	 * as a replaced image's are.
+	 */
+	public static function rewritten( $id ) {
+
+		if ( ! self::$job ) {
+			self::queue( $id );
+			return;
+		}
+
+		$path = self::pathFor( $id );
+
+		if ( ! $path ) {
+			return;
+		}
+
+		$option = self::JOB_OPTION_PREFIX . self::$job;
+		update_option( $option, self::narrow( (array) get_option( $option, [] ), $path ), false );
+	}
+
+	/** photopress_job_batch_started: the job its rewritten images belong to. */
+	public static function batchStarted( $job ) {
+
+		self::$job = (string) ( $job['id'] ?? '' ) ?: null;
+	}
+
+	/** photopress_job_batch_ended */
+	public static function batchEnded( $job ) {
+
+		self::$job = null;
+	}
+
+	/**
+	 * photopress_job_ended: the paths of the images the job rewrote, as one
+	 * invalidation, done or cancelled.
+	 */
+	public static function jobEnded( $job ) {
+
+		$option = self::JOB_OPTION_PREFIX . ( $job['id'] ?? '' );
+		$paths  = self::batch( (array) get_option( $option, [] ) );
+
+		if ( ! $paths ) {
+			return;
+		}
+
+		delete_option( $option );
+		self::send( $paths );
+	}
+
+	/**
+	 * A path added to those kept for a job, narrowed as batch() narrows
+	 * them, so no more than MAX_WILDCARDS are kept: an image's own path
+	 * until there are too many; then its folder's; then everything.
+	 *
+	 * @param string[] $paths
+	 * @return string[]
+	 */
+	public static function narrow( array $paths, $path ) {
+
+		if ( [ '/*' ] === $paths ) {
+			return $paths;
+		}
+
+		// Folders already: the image's folder.
+		if ( $paths && '/*' === substr( $paths[0], -2 ) ) {
+			$path = trailingslashit( dirname( $path ) ) . '*';
+		}
+
+		return self::batch( array_merge( $paths, [ $path ] ) );
 	}
 
 	/**
@@ -288,17 +388,6 @@ class CdnInvalidator {
 		}
 
 		return $result;
-	}
-
-	/**
-	 * photopress_image_sizes_regenerated: the whole distribution, while
-	 * Offload Media serves a CDN domain.
-	 */
-	public static function sizesRegenerated() {
-
-		if ( '' !== self::domain() ) {
-			self::invalidateAll();
-		}
 	}
 
 	/**

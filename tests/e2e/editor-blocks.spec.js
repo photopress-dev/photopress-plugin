@@ -127,8 +127,8 @@ test( 'the editor warns about nothing of PhotoPress’s: no block on an old bloc
 		}
 	} );
 
-	// With the legacy blocks in it, which load their code.
-	const id = makePost( '<!-- wp:photopress/childpages /-->' + fs.readFileSync( path.join( LEGACY, 'photopress-gallery-columns.html' ), 'utf8' ) );
+	// With the legacy block in it, which loads its code.
+	const id = makePost( fs.readFileSync( path.join( LEGACY, 'photopress-gallery-columns.html' ), 'utf8' ) );
 	made.push( id );
 	await openEditor( page, { id } );
 	await expect( canvas( page ).locator( '.wp-block-photopress-gallery' ) ).toBeVisible();

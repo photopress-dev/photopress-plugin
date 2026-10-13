@@ -398,3 +398,29 @@ test( 'a preview: the copy the page has shows first, the srcset once it has', ()
 	expect( img.getAttribute( 'srcset' ) ).toBe( 's10-300.jpg 300w, s10.jpg 1200w' );
 } );
 
+
+test( 'autoplay pauses while a mouse pointer is over the slideshow; a touch does not pause it', () => {
+	vi.useFakeTimers();
+	slideshow.destroy();
+	root.dataset.autoplay = '1';
+	root.dataset.delay = '2';
+	slideshow = createSlideshow( root );
+
+	vi.advanceTimersByTime( 2000 );
+	expect( slideshow.current() ).toBe( 1 );
+
+	root.dispatchEvent( pointer( 'pointerenter' ) );
+	vi.advanceTimersByTime( 6000 );
+	expect( slideshow.current() ).toBe( 1 );
+
+	root.dispatchEvent( pointer( 'pointerleave' ) );
+	vi.advanceTimersByTime( 2000 );
+	expect( slideshow.current() ).toBe( 2 );
+
+	root.dispatchEvent( pointer( 'pointerenter', { kind: 'touch' } ) );
+	vi.advanceTimersByTime( 2000 );
+	expect( slideshow.current() ).toBe( 3 );
+
+	slideshow.destroy();
+	vi.useRealTimers();
+} );

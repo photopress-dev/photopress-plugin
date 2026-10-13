@@ -344,12 +344,24 @@ class GalleryAdd {
 
 	/**
 	 * The gallery to add to: the one with the anchor, or the post's only one.
+	 * A Taxonomy Gallery or Child Pages Gallery (photopressSource) saves no
+	 * images, so is not one to add to.
 	 *
 	 * @return array|WP_Error block, path (indexes down the block tree) and anchor.
 	 */
 	public static function chooseGallery( array $blocks, $anchor ) {
 
-		$galleries = self::galleries( $blocks );
+		$galleries = [];
+		$generated = [];
+
+		foreach ( self::galleries( $blocks ) as $gallery ) {
+
+			if ( empty( $gallery['block']['attrs']['photopressSource'] ) ) {
+				$galleries[] = $gallery;
+			} else {
+				$generated[] = $gallery['anchor'];
+			}
+		}
 
 		if ( '' !== $anchor ) {
 
@@ -358,6 +370,14 @@ class GalleryAdd {
 				if ( $gallery['anchor'] === $anchor ) {
 					return $gallery;
 				}
+			}
+
+			if ( in_array( $anchor, $generated, true ) ) {
+				return new WP_Error( 'photopress_gallery_generated', sprintf(
+					/* translators: %s: an HTML anchor. */
+					__( 'The gallery "%s" shows images chosen when the page is viewed; it cannot be added to.', 'photopress' ),
+					$anchor
+				) );
 			}
 
 			return new WP_Error( 'photopress_gallery_not_found', sprintf(

@@ -98,9 +98,10 @@ class JobsRest {
 
 	/**
 	 * A job as the REST API returns it: without its cursor and arguments.
+	 * next and waiting are for the panel's resting and busy texts.
 	 */
 	public static function present( array $job ) {
 
-		return array_intersect_key( $job, array_flip( [ 'id', 'type', 'label', 'total', 'done', 'failed', 'errors', 'status', 'created', 'updated', 'finished' ] ) );
+		return array_intersect_key( $job, array_flip( [ 'id', 'type', 'label', 'total', 'done', 'failed', 'errors', 'status', 'created', 'updated', 'finished', 'next', 'waiting' ] ) );
 	}
 }

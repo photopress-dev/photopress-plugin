@@ -55,10 +55,15 @@ class gallery extends photopress_module {
 
 		GalleryAdd::addHooks();
 		ChildPagesGallery::addHooks();
+		LegacyChildPages::addHooks();
+		TaxonomyGalleryPages::addHooks();
+		GalleryUpgrade::addHooks();
 
 		if ( pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ) {
 			GalleryRemove::addHooks();
 		}
+
+		GalleryRemove::addRetryHook();
 
 		add_action( 'enqueue_block_editor_assets', [ $this, 'shareEnabledLayouts' ] );
 
@@ -204,7 +209,8 @@ class gallery extends photopress_module {
 			'photopressOrder'       => [ 'type' => 'string', 'default' => 'date-desc' ],
 			// Shown above a Taxonomy Gallery's images, when on and it found some.
 			'photopressShowHeading' => [ 'type' => 'boolean', 'default' => false ],
-			'photopressHeading'     => [ 'type' => 'string', 'default' => 'Images' ],
+			// Unset: ImageTemplates::headingOf()'s, by what the gallery shows.
+			'photopressHeading'     => [ 'type' => 'string' ],
 			// Each image's file name and title under it, as a search result.
 			'photopressDetails'     => [ 'type' => 'boolean', 'default' => false ],
 		] );
@@ -362,7 +368,7 @@ class gallery extends photopress_module {
 
 			if ( ! empty( $block['attrs']['dynamicContent'] ) ) {
 
-				// WordPress 7.0's, rendering the gallery as part of this post.
+				// WordPress 7.1's, rendering the gallery as part of this post.
 				$shown = function_exists( 'block_core_gallery_resolve_dynamic_source' )
 					? (array) block_core_gallery_resolve_dynamic_source( $block['attrs']['dynamicContent'], (object) [ 'context' => [ 'postId' => $post->ID ] ] )
 					: [];

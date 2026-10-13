@@ -63,6 +63,19 @@ final class GalleryAddTest extends TestCase {
 		$this->assertSame( 'photopress_gallery_none', GalleryAdd::chooseGallery( self::blocks( '<!-- wp:paragraph --><p>x</p><!-- /wp:paragraph -->' ), '' )->get_error_code() );
 	}
 
+	public function test_taxonomy_and_child_pages_galleries_are_not_added_to(): void {
+
+		$query    = '<!-- wp:gallery {"photopressSource":"query","anchor":"latest"} /-->';
+		$children = '<!-- wp:gallery {"photopressSource":"children"} /-->';
+
+		// The post's only gallery of images is chosen, though it has others.
+		$blocks = self::blocks( $query . self::gallery( self::IMAGE ) . $children );
+		$this->assertSame( [ 1 ], GalleryAdd::chooseGallery( $blocks, '' )['path'] );
+
+		$this->assertSame( 'photopress_gallery_generated', GalleryAdd::chooseGallery( $blocks, 'latest' )->get_error_code() );
+		$this->assertSame( 'photopress_gallery_none', GalleryAdd::chooseGallery( self::blocks( $query . $children ), '' )->get_error_code() );
+	}
+
 	public function test_a_dynamic_gallery_anchor_is_read_from_the_comment(): void {
 
 		$blocks = self::blocks( '<!-- wp:gallery {"anchor":"dyn","dynamicContent":{"source":"core/attached-media"}} /-->' );

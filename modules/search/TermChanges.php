@@ -19,8 +19,9 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  *
  * An image's terms changed, or one of them was renamed or deleted: what
  * shows its terms is stale. $context: 'archives', the addresses of the
- * archives of those terms (before and after a rename), also stale; 'job',
- * true from the job below, for a term with many images.
+ * archives of those terms (before and after a rename), also stale; 'terms',
+ * the terms the image joined, left or lost, as "<taxonomy>:<term ID>";
+ * 'job', true from the job below, for a term with many images.
  *
  *     do_action( 'photopress_term_images_changed', array $images )
  *
@@ -85,6 +86,7 @@ class TermChanges {
 		}
 
 		$archives = [];
+		$terms    = [];
 
 		foreach ( array_map( 'intval', (array) $tt_ids ) as $tt_id ) {
 
@@ -92,10 +94,11 @@ class TermChanges {
 
 			if ( $term ) {
 				$archives[] = ImageTaxonomies::archiveUrl( $term );
+				$terms[]    = $taxonomy . ':' . (int) $term->term_id;
 			}
 		}
 
-		do_action( 'photopress_image_terms_changed', (int) $object_id, [ 'archives' => array_values( array_filter( $archives ) ), 'job' => false ] );
+		do_action( 'photopress_image_terms_changed', (int) $object_id, [ 'archives' => array_values( array_filter( $archives ) ), 'terms' => $terms, 'job' => false ] );
 	}
 
 	/** edit_terms: the term as it was. */
@@ -152,7 +155,7 @@ class TermChanges {
 		$ids = array_filter( array_map( 'intval', (array) $object_ids ) );
 
 		if ( $ids ) {
-			self::changed( [ 'images' => $ids ], [ $archive ] );
+			self::changed( [ 'images' => $ids ], [ $archive ], [ $taxonomy . ':' . (int) $term_id ] );
 		}
 	}
 
@@ -161,7 +164,7 @@ class TermChanges {
 	 * archives: each announced, or, when there are more than a few, all
 	 * together and, if needed, each in a job.
 	 */
-	private static function changed( array $args, array $archives ) {
+	private static function changed( array $args, array $archives, array $terms = [] ) {
 
 		if ( ! has_action( 'photopress_image_terms_changed' ) && ! has_action( 'photopress_term_images_changed' ) ) {
 			return;
@@ -188,7 +191,7 @@ class TermChanges {
 		update_object_term_cache( $ids, 'attachment' );
 
 		foreach ( $ids as $id ) {
-			do_action( 'photopress_image_terms_changed', $id, [ 'archives' => $archives, 'job' => false ] );
+			do_action( 'photopress_image_terms_changed', $id, [ 'archives' => $archives, 'terms' => $terms, 'job' => false ] );
 		}
 	}
 

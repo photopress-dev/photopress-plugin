@@ -61,7 +61,7 @@ final class TermChangesTest extends TestCase {
 				return (object) [ 'term_taxonomy_id' => 26 + $id, 'taxonomy' => $taxonomy, 'name' => $terms[ $id ][0], 'slug' => $terms[ $id ][1] ];
 			},
 			'get_term_by'             => static function ( $field, $tt_id, $taxonomy ) use ( &$terms ) {
-				return (object) [ 'taxonomy' => $taxonomy, 'slug' => $terms[ $tt_id - 26 ][1] ];
+				return (object) [ 'term_id' => $tt_id - 26, 'taxonomy' => $taxonomy, 'slug' => $terms[ $tt_id - 26 ][1] ];
 			},
 			'get_term_link'           => static fn( $term ) => "https://example.com/keywords/{$term->slug}/",
 			'is_taxonomy_viewable'    => true,
@@ -149,12 +149,13 @@ final class TermChangesTest extends TestCase {
 		return $announced;
 	}
 
-	/** Each of these images announced, with these archives. */
-	private static function changed( array $ids, array $slugs, bool $job = false ): array {
+	/** Each of these images announced, with these archives and terms (term IDs). */
+	private static function changed( array $ids, array $slugs, bool $job = false, array $terms = [] ): array {
 
 		$archives = array_map( static fn( $slug ) => "https://example.com/keywords/$slug/", $slugs );
+		$context  = $job ? [ 'archives' => $archives, 'job' => true ] : [ 'archives' => $archives, 'terms' => array_map( static fn( $id ) => "photos_keywords:$id", $terms ), 'job' => false ];
 
-		return array_map( static fn( $id ) => [ 'changed', $id, [ 'archives' => $archives, 'job' => $job ] ], $ids );
+		return array_map( static fn( $id ) => [ 'changed', $id, $context ], $ids );
 	}
 
 	/** Edits a term as wp_update_term() does: its hooks around the change. */
@@ -188,7 +189,7 @@ final class TermChangesTest extends TestCase {
 
 		TermChanges::imageTermsChanged( 7, 32, 'photos_keywords' );
 		TermChanges::imageTermsChanged( 7, [ 31, 32 ], 'photos_keywords' );
-		$this->assertSame( [ ...self::changed( [ 7 ], [ 'big-sur' ] ), ...self::changed( [ 7 ], [ 'ojai', 'big-sur' ] ) ], $this->announced() );
+		$this->assertSame( [ ...self::changed( [ 7 ], [ 'big-sur' ], false, [ 6 ] ), ...self::changed( [ 7 ], [ 'ojai', 'big-sur' ], false, [ 5, 6 ] ) ], $this->announced() );
 
 		// A taxonomy visitors don't see; a post.
 		TermChanges::imageTermsChanged( 7, [ 40 ], 'pp_client' );
@@ -262,7 +263,7 @@ final class TermChangesTest extends TestCase {
 
 		// 100 is a post, not an image.
 		$this->delete( 5, [ 4, 9, 12, 100 ] );
-		$this->assertSame( self::changed( [ 4, 9, 12 ], [ 'ojai' ] ), $this->announced() );
+		$this->assertSame( self::changed( [ 4, 9, 12 ], [ 'ojai' ], false, [ 5 ] ), $this->announced() );
 
 		// Deleted, an image leaving the term is an image leaving any term.
 		TermChanges::imageTermsChanged( 4, [ 31 ], 'photos_keywords' );

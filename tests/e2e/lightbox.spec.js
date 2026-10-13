@@ -310,3 +310,46 @@ test( 'a caption with markup that would run, as on a page cached by an earlier v
 	expect( await page.evaluate( () => window.ppRan ) ).toBeUndefined();
 } );
 
+
+test( 'a modified click on a linked image is left to the browser; on an image with no link, it opens the slideshow', async ( { page, made } ) => {
+	// The second image linked, as with Link to: Media file. (Not in the
+	// tab the link opens.)
+	await page.addInitScript( () => document.addEventListener( 'DOMContentLoaded', () => {
+		const img = document.querySelectorAll( '.photopress-has-slideshow figure.wp-block-image img' )[ 1 ];
+		if ( ! img ) {
+			return;
+		}
+		const link = document.createElement( 'a' );
+		link.href = img.src;
+		img.replaceWith( link );
+		link.append( img );
+	} ) );
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+
+	const items = page.locator( '.photopress-has-slideshow .photopress-gallery-item' );
+	const modifier = process.platform === 'darwin' ? 'Meta' : 'Control';
+
+	await items.nth( 1 ).scrollIntoViewIfNeeded();
+	const tab = page.context().waitForEvent( 'page' );
+	await items.nth( 1 ).locator( 'img' ).click( { modifiers: [ modifier ] } );
+	await ( await tab ).close();
+	await expect( page.locator( '.lightbox:visible' ) ).toHaveCount( 0 );
+
+	await items.nth( 0 ).locator( 'img' ).click( { modifiers: [ modifier ] } );
+	await expect.poll( () => current( page ) ).toBe( made.images[ 0 ] );
+} );
+
+test( 'Caption off and Title on: the title shows without the caption', async ( { page, made } ) => {
+	await page.addInitScript( () => document.addEventListener( 'DOMContentLoaded', () => {
+		const settings = document.querySelector( '.photopress-slideshow' );
+		settings?.setAttribute( 'data-showcaptions', '' );
+		settings?.setAttribute( 'data-showtitleincaption', '1' );
+		document.querySelectorAll( '.photopress-has-slideshow .photopress-gallery-item img' )[ 1 ]?.setAttribute( 'data-caption', 'A caption' );
+	} ) );
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+	await openOn( page, 1 );
+
+	const caption = page.locator( `${ CURRENT } .photopress-gallery-slideshow__caption` );
+	await expect( caption.locator( '.info.title' ) ).toHaveCount( 1 );
+	await expect( caption.locator( '.info.caption' ) ).toHaveCount( 0 );
+} );

@@ -225,7 +225,7 @@ test( 'on a page, Taxonomy Gallery shows the images of a term, or the latest, pu
 	}
 } );
 
-test( 'Child Pages Gallery shows the published child pages, by featured image or else gallery image; the old Child Pages block lists them', async ( { page } ) => {
+test( 'Child Pages Gallery shows the published child pages, by featured image or else gallery image; the old Child Pages block shows as one', async ( { page } ) => {
 	const [ featured, inGallery, attached ] = made.images;
 	const galleryOf = ( id ) => `<!-- wp:gallery {"linkTo":"none"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"><!-- wp:image {"id":${ id }} -->\n<figure class="wp-block-image"><img src="/x.jpg" alt="" class="wp-image-${ id }"/></figure>\n<!-- /wp:image --></figure>\n<!-- /wp:gallery -->`;
 	const content = `<!-- wp:gallery {"photopressSource":"children","photopressLayout":"masonry","sizeSlug":"medium","anchor":"children"} -->\n<figure class="wp-block-gallery has-nested-images columns-default is-cropped"></figure>\n<!-- /wp:gallery -->`
@@ -268,10 +268,10 @@ test( 'Child Pages Gallery shows the published child pages, by featured image or
 		await expect( items.nth( 0 ).locator( 'figcaption' ) ).toHaveText( `PP E2E child A ${ stamp }` );
 		await expect( items.nth( 1 ).locator( 'figcaption a' ) ).toHaveAttribute( 'href', new RegExp( `${ pages.links[ 1 ] }$` ) );
 
-		// The old block: the published children, A with its featured image,
-		// linked in the same tab.
-		const old = page.locator( '.photopress-childpages' );
-		await expect( old.locator( 'li' ) ).toHaveCount( 4 );
+		// The old block, not yet converted: a Child Pages Gallery in its 3
+		// columns, of the same pages.
+		const old = page.locator( 'figure.wp-block-gallery.columns-3' );
+		await expect( old.locator( 'img' ) ).toHaveCount( 3 );
 		await expect( old ).not.toContainText( `PP E2E child C ${ stamp }` );
 		await expect( old.locator( `img.wp-image-${ featured }` ) ).toHaveAttribute( 'srcset', /\S/ );
 		await expect( old.locator( 'a[target]' ) ).toHaveCount( 0 );

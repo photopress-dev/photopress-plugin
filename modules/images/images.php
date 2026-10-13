@@ -444,6 +444,18 @@ class images extends photopress_module {
 		update_post_meta( $id, self::QUALITY_META, $settings['quality'] );
 		delete_post_meta( $id, self::SIGNATURE_META );
 
+		// Every size made again, under the same names; sizes only added
+		// have new ones.
+		if ( 'full' === $work ) {
+			/**
+			 * Fires when an image's files were written again under the same
+			 * URLs, so copies cached elsewhere (a CDN) are out of date.
+			 *
+			 * @param int $id Attachment ID.
+			 */
+			do_action( 'photopress_image_files_rewritten', $id );
+		}
+
 		return true;
 	}
 
@@ -649,8 +661,8 @@ class images extends photopress_module {
 	}
 
 	/**
-	 * When the job is done: announced, so the files under their old names
-	 * in a CDN's cache are cleared, with one invalidation for them all.
+	 * When the job is done: announced. (A CDN's copies of the files are
+	 * cleared on photopress_image_files_rewritten, done or cancelled.)
 	 */
 	public static function finished( $job ) {
 

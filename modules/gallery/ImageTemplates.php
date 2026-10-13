@@ -211,10 +211,24 @@ class ImageTemplates {
 			return '';
 		}
 
-		$heading = empty( $attributes['photopressShowHeading'] ) ? '' : trim( (string) ( $attributes['photopressHeading'] ?? __( 'Images', 'photopress' ) ) );
+		$heading = empty( $attributes['photopressShowHeading'] ) ? '' : self::headingOf( $attributes );
 
 		return ( '' !== $heading ? '<h2 class="wp-block-heading photopress-gallery-heading">' . esc_html( $heading ) . '</h2>' : '' )
 			. wp_filter_content_tags( do_blocks( self::galleryMarkup( $items, $attributes ) ) ) . $pages;
+	}
+
+	/**
+	 * A sourced gallery's heading: the one set, or "Pages" for a Child Pages
+	 * Gallery and "Images" for a Taxonomy Gallery (headingOf() in
+	 * src/variations/gallery-layouts.js).
+	 */
+	public static function headingOf( array $attributes ) {
+
+		if ( isset( $attributes['photopressHeading'] ) ) {
+			return trim( (string) $attributes['photopressHeading'] );
+		}
+
+		return 'children' === ( $attributes['photopressSource'] ?? '' ) ? __( 'Pages', 'photopress' ) : __( 'Images', 'photopress' );
 	}
 
 	/**

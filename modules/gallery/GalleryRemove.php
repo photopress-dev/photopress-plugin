@@ -4,6 +4,10 @@ namespace PhotoPress\modules\gallery;
 
 defined( 'ABSPATH' ) || exit;
 
+use PhotoPress\jobs\Jobs;
+use PhotoPress\jobs\Scheduler;
+use pp_api;
+
 /**
  * Takes an image deleted from the media library out of the galleries that
  * show it, so they are not left with a broken image.
@@ -21,8 +25,19 @@ defined( 'ABSPATH' ) || exit;
  *
  * The images deleted in a request are removed at its end, with one search
  * of the posts for them all.
+ *
+ * A post another user has open in the editor (wp_check_post_lock()) is
+ * left until they are done: their save would write back the image. It is
+ * tried again every RETRY_SECONDS, through Action Scheduler, for up to
+ * RETRY_FOR seconds; a block they saved in the meantime is removed then.
  */
 class GalleryRemove {
+
+	const RETRY_HOOK = 'photopress_gallery_remove_retry';
+
+	const RETRY_SECONDS = 300; // five minutes
+
+	const RETRY_FOR = 86400; // a day
 
 	/**
 	 * Images deleted in this request: the parent post of each, by ID.
@@ -34,6 +49,15 @@ class GalleryRemove {
 	public static function addHooks() {
 
 		add_action( 'delete_attachment', [ self::class, 'imageDeleted' ] );
+	}
+
+	/**
+	 * The retry for posts that were being edited: registered whether or not
+	 * the setting is on, so one scheduled before it was turned off ends.
+	 */
+	public static function addRetryHook() {
+
+		add_action( self::RETRY_HOOK, [ self::class, 'retry' ], 10, 3 );
 	}
 
 	/**
@@ -72,7 +96,41 @@ class GalleryRemove {
 		$ids = array_keys( $deleted );
 
 		foreach ( self::postsWith( $ids ) as $post_id ) {
-			self::removeFromPost( $post_id, $ids );
+			self::removeUnlessLocked( $post_id, $ids, time() );
+		}
+	}
+
+	/**
+	 * Removes the images from the post now, or, while another user has it
+	 * open, schedules a retry; until RETRY_FOR after $since.
+	 *
+	 * @param int[] $ids
+	 * @return int|null Image blocks removed; null when left for a retry.
+	 */
+	public static function removeUnlessLocked( $post_id, array $ids, $since ) {
+
+		if ( ! function_exists( 'wp_check_post_lock' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/post.php';
+		}
+
+		if ( ! wp_check_post_lock( $post_id ) ) {
+			return self::removeFromPost( $post_id, $ids );
+		}
+
+		if ( time() - $since < self::RETRY_FOR && Scheduler::ensure() ) {
+			as_schedule_single_action( time() + self::RETRY_SECONDS, self::RETRY_HOOK, [ (int) $post_id, array_map( 'intval', $ids ), (int) $since ], Jobs::GROUP );
+		}
+
+		return null;
+	}
+
+	/**
+	 * RETRY_HOOK: a post that was being edited when the images were deleted.
+	 */
+	public static function retry( $post_id, $ids, $since ) {
+
+		if ( pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ) {
+			self::removeUnlessLocked( (int) $post_id, array_map( 'intval', (array) $ids ), (int) $since );
 		}
 	}
 
