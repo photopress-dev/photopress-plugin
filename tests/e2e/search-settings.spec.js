@@ -80,7 +80,8 @@ test( 'until saved, Attachment pages follow WordPress\'s own setting; image taxo
 		const on = urlsOf( id );
 		expect( on.link ).not.toBe( on.file );
 		expect( lastLine( wp( 'eval', `echo get_option( 'wp_attachment_pages_enabled' );` ) ) ).toBe( '1' );
-		await page.goto( URL );
+		// The same address with its #tab is only a jump within the page.
+		await page.reload();
 		await expect( featureSwitch( page, 'Attachment pages' ) ).toBeChecked( { timeout: 30000 } );
 
 		if ( process.env.PP_E2E_SHOTS ) {
