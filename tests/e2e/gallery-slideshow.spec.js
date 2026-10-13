@@ -294,10 +294,10 @@ test.describe( 'on a screen of density 2', () => {
 			await expect.poll( async () => ( await loadedImages( page ) ).map( ( img ) => img.sizes === `${ Math.ceil( img.shown ) }px` ) ).not.toContain( false );
 
 			// Shown at the size the slide gives it: sizes never makes an
-			// image smaller, as one measured before it loaded would.
-			for ( const img of await loadedImages( page ) ) {
-				expect( Math.abs( img.shown - img.fits ) ).toBeLessThanOrEqual( 1 );
-			}
+			// image smaller, as one measured before it loaded would. Once
+			// the slideshow has followed the resize, which it does as the
+			// browser reports it.
+			await expect.poll( async () => ( await loadedImages( page ) ).map( ( img ) => Math.abs( img.shown - img.fits ) <= 1 ) ).not.toContain( false );
 
 			// At least as wide as shown on this screen (Chrome may take one up
 			// to 5% narrower, by its rounding), or the widest there is.

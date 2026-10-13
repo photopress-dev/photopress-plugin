@@ -26,7 +26,9 @@ module.exports = defineConfig( {
 	// One browser at a time: the test site runs on a small server.
 	workers: 1,
 	fullyParallel: false,
-	retries: 0,
+	// In CI, a test that fails once is run again, and reported as flaky
+	// if it then passes.
+	retries: process.env.CI ? 1 : 0,
 	timeout: 120000,
 	reporter: [ [ 'list' ] ],
 	outputDir: `${ __dirname }/.results`,

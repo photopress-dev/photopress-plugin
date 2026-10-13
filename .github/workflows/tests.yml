@@ -78,6 +78,8 @@ jobs:
     env:
       PP_E2E_URL: http://localhost
       PP_E2E_WP_PATH: /tmp/wordpress
+      # The runner has memory for the block editor (editor-*.spec.js).
+      PP_E2E_EDITOR: 1
     steps:
     - uses: actions/checkout@v6
     - uses: shivammathur/setup-php@v2
@@ -138,4 +140,6 @@ jobs:
       with:
         name: e2e-results
         path: tests/e2e/.results
+        # .results is a hidden folder, which upload-artifact leaves out by default.
+        include-hidden-files: true
         retention-days: 7
