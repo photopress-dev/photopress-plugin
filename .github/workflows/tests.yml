@@ -95,7 +95,7 @@ jobs:
     - name: Chromium
       run: npx playwright install --with-deps chromium
     - name: WordPress
-      run: tests/e2e/ci/setup.sh
+      run: bash tests/e2e/ci/setup.sh
     # PHP's built-in server with workers, behind Varnish on port 80 as Apache
     # is on the test site.
     - name: Servers
