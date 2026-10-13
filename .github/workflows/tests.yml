@@ -101,7 +101,9 @@ jobs:
     - name: Servers
       run: |
         PHP_CLI_SERVER_WORKERS=8 nohup php -S 127.0.0.1:8080 -t "$PP_E2E_WP_PATH" tests/e2e/ci/router.php > /tmp/php-server.log 2>&1 &
-        sudo varnishd -a :80 -f "$PWD/tests/e2e/ci/default.vcl" -s malloc,64m -n /tmp/varnish
+        # Where Varnish, which drops root, can read them.
+        sudo cp tests/e2e/ci/default.vcl tests/e2e/ci/purge.vcl /etc/varnish/
+        sudo varnishd -a :80 -f /etc/varnish/default.vcl -s malloc,64m -n /tmp/varnish
         curl -sf -o /dev/null -w 'Home page: %{http_code}, through %header{via}\n' "$PP_E2E_URL/"
     - name: Playwright
       run: npm run test:e2e
