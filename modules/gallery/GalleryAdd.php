@@ -143,6 +143,12 @@ class GalleryAdd {
 			return $valid;
 		}
 
+		// Arguments are checked before the route's permissions: one answer,
+		// for a user who may not upload, whether the post exists or not.
+		if ( ! current_user_can( 'upload_files' ) ) {
+			return new WP_Error( 'rest_cannot_create', __( 'Sorry, you are not allowed to upload files.', 'photopress' ), [ 'status' => rest_authorization_required_code() ] );
+		}
+
 		$post = get_post( (int) $value['post'] );
 
 		if ( ! $post || in_array( $post->post_type, [ 'attachment', 'revision' ], true ) || ! post_type_supports( $post->post_type, 'editor' ) ) {

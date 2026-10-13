@@ -31,6 +31,11 @@ use PhotoPress\modules\search\search;
  */
 class ImageTemplates {
 
+	/** Where randomIds() keeps a gallery's IDs, and how many at most. */
+	const RANDOM_IDS  = 'photopress_gallery_ids_';
+	const RANDOM_FROM = 5000;
+
+
 	public static function addHooks() {
 
 		add_filter( 'pre_render_block', [ self::class, 'renderSourcedGallery' ], 10, 2 );
@@ -168,7 +173,8 @@ class ImageTemplates {
 		} elseif ( 'query' === $source ) {
 
 			$args  = self::queryArgs( $attributes );
-			$items = self::imageItems( $args ? array_map( 'intval', ( new \WP_Query( $args ) )->posts ) : [], $attributes );
+			$ids   = ! $args ? [] : ( 'rand' === $args['orderby'] ? self::randomIds( $args ) : array_map( 'intval', ( new \WP_Query( $args ) )->posts ) );
+			$items = self::imageItems( $ids, $attributes );
 
 		} else {
 
@@ -310,6 +316,30 @@ class ImageTemplates {
 	 * @return array|null WP_Query arguments; null for a taxonomy visitors may
 	 *                    not see, or one not for images.
 	 */
+	/**
+	 * A gallery's images in random order: the IDs it may show, kept for ten
+	 * minutes, shuffled here. ORDER BY RAND() sorted every matching image
+	 * on each page view the page cache did not answer.
+	 *
+	 * @param array $args queryArgs().
+	 * @return int[]
+	 */
+	public static function randomIds( array $args ) {
+
+		$all = array_merge( $args, [ 'orderby' => 'ID', 'order' => 'DESC', 'posts_per_page' => self::RANDOM_FROM ] );
+		$key = self::RANDOM_IDS . md5( (string) wp_json_encode( $all ) );
+		$ids = get_transient( $key );
+
+		if ( ! is_array( $ids ) ) {
+			$ids = array_map( 'intval', ( new \WP_Query( $all ) )->posts );
+			set_transient( $key, $ids, 10 * MINUTE_IN_SECONDS );
+		}
+
+		shuffle( $ids );
+
+		return array_slice( $ids, 0, (int) $args['posts_per_page'] );
+	}
+
 	public static function queryArgs( array $attributes ) {
 
 		$orders = [

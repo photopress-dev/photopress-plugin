@@ -133,6 +133,9 @@ final class TaxonomyProcessingTest extends TestCase {
 
 		$registered = [];
 		Functions\when( 'sanitize_title' )->alias( static fn( $text ) => strtolower( preg_replace( '/[^A-Za-z0-9]+/', '-', trim( $text ) ) ) );
+		// Only WordPress's own exist before PhotoPress registers its.
+		Functions\when( 'taxonomy_exists' )->alias( static fn( $id ) => 'category' === $id );
+		Functions\when( 'get_taxonomy' )->alias( static fn( $id ) => (object) [ 'name' => $id, '_builtin' => 'category' === $id ] );
 		Functions\when( 'register_taxonomy' )->alias( static function ( $id, $type, $args ) use ( &$registered ) {
 			$registered[ $id ] = $args;
 		} );

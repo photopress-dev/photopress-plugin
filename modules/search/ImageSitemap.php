@@ -83,15 +83,23 @@ class ImageSitemap {
 			return [];
 		}
 
-		return ( new WP_Query( self::imagesQuery( $args + [
+		// Their IDs first, in ID order from the index, then the posts: as
+		// whole rows, a page of up to 2,000 was sorted in a temporary file.
+		$ids = ( new WP_Query( self::imagesQuery( $args + [
 			'orderby'                => 'ID',
 			'order'                  => 'ASC',
 			'posts_per_page'         => (int) $per_page,
 			'paged'                  => max( 1, (int) $page ),
 			'no_found_rows'          => true,
+			'fields'                 => 'ids',
+			'update_post_meta_cache' => false,
 			'update_post_term_cache' => false,
 			'ignore_sticky_posts'    => true,
 		] ) ) )->posts;
+
+		metadata::primeImages( $ids );
+
+		return array_values( array_filter( array_map( 'get_post', $ids ) ) );
 	}
 
 	/** How many public images there are, while attachment pages are on. */
@@ -104,6 +112,8 @@ class ImageSitemap {
 		$query = new WP_Query( self::imagesQuery( $args + [
 			'fields'                 => 'ids',
 			'posts_per_page'         => 1,
+			// Counted, not sorted.
+			'orderby'                => 'none',
 			'update_post_term_cache' => false,
 			'update_post_meta_cache' => false,
 		] ) );

@@ -328,6 +328,17 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * A background job's image that stops a batch (out of memory or time) is
   recorded as failed and skipped, rather than tried again for ever; paced
   jobs also wait while less than 300 MB of memory is available.
+* Background jobs are safe to run again: the license job leaves a file
+  that has the license already as it is (no rewrite, no new upload to the
+  CDN, no growth of a TIFF), and two starts of one job at once make one.
+* Faster on large sites without Relevanssi: image search finds a word's
+  terms once rather than for every image; a gallery in random order picks
+  from its images' IDs, kept for ten minutes, rather than sorting them all
+  on each page view; sitemaps list images without sorting whole rows.
+* On a network, only a network admin can clear everything from the CDN,
+  and anyone at most once in ten minutes. An upload that adds to a gallery
+  tells a user who may not upload nothing about the post. A taxonomy's ID
+  is never one of WordPress's own, nor longer than WordPress allows.
 * Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
   out in WordPress's columns instead.
 * Fixed: the block editor warned that the PhotoPress Gallery and Child Pages

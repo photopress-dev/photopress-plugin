@@ -92,6 +92,8 @@ final class ImageSearchTest extends TestCase {
 			public $terms = 'wp_terms';
 			public function esc_like( $text ) { return addcslashes( $text, '_%\\\\' ); }
 			public function prepare( $query, ...$args ) { return vsprintf( str_replace( '%s', "'%s'", $query ), $args ); }
+			// The terms each word matches: "sunset" two, "fog" none.
+			public function get_col( $sql ) { return str_contains( $sql, "'%sunset%'" ) ? [ '12', '34' ] : []; }
 		};
 
 		$query = new \WP_Query();
@@ -104,7 +106,9 @@ final class ImageSearchTest extends TestCase {
 		// names; one to leave out, NOT.
 		$this->assertStringContainsString( "wp_posts.post_title LIKE '%sunset%'", $sql );
 		$this->assertStringContainsString( "meta_key = '_wp_attachment_image_alt' AND photopress_alt.meta_value LIKE '%sunset%'", $sql );
-		$this->assertStringContainsString( "photopress_tt.taxonomy IN ( 'photos_keywords', 'pp_genre' ) AND photopress_t.name LIKE '%sunset%'", $sql );
+		// The terms looked up once, then each post by its relationships' key.
+		$this->assertStringContainsString( "photopress_tr.object_id = wp_posts.ID AND photopress_tr.term_taxonomy_id IN ( 12, 34 )", $sql );
+		$this->assertStringNotContainsString( 'photopress_t.name LIKE', $sql );
 		$this->assertStringContainsString( "NOT (wp_posts.post_title LIKE '%fog%'", $sql );
 		$this->assertStringContainsString( ") AND NOT (", $sql );
 		// Only images among attachments; no password protected posts for visitors.

@@ -394,4 +394,20 @@ final class JobsTest extends TestCase {
 		$this->assertFalse( Jobs::runBatch( $job['id'] ) );
 		$this->assertSame( [ 0, 'busy' ], [ Jobs::get( $job['id'] )['done'], Jobs::get( $job['id'] )['waiting'] ] );
 	}
+
+	public function test_two_starts_at_once_make_one_job(): void {
+
+		// Another request is starting one of the type.
+		$this->options[ 'photopress_job_start_' . md5( 'test.items' ) ] = time();
+
+		$second = Jobs::start( 'test.items' );
+		$this->assertInstanceOf( \WP_Error::class, $second );
+		$this->assertSame( 409, $second->get_error_data()['status'] );
+		$this->assertSame( [], $this->queued );
+
+		// One left by a request that died is not in the way for long.
+		$this->options[ 'photopress_job_start_' . md5( 'test.items' ) ] = time() - 60;
+		$this->assertIsArray( Jobs::start( 'test.items' ) );
+		$this->assertArrayNotHasKey( 'photopress_job_start_' . md5( 'test.items' ), $this->options );
+	}
 }

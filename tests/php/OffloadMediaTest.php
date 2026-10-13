@@ -2,6 +2,7 @@
 
 namespace PhotoPress\Tests;
 
+use Brain\Monkey\Functions;
 use PhotoPress\modules\media\OffloadMedia;
 
 /**
@@ -55,4 +56,23 @@ final class OffloadMediaTest extends TestCase {
 		}
 		$this->assertFalse( has_filter( 'as3cf_pre_update_attachment_metadata', '__return_true' ) );
 	}
+
+	public function test_clearing_everything_is_for_a_network_admin_and_once_in_ten_minutes(): void {
+
+		$routes = [];
+		Functions\when( 'register_rest_route' )->alias( static function ( $ns, $route, $args ) use ( &$routes ) { $routes[ $route ] = $args; } );
+		( new \ReflectionClass( \PhotoPress\modules\media\media::class ) )->newInstanceWithoutConstructor()->registerRoutes();
+		$clear = $routes['/cdn/invalidate']['callback'];
+
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'current_user_can' )->alias( static fn( $cap ) => 'manage_network_options' !== $cap );
+		$this->assertSame( 'photopress_cdn_network', $clear( [ 'scope' => 'all' ] )->get_error_code(), 'a site admin on a network' );
+
+		Functions\when( 'is_multisite' )->justReturn( false );
+		Functions\when( 'get_transient' )->justReturn( time() - 60 );
+		$recent = $clear( [ 'scope' => 'all' ] );
+		$this->assertSame( 'photopress_cdn_recent', $recent->get_error_code() );
+		$this->assertSame( 429, $recent->get_error_data()['status'] );
+	}
 }
+

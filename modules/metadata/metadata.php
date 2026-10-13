@@ -1255,7 +1255,14 @@ class metadata extends photopress_module {
 				continue;
 			}
 			
-			$id = $tax[ 'id' ];
+			$id = (string) $tax[ 'id' ];
+
+			// One of WordPress's own (category, post_tag…): left as it is,
+			// as registering would replace it.
+			if ( '' === $id || ( taxonomy_exists( $id ) && ! empty( get_taxonomy( $id )->_builtin ) ) ) {
+				continue;
+			}
+
 			$upper_plural = ucwords( $tax[ 'pluralLabel' ] );
 			$upper_singular = ucwords( $tax[ 'singularLabel' ] );
 			
@@ -1637,18 +1644,21 @@ class metadata extends photopress_module {
 			return new \WP_Error( 'photopress_no_file', sprintf( __( 'The file of image %d is missing.' ), $id ) );
 		}
 
-		$failed = [];
+		$failed  = [];
+		$changed = false;
 
 		foreach ( $files as $path ) {
 
-			$written = XmpFile::update( $path, $merge );
+			$written = XmpFile::update( $path, $merge, $file_changed );
+			$changed = $changed || $file_changed;
 
 			if ( true !== $written ) {
 				$failed[] = wp_basename( $path ) . ': ' . $written->get_error_message();
 			}
 		}
 
-		if ( count( $failed ) < count( $files ) ) {
+		// Only when a file changed: run again, nothing is copied anew.
+		if ( $changed ) {
 			wp_update_attachment_metadata( $id, wp_get_attachment_metadata( $id ) );
 		}
 
