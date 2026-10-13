@@ -148,8 +148,8 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   a card with its switch. Each has Save, and Save and reprocess all images
   to apply a change to the images already uploaded, with the progress shown
   as soon as it is clicked.
-* Reprocessing and other background jobs over images work ten images at a
-  time and rest between batches, longer while the server is busy.
+* Reprocessing images' metadata, alt text or descriptions works ten images
+  at a time and rests between batches, longer while the server is busy.
 * Licensing: the license is embedded in uploads and given in image pages'
   structured data only while Licensing is switched on and its name, URL and
   web statement of rights are all filled in. 1.9.0 gave the structured data
