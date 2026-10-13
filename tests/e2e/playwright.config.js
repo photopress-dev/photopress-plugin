@@ -13,6 +13,9 @@
  *                   header, e.g. http://127.0.0.1:8080 to reach Apache directly.
  *   PP_E2E_CHROMIUM Chromium executable, to use one already installed rather
  *                   than `npx playwright install chromium`.
+ *
+ * In CI, ci/setup.sh builds a site of its own for them, behind Varnish
+ * (.github/workflows/tests.yml).
  */
 const { defineConfig } = require( '@playwright/test' );
 
