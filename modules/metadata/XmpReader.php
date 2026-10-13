@@ -10,6 +10,9 @@ class XmpReader {
 	
 	const RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 	const XML_NS = 'http://www.w3.org/XML/1998/namespace';
+
+	/** How much of a JPEG is read at a time while its segments are followed. */
+	const JPEG_BUFFER = 8192;
 	
 	/**
 	 * Namespace URI => the prefix properties are named with, whatever prefix
@@ -617,6 +620,10 @@ class XmpReader {
 	/**
 	 * Reads the XMP segments of a JPEG, stopping at the image data. Returns
 	 * the standard packet and the reassembled Extended XMP packets by GUID.
+	 *
+	 * Read through a buffer of JPEG_BUFFER bytes, so fill bytes before a
+	 * marker are skipped a buffer at a time; other segments are skipped by
+	 * seeking, or by reading past them on a stream that cannot seek.
 	 */
 	private function readJpegPackets( $fh ) {
 
@@ -625,21 +632,25 @@ class XmpReader {
 		$main = null;
 		$chunks = [];
 		$complete = false;
+		$buf = '';
 
-		while ( ! feof( $fh ) ) {
+		while ( true ) {
 
-			$byte = fread( $fh, 1 );
-
-			if ( $byte !== "\xFF" ) {
+			if ( $this->bufferedBytes( $fh, $buf, 1 ) !== "\xFF" ) {
 				break;
 			}
 
 			// Markers may be preceded by any number of 0xFF fill bytes.
 			do {
-				$type = fread( $fh, 1 );
-			} while ( $type === "\xFF" );
+				if ( '' === $buf && '' === ( $buf = (string) fread( $fh, self::JPEG_BUFFER ) ) ) {
+					break;
+				}
+				$buf = substr( $buf, strspn( $buf, "\xFF" ) );
+			} while ( '' === $buf );
 
-			if ( $type === '' || $type === false ) {
+			$type = $this->bufferedBytes( $fh, $buf, 1 );
+
+			if ( '' === $type ) {
 				break;
 			}
 
@@ -656,7 +667,7 @@ class XmpReader {
 				break;
 			}
 
-			$length = $this->readBytes( $fh, 2 );
+			$length = $this->bufferedBytes( $fh, $buf, 2 );
 
 			if ( strlen( $length ) < 2 ) {
 				break;
@@ -669,11 +680,11 @@ class XmpReader {
 			}
 
 			if ( $type !== 0xE1 ) {
-				fseek( $fh, $length, SEEK_CUR );
+				$this->skipBytes( $fh, $buf, $length );
 				continue;
 			}
 
-			$data = $length ? $this->readBytes( $fh, $length ) : '';
+			$data = $length ? $this->bufferedBytes( $fh, $buf, $length ) : '';
 
 			if ( null === $main && strncmp( $data, $standard, strlen( $standard ) ) === 0 ) {
 
@@ -710,6 +721,48 @@ class XmpReader {
 		}
 
 		return [ 'main' => $main, 'extended' => $extended, 'complete' => $complete ];
+	}
+
+	/**
+	 * $length bytes, unless the file ends first: from $buf, what was read
+	 * ahead, then from the file, reading ahead at least JPEG_BUFFER bytes.
+	 */
+	private function bufferedBytes( $fh, &$buf, $length ) {
+
+		if ( strlen( $buf ) < $length ) {
+			$buf .= $this->readBytes( $fh, max( self::JPEG_BUFFER, $length - strlen( $buf ) ) );
+		}
+
+		$data = (string) substr( $buf, 0, $length );
+		$buf = (string) substr( $buf, $length );
+
+		return $data;
+	}
+
+	/**
+	 * Moves $length bytes on: past what was read ahead into $buf, then by
+	 * seeking, or by reading on a stream that cannot seek.
+	 */
+	private function skipBytes( $fh, &$buf, $length ) {
+
+		$buffered = min( $length, strlen( $buf ) );
+		$buf = (string) substr( $buf, $buffered );
+		$length -= $buffered;
+
+		if ( $length <= 0 || 0 === @fseek( $fh, $length, SEEK_CUR ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			return;
+		}
+
+		while ( $length > 0 && ! feof( $fh ) ) {
+
+			$chunk = fread( $fh, min( $length, 65536 ) );
+
+			if ( false === $chunk || '' === $chunk ) {
+				break;
+			}
+
+			$length -= strlen( $chunk );
+		}
 	}
 
 	/**
