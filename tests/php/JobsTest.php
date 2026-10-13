@@ -12,7 +12,11 @@ final class JobsTest extends TestCase {
 
 	private array $options = [];
 
+	/** Jobs whose next batch is pending in Action Scheduler, by ID. */
 	private array $queued = [];
+
+	/** The job whose batch Action Scheduler is running, if any. */
+	private ?string $running = null;
 
 	protected function setUp(): void {
 
@@ -20,8 +24,10 @@ final class JobsTest extends TestCase {
 
 		$this->options = [];
 		$this->queued = [];
+		$this->running = null;
 		$options = &$this->options;
 		$queued = &$this->queued;
+		$running = &$this->running;
 
 		Functions\stubs( [
 			// Closures with use (&...), not arrow functions: those capture by value.
@@ -40,7 +46,12 @@ final class JobsTest extends TestCase {
 			'get_current_user_id'   => 1,
 			'wp_convert_hr_to_bytes' => static fn() => -1,
 			'as_enqueue_async_action' => static function ( $hook, $args ) use ( &$queued ) { $queued[] = $args[0]; return 1; },
-			'as_has_scheduled_action' => static function ( $hook, $args ) use ( &$queued ) { return in_array( $args[0], $queued, true ); },
+			// As Action Scheduler: a running action counts as scheduled.
+			'as_has_scheduled_action' => static function ( $hook, $args ) use ( &$queued, &$running ) { return in_array( $args[0], $queued, true ) || $args[0] === $running; },
+			'as_get_scheduled_actions' => static function ( $query ) use ( &$queued, &$running ) {
+				$ids = 'in-progress' === ( $query['status'] ?? '' ) ? array_filter( [ $running ] ) : $queued;
+				return array_values( isset( $query['args'] ) ? array_intersect( $ids, [ $query['args'][0] ] ) : $ids );
+			},
 			'as_unschedule_all_actions' => static function ( $hook, $args ) use ( &$queued ) { $queued = array_values( array_diff( $queued, [ $args[0] ] ) ); },
 			'as_schedule_single_action' => static function ( $when, $hook, $args ) use ( &$queued ) { $queued[] = $args[0]; return 1; },
 		] );
@@ -181,4 +192,99 @@ final class JobsTest extends TestCase {
 		$this->assertSame( 'done', Jobs::get( $job['id'] )['status'] );
 		$this->assertSame( [ $job['id'] ], $finished );
 	}
+
+	/** Action Scheduler running the next pending batch, as a queue run does. */
+	private function runQueued(): bool {
+
+		$id = array_shift( $this->queued );
+
+		if ( null === $id ) {
+			return false;
+		}
+
+		$this->running = $id;
+		Jobs::runBatch( $id );
+		$this->running = null;
+
+		return true;
+	}
+
+	public function test_a_job_runs_batch_after_batch_through_action_scheduler_alone(): void {
+
+		Jobs::register( 'test.pairs', [
+			'count'       => static fn() => 5,
+			'items'       => static fn( $after, $limit ) => array_slice( array_values( array_filter( [ 1, 2, 3, 4, 5 ], static fn( $i ) => $i > (int) $after ) ), 0, $limit ),
+			'process'     => static fn() => true,
+			'batch_items' => 2,
+		] );
+		$job = Jobs::start( 'test.pairs' );
+
+		// Each batch, run by Action Scheduler, queues the next: before, it
+		// found itself running and queued none.
+		$runs = 0;
+		while ( $this->runQueued() && $runs < 10 ) {
+			$runs++;
+		}
+
+		$this->assertSame( 3, $runs );
+		$this->assertSame( [ 'done', 5 ], [ Jobs::get( $job['id'] )['status'], Jobs::get( $job['id'] )['done'] ] );
+	}
+
+	public function test_a_job_left_without_its_next_batch_is_given_one_unless_a_batch_holds_it(): void {
+
+		$job = Jobs::start( 'test.items' );
+		$this->queued = [];
+
+		// A batch at work: left to it.
+		$this->options[ 'photopress_job_' . $job['id'] . '_lock' ] = time();
+		$this->assertSame( 1, Jobs::recover() );
+		$this->assertSame( [], $this->queued );
+
+		// It died.
+		$this->options[ 'photopress_job_' . $job['id'] . '_lock' ] = time() - Jobs::LOCK_SECONDS - 1;
+		$this->assertSame( 1, Jobs::recover() );
+		$this->assertSame( [ $job['id'] ], $this->queued );
+
+		// Already queued: not twice.
+		Jobs::recover();
+		$this->assertSame( [ $job['id'] ], $this->queued );
+	}
+
+	public function test_a_job_whose_type_is_gone_is_cancelled_saying_why(): void {
+
+		$job = Jobs::start( 'test.items' );
+		$this->options[ 'photopress_job_' . $job['id'] ]['type'] = 'test.gone';
+
+		$this->assertSame( 0, Jobs::recover() );
+		$cancelled = Jobs::get( $job['id'] );
+		$this->assertSame( 'cancelled', $cancelled['status'] );
+		$this->assertStringContainsString( 'not available', end( $cancelled['errors'] )['message'] );
+		$this->assertSame( [], $this->queued );
+	}
+
+	public function test_a_batch_keeps_its_lock_while_its_items_take_long(): void {
+
+		$seen = [];
+		$options = &$this->options;
+		Jobs::register( 'test.slow', [
+			'count'   => static fn() => 2,
+			'items'   => static fn( $after ) => $after ? [] : [ 1, 2 ],
+			'process' => static function ( $item ) use ( &$options, &$seen ) {
+				foreach ( $options as $key => $value ) {
+					if ( str_ends_with( $key, '_lock' ) ) {
+						$seen[] = $value;
+						// As if the item before took longer than the lock lasts.
+						$options[ $key ] = time() - Jobs::LOCK_SECONDS - 10;
+					}
+				}
+				return true;
+			},
+		] );
+		$job = Jobs::start( 'test.slow' );
+		Jobs::runBatch( $job['id'] );
+
+		$this->assertCount( 2, $seen );
+		$this->assertGreaterThanOrEqual( time() - 1, $seen[1], 'refreshed after the first item' );
+	}
 }
+

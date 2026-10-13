@@ -2,6 +2,7 @@
  * A background job, started on its settings page and watched until it
  * finishes. Run on the fixture images only, never the whole library.
  */
+const path = require( 'path' );
 const { test, expect } = require( './test' );
 const { wp, lastLine } = require( './wp' );
 
@@ -71,3 +72,20 @@ test( 're-reading the metadata of some images, with progress on the settings pag
 	expect( after.state ).toBe( 'idle' );
 	expect( after.cron ).toBe( false );
 } );
+
+test( 'with no settings page open, a job goes on batch after batch, run by Action Scheduler alone', () => {
+	const result = JSON.parse( lastLine( wp( `--require=${ path.join( __dirname, 'job-type.php' ) }`, 'eval', `
+		$job = \\PhotoPress\\jobs\\Jobs::start( 'e2e.items' );
+		// Each run of the queue: what WP-Cron does every minute.
+		for ( $run = 0; $run < 5 && 'done' !== \\PhotoPress\\jobs\\Jobs::get( $job['id'] )['status']; $run++ ) {
+			do_action( 'action_scheduler_run_queue', 'WP Cron' );
+		}
+		$end = \\PhotoPress\\jobs\\Jobs::get( $job['id'] );
+		delete_option( 'photopress_job_' . $job['id'] );
+		update_option( 'photopress_jobs', array_values( array_diff( (array) get_option( 'photopress_jobs', [] ), [ $job['id'] ] ) ), false );
+		echo wp_json_encode( [ 'status' => $end['status'], 'done' => $end['done'] ] );
+	` ) ) );
+
+	expect( result ).toEqual( { status: 'done', done: 3 } );
+} );
+

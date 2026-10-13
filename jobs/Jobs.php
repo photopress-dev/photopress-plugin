@@ -9,10 +9,12 @@ use WP_Error;
  * batches so no request times out, with progress that settings pages show.
  *
  * Batches are run by Action Scheduler (bundled; shared with any other plugin
- * that bundles it): each batch processes items for up to BATCH_SECONDS and
- * queues the next, one batch at a time per job. A settings page showing a
- * running job also runs a batch when it asks for progress and none is
- * running, so a job moves on even where WP-Cron does not run.
+ * that bundles it; loaded by Scheduler): each batch processes items for up
+ * to BATCH_SECONDS and queues the next, one batch at a time per job. A
+ * settings page showing a running job also runs a batch when it asks for
+ * progress and none is running, so a job moves on even where WP-Cron does
+ * not run. A job left without its next batch, as by a batch that died, is
+ * given one after each run of Action Scheduler's queue (recover()).
  *
  * A job type is registered by the module that owns it:
  *
@@ -98,6 +100,10 @@ class Jobs {
 			return new WP_Error( 'photopress_job_unknown', __( 'Unknown job type.' ), [ 'status' => 400 ] );
 		}
 
+		// One of the type left without its next batch goes on, rather than
+		// holding this one back for ever.
+		self::recover();
+
 		foreach ( self::recent( $type ) as $job ) {
 			if ( in_array( $job['status'], [ 'queued', 'running' ], true ) ) {
 				return new WP_Error( 'photopress_job_running', __( 'A job of this type is already running.' ), [ 'status' => 409, 'job' => $job ] );
@@ -130,9 +136,11 @@ class Jobs {
 		$index = (array) get_option( self::INDEX_OPTION, [] );
 		array_unshift( $index, $id );
 
-		// The last 20 jobs are kept; older ones are deleted.
+		// The last 20 jobs are kept; older ones are deleted, with any lock a
+		// batch that died left.
 		foreach ( array_slice( $index, 20 ) as $old ) {
 			delete_option( self::OPTION_PREFIX . $old );
+			delete_option( self::OPTION_PREFIX . $old . '_lock' );
 		}
 
 		update_option( self::INDEX_OPTION, array_slice( $index, 0, 20 ), false );
@@ -209,7 +217,12 @@ class Jobs {
 
 		$job = self::get( $id );
 
-		if ( ! $job || ! in_array( $job['status'], [ 'queued', 'running' ], true ) || ! isset( self::$types[ $job['type'] ] ) ) {
+		if ( ! $job || ! in_array( $job['status'], [ 'queued', 'running' ], true ) ) {
+			return false;
+		}
+
+		if ( ! isset( self::$types[ $job['type'] ] ) ) {
+			self::abandon( $job );
 			return false;
 		}
 
@@ -281,6 +294,8 @@ class Jobs {
 			$job['cursor'] = $item;
 			$job['updated'] = time();
 			self::save( $job );
+			// Still at work: the lock is not taken over while items take long.
+			update_option( self::OPTION_PREFIX . $id . '_lock', time(), false );
 
 			if ( microtime( true ) > $deadline || self::lowOnMemory() ) {
 				break;
@@ -373,9 +388,63 @@ class Jobs {
 		return self::get( $id );
 	}
 
+	/**
+	 * Unfinished jobs given their next batch where they have none and none
+	 * is running, as after a batch died (out of memory, a timeout) or an
+	 * action was lost; and a job whose type is no longer registered (the
+	 * plugin it needs, such as Relevanssi, switched off) cancelled.
+	 *
+	 * @return int The jobs still unfinished.
+	 */
+	public static function recover() {
+
+		$unfinished = 0;
+
+		foreach ( self::recent() as $job ) {
+
+			if ( ! in_array( $job['status'], [ 'queued', 'running' ], true ) ) {
+				continue;
+			}
+
+			if ( ! isset( self::$types[ $job['type'] ] ) ) {
+				self::abandon( $job );
+				continue;
+			}
+
+			$unfinished++;
+
+			if ( ! self::locked( $job['id'] ) && ! Scheduler::pending( self::BATCH_HOOK, [ $job['id'] ] ) ) {
+				self::queueBatch( $job['id'] );
+			}
+		}
+
+		return $unfinished;
+	}
+
+	/**
+	 * A job of a type no longer registered: cancelled, saying why, rather
+	 * than shown as running for ever. It can be started again once its type
+	 * is back.
+	 */
+	protected static function abandon( array $job ) {
+
+		$job['status']   = 'cancelled';
+		$job['finished'] = time();
+		$job['errors'][] = [ 'item' => null, 'message' => __( 'Stopped: this kind of job is not available now, as when a plugin it needs is switched off.' ) ];
+		self::save( $job );
+
+		if ( function_exists( 'as_unschedule_all_actions' ) ) {
+			as_unschedule_all_actions( self::BATCH_HOOK, [ $job['id'] ], self::GROUP );
+		}
+
+		/** This action is documented in jobs/Jobs.php */
+		do_action( 'photopress_job_ended', $job );
+	}
+
 	protected static function queueBatch( $id ) {
 
-		if ( ! Scheduler::ensure() || as_has_scheduled_action( self::BATCH_HOOK, [ $id ], self::GROUP ) ) {
+		// Pending only: a running batch queueing the next would find itself.
+		if ( ! Scheduler::ensure() || Scheduler::pending( self::BATCH_HOOK, [ $id ] ) ) {
 			return;
 		}
 
@@ -414,6 +483,16 @@ class Jobs {
 		}
 
 		return false;
+	}
+
+	/** Whether a batch of the job holds its lock, and has not died. */
+	protected static function locked( $id ) {
+
+		$key = self::OPTION_PREFIX . $id . '_lock';
+		wp_cache_delete( $key, 'options' );
+		$since = get_option( $key );
+
+		return false !== $since && time() - (int) $since <= self::LOCK_SECONDS;
 	}
 
 	protected static function unlock( $id ) {
