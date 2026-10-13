@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 1.9.0
+Stable tag: 1.10.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -87,10 +87,10 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 
 * Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
 * Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
-* Both on by default; while each is on, block themes get PhotoPress's template for those pages
+* Attachment pages follow WordPress's setting until the switch is saved; image taxonomy pages are on by default. While each is on, block themes get PhotoPress's template for those pages
 * Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks, to order as you like: the search box, a Search Summary (the terms and the number of images found), the images in a Taxonomy Gallery in rows with each one's file name and title under it, with numbered pages, and the posts and pages found in a Search Posts block
 * With Relevanssi, PhotoPress has it index images, their alt text and the image taxonomies (its settings show the same), keeps an image's entry current as its terms change or are renamed or deleted, and adds existing images to its index in the background
-* Page cache and search index: whether Proxy Cache Purge and Relevanssi are active, installed or not installed, as the Offload Media tab shows WP Offload Media, with a Re-index all images button. Proxy Cache Purge purges a post's pages when it is saved, but not an image's, and nothing when terms change. Through its documented hooks, PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on). A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied. A post whose gallery gains or loses an image, and a replaced image with its files and the posts that show it, are purged too
+* Page cache and search index: whether Proxy Cache Purge and Relevanssi are active, installed or not installed, as the Offload Media tab shows WP Offload Media, with a Re-index all images button. Proxy Cache Purge purges a post's pages when it is saved, but not an image's, and nothing when terms change. Through its documented hooks, PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on). A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied. A background job over images, such as re-reading their metadata, empties it once when it ends, rather than purging as it goes. A post whose gallery gains or loses an image, and a replaced image with its files and the posts that show it, are purged too
 
 = IMAGE SIZES =
 
@@ -148,6 +148,12 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   a card with its switch. Each has Save, and Save and reprocess all images
   to apply a change to the images already uploaded, with the progress shown
   as soon as it is clicked.
+* Reprocessing and other background jobs over images work ten images at a
+  time and rest between batches, longer while the server is busy.
+* Licensing: the license is embedded in uploads and given in image pages'
+  structured data only while Licensing is switched on and its name, URL and
+  web statement of rights are all filled in. 1.9.0 gave the structured data
+  with the switch off.
 * Image taxonomies: Standard Metadata, Hierarchical Keyword Metadata and
   Custom Metadata, each in a table with its term count and archive pages.
   Taxonomies are added and edited on screens of their own, with a preview of
@@ -168,6 +174,10 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Saving a taxonomy change offers to reprocess just the images it affects.
   Terms of images whose files have nothing for a taxonomy are kept unless
   Empty the terms is checked under Advanced options.
+* Keywords and parent keyword taxonomies keep keyword hierarchies as nested
+  terms, parent keywords are matched in any case, and camera names are
+  cleaned up. Images uploaded or reprocessed may get different terms than
+  before.
 * Alt text and description templates: words typed around the photo's
   metadata fields, each shown as a pill and added from a list, with an
   example of what a photo gets.
@@ -194,9 +204,10 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   galleries that already use it keep it.
 * Pages & Search tab: switches for attachment pages (WordPress's own
   setting; off, an image's page and links to it go to the file) and for
-  image taxonomy archive pages (off, terms are shown unlinked). Both are on
-  by default, and while each is on, block themes get PhotoPress's template
-  for those pages.
+  image taxonomy archive pages (off, terms are shown unlinked). Attachment
+  pages follow WordPress's setting until the switch is saved; image taxonomy
+  pages are on by default. While each is on, block themes get PhotoPress's
+  template for those pages.
 * Images in search results (Pages & Search tab, off by default): searches
   find images by their titles, captions, alt text and terms, and posts and
   pages too unless turned off. In block themes, the Image Search template
@@ -264,6 +275,9 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   attached to a published post.
 * Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
   out in WordPress's columns instead.
+* Fixed: the block editor warned that the PhotoPress Gallery and Child Pages
+  blocks used an old block API version. PhotoPress's settings scripts now
+  load only on its own screens.
 
 = 1.9.0 =
 
