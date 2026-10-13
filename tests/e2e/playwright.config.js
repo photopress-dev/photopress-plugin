@@ -13,6 +13,8 @@
  *                   header, e.g. http://127.0.0.1:8080 to reach Apache directly.
  *   PP_E2E_CHROMIUM Chromium executable, to use one already installed rather
  *                   than `npx playwright install chromium`.
+ *   PP_E2E_USER_AGENT The browser's user agent, where the site's firewall
+ *                   needs a particular one.
  *
  * In CI, ci/setup.sh builds a site of its own for them, behind Varnish
  * (.github/workflows/tests.yml).
@@ -36,6 +38,7 @@ module.exports = defineConfig( {
 		baseURL: process.env.PP_E2E_URL || 'https://test.photopressdev.com',
 		storageState: `${ __dirname }/.auth.json`,
 		viewport: { width: 1280, height: 900 },
+		...( process.env.PP_E2E_USER_AGENT ? { userAgent: process.env.PP_E2E_USER_AGENT } : {} ),
 		launchOptions: {
 			args: [ '--disable-dev-shm-usage' ],
 			...( process.env.PP_E2E_CHROMIUM ? { executablePath: process.env.PP_E2E_CHROMIUM } : {} ),
