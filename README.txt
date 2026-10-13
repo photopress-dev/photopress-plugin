@@ -137,7 +137,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
 16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
 17. Image Archives template: a keyword's images in the Masonry layout
-18. Pages & Search tab: attachment pages, image taxonomy pages, images in search results, and the page cache and search index
+18. Pages & Search tab: attachment pages, image taxonomy pages, the sitemap in use, images in search results, and the page cache and search index
 19. Search results with images: the Image Search template
 
 == Changelog ==
@@ -217,6 +217,15 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   images, the whole cache emptied. A post whose gallery gains or loses an
   image, and a replaced image with its files and the posts that show it,
   are purged too.
+* Sitemap (Pages & Search tab): images' pages and image taxonomy terms'
+  archive pages are listed in whichever sitemap the site uses, through its
+  documented hooks, and the tab shows which. WordPress's: public images
+  (unattached, or attached to a published post) while attachment pages are
+  on; it lists terms itself. Jetpack's: term archives, and each image with
+  its own page, or, without attachment pages, an unattached image with its
+  first term's archive. Yoast SEO's: the images on each term's archive
+  page, and, while it lists media pages, a sitemap of unattached images'
+  pages, which it leaves out. Pages that are turned off are left out.
 * Enable Media Replace: an image it replaces is treated as one replaced in
   PhotoPress (its terms and alt text read from the new file, CloudFront,
   the page cache), through its enable-media-replace-upload-done action.
