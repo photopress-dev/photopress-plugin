@@ -28,7 +28,7 @@ wp config set JETPACK_DEV_DEBUG true --raw
 # GitHub's OpenID Connect): Offload Media finds them itself (use-server-roles);
 # PhotoPress's CloudFront invalidations take them from its own constants.
 wp config set AS3CF_SETTINGS "serialize( [ 'provider' => 'aws', 'use-server-roles' => true, 'bucket' => 'photopress-e2e-test-109862024820', 'region' => 'us-east-1', 'copy-to-s3' => true, 'serve-from-s3' => true, 'remove-local-file' => false, 'enable-object-prefix' => true, 'object-prefix' => 'wp-content/uploads/', 'use-yearmonth-folders' => true, 'object-versioning' => true, 'delivery-provider' => 'aws', 'enable-delivery-domain' => true, 'delivery-domain' => 'd3gw179dkybu04.cloudfront.net', 'force-https' => true, 'block-public-access' => true, 'object-ownership-enforced' => true, 'use-bucket-acls' => false, 'enable-signed-urls' => false ] )" --raw
-wp eval-file - "$wp_path/wp-config.php" <<'PHP'
+wp eval-file --skip-wordpress - "$wp_path/wp-config.php" <<'PHP'
 <?php
 $config = file_get_contents( $args[0] );
 $aws = <<<'CONFIG'
