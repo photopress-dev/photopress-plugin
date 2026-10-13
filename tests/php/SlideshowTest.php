@@ -24,6 +24,7 @@ final class SlideshowTest extends TestCase {
 			'wp_register_style' => null,
 			'wp_enqueue_style'  => null,
 			'wp_enqueue_script' => null,
+			'esc_attr__'        => static fn( $text ) => $text,
 		] );
 	}
 
