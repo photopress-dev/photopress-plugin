@@ -19,6 +19,9 @@ final class PageCacheTest extends TestCase {
 	/** The Pages & Search settings saved. */
 	private array $saved = [];
 
+	/** Other options, by name. */
+	private array $options = [];
+
 	/**
 	 * Proxy Cache Purge's purges, as it makes them on PhotoPress's events:
 	 * [ ID, the URLs from its permalink through vhp_purge_urls ], or 'all'
@@ -31,28 +34,41 @@ final class PageCacheTest extends TestCase {
 		parent::setUp();
 
 		$saved = &$this->saved;
+		$options = &$this->options;
 		$purged = &$this->purged;
 		$this->saved = [];
+		$this->options = [];
 		$this->purged = [];
 
 		// A new request.
 		\Closure::bind( static function () {
-			static::$purged  = [];
-			static::$emptied = false;
+			static::$purged   = [];
+			static::$emptied  = false;
+			static::$inBatch  = false;
+			static::$heldBack = false;
 		}, null, PageCache::class )();
 
 		Functions\stubs( [
-			'get_option'            => static function ( $name, $default = false ) use ( &$saved ) {
+			'get_option'            => static function ( $name, $default = false ) use ( &$saved, &$options ) {
 				// WordPress's own Attachment pages on, as on a site older than 6.4.
-				return [ 'photopress_core_search' => $saved, 'wp_attachment_pages_enabled' => '1' ][ $name ] ?? $default;
+				return [ 'photopress_core_search' => $saved, 'wp_attachment_pages_enabled' => '1' ][ $name ] ?? $options[ $name ] ?? $default;
 			},
+			'update_option'         => static function ( $name, $value ) use ( &$options ) {
+				$options[ $name ] = $value;
+				return true;
+			},
+			'delete_option'         => static function ( $name ) use ( &$options ) {
+				unset( $options[ $name ] );
+				return true;
+			},
+			'get_rest_url'          => 'https://example.com/wp-json/',
 			'get_object_taxonomies' => [ 'photos_keywords', 'pp_client' ],
 			'get_taxonomy'          => static fn( $name ) => (object) [ 'object_type' => [ 'attachment' ], 'public' => 'pp_client' !== $name ],
 			'wp_attachment_is_image' => static fn( $id ) => $id < 100,
 			'is_taxonomy_viewable'  => true,
 			'get_permalink'         => static fn( $id ) => $id < 100 ? "https://example.com/image-$id/" : "https://example.com/post-$id/",
 			'get_term_link'         => static fn( $term ) => "https://example.com/keywords/{$term->slug}/",
-			'get_the_terms'         => static fn( $id, $taxonomy ) => 'photos_keywords' === $taxonomy ? [ (object) [ 'taxonomy' => $taxonomy, 'slug' => 'ojai' ] ] : false,
+			'get_the_terms'         => static fn( $id, $taxonomy ) => 'photos_keywords' === $taxonomy ? [ (object) [ 'taxonomy' => $taxonomy, 'slug' => 'ojai', 'term_id' => 3 ] ] : false,
 		] );
 
 		// Proxy Cache Purge, listening.
@@ -169,5 +185,53 @@ final class PageCacheTest extends TestCase {
 		$this->assertSame( 'missing', \photopress_util::pluginState( false, [ 'varnish-http-purge/' ] ) );
 		$plugins['varnish-http-purge/varnish-http-purge.php'] = [];
 		$this->assertSame( 'inactive', \photopress_util::pluginState( false, [ 'varnish-http-purge/' ] ) );
+	}
+
+	public function test_an_images_terms_rest_addresses_left_out_as_page_caches_pass_them_by(): void {
+
+		$urls = [ 'https://example.com/image-7/', 'https://example.com/wp-json/wp/v2/media/7/', 'https://example.com/wp-json/wp/v2/photos_keywords/3/', 'https://example.com/wp-json/wp/v2/categories/3/' ];
+
+		$this->assertSame(
+			[ 'https://example.com/image-7/', 'https://example.com/wp-json/wp/v2/media/7/', 'https://example.com/wp-json/wp/v2/categories/3/', 'https://example.com/keywords/ojai/?vhp-regex' ],
+			PageCache::urls( $urls, 7 ),
+			'its own, and other taxonomies’, kept'
+		);
+		$this->assertSame( $urls, PageCache::urls( $urls, 101 ), 'a post’s, as they were' );
+	}
+
+	public function test_a_jobs_batches_hold_back_their_purges_for_the_cache_emptied_once_the_job_ends(): void {
+
+		$job = [ 'id' => 'j1', 'type' => 'metadata.reprocess', 'status' => 'running' ];
+
+		PageCache::batchStarted( $job );
+		$this->assertSame( [ 'publish' ], PageCache::statuses( [ 'publish' ], 7 ), 'nor does Proxy Cache Purge purge images itself' );
+		PageCache::imageEdited( 7, (object) [ 'post_title' => 'New', 'post_excerpt' => '', 'post_content' => '', 'post_name' => '' ], (object) [ 'post_title' => 'Old', 'post_excerpt' => '', 'post_content' => '', 'post_name' => '' ] );
+		PageCache::imageTermsChanged( 8, self::context( [ 'ojai' ] ) );
+		PageCache::batchEnded( $job );
+		$this->assertSame( [], $this->purged() );
+
+		// A later batch changing nothing; then the job's end.
+		PageCache::batchStarted( $job );
+		PageCache::batchEnded( $job );
+		PageCache::jobEnded( [ 'status' => 'done' ] + $job );
+		$this->assertSame( [ 'all' ], $this->purged() );
+		$this->assertArrayNotHasKey( PageCache::AFTER_JOBS, $this->options );
+
+		// Outside a batch, as before.
+		PageCache::postChanged( 101 );
+		$this->assertSame( [ [ 101, [ 'https://example.com/post-101/' ] ] ], $this->purged() );
+	}
+
+	public function test_a_job_that_changed_no_page_empties_nothing_and_one_cancelled_mid_batch_empties_it_at_once(): void {
+
+		PageCache::batchStarted( [ 'id' => 'j2', 'status' => 'running' ] );
+		PageCache::batchEnded( [ 'id' => 'j2', 'status' => 'running' ] );
+		PageCache::jobEnded( [ 'id' => 'j2', 'status' => 'done' ] );
+		$this->assertSame( [], $this->purged() );
+
+		PageCache::batchStarted( [ 'id' => 'j3', 'status' => 'running' ] );
+		PageCache::postChanged( 7 );
+		PageCache::batchEnded( [ 'id' => 'j3', 'status' => 'cancelled' ] );
+		$this->assertSame( [ 'all' ], $this->purged() );
 	}
 }

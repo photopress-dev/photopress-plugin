@@ -98,6 +98,7 @@ test( 'an image given a term, edited, its term renamed and deleted, attached to 
 		const { term, archive } = termed.out;
 		expect( termed.purged ).toEqual( expect.arrayContaining( [ page, `${ archive }?vhp-regex` ] ) );
 		expect( termed.purged, 'every page of the archive, not the first alone' ).not.toContain( archive );
+		expect( termed.purged.filter( ( url ) => url.includes( '/wp-json/' ) && url.endsWith( `/${ term }/` ) ), 'not its term’s REST API address' ).toEqual( [] );
 
 		const again = run( `wp_set_object_terms( ${ id }, '${ WORD }', 'photos_keywords', true );` );
 		expect( again.purged, 'a term it already had' ).toEqual( [] );
@@ -208,5 +209,36 @@ test( 'a child page moved, given another featured image, or its dynamic gallery 
 		expect( redated.purged ).toContain( made.secondUrl );
 	} finally {
 		wp( 'eval', `foreach ( [ ${ made.child }, ${ made.dynamic }, ${ made.first }, ${ made.second } ] as $id ) { wp_delete_post( $id, true ); } wp_delete_attachment( ${ made.image }, true );` );
+	}
+} );
+
+test( 'a reprocess job: nothing purged for each image, the cache emptied once when the job ends', ( { made } ) => {
+	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() ? 'yes' : 'no';` ) );
+	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active.' );
+
+	const images = made.images.slice( 0, 3 );
+	// Their keywords taken away, for the job to give back from their files.
+	step( `foreach ( [ ${ images.join( ', ' ) } ] as $id ) { wp_delete_object_term_relationships( $id, 'photos_keywords' ); }` );
+
+	// One batch, which is the job's last: run here, whatever the server's load.
+	const ran = step( `
+		add_filter( 'photopress_job_max_load', fn() => 1000 );
+		$job = \\PhotoPress\\jobs\\Jobs::start( 'metadata.reprocess', [ 'ids' => [ ${ images.join( ', ' ) } ] ] );
+		$out['id'] = $job['id'];
+		\\PhotoPress\\jobs\\Jobs::runBatch( $job['id'] );
+		$out['status'] = \\PhotoPress\\jobs\\Jobs::get( $job['id'] )['status'];
+		$out['done'] = \\PhotoPress\\jobs\\Jobs::get( $job['id'] )['done'];
+		$out['keywords'] = array_map( fn( $id ) => count( wp_get_object_terms( $id, 'photos_keywords' ) ), [ ${ images.join( ', ' ) } ] );
+	` );
+
+	try {
+		expect( ran.out ).toMatchObject( { status: 'done', done: images.length } );
+		expect( ran.out.keywords.filter( Boolean ).length, 'keywords given back' ).toBeGreaterThan( 0 );
+		expect( ran.purged ).toEqual( [ '/?vhp-regex' ] );
+		for ( const answer of ran.answers ) {
+			expect( answer, 'a purge Varnish let through' ).toBe( '200 Varnish' );
+		}
+	} finally {
+		wp( 'eval', `$id = '${ ran.out.id }'; delete_option( 'photopress_job_' . $id ); update_option( 'photopress_jobs', array_values( array_diff( (array) get_option( 'photopress_jobs', [] ), [ $id ] ) ), false );` );
 	}
 } );
