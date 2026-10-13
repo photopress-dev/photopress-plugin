@@ -191,6 +191,9 @@ class Jobs {
 			if ( function_exists( 'as_unschedule_all_actions' ) ) {
 				as_unschedule_all_actions( self::BATCH_HOOK, [ $id ], self::GROUP );
 			}
+
+			/** This action is documented in jobs/Jobs.php */
+			do_action( 'photopress_job_ended', $job );
 		}
 
 		return self::get( $id );
@@ -237,6 +240,16 @@ class Jobs {
 
 		$job['status'] = 'running';
 		$job['waiting'] = '';
+
+		/**
+		 * A batch of a job starting, in this request: its items are processed
+		 * next, until photopress_job_batch_ended. As the page cache holds
+		 * back what each item would purge, for one emptying when the job ends.
+		 *
+		 * @param array $job The job: id, type, status and the like.
+		 */
+		do_action( 'photopress_job_batch_started', $job );
+
 		$items = (array) call_user_func( $type['items'], $job['cursor'], $type['batch_items'], $job['args'] );
 
 		foreach ( $items as $item ) {
@@ -246,6 +259,8 @@ class Jobs {
 
 			if ( ! $current || 'cancelled' === $current['status'] ) {
 				self::unlock( $id );
+				/** This action is documented in jobs/Jobs.php */
+				do_action( 'photopress_job_batch_ended', $current ?: [ 'status' => 'cancelled' ] + $job );
 				return true;
 			}
 
@@ -288,10 +303,28 @@ class Jobs {
 		self::save( $job );
 		self::unlock( $id );
 
+		/**
+		 * A batch of a job ended, in this request.
+		 *
+		 * @param array $job The job as the batch left it: status running,
+		 *                   done, or cancelled from elsewhere meanwhile.
+		 */
+		do_action( 'photopress_job_batch_ended', $job );
+
 		if ( 'running' === $job['status'] ) {
 			self::queueBatch( $id );
-		} elseif ( 'done' === $job['status'] && is_callable( $type['finish'] ) ) {
-			call_user_func( $type['finish'], $job );
+		} elseif ( 'done' === $job['status'] ) {
+
+			if ( is_callable( $type['finish'] ) ) {
+				call_user_func( $type['finish'], $job );
+			}
+
+			/**
+			 * A job ended: done, or cancelled.
+			 *
+			 * @param array $job The job.
+			 */
+			do_action( 'photopress_job_ended', $job );
 		}
 
 		return true;

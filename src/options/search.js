@@ -32,7 +32,7 @@ const PAGE_CACHE = window.photopressPageCache || { plugin: 'missing' };
 const SITEMAP = window.photopressSitemap || { sitemap: 'other' };
 
 const PAGE_CACHE_TEXT = {
-	active: __( 'PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page, while attachment pages are on, and every page of its terms’ archives, while image taxonomy pages are on. A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied.' ),
+	active: __( 'PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page, while attachment pages are on, and every page of its terms’ archives, while image taxonomy pages are on. A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied. A background job over images, such as re-reading their metadata, empties it once when it ends.' ),
 	inactive: __( 'Activate it to clear the pages of images and image taxonomy terms from the page cache when they change.' ),
 	missing: __( 'Proxy Cache Purge clears pages from a Varnish or NGINX page cache when posts change. Once it’s active, PhotoPress has it clear the pages of images and image taxonomy terms too.' ),
 };

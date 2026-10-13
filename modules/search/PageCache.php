@@ -25,7 +25,12 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  * - for those purges (vhp_purge_urls): files that changed with the post;
  *   for an image, every page of its image taxonomy terms' archives, and of
  *   terms it left, while image taxonomy pages are on, and not its own page
- *   while attachment pages are off.
+ *   while attachment pages are off, nor its terms' REST API addresses,
+ *   which page caches pass by and visitors cannot read;
+ * - during a PhotoPress job's batch (photopress_job_batch_started and
+ *   _ended), nothing for the items it changes: once the job has ended, the
+ *   cache emptied, if any of its batches changed a page. Each batch would
+ *   otherwise have emptied it, being over Proxy Cache Purge's limit.
  *
  * Proxy Cache Purge decides the rest: how and when it sends them, whether by
  * WP-Cron, and when there are so many it empties the cache instead.
@@ -49,6 +54,15 @@ class PageCache {
 	/** Whether the cache was emptied in this request. */
 	private static $emptied = false;
 
+	/** The jobs whose batches held back purges, by ID: the cache is emptied when each ends. */
+	const AFTER_JOBS = 'photopress_purge_after_jobs';
+
+	/** Whether a job's batch is running in this request. */
+	private static $inBatch = false;
+
+	/** Whether this request's batch held back a purge. */
+	private static $heldBack = false;
+
 	public static function addHooks() {
 
 		add_filter( 'varnish_http_purge_events', [ self::class, 'events' ] );
@@ -60,6 +74,10 @@ class PageCache {
 		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
 		add_action( 'photopress_term_images_changed', [ self::class, 'purgeAll' ] );
 		add_action( 'attachment_updated', [ self::class, 'imageEdited' ], 10, 3 );
+
+		add_action( 'photopress_job_batch_started', [ self::class, 'batchStarted' ] );
+		add_action( 'photopress_job_batch_ended', [ self::class, 'batchEnded' ] );
+		add_action( 'photopress_job_ended', [ self::class, 'jobEnded' ] );
 	}
 
 	/**
@@ -83,12 +101,15 @@ class PageCache {
 		return array_merge( (array) $events, [ self::ALL ] );
 	}
 
-	/** varnish_http_purge_valid_post_statuses: an image's, inherit. */
+	/**
+	 * varnish_http_purge_valid_post_statuses: an image's, inherit; not
+	 * during a job's batch, whose purges wait for the job's end.
+	 */
 	public static function statuses( $statuses, $post_id = 0 ) {
 
 		$statuses = (array) $statuses;
 
-		if ( $post_id && wp_attachment_is_image( $post_id ) && ! in_array( 'inherit', $statuses, true ) ) {
+		if ( $post_id && ! self::$inBatch && wp_attachment_is_image( $post_id ) && ! in_array( 'inherit', $statuses, true ) ) {
 			$statuses[] = 'inherit';
 		}
 
@@ -112,6 +133,8 @@ class PageCache {
 				$urls = array_diff( $urls, [ get_permalink( $post_id ) ] );
 			}
 
+			$urls = array_diff( $urls, self::termRestUrls( $post_id ) );
+
 			if ( search::enabled( 'taxonomy_pages' ) ) {
 
 				foreach ( ImageTaxonomies::shownImageTaxonomies() as $taxonomy ) {
@@ -132,6 +155,78 @@ class PageCache {
 		}
 
 		return array_values( array_unique( array_merge( $urls, self::$extra[ $post_id ] ?? [] ) ) );
+	}
+
+	/**
+	 * The REST API addresses of an image's image taxonomy terms, as Proxy
+	 * Cache Purge adds them to its purge: page caches pass the REST API by,
+	 * and only editors may read these. Each would count toward the limit
+	 * over which it empties the whole cache.
+	 *
+	 * @return string[]
+	 */
+	private static function termRestUrls( $post_id ) {
+
+		$urls = [];
+
+		foreach ( ImageTaxonomies::shownImageTaxonomies() as $taxonomy ) {
+
+			$object = get_taxonomy( $taxonomy );
+			$base   = $object && ! empty( $object->rest_base ) ? $object->rest_base : $taxonomy;
+			$terms  = get_the_terms( $post_id, $taxonomy );
+
+			foreach ( is_array( $terms ) ? $terms : [] as $term ) {
+				$urls[] = get_rest_url() . 'wp/v2/' . $base . '/' . $term->term_id . '/';
+			}
+		}
+
+		return $urls;
+	}
+
+	/** photopress_job_batch_started: purges held back until the batch ends. */
+	public static function batchStarted( $job ) {
+
+		self::$inBatch  = true;
+		self::$heldBack = false;
+	}
+
+	/**
+	 * photopress_job_batch_ended: a job whose batch held back purges is
+	 * noted, for the cache to be emptied when it ends; at once, if it was
+	 * cancelled meanwhile.
+	 */
+	public static function batchEnded( $job ) {
+
+		$held = self::$heldBack;
+		self::$inBatch  = false;
+		self::$heldBack = false;
+
+		if ( ! $held || empty( $job['id'] ) ) {
+			return;
+		}
+
+		if ( 'cancelled' === ( $job['status'] ?? '' ) ) {
+			self::purgeAll();
+			return;
+		}
+
+		$after = (array) get_option( self::AFTER_JOBS, [] );
+		$after[ $job['id'] ] = true;
+		update_option( self::AFTER_JOBS, $after, false );
+	}
+
+	/** photopress_job_ended: the cache emptied, if the job's batches held back purges. */
+	public static function jobEnded( $job ) {
+
+		$after = (array) get_option( self::AFTER_JOBS, [] );
+
+		if ( empty( $job['id'] ) || ! isset( $after[ $job['id'] ] ) ) {
+			return;
+		}
+
+		unset( $after[ $job['id'] ] );
+		$after ? update_option( self::AFTER_JOBS, $after, false ) : delete_option( self::AFTER_JOBS );
+		self::purgeAll();
 	}
 
 	/**
@@ -176,6 +271,12 @@ class PageCache {
 	public static function purge( $id, array $archives = [], array $files = [] ) {
 
 		if ( ! self::purges() ) {
+			return;
+		}
+
+		// Held back until the job ends, when the whole cache is emptied.
+		if ( self::$inBatch ) {
+			self::$heldBack = true;
 			return;
 		}
 

@@ -214,7 +214,9 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   its terms change: its page, while attachment pages are on, and every page
   of its terms' archives, while image taxonomy pages are on. A term renamed
   or deleted has its images and archive purged, or, with more than 25
-  images, the whole cache emptied. A post whose gallery gains or loses an
+  images, the whole cache emptied. A background job over images, such as
+  re-reading their metadata, empties it once when it ends, rather than
+  purging as it goes. A post whose gallery gains or loses an
   image, and a replaced image with its files and the posts that show it,
   are purged too.
 * Sitemap (Pages & Search tab): images' pages and image taxonomy terms'
