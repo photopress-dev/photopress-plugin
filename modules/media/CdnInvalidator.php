@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\media;
 
+defined( 'ABSPATH' ) || exit;
+
 use PhotoPress\jobs\Jobs;
 use PhotoPress\jobs\Scheduler;
 use pp_api;

@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata;
 
+defined( 'ABSPATH' ) || exit;
+
 use PhotoPress\modules\metadata\xmp\Format;
 use PhotoPress\modules\metadata\xmp\Gif;
 use PhotoPress\modules\metadata\xmp\Heif;

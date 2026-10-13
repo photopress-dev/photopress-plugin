@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * GIF: the packet is an application extension with the identifier
  * "XMP Data" and authentication code "XMP". The packet is stored as it is,

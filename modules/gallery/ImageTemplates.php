@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\gallery;
 
+defined( 'ABSPATH' ) || exit;
+
 use PhotoPress\modules\metadata\ImageTaxonomies;
 use PhotoPress\modules\metadata\metadata;
 use PhotoPress\modules\search\search;

@@ -69,6 +69,27 @@ function ratioOf( img ) {
 	return img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 0;
 }
 
+/**
+ * Caption HTML with nothing that runs: parsed in a document of its own,
+ * where nothing loads or runs, then without scripts, frames, event
+ * handlers and javascript: addresses. The page has cleaned it already
+ * (metadata::safeAttribute()); a page cached by an earlier version had not.
+ */
+function safeHtml( html ) {
+	const doc = new DOMParser().parseFromString( `<body>${ html }</body>`, 'text/html' );
+
+	doc.body.querySelectorAll( 'script, style, iframe, object, embed, link, meta, base, form' ).forEach( ( el ) => el.remove() );
+	doc.body.querySelectorAll( '*' ).forEach( ( el ) => {
+		Array.from( el.attributes ).forEach( ( { name, value } ) => {
+			if ( /^on/i.test( name ) || ( /^(href|src|xlink:href|action|formaction)$/i.test( name ) && /^\s*(javascript|data|vbscript):/i.test( value ) ) ) {
+				el.removeAttribute( name );
+			}
+		} );
+	} );
+
+	return doc.body.innerHTML;
+}
+
 function element( tag, className, html ) {
 	const el = document.createElement( tag );
 	if ( className ) {
@@ -301,15 +322,15 @@ class Lightbox {
 		const text = data.caption || ( figcaption ? figcaption.innerHTML : '' );
 
 		if ( data.imageTitle && options.showtitleincaption ) {
-			caption.append( element( 'div', 'info title', data.imageTitle ) );
+			caption.append( element( 'div', 'info title', safeHtml( data.imageTitle ) ) );
 		}
 		if ( text && options.showcaptions ) {
-			caption.append( element( 'div', 'info caption', text ) );
+			caption.append( element( 'div', 'info caption', safeHtml( text ) ) );
 		}
 		if ( data.imageDescription && options.showdescriptionincaption ) {
-			caption.append( element( 'div', 'info description', data.imageDescription ) );
+			caption.append( element( 'div', 'info description', safeHtml( data.imageDescription ) ) );
 		}
-		if ( options.showattachmentlink && data.attachmentUrl ) {
+		if ( options.showattachmentlink && /^https?:\/\//i.test( data.attachmentUrl || '' ) ) {
 			const link = element( 'a' );
 			link.href = data.attachmentUrl;
 			link.textContent = options.attachmentlinktext;

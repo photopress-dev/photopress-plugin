@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * A file opened for reading by offset, for the format parsers.
  */

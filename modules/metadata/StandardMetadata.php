@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * The camera and lens of an image, from each place cameras and photo
  * software (Lightroom, Capture One, Photo Mechanic) record them, in order,

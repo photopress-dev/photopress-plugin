@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\media;
 
+defined( 'ABSPATH' ) || exit;
+
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -488,6 +490,12 @@ class MediaRest {
 
 		foreach ( $posts as $post ) {
 
+			// Text goes only into posts the user may edit; the file's new
+			// addresses (updateReferences()) go everywhere, or images break.
+			if ( ! current_user_can( 'edit_post', (int) $post->ID ) ) {
+				continue;
+			}
+
 			$blocks = parse_blocks( $post->post_content );
 			$changed = self::syncBlocks( $blocks, $id, $alt, $caption );
 
@@ -569,14 +577,12 @@ class MediaRest {
 
 		global $wpdb;
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		return array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
 			"SELECT ID FROM {$wpdb->posts}
-			WHERE post_type NOT IN ( 'revision', 'attachment' ) AND ( post_content LIKE %s OR post_content LIKE %s )
+			WHERE post_type NOT IN ( 'revision', 'attachment' ) AND ( post_content LIKE %s OR " . self::likeAny( 'post_content', $stem ) . " )
 			UNION SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_thumbnail_id' AND meta_value = %s",
-			'%' . $wpdb->esc_like( 'wp-image-' . $id ) . '%',
-			'%' . $wpdb->esc_like( $stem ) . '%',
-			(string) $id
+			array_merge( [ '%' . $wpdb->esc_like( 'wp-image-' . $id ) . '%' ], self::referenceLikes( $stem ), [ (string) $id ] )
 		) ) );
 	}
 
@@ -828,16 +834,14 @@ class MediaRest {
 			return [];
 		}
 
-		$like = '%' . $wpdb->esc_like( $stem ) . '%';
 		$updated = [];
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$posts = $wpdb->get_results( $wpdb->prepare(
 			"SELECT ID, post_content, post_excerpt FROM {$wpdb->posts}
 			WHERE post_type NOT IN ( 'revision', 'attachment' )
-			AND ( post_content LIKE %s OR post_excerpt LIKE %s )",
-			$like,
-			$like
+			AND ( " . self::likeAny( 'post_content', $stem ) . ' OR ' . self::likeAny( 'post_excerpt', $stem ) . ' )',
+			array_merge( self::referenceLikes( $stem ), self::referenceLikes( $stem ) )
 		) );
 
 		foreach ( $posts as $post ) {
@@ -858,13 +862,13 @@ class MediaRest {
 		}
 
 		// Page builders, custom fields and the like keep URLs in post meta.
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$meta_rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT m.meta_id, m.post_id, m.meta_value FROM {$wpdb->postmeta} m
 			INNER JOIN {$wpdb->posts} p ON p.ID = m.post_id
 			WHERE p.post_type NOT IN ( 'revision', 'attachment' )
-			AND m.meta_value LIKE %s",
-			$like
+			AND " . self::likeAny( 'm.meta_value', $stem ),
+			self::referenceLikes( $stem )
 		) );
 
 		foreach ( $meta_rows as $row ) {
@@ -893,7 +897,7 @@ class MediaRest {
 		foreach ( $tables as [ $table, $key, $object, $column, $cache_group ] ) {
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT {$key} AS row_id, {$object} AS object, {$column} AS value FROM {$table} WHERE {$column} LIKE %s", $like ) );
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT {$key} AS row_id, {$object} AS object, {$column} AS value FROM {$table} WHERE " . self::likeAny( $column, $stem ), self::referenceLikes( $stem ) ) );
 
 			foreach ( $rows as $row ) {
 
@@ -915,6 +919,35 @@ class MediaRest {
 		}
 
 		return array_values( array_unique( $updated ) );
+	}
+
+	/**
+	 * What a row that refers to one of the image's files holds: a slash,
+	 * plain or JSON-escaped, then its name, then its extension or a size
+	 * (photo.jpg, photo-300x200.jpg). The name alone, as short as "a",
+	 * matched nearly every row.
+	 *
+	 * @return string[] LIKE patterns, for likeAny().
+	 */
+	protected static function referenceLikes( $stem ) {
+
+		global $wpdb;
+
+		$likes = [];
+
+		foreach ( [ '/', '\\/' ] as $separator ) {
+			foreach ( [ '.', '-' ] as $after ) {
+				$likes[] = '%' . $wpdb->esc_like( $separator . $stem . $after ) . '%';
+			}
+		}
+
+		return $likes;
+	}
+
+	/** "( column LIKE %s OR ... )", one for each of referenceLikes(). */
+	protected static function likeAny( $column, $stem ) {
+
+		return '( ' . implode( ' OR ', array_fill( 0, count( self::referenceLikes( $stem ) ), "{$column} LIKE %s" ) ) . ' )';
 	}
 
 	/**

@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\gallery;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Takes an image deleted from the media library out of the galleries that
  * show it, so they are not left with a broken image.
@@ -87,16 +89,25 @@ class GalleryRemove {
 
 		$found = [];
 
+		// The types whose posts have block content: an index range, where
+		// "not a revision or an image" read every row, revisions included.
+		$types = array_values( array_diff( get_post_types_by_support( 'editor' ), [ 'attachment', 'revision' ] ) );
+
+		if ( ! $types ) {
+			return [];
+		}
+
+		$in = implode( ', ', array_fill( 0, count( $types ), '%s' ) );
+
 		foreach ( array_chunk( $ids, 50 ) as $chunk ) {
 
 			$images = implode( ' OR ', array_fill( 0, count( $chunk ), 'post_content LIKE %s' ) );
 			$likes  = array_map( static fn( $id ) => '%' . $wpdb->esc_like( 'wp-image-' . (int) $id ) . '%', $chunk );
 
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $images is placeholders.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in and $images are placeholders.
 			$found = array_merge( $found, $wpdb->get_col( $wpdb->prepare(
-				"SELECT ID FROM {$wpdb->posts} WHERE post_type NOT IN ( 'revision', 'attachment' ) AND post_status <> 'auto-draft' AND post_content LIKE %s AND ( $images )",
-				'%' . $wpdb->esc_like( '<!-- wp:gallery' ) . '%',
-				...$likes
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type IN ( $in ) AND post_status <> 'auto-draft' AND post_content LIKE %s AND ( $images )",
+				...array_merge( $types, [ '%' . $wpdb->esc_like( '<!-- wp:gallery' ) . '%' ], $likes )
 			) ) );
 		}
 

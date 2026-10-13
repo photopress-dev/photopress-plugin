@@ -32,7 +32,7 @@ async function openOn( page, n ) {
 	const item = page.locator( '.photopress-has-slideshow .photopress-gallery-item' ).nth( n );
 	await item.scrollIntoViewIfNeeded();
 	await item.click( { force: true } );
-	await expect( page.locator( `${ CURRENT } img` ) ).toBeVisible( { timeout: 30000 } );
+	await expect( page.locator( `${ CURRENT } .photopress-gallery-slideshow__image` ) ).toBeVisible( { timeout: 30000 } );
 }
 
 /** The part of the slideshow the slides take: above the thumbnails. */
@@ -292,3 +292,21 @@ test( 'a page cached by 1.9, which asks for the old slideshow script after jQuer
 	await openOn( page, 2 );
 	await expect.poll( () => current( page ) ).toBe( made.images[ 2 ] );
 } );
+
+test( 'a caption with markup that would run, as on a page cached by an earlier version, is shown without it', async ( { page, made } ) => {
+	await page.addInitScript( () => document.addEventListener( 'DOMContentLoaded', () => {
+		const img = document.querySelectorAll( '.photopress-has-slideshow .photopress-gallery-item img' )[ 1 ];
+		img?.setAttribute( 'data-caption', '<b onmouseover="window.ppRan = 1">Bold</b><em>Kept</em><a href="javascript:window.ppRan = 2">link</a>' );
+	} ) );
+	await page.goto( `/?page_id=${ made.pages.lightbox }&preview=true` );
+	await openOn( page, 1 );
+
+	const caption = page.locator( `${ CURRENT } .photopress-gallery-slideshow__caption` );
+	await expect( caption.locator( 'em' ) ).toHaveText( 'Kept' );
+	await expect( caption.locator( '[onmouseover]' ) ).toHaveCount( 0 );
+	expect( await caption.locator( 'a' ).getAttribute( 'href' ) ).toBeNull();
+	await caption.locator( 'b' ).hover();
+	await caption.locator( 'a' ).click();
+	expect( await page.evaluate( () => window.ppRan ) ).toBeUndefined();
+} );
+

@@ -1,6 +1,9 @@
 <?php
 
 namespace PhotoPress\modules\metadata;
+
+defined( 'ABSPATH' ) || exit;
+
 use WP_Widget;
 
 /**

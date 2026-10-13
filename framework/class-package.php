@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 // Include the PhotoPress Framework
 if ( ! class_exists( 'photopress_framework') ) {
 	

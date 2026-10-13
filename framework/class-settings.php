@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 class photopress_settingsPage {
 	
 	public $page_slug;

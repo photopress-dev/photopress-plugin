@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * HEIF still images: HEIC and AVIF. The packet is an item of type 'mime'
  * with content type application/rdf+xml, listed in the meta box's iinf and

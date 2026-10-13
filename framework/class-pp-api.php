@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 class pp_api {
 
 	public static function getPostMeta( $object_id, $key_group ) {

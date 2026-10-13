@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 use photopress_util;
 use photopress_module;
 

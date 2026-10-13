@@ -1,5 +1,7 @@
 <?php
 
+defined( 'ABSPATH' ) || exit;
+
 if ( ! class_exists( 'pp_api') ) {
 	
 	require_once( 'class-pp-api.php' );

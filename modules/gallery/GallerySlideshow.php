@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\gallery;
 
+defined( 'ABSPATH' ) || exit;
+
 use WP_HTML_Tag_Processor;
 
 /**

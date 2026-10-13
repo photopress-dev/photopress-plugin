@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 use WP_Query;
 use PhotoPress\modules\metadata\metadata;
 use PhotoPress\modules\metadata\ImageTaxonomies;
@@ -164,37 +166,56 @@ class ImageSitemap {
 
 	/**
 	 * A taxonomy's newest public images, TERM_SCAN of them, shared out among
-	 * its terms: one query, with their terms and files' metadata loaded
-	 * with them.
+	 * its terms: their IDs and that taxonomy's terms in two queries, then
+	 * the posts and files of only the images given out, TERM_IMAGES a term.
 	 *
 	 * @return array term ID => files.
 	 */
 	private static function imagesByTerm( $taxonomy ) {
 
-		$images = ( new WP_Query( self::imagesQuery( [
-			'tax_query'      => [ [ 'taxonomy' => $taxonomy, 'operator' => 'EXISTS' ] ],
-			'orderby'        => 'date',
-			'order'          => 'DESC',
-			'posts_per_page' => self::TERM_SCAN,
-			'no_found_rows'  => true,
+		$ids = ( new WP_Query( self::imagesQuery( [
+			'tax_query'              => [ [ 'taxonomy' => $taxonomy, 'operator' => 'EXISTS' ] ],
+			'orderby'                => 'date',
+			'order'                  => 'DESC',
+			'posts_per_page'         => self::TERM_SCAN,
+			'no_found_rows'          => true,
+			'fields'                 => 'ids',
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
 		] ) ) )->posts;
+
+		if ( ! $ids ) {
+			return [];
+		}
+
+		$terms_of = [];
+
+		foreach ( (array) wp_get_object_terms( $ids, $taxonomy, [ 'fields' => 'all_with_object_id' ] ) as $term ) {
+			if ( $term instanceof \WP_Term ) {
+				$terms_of[ (int) $term->object_id ][] = (int) $term->term_id;
+			}
+		}
+
+		// Newest first, TERM_IMAGES a term.
+		$given = [];
+
+		foreach ( $ids as $id ) {
+			foreach ( $terms_of[ (int) $id ] ?? [] as $term_id ) {
+				if ( count( $given[ $term_id ] ?? [] ) < self::TERM_IMAGES ) {
+					$given[ $term_id ][] = (int) $id;
+				}
+			}
+		}
+
+		metadata::primeImages( array_unique( array_merge( [], ...array_values( $given ) ) ) );
 
 		$by_term = [];
 
-		foreach ( $images as $image ) {
-
-			$file = null;
-
-			foreach ( (array) get_the_terms( $image, $taxonomy ) as $term ) {
-
-				if ( ! $term instanceof \WP_Term || count( $by_term[ $term->term_id ] ?? [] ) >= self::TERM_IMAGES ) {
-					continue;
-				}
-
-				$file = $file ?? (string) wp_get_attachment_url( $image->ID );
-
+		foreach ( $given as $term_id => $images ) {
+			foreach ( $images as $id ) {
+				$file = (string) wp_get_attachment_url( $id );
 				if ( '' !== $file ) {
-					$by_term[ $term->term_id ][] = $file;
+					$by_term[ $term_id ][] = $file;
 				}
 			}
 		}

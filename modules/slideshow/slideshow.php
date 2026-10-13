@@ -1,6 +1,9 @@
 <?php
 
 namespace PhotoPress\modules\slideshow;
+
+defined( 'ABSPATH' ) || exit;
+
 use photopress_module;
 use pp_api;
 use PhotoPress\modules\metadata\metadata;

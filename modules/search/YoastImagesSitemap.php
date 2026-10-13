@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\search;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * Yoast SEO's sitemap of unattached images' pages (photopress-image-sitemap.xml),
  * which its own media sitemap leaves out, while it lists media pages:

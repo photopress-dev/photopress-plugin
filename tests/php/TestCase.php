@@ -30,7 +30,7 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase {
 			'esc_attr'               => static fn( $text ) => htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8', false ),
 			'esc_html'               => static fn( $text ) => htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8', false ),
 			'esc_html__'             => static fn( $text ) => htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8', false ),
-			'wp_json_encode'         => static fn( $data ) => json_encode( $data ),
+			'wp_json_encode'         => static fn( $data, $flags = 0 ) => json_encode( $data, $flags ),
 			'wp_strip_all_tags'      => [ self::class, 'stripAllTags' ],
 		] );
 	}

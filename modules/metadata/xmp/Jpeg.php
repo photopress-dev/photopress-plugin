@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata\xmp;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * JPEG: the packet is in an APP1 segment headed by the XMP namespace, before
  * the image data.

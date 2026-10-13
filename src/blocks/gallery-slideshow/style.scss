@@ -67,10 +67,13 @@ $speed: 0.3s;
 		transition: opacity $speed ease, transform $speed ease, visibility 0s linear $speed;
 	}
 
+	// Above the halves (z-index 2), for its caption's links, but clicked
+	// through everywhere else.
 	.photopress-gallery-slideshow__slide.is-current {
 		opacity: 1;
 		visibility: visible;
-		z-index: 1;
+		z-index: 3;
+		pointer-events: none;
 		transition: opacity $speed ease, transform $speed ease, visibility 0s;
 	}
 
@@ -90,8 +93,11 @@ $speed: 0.3s;
 		object-fit: contain;
 	}
 
+	// The caption takes clicks, so its links work; the rest of the slide
+	// lets them through to the halves under it (see is-current).
 	.photopress-gallery-slideshow__caption {
 		flex: none;
+		pointer-events: auto;
 	}
 
 	// The Caption max width setting, a share of the slideshow's width, but

@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * The terms an image gets in each of its taxonomies (TaxonomyModel), from its
  * metadata.

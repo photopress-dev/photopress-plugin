@@ -2,6 +2,8 @@
 
 namespace PhotoPress\modules\metadata;
 
+defined( 'ABSPATH' ) || exit;
+
 /**
  * The metadata of an image, as shown by the Image Metadata block (once
  * Image Taxonomies, photopress/image-taxonomies) and the two PhotoPress

@@ -39,7 +39,8 @@ final class EnableMediaReplaceTest extends TestCase {
 			public $posts = 'wp_posts';
 			public $postmeta = 'wp_postmeta';
 			public function esc_like( $text ) { return $text; }
-			public function prepare( $query, ...$args ) { return [ $query, $args ]; }
+			// As WordPress's: the values one by one, or in one array.
+			public function prepare( $query, ...$args ) { return [ $query, 1 === count( $args ) && is_array( $args[0] ) ? $args[0] : $args ]; }
 			public function get_col( $prepared ) { return '%wp-image-7%' === $prepared[1][0] ? [ '21', '22' ] : []; }
 		};
 
