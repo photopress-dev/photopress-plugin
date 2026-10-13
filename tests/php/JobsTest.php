@@ -25,6 +25,11 @@ final class JobsTest extends TestCase {
 		$this->options = [];
 		$this->queued = [];
 		$this->running = null;
+
+		// Memory unknown, so busy() goes by the load alone, whatever this
+		// machine has free.
+		Jobs::$meminfo = sys_get_temp_dir() . '/photopress-no-meminfo';
+
 		$options = &$this->options;
 		$queued = &$this->queued;
 		$running = &$this->running;
@@ -63,6 +68,12 @@ final class JobsTest extends TestCase {
 			'items'   => static fn( $after, $limit ) => array_slice( array_values( array_filter( [ 1, 2, 3, 4, 5 ], static fn( $i ) => $i > (int) $after ) ), 0, $limit ),
 			'process' => static fn( $item ) => 3 === $item ? new \WP_Error( 'x', 'Item 3 is broken' ) : true,
 		] );
+	}
+
+	protected function tearDown(): void {
+
+		Jobs::$meminfo = '/proc/meminfo';
+		parent::tearDown();
 	}
 
 	public function test_a_job_runs_to_the_end_and_records_failures(): void {
@@ -286,5 +297,101 @@ final class JobsTest extends TestCase {
 		$this->assertCount( 2, $seen );
 		$this->assertGreaterThanOrEqual( time() - 1, $seen[1], 'refreshed after the first item' );
 	}
-}
 
+	public function test_the_item_in_hand_is_saved_before_it_is_processed(): void {
+
+		$seen = [];
+		$options = &$this->options;
+		Jobs::register( 'test.watched', [
+			'count'   => static fn() => 2,
+			'items'   => static fn( $after ) => $after ? [] : [ 1, 2 ],
+			'process' => static function ( $item ) use ( &$options, &$seen ) {
+				foreach ( $options as $key => $value ) {
+					if ( is_array( $value ) && isset( $value['type'] ) ) {
+						$seen[] = $value['current'];
+					}
+				}
+				return true;
+			},
+		] );
+		$job = Jobs::start( 'test.watched' );
+		Jobs::runBatch( $job['id'] );
+
+		$this->assertSame( [ 1, 2 ], $seen );
+		$this->assertNull( Jobs::get( $job['id'] )['current'], 'none in hand once the batch ends' );
+	}
+
+	public function test_an_item_that_killed_its_batch_is_recorded_failed_and_skipped(): void {
+
+		$processed = [];
+		Jobs::register( 'test.poison', [
+			'count'   => static fn() => 5,
+			'items'   => static fn( $after, $limit ) => array_slice( array_values( array_filter( [ 1, 2, 3, 4, 5 ], static fn( $i ) => $i > (int) $after ) ), 0, $limit ),
+			'process' => static function ( $item ) use ( &$processed ) {
+				$processed[] = $item;
+				return true;
+			},
+		] );
+		$job = Jobs::start( 'test.poison' );
+		$key = Jobs::OPTION_PREFIX . $job['id'];
+
+		// A batch did item 1, then died (out of memory) on item 2, leaving
+		// it in hand and its lock.
+		$this->options[ $key ] = [ 'status' => 'running', 'cursor' => 1, 'done' => 1, 'current' => 2 ] + $this->options[ $key ];
+		$this->options[ $key . '_lock' ] = time();
+
+		$this->assertFalse( Jobs::runBatch( $job['id'] ), 'not while its lock is fresh' );
+		$this->assertSame( 2, Jobs::get( $job['id'] )['current'] );
+
+		$this->options[ $key . '_lock' ] = time() - Jobs::LOCK_SECONDS - 1;
+		$this->assertTrue( Jobs::runBatch( $job['id'] ) );
+
+		$done = Jobs::get( $job['id'] );
+		$this->assertSame( [ 3, 4, 5 ], $processed, 'item 2 is not tried again' );
+		$this->assertSame( [ 'done', 4, 1, null ], [ $done['status'], $done['done'], $done['failed'], $done['current'] ] );
+		$this->assertSame( 2, $done['errors'][0]['item'] );
+		$this->assertStringContainsString( 'stopped its batch', $done['errors'][0]['message'] );
+	}
+
+	/** A meminfo file saying $kb kB is available. */
+	private function meminfo( int $kb ): void {
+
+		Jobs::$meminfo = $this->tempFile( "MemTotal:        1958932 kB\nMemFree:          125000 kB\nMemAvailable:   " . $kb . " kB\n", '.txt' );
+	}
+
+	public function test_the_server_is_busy_when_little_memory_is_available(): void {
+
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_max_load' )->andReturn( PHP_INT_MAX );
+
+		$this->meminfo( 200 * 1024 );
+		$this->assertTrue( Jobs::busy(), 'under 300 MB' );
+
+		$this->meminfo( 400 * 1024 );
+		$this->assertFalse( Jobs::busy(), 'over 300 MB' );
+
+		Jobs::$meminfo = sys_get_temp_dir() . '/photopress-no-meminfo';
+		$this->assertFalse( Jobs::busy(), 'unknown' );
+	}
+
+	public function test_the_memory_floor_is_filterable(): void {
+
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_max_load' )->andReturn( PHP_INT_MAX );
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_min_memory' )->andReturn( 100 * 1048576 );
+
+		$this->meminfo( 200 * 1024 );
+		$this->assertFalse( Jobs::busy() );
+	}
+
+	public function test_a_paced_job_waits_while_memory_is_short(): void {
+
+		$finished = [];
+		$this->registerPaced( $finished );
+		\Brain\Monkey\Filters\expectApplied( 'photopress_job_max_load' )->andReturn( PHP_INT_MAX );
+		$this->meminfo( 100 * 1024 );
+
+		$job = Jobs::start( 'test.paced' );
+
+		$this->assertFalse( Jobs::runBatch( $job['id'] ) );
+		$this->assertSame( [ 0, 'busy' ], [ Jobs::get( $job['id'] )['done'], Jobs::get( $job['id'] )['waiting'] ] );
+	}
+}

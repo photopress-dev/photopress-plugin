@@ -146,6 +146,92 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( 'IQ4 150MP', $md->getXmp( 'tiff:Model' ) );
 	}
 
+	private static function jpeg( int $width = 40 ): string {
+
+		$im = imagecreatetruecolor( $width, 30 );
+		ob_start();
+		imagejpeg( $im, null, 90 );
+
+		return ob_get_clean();
+	}
+
+	/** Temporary files replaceFile() left in a folder. */
+	private static function leftOver( string $dir ): array {
+
+		return array_values( preg_grep( '/^pp-license-/', scandir( $dir ) ) );
+	}
+
+	public function test_a_file_is_replaced_only_by_a_written_image(): void {
+
+		Functions\stubs( [ 'is_wp_error' => static fn( $thing ) => $thing instanceof \WP_Error ] );
+		$jpeg = self::jpeg();
+		$file = $this->tempFile( $jpeg );
+		chmod( $file, 0640 );
+
+		$failing = [
+			'throws'         => static function () {
+				throw new \RuntimeException( 'No space left on device' );
+			},
+			'writes nothing' => static function () {},
+			'not an image'   => static function ( $tmp ) {
+				file_put_contents( $tmp, 'not an image' );
+			},
+		];
+
+		foreach ( $failing as $how => $write ) {
+			$this->assertInstanceOf( \WP_Error::class, metadata::replaceFile( $file, $write ), $how );
+			$this->assertSame( $jpeg, file_get_contents( $file ), "$how: the original is left as it was" );
+			$this->assertSame( [], self::leftOver( dirname( $file ) ), "$how: no temporary file left" );
+		}
+
+		$wider = self::jpeg( 60 );
+		$this->assertTrue( metadata::replaceFile( $file, static function ( $tmp ) use ( $wider ) {
+			file_put_contents( $tmp, $wider );
+		} ) );
+		clearstatcache();
+		$this->assertSame( $wider, file_get_contents( $file ) );
+		$this->assertSame( 0640, fileperms( $file ) & 0777, 'its permissions kept' );
+	}
+
+	public function test_a_file_in_a_folder_that_cannot_be_written_is_left_as_it_is(): void {
+
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Permissions do not hold for root.' );
+		}
+
+		Functions\stubs( [ 'is_wp_error' => static fn( $thing ) => $thing instanceof \WP_Error ] );
+		\pp_api::$options = [
+			'core/metadata/embed_licensor_enable'   => true,
+			'core/metadata/web_statement_of_rights' => 'https://example.test/license',
+			'core/metadata/licensor_name'           => 'Alice Photography',
+			'core/metadata/licensor_url'            => 'https://alice.example',
+		];
+
+		$dir = sys_get_temp_dir() . '/pp-readonly-' . bin2hex( random_bytes( 4 ) );
+		mkdir( $dir );
+		$file = $dir . '/upload.jpg';
+		file_put_contents( $file, $jpeg = self::jpeg() );
+		chmod( $dir, 0555 );
+
+		try {
+			// The file itself is writable: Imagick, tried before, rewrote it
+			// in place, and truncated it when that failed.
+			$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+			$this->assertNull( $m->embedLicense( null, [ 'tmp_name' => $file ], $file, 'image/jpeg' ) );
+			$this->assertSame( $jpeg, file_get_contents( $file ) );
+
+			$this->assertInstanceOf( \WP_Error::class, metadata::replaceFile( $file, static function ( $tmp ) {
+				file_put_contents( $tmp, self::jpeg( 60 ) );
+			} ) );
+			$this->assertSame( $jpeg, file_get_contents( $file ) );
+			$this->assertSame( [], self::leftOver( sys_get_temp_dir() ), 'no temporary file left elsewhere' );
+		} finally {
+			chmod( $dir, 0755 );
+			unlink( $file );
+			rmdir( $dir );
+		}
+	}
+
 	private static function mergeLicense( string $existing, string $statement, string $name = '', string $url = '' ): string {
 
 		$merge = new \ReflectionMethod( metadata::class, 'mergeLicenseIntoXmp' );

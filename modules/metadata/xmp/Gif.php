@@ -110,12 +110,21 @@ class Gif extends Format {
 					return self::error( 'unrecognised', 'The GIF has more than one XMP block, or one without its trailer.' );
 				}
 
+				if ( $end - strlen( $trailer ) - $start > self::MAX_XMP ) {
+					return self::error( 'too_large', 'The GIF XMP block is larger than is read.' );
+				}
+
 				$xmp = count( $blocks );
 				$block['kind'] = 'xmp';
 				$packet = $in->bytes( $start, $end - strlen( $trailer ) - $start );
 			}
 
-			$blocks[] = $block;
+			// From the first frame on, blocks are kept as runs, as an
+			// animation may have thousands of frames.
+			if ( ! self::append( $blocks, $block, in_array( end( $blocks )['type'], [ 'image', 'control' ], true ) ) ) {
+				return self::error( 'unrecognised', 'The GIF has more blocks than are read.' );
+			}
+
 			$pos = $end;
 		}
 

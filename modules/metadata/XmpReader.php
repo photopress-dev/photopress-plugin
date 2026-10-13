@@ -687,6 +687,10 @@ class XmpReader {
 				$total = unpack( 'N', substr( $body, 32, 4 ) )[1];
 				$offset = unpack( 'N', substr( $body, 36, 4 ) )[1];
 
+				if ( $total > xmp\Format::MAX_XMP ) {
+					continue;
+				}
+
 				$chunks[ $guid ]['total'] = $total;
 				$chunks[ $guid ]['parts'][ $offset ] = substr( $body, 40 );
 			}
@@ -735,7 +739,8 @@ class XmpReader {
 	 * Finds the first XMP packet in a file of any other format (TIFF, DNG,
 	 * PNG, WebP, HEIC ...) by reading 64KB chunks until the packet ends, rather
 	 * than loading the whole file. Recognizes x:xmpmeta, the older x:xapmeta,
-	 * and a bare rdf:RDF.
+	 * and a bare rdf:RDF. A packet not closed within xmp\Format::MAX_XMP
+	 * bytes is not read.
 	 */
 	private function scanForPacket( $fh ) {
 
@@ -743,6 +748,7 @@ class XmpReader {
 		$keep = 16; // longest opening tag, so one split across chunks is still found
 		$buf = '';
 		$tag = null;
+		$close = '';
 
 		while ( ! feof( $fh ) ) {
 
@@ -762,13 +768,24 @@ class XmpReader {
 				}
 
 				$tag = $m[1][0];
+				$close = '</' . $tag . '>';
 				$buf = substr( $buf, $m[0][1] );
+				$from = 0;
+
+			} else {
+				// The new chunk, and the end of the buffer before it, where a
+				// closing tag may have been split.
+				$from = max( 0, strlen( $buf ) - strlen( $chunk ) - strlen( $close ) );
 			}
 
-			$end = strpos( $buf, '</' . $tag . '>' );
+			$end = strpos( $buf, $close, $from );
 
 			if ( $end !== false ) {
-				return substr( $buf, 0, $end + strlen( $tag ) + 3 );
+				return substr( $buf, 0, $end + strlen( $close ) );
+			}
+
+			if ( strlen( $buf ) > xmp\Format::MAX_XMP ) {
+				return null;
 			}
 		}
 

@@ -52,6 +52,10 @@ class Png extends Format {
 					return self::error( 'unrecognised', 'The PNG has more than one XMP chunk.' );
 				}
 
+				if ( $length > self::MAX_XMP ) {
+					return self::error( 'too_large', 'The PNG XMP chunk is larger than is read.' );
+				}
+
 				$text = self::text( $in->bytes( $pos + 8, $length ) );
 
 				if ( null === $text ) {
@@ -63,7 +67,12 @@ class Png extends Format {
 				$packet = $text;
 			}
 
-			$blocks[] = $block;
+			// The chunks after IHDR are kept as runs, as an image may have
+			// thousands of IDAT chunks.
+			if ( ! self::append( $blocks, $block, count( $blocks ) > 2 ) ) {
+				return self::error( 'unrecognised', 'The PNG has more chunks than are read.' );
+			}
+
 			$pos += 12 + $length;
 		}
 
@@ -97,7 +106,8 @@ class Png extends Format {
 			return $rest[2];
 		}
 
-		$text = function_exists( 'gzuncompress' ) ? @gzuncompress( $rest[2] ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		// False past MAX_XMP, so a small chunk cannot inflate to any size.
+		$text = function_exists( 'gzuncompress' ) ? @gzuncompress( $rest[2], self::MAX_XMP ) : false; // phpcs:ignore WordPress.PHP.NoSilencedErrors
 
 		return false === $text ? null : $text;
 	}

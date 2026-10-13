@@ -31,6 +31,12 @@ class Heif extends Format {
 	 */
 	const MAX_META = 16777216;
 
+	/**
+	 * Most boxes read in one parent, and most items and extents read from
+	 * iloc.
+	 */
+	const MAX_ENTRIES = 16384;
+
 	public function matches( $magic ) {
 
 		return substr( $magic, 4, 4 ) === 'ftyp' && in_array( substr( $magic, 8, 4 ), self::BRANDS, true );
@@ -119,6 +125,20 @@ class Heif extends Format {
 				return self::error( 'unrecognised', 'The HEIF XMP item is not stored in this file.' );
 			}
 
+			$total = 0;
+			foreach ( $ranges as $range ) {
+
+				if ( $range[0] + $range[1] > $in->size ) {
+					return self::error( 'unrecognised', 'The HEIF XMP item is outside the file.' );
+				}
+
+				$total += $range[1];
+			}
+
+			if ( $total > self::MAX_XMP ) {
+				return self::error( 'too_large', 'The HEIF XMP item is larger than is read.' );
+			}
+
 			$packet = '';
 			foreach ( $ranges as $range ) {
 				$packet .= $in->bytes( $range[0], $range[1] );
@@ -128,7 +148,8 @@ class Heif extends Format {
 			$layout['encoded'] = '' !== $encoding;
 
 			if ( 'deflate' === $encoding && function_exists( 'gzuncompress' ) ) {
-				$packet = (string) @gzuncompress( $packet ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				// False, so no packet, past MAX_XMP.
+				$packet = (string) @gzuncompress( $packet, self::MAX_XMP ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
 			} elseif ( '' !== $encoding ) {
 				$packet = '';
 			}
@@ -185,6 +206,10 @@ class Heif extends Format {
 
 			if ( $size < $header || $pos + $size > $end ) {
 				return self::error( 'unrecognised', 'A HEIF box is outside its parent.' );
+			}
+
+			if ( count( $boxes ) >= self::MAX_ENTRIES ) {
+				return self::error( 'unrecognised', 'A HEIF box has more boxes in it than are read.' );
 			}
 
 			$boxes[] = [ 'offset' => $pos, 'size' => $size, 'type' => $type, 'header' => $header, 'large' => $large, 'open' => $open ];
@@ -285,6 +310,7 @@ class Heif extends Format {
 		$pos = 6;
 		$count = self::uint( $data, $pos, $id );
 		$pos += $id;
+		$entries = 0;
 
 		for ( $i = 0; $i < (int) $count; $i++ ) {
 
@@ -302,6 +328,13 @@ class Heif extends Format {
 			$extents = self::uint( $data, $pos + 2 + $iloc['base_size'], 2 );
 			$pos += 4 + $iloc['base_size'];
 			$item['extents'] = [];
+			$entries += 1 + (int) $extents;
+
+			// Counted, as an extent whose fields have size 0 takes no room in
+			// the box, so the box's size does not bound them.
+			if ( $entries > self::MAX_ENTRIES ) {
+				return self::error( 'unrecognised', 'The HEIF iloc box has more items than are read.' );
+			}
 
 			for ( $e = 0; $e < (int) $extents; $e++ ) {
 				$extent = [

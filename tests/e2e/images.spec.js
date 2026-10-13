@@ -148,10 +148,12 @@ test( 'regenerating makes sizes at the quality set, keeping the sizes turned off
 	expect( started.job.total ).toBe( ids.length );
 
 	// The batches are run here, with the busy-server wait lifted: the test's
-	// own browser keeps this server busier than the job allows. The rests
+	// own browser keeps this server busier, and shorter of memory, than the
+	// job allows. The rests
 	// between batches are skipped too.
 	wp( 'eval', `
 		add_filter( 'photopress_job_max_load', static fn() => PHP_INT_MAX );
+		add_filter( 'photopress_job_min_memory', static fn() => 0 );
 		for ( $i = 0; $i < 20; $i++ ) {
 			$job = PhotoPress\\jobs\\Jobs::get( '${ started.job.id }' );
 			if ( ! in_array( $job['status'], [ 'queued', 'running' ], true ) ) { break; }

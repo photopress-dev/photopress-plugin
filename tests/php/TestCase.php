@@ -73,5 +73,31 @@ abstract class TestCase extends \PHPUnit\Framework\TestCase {
 		return $file;
 	}
 
+	/**
+	 * Runs $run and returns what it returns, asserting it took no more than
+	 * $megabytes of memory beyond what was in use before, and no more than
+	 * $seconds.
+	 */
+	protected function assertCheap( callable $run, int $megabytes = 32, float $seconds = 3.0 ) {
+
+		$before = memory_get_usage();
+
+		if ( function_exists( 'memory_reset_peak_usage' ) ) {
+			memory_reset_peak_usage();
+		}
+
+		$started = microtime( true );
+		$result = $run();
+		$took = microtime( true ) - $started;
+
+		if ( function_exists( 'memory_reset_peak_usage' ) ) {
+			$this->assertLessThan( $megabytes * 1048576, memory_get_peak_usage() - $before, 'memory used' );
+		}
+
+		$this->assertLessThan( $seconds, $took, 'seconds taken' );
+
+		return $result;
+	}
+
 	private array $tempFiles = [];
 }
