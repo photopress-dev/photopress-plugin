@@ -328,6 +328,21 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   and anyone at most once in ten minutes. An upload that adds to a gallery
   tells a user who may not upload nothing about the post. A taxonomy's ID
   is never one of WordPress's own, nor longer than WordPress allows.
+* ImageMagick's memory is capped (256 MB, then a 512 MB map, then disk in
+  uploads/photopress-tmp) whenever WordPress makes image sizes, on upload
+  and replace as in the regenerate job; filterable as
+  photopress_imagick_limits.
+* Regenerating every size of an image saves its file and metadata only once
+  all are made: a failure, or a request that dies midway, leaves the image
+  as it was, and files made under new names are removed on a failure.
+* Replacing an image's file keeps the old files as backups until the new
+  sizes are made. If WordPress skips a size (as when short of memory), or
+  the request fails, the image is put back as it was and the request says
+  which sizes failed; a replace that died midway is undone by the next.
+* An image whose license could not be written into its file says so, and
+  why, in the Media Library; the record is cleared once the license is
+  written.
+* Faster reading of JPEG metadata past long runs of fill bytes.
 * Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
   out in WordPress's columns instead.
 
