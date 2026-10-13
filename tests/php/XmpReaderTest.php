@@ -225,6 +225,38 @@ final class XmpReaderTest extends TestCase {
 		$this->assertSame( [], $this->assertCheap( static fn() => ( new XmpReader() )->extractXmp( $file ) ) );
 	}
 
+	public function test_jpeg_fill_bytes_are_skipped_a_buffer_at_a_time(): void {
+
+		$packet = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Make="Phase One"/></rdf:RDF></x:xmpmeta>';
+		$jpeg = self::jpeg( [ self::STANDARD . $packet ] );
+
+		// 30 MB of fill bytes before the XMP segment took about 5 seconds one
+		// at a time.
+		$at = strpos( $jpeg, "\xFF\xE1" );
+		$file = $this->tempFile( substr( $jpeg, 0, $at ) . str_repeat( "\xFF", 30 << 20 ) . substr( $jpeg, $at ) );
+
+		$md = $this->assertCheap( static fn() => ( new XmpReader() )->extractXmp( $file ), 32, 1.0 );
+		$this->assertSame( 'Phase One', $md['tiff:Make'] );
+	}
+
+	public function test_a_jpeg_on_a_stream_that_cannot_seek_is_read(): void {
+
+		$packet = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Make="Phase One"/></rdf:RDF></x:xmpmeta>';
+		$jpeg = self::jpeg( [ self::STANDARD . $packet ] );
+		$at = strpos( $jpeg, "\xFF\xE1" );
+
+		// Fill bytes, and a segment longer than a buffer to skip, before the
+		// XMP segment.
+		NoSeekStream::$contents = substr( $jpeg, 0, $at ) . str_repeat( "\xFF", 10000 ) . self::segment( 0xE2, str_repeat( 'm', 20000 ) ) . substr( $jpeg, $at );
+		stream_wrapper_register( 'pp-noseek', NoSeekStream::class );
+
+		try {
+			$this->assertSame( 'Phase One', ( new XmpReader() )->extractXmp( 'pp-noseek://photo.jpg' )['tiff:Make'] ?? null );
+		} finally {
+			stream_wrapper_unregister( 'pp-noseek' );
+		}
+	}
+
 	public function test_a_closing_tag_split_across_reads_is_found(): void {
 
 		$open = '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:tiff="http://ns.adobe.com/tiff/1.0/" tiff:Make="Phase One"/></rdf:RDF>';
@@ -388,5 +420,43 @@ final class XmpReaderTest extends TestCase {
 		}
 
 		$this->assertSame( [], preg_grep( '/^Iptc4xmpExt:/', array_keys( $md ) ) );
+	}
+}
+
+/**
+ * A stream that cannot seek and gives at most 1000 bytes a read, as some
+ * remote stream wrappers do.
+ */
+final class NoSeekStream {
+
+	public static string $contents = '';
+
+	public $context;
+
+	private int $pos = 0;
+
+	public function stream_open( $path, $mode, $options, &$opened ): bool {
+
+		$this->pos = 0;
+
+		return true;
+	}
+
+	public function stream_read( $count ) {
+
+		$data = substr( self::$contents, $this->pos, min( $count, 1000 ) );
+		$this->pos += strlen( $data );
+
+		return $data;
+	}
+
+	public function stream_eof(): bool {
+
+		return $this->pos >= strlen( self::$contents );
+	}
+
+	public function stream_stat() {
+
+		return [];
 	}
 }

@@ -4,6 +4,8 @@ namespace PhotoPress\modules\media;
 
 defined( 'ABSPATH' ) || exit;
 
+use PhotoPress\jobs\Jobs;
+use PhotoPress\jobs\Scheduler;
 use WP_Error;
 use WP_REST_Attachments_Controller;
 use WP_REST_Request;
@@ -33,7 +35,9 @@ use WP_REST_Server;
  * are regenerated over the old ones. Only a new shape or size (size names
  * carry dimensions) or a new file type gives files new names; then the old
  * files are deleted and stored links to them are rewritten. Title and caption
- * follow the new file as on upload.
+ * follow the new file as on upload. Until every size the new file should
+ * have is made, the old files are kept as backups; if one is not, the image
+ * is left as it was and the request fails.
  *
  * Caches and the search index: the image, with its files, and the posts
  * that changed or show it are announced with photopress_post_changed.
@@ -50,10 +54,53 @@ class MediaRest {
 	 */
 	const REPLACED_AT_META_KEY = '_photopress_replaced_at';
 
+	/**
+	 * A replace under way (see install()): when it began (time), the image's
+	 * file, metadata and MIME type before it (file, meta, mime), the new file
+	 * under its temporary name (saved), each file of the image mapped to its
+	 * backup (backups), and committed once the new files are kept.
+	 */
+	const RESTORE_META_KEY = '_photopress_replace_restore';
+
+	/**
+	 * A replace not finished this many seconds after it began has died, and
+	 * is undone by the next one; until then, another replace of the image is
+	 * refused.
+	 */
+	const REPLACE_SECONDS = 600;
+
+	/**
+	 * Action Scheduler's check on a replace once REPLACE_SECONDS have passed:
+	 * one that died is undone without waiting for the next replace.
+	 */
+	const SETTLE_HOOK = 'photopress_replace_settle';
+
 	public static function addHooks() {
 
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
 		add_filter( 'rest_namespace_index', [ self::class, 'addVersions' ], 10, 2 );
+		add_action( self::SETTLE_HOOK, [ self::class, 'settle' ] );
+	}
+
+	/**
+	 * SETTLE_HOOK: a replace of the image that has not ended by now died,
+	 * and is undone (or finished, if its files were kept); one still under
+	 * way, as far as anyone can tell, is looked at again later. Nothing,
+	 * once the replace has ended.
+	 */
+	public static function settle( $id ) {
+
+		if ( true !== self::endPending( (int) $id ) ) {
+			self::scheduleSettle( (int) $id );
+		}
+	}
+
+	/** A SETTLE_HOOK check on the image's replace, once REPLACE_SECONDS have passed. */
+	protected static function scheduleSettle( $id ) {
+
+		if ( function_exists( 'as_schedule_single_action' ) && Scheduler::ensure() && ! Scheduler::pending( self::SETTLE_HOOK, [ $id ] ) ) {
+			as_schedule_single_action( time() + self::REPLACE_SECONDS + 60, self::SETTLE_HOOK, [ $id ], Jobs::GROUP );
+		}
 	}
 
 	/**
@@ -188,6 +235,14 @@ class MediaRest {
 			return new WP_Error( 'rest_post_invalid_id', __( 'Invalid image ID.' ), [ 'status' => 404 ] );
 		}
 
+		// A replace of this image that died midway: undone, or finished if
+		// its new files were kept.
+		$pending = self::endPending( $id );
+
+		if ( is_wp_error( $pending ) ) {
+			return $pending;
+		}
+
 		$old_file = get_attached_file( $id, true );
 
 		if ( ! $old_file ) {
@@ -266,26 +321,12 @@ class MediaRest {
 			return new WP_Error( 'rest_upload_invalid_image', __( 'The file is not an image this site can display.' ), [ 'status' => 400 ] );
 		}
 
-		// 4. Into place: over the original when the type is the same, in one
-		// step, so its URL never misses a file.
-		if ( ! @rename( $saved['file'], $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
-			wp_delete_file( $saved['file'] );
-			return new WP_Error( 'rest_upload_unknown_error', __( 'The file could not be moved into place.' ), [ 'status' => 500 ] );
+		// 4 and 5. Into place, and the sizes made, or the image left as it was.
+		$installed = self::install( $id, $saved['file'], $target, $type['type'], $old_file, $old_meta, $own );
+
+		if ( is_wp_error( $installed ) ) {
+			return $installed;
 		}
-
-		update_attached_file( $id, $target );
-
-		if ( ! $same_type ) {
-			wp_update_post( [ 'ID' => $id, 'post_mime_type' => $type['type'] ] );
-		}
-
-		// 5. The sizes, and -scaled for large images, over the old ones where
-		// the names are the same. WordPress saves the metadata as it goes;
-		// Offload Media waits for the finished set, then uploads it.
-		$new_meta = OffloadMedia::withUploadHeld( static fn() => wp_generate_attachment_metadata( $id, $target ) );
-
-		wp_update_attachment_metadata( $id, $new_meta );
-		clean_attachment_cache( $id );
 
 		$new_meta = wp_get_attachment_metadata( $id, true );
 		$new_meta = is_array( $new_meta ) ? $new_meta : [];
@@ -416,6 +457,244 @@ class MediaRest {
 		$response->set_data( apply_filters( 'photopress_replace_file_response', $data, $id, $request ) );
 
 		return $response;
+	}
+
+	/**
+	 * Moves the new file into place and makes its sizes, keeping a way back
+	 * until they are all made: each of the image's files is kept as a backup
+	 * next to it (the original, moved over, by a second link to it; the
+	 * others copied, as WordPress writes a size over its file), and what to
+	 * restore is recorded first (RESTORE_META_KEY). The new file goes over
+	 * the original when the type is the same, in one step, so its URL never
+	 * misses a file; WordPress makes the sizes, and -scaled for a large
+	 * image, over the old ones where the names are the same, saving the
+	 * metadata as it goes.
+	 *
+	 * A failure, an exception, or a size WordPress skipped (missingSizes())
+	 * puts the image back as it was (restore()); a PHP that dies midway is
+	 * undone by the next replace (endPending()). Once the new metadata is
+	 * saved, the backups are deleted.
+	 *
+	 * @param string   $saved The new file, under its temporary name.
+	 * @param string[] $own   The image's files now, as full paths.
+	 * @return true|WP_Error
+	 */
+	protected static function install( $id, $saved, $target, $mime, $old_file, array $old_meta, array $own ) {
+
+		$backups = [];
+
+		foreach ( array_unique( array_merge( array_values( $own ), [ $target ] ) ) as $path ) {
+			if ( file_exists( $path ) ) {
+				$backups[ $path ] = $path . '.photopress-backup';
+			}
+		}
+
+		$record = [
+			'time'    => time(),
+			'file'    => $old_file,
+			'meta'    => $old_meta,
+			'mime'    => get_post_mime_type( $id ),
+			'saved'   => $saved,
+			'backups' => $backups,
+		];
+
+		// Added only if there is none: of two replaces of the image at once,
+		// the second waits.
+		if ( ! add_post_meta( $id, self::RESTORE_META_KEY, $record, true ) ) {
+			wp_delete_file( $saved );
+			return self::underWay();
+		}
+
+		// Should this request die before the end, the image is put back.
+		self::scheduleSettle( (int) $id );
+
+		foreach ( $backups as $path => $backup ) {
+
+			// A backup left by a replace that died; none, usually.
+			if ( file_exists( $backup ) ) {
+				@unlink( $backup ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
+
+			if ( ! ( $path === $target && @link( $path, $backup ) ) && ! @copy( $path, $backup ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				foreach ( $backups as $copy ) {
+					if ( file_exists( $copy ) ) {
+						@unlink( $copy ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+					}
+				}
+				wp_delete_file( $saved );
+				delete_post_meta( $id, self::RESTORE_META_KEY );
+				return new WP_Error( 'rest_upload_unknown_error', __( 'The image\'s files could not be backed up before replacing them.' ), [ 'status' => 500 ] );
+			}
+		}
+
+		if ( ! @rename( $saved, $target ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			self::restore( $id, $record );
+			return new WP_Error( 'rest_upload_unknown_error', __( 'The file could not be moved into place.' ), [ 'status' => 500 ] );
+		}
+
+		update_attached_file( $id, $target );
+
+		if ( $mime !== $record['mime'] ) {
+			wp_update_post( [ 'ID' => $id, 'post_mime_type' => $mime ] );
+		}
+
+		// Every file WordPress writes, for one it makes under a name the
+		// image's metadata does not list yet.
+		$made = [];
+		$track = static function ( $path ) use ( &$made ) {
+			$made[] = $path;
+			return $path;
+		};
+
+		add_filter( 'image_make_intermediate_size', $track );
+
+		// Offload Media waits for the finished set, then uploads it.
+		try {
+			$meta = OffloadMedia::withUploadHeld( static fn() => wp_generate_attachment_metadata( $id, $target ) );
+		} catch ( \Throwable $e ) {
+			$meta = new WP_Error( 'photopress_replace_failed', $e->getMessage(), [ 'status' => 500 ] );
+		} finally {
+			remove_filter( 'image_make_intermediate_size', $track );
+		}
+
+		$missing = is_array( $meta ) && $meta ? self::missingSizes( $id, $target, $meta ) : [];
+
+		if ( ! is_array( $meta ) || ! $meta || $missing ) {
+
+			self::restore( $id, $record, $made );
+
+			if ( $missing ) {
+				return new WP_Error( 'photopress_sizes_not_made', sprintf(
+					/* translators: %s: size names */
+					__( 'WordPress could not make these sizes of the new file, so the image keeps its old one: %s. The server may have been short of memory; try again later.' ),
+					implode( ', ', $missing )
+				), [ 'status' => 500, 'sizes' => $missing ] );
+			}
+
+			return is_wp_error( $meta ) ? $meta : new WP_Error( 'photopress_replace_failed', __( 'WordPress could not make the new file\'s sizes, so the image keeps its old one.' ), [ 'status' => 500 ] );
+		}
+
+		wp_update_attachment_metadata( $id, $meta );
+		clean_attachment_cache( $id );
+
+		$record['committed'] = true;
+		update_post_meta( $id, self::RESTORE_META_KEY, $record );
+		self::restore( $id, $record );
+
+		return true;
+	}
+
+	/**
+	 * Ends a replace by its record (see install()). Committed: its backups
+	 * deleted. Otherwise the image put back as it was: the files it has now
+	 * that are not backed up (from its metadata as saved so far, $made, and
+	 * the new file under its temporary name) deleted, each backup moved back
+	 * over its file, and its file, metadata and type restored. The record is
+	 * deleted last, so ending it again does the same.
+	 *
+	 * @param string[] $made Files written for the new image, as full paths.
+	 */
+	protected static function restore( $id, array $record, array $made = [] ) {
+
+		$backups = (array) ( $record['backups'] ?? [] );
+
+		if ( ! empty( $record['committed'] ) ) {
+
+			foreach ( $backups as $backup ) {
+				wp_delete_file( $backup );
+			}
+
+			delete_post_meta( $id, self::RESTORE_META_KEY );
+			return;
+		}
+
+		$basedir = wp_get_upload_dir()['basedir'];
+		$meta = wp_get_attachment_metadata( $id, true );
+		$now = array_map(
+			static fn( $relative ) => path_join( $basedir, $relative ),
+			array_values( self::attachmentFiles( (string) get_attached_file( $id, true ), is_array( $meta ) ? $meta : [] ) )
+		);
+
+		foreach ( array_diff( array_unique( array_filter( array_merge( $now, $made, [ (string) ( $record['saved'] ?? '' ) ] ) ) ), array_keys( $backups ) ) as $path ) {
+			wp_delete_file( $path );
+		}
+
+		foreach ( $backups as $path => $backup ) {
+			if ( file_exists( $backup ) ) {
+				@rename( $backup, $path ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
+		}
+
+		update_attached_file( $id, $record['file'] );
+
+		if ( ! empty( $record['mime'] ) && get_post_mime_type( $id ) !== $record['mime'] ) {
+			wp_update_post( [ 'ID' => $id, 'post_mime_type' => $record['mime'] ] );
+		}
+
+		wp_update_attachment_metadata( $id, (array) $record['meta'] );
+		clean_attachment_cache( $id );
+		delete_post_meta( $id, self::RESTORE_META_KEY );
+	}
+
+	/**
+	 * A replace of the image that did not end: undone (or finished, if
+	 * committed) when it began more than REPLACE_SECONDS ago and so died;
+	 * otherwise it is still under way, and this one is refused.
+	 *
+	 * @return true|WP_Error
+	 */
+	protected static function endPending( $id ) {
+
+		$record = get_post_meta( $id, self::RESTORE_META_KEY, true );
+
+		if ( ! is_array( $record ) || ! $record ) {
+			return true;
+		}
+
+		if ( empty( $record['committed'] ) && time() - (int) ( $record['time'] ?? 0 ) < self::REPLACE_SECONDS ) {
+			return self::underWay();
+		}
+
+		self::restore( $id, $record );
+
+		return true;
+	}
+
+	/** The answer to a replace of an image while another is under way. */
+	protected static function underWay() {
+
+		return new WP_Error( 'photopress_replace_under_way', __( 'This image\'s file is being replaced by another request. Try again in a few minutes.' ), [ 'status' => 409 ] );
+	}
+
+	/**
+	 * The sizes WordPress makes of an image (intermediate_image_sizes_advanced,
+	 * as on upload) that its file is large enough for, either way up, and
+	 * that $meta lacks: WordPress skips a size it fails to make, as when
+	 * short of memory, without an error. None when no image editor here
+	 * handles its type.
+	 *
+	 * @return string[] Their names.
+	 */
+	public static function missingSizes( $id, $file, array $meta ) {
+
+		$size = wp_getimagesize( $file );
+
+		if ( ! $size || ! wp_image_editor_supports( [ 'mime_type' => $size['mime'] ?? '' ] ) ) {
+			return [];
+		}
+
+		$missing = [];
+
+		foreach ( (array) apply_filters( 'intermediate_image_sizes_advanced', wp_get_registered_image_subsizes(), $meta, $id ) as $name => $wanted ) {
+
+			$fits = static fn( $width, $height ) => (bool) image_resize_dimensions( $width, $height, (int) ( $wanted['width'] ?? 0 ), (int) ( $wanted['height'] ?? 0 ), $wanted['crop'] ?? false );
+
+			if ( empty( $meta['sizes'][ $name ] ) && $fits( (int) $size[0], (int) $size[1] ) && $fits( (int) $size[1], (int) $size[0] ) ) {
+				$missing[] = $name;
+			}
+		}
+
+		return $missing;
 	}
 
 	/**
@@ -605,7 +884,10 @@ class MediaRest {
 			// Moved out of PHP's upload folder so it is handled the same as a raw body.
 			$tmp = wp_tempnam( $files['file']['name'] );
 
-			if ( ! move_uploaded_file( $files['file']['tmp_name'], $tmp ) ) {
+			if ( ! $tmp || ! move_uploaded_file( $files['file']['tmp_name'], $tmp ) ) {
+				if ( $tmp ) {
+					@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+				}
 				return new WP_Error( 'rest_upload_unknown_error', __( 'The file could not be saved.' ), [ 'status' => 500 ] );
 			}
 
@@ -627,6 +909,9 @@ class MediaRest {
 		$tmp = wp_tempnam( $name );
 
 		if ( ! $tmp || false === file_put_contents( $tmp, $body ) ) { // phpcs:ignore WordPress.WP.AlternativeFunctions
+			if ( $tmp ) {
+				@unlink( $tmp ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
 			return new WP_Error( 'rest_upload_unknown_error', __( 'The file could not be saved.' ), [ 'status' => 500 ] );
 		}
 

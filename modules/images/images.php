@@ -56,6 +56,7 @@ class images extends photopress_module {
 		add_filter( 'intermediate_image_sizes_advanced', [ self::class, 'enabledSizes' ] );
 		add_action( 'rest_api_init', [ self::class, 'registerRoutes' ] );
 		add_filter( 'wp_generate_attachment_metadata', [ self::class, 'markUpToDate' ], 10, 3 );
+		add_filter( 'wp_image_editors', [ self::class, 'limitEditors' ] );
 
 		Jobs::register( self::JOB, [
 			'label'         => __( 'Regenerate image sizes' ),
@@ -425,11 +426,15 @@ class images extends photopress_module {
 			require_once ABSPATH . 'wp-admin/includes/image.php';
 		}
 
-		self::limitImagick();
+		self::limitImagick( true );
 
 		// WordPress saves the metadata as it makes each size; Offload Media
 		// uploads the finished set once.
 		$meta = OffloadMedia::withUploadHeld( static fn() => self::makeSizes( $id, $meta, $work, $original ) );
+
+		if ( $meta instanceof WP_Error ) {
+			return $meta;
+		}
 
 		if ( empty( $meta ) || ! is_array( $meta ) ) {
 			return new WP_Error( 'photopress_regenerate_failed', __( 'WordPress could not make this image\'s sizes.' ) );
@@ -444,65 +449,167 @@ class images extends photopress_module {
 
 	/**
 	 * An image's sizes made: every one from its original ('full'), or those
-	 * turned on that it lacks.
+	 * turned on that it lacks. WordPress saves the metadata after each size
+	 * it adds to it (wp_update_image_subsizes()), so a failure midway leaves
+	 * the sizes it had and those made so far.
 	 *
-	 * @return array|false The metadata, not yet saved.
+	 * @return array|false|WP_Error The metadata, not yet saved.
 	 */
 	private static function makeSizes( $id, $meta, $work, $original ) {
 
 		if ( 'full' === $work ) {
-			$before = is_array( $meta ) ? (array) ( $meta['sizes'] ?? [] ) : [];
-			$dir = dirname( (string) get_attached_file( $id, true ) );
-
-			// From the original: WordPress makes the -scaled copy again from
-			// it if it is over the threshold, and points the image at that.
-			if ( get_attached_file( $id, true ) !== $original ) {
-				update_attached_file( $id, $original );
-			}
-			$meta = wp_generate_attachment_metadata( $id, $original );
-
-			// The sizes it had that are not made now (turned off) stay, as
-			// long as their files do: WordPress deletes an image's files by
-			// its metadata.
-			if ( is_array( $meta ) ) {
-				foreach ( $before as $name => $size ) {
-					if ( ! isset( $meta['sizes'][ $name ] ) && ! empty( $size['file'] ) && file_exists( $dir . '/' . $size['file'] ) ) {
-						$meta['sizes'][ $name ] = $size;
-					}
-				}
-			}
-		} else {
-			// WordPress makes the sizes its metadata lacks, turned off or
-			// not: those turned on only.
-			$only = static fn( $missing ) => self::enabledSizes( $missing );
-			add_filter( 'wp_get_missing_image_subsizes', $only );
-			$meta = wp_update_image_subsizes( $id );
-			remove_filter( 'wp_get_missing_image_subsizes', $only );
+			return self::makeAllSizes( $id, $meta, $original );
 		}
+
+		// WordPress makes the sizes its metadata lacks, turned off or not:
+		// those turned on only.
+		$only = static fn( $missing ) => self::enabledSizes( $missing );
+		add_filter( 'wp_get_missing_image_subsizes', $only );
+		$meta = wp_update_image_subsizes( $id );
+		remove_filter( 'wp_get_missing_image_subsizes', $only );
 
 		return $meta;
 	}
 
 	/**
+	 * Every size of an image made again from its original, with its file and
+	 * metadata as stored left as they are until all are made. WordPress saves
+	 * both as it goes (wp_create_image_subsizes()), starting from metadata
+	 * without the sizes the image had, and points the image at the original
+	 * or at a -scaled copy: its saves of them for this image (and of the
+	 * quality, see markUpToDate()) are held back meanwhile, and the result is
+	 * saved by regenerate() once complete.
+	 *
+	 * A failure, an exception or a PHP that dies midway leaves the image as
+	 * it was, files and metadata together: a size made again has the name it
+	 * had, over the old file. Files the attempt made under names the image
+	 * does not have are deleted on a failure, and made again under the same
+	 * names by the next attempt after a death, so running it again ends as
+	 * running it once.
+	 *
+	 * @return array|WP_Error The metadata, not yet saved.
+	 */
+	private static function makeAllSizes( $id, $meta, $original ) {
+
+		$attached = (string) get_attached_file( $id, true );
+		$dir = dirname( $attached );
+		$before = is_array( $meta ) ? (array) ( $meta['sizes'] ?? [] ) : [];
+		$file = $original;
+		$made = [];
+
+		$held = [ '_wp_attached_file', '_wp_attachment_metadata', self::QUALITY_META ];
+		$hold = static fn( $check, $object_id, $key ) => (int) $object_id === (int) $id && in_array( $key, $held, true ) ? true : $check;
+		$point = static function ( $path, $object_id ) use ( $id, &$file ) {
+			if ( (int) $object_id === (int) $id ) {
+				$file = $path;
+			}
+			return $path;
+		};
+		$track = static function ( $path ) use ( &$made ) {
+			$made[] = $path;
+			return $path;
+		};
+
+		add_filter( 'update_post_metadata', $hold, 10, 3 );
+		add_filter( 'add_post_metadata', $hold, 10, 3 );
+		add_filter( 'update_attached_file', $point, 10, 2 );
+		add_filter( 'image_make_intermediate_size', $track );
+
+		try {
+			$new = wp_generate_attachment_metadata( $id, $original );
+		} catch ( \Throwable $e ) {
+			$new = new WP_Error( 'photopress_regenerate_failed', $e->getMessage() );
+		} finally {
+			remove_filter( 'update_post_metadata', $hold, 10 );
+			remove_filter( 'add_post_metadata', $hold, 10 );
+			remove_filter( 'update_attached_file', $point, 10 );
+			remove_filter( 'image_make_intermediate_size', $track );
+		}
+
+		$own = [ $original, $attached ];
+
+		foreach ( $before as $size ) {
+			if ( ! empty( $size['file'] ) ) {
+				$own[] = $dir . '/' . $size['file'];
+			}
+		}
+
+		if ( ! is_array( $new ) || ! $new ) {
+			foreach ( array_diff( array_unique( $made ), $own ) as $path ) {
+				wp_delete_file( $path );
+			}
+
+			return $new instanceof WP_Error ? $new : new WP_Error( 'photopress_regenerate_failed', __( 'WordPress could not make this image\'s sizes.' ) );
+		}
+
+		// The sizes it had that are not made now (turned off) stay, as long
+		// as their files do: WordPress deletes an image's files by its
+		// metadata.
+		foreach ( $before as $name => $size ) {
+			if ( ! isset( $new['sizes'][ $name ] ) && ! empty( $size['file'] ) && file_exists( $dir . '/' . $size['file'] ) ) {
+				$new['sizes'][ $name ] = $size;
+			}
+		}
+
+		// Pointed where WordPress pointed it: the original, or its -scaled
+		// copy when the original is over the threshold.
+		if ( $attached !== $file ) {
+			update_attached_file( $id, $file );
+		}
+
+		return $new;
+	}
+
+	/**
+	 * wp_image_editors, which WordPress applies before it opens any image to
+	 * edit (uploads, file replacements, the image editor, the job): the
+	 * ImageMagick limits of limitImagick() set first. The editors are
+	 * returned as they are.
+	 */
+	public static function limitEditors( $editors ) {
+
+		self::limitImagick();
+
+		return $editors;
+	}
+
+	/**
 	 * ImageMagick uses every processor and as much memory as it likes by
-	 * default. For the job: one thread, so a processor stays free for the
-	 * site's visitors, and its memory capped, past which it uses disk. The
+	 * default: about all of a small server's, for each PHP worker making
+	 * sizes at once. Its memory and memory map are capped, past which it
+	 * uses disk, in a folder of uploads (temporaryDir()); in the job, one
+	 * thread too, so a processor stays free for the site's visitors. The
 	 * limits are ImageMagick's own, for this PHP process; PHP's memory_limit
 	 * does not see ImageMagick's memory.
+	 *
+	 * @param bool $job Whether for the regenerate job.
 	 */
-	protected static function limitImagick() {
+	protected static function limitImagick( $job = false ) {
 
 		if ( ! class_exists( 'Imagick' ) || ! is_callable( [ 'Imagick', 'setResourceLimit' ] ) ) {
 			return;
 		}
 
+		/**
+		 * Filters the limits ImageMagick works within while WordPress makes
+		 * image sizes: memory and map in bytes, thread a number. One left out
+		 * or not above 0 is left as ImageMagick has it.
+		 *
+		 * @param array $limits memory, map, and in the job thread.
+		 * @param bool  $job    Whether for the regenerate job.
+		 */
+		$limits = (array) apply_filters( 'photopress_imagick_limits', [
+			'memory' => 256 * 1024 * 1024,
+			'map'    => 512 * 1024 * 1024,
+		] + ( $job ? [ 'thread' => 1 ] : [] ), $job );
+
 		foreach ( [
-			'Imagick::RESOURCETYPE_THREAD' => 1,
-			'Imagick::RESOURCETYPE_MEMORY' => 256 * 1024 * 1024,
-			'Imagick::RESOURCETYPE_MAP'    => 512 * 1024 * 1024,
-		] as $type => $limit ) {
-			if ( defined( $type ) ) {
-				\Imagick::setResourceLimit( constant( $type ), $limit );
+			'thread' => 'Imagick::RESOURCETYPE_THREAD',
+			'memory' => 'Imagick::RESOURCETYPE_MEMORY',
+			'map'    => 'Imagick::RESOURCETYPE_MAP',
+		] as $name => $type ) {
+			if ( defined( $type ) && (int) ( $limits[ $name ] ?? 0 ) > 0 ) {
+				\Imagick::setResourceLimit( constant( $type ), (int) $limits[ $name ] );
 			}
 		}
 

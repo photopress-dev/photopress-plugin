@@ -13,6 +13,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
  */
 final class MediaRestTest extends TestCase {
 
+	/** The checks on replaces scheduled with Action Scheduler: their arguments. */
+	private array $settles = [];
+
+
 	protected function setUp(): void {
 
 		parent::setUp();
@@ -398,5 +402,385 @@ final class MediaRestTest extends TestCase {
 		// A name as short as "a" no longer matches every row with an a in it.
 		$this->assertSame( [ '%/a.%', '%/a-%', '%\\\\/a.%', '%\\\\/a-%' ], $likes );
 	}
-}
 
+	/** The uploads folder of the replace tests. */
+	private string $uploads = '';
+
+	/** Image 12 as stored: its file, metadata, MIME type and post meta, by key. */
+	private array $store = [];
+
+	/** Callbacks added to image_make_intermediate_size. */
+	private array $tracking = [];
+
+	/**
+	 * Image 12, 2000 × 1333, with a medium and a large size, in uploads in
+	 * a temporary folder; the new file for it saved next to them. Returns
+	 * the folder.
+	 */
+	private function storedImage(): string {
+
+		$this->uploads = sys_get_temp_dir() . '/pp-test-replace-' . uniqid();
+		$dir = $this->uploads . '/2024/05';
+		mkdir( $dir, 0775, true );
+
+		foreach ( [ 'photo.jpg' => 'old original', 'photo-300x200.jpg' => 'old medium', 'photo-1024x683.jpg' => 'old large' ] as $name => $contents ) {
+			file_put_contents( "$dir/$name", $contents );
+		}
+
+		$this->store = [
+			'file' => "$dir/photo.jpg",
+			'meta' => [ 'file' => '2024/05/photo.jpg', 'width' => 2000, 'height' => 1333, 'sizes' => [ 'medium' => [ 'file' => 'photo-300x200.jpg' ], 'large' => [ 'file' => 'photo-1024x683.jpg' ] ] ],
+			'mime' => 'image/jpeg',
+		];
+
+		if ( ! $this->tracking ) {
+			$this->tracking = [ 'collected' => true ];
+			\Brain\Monkey\Filters\expectAdded( 'image_make_intermediate_size' )->zeroOrMoreTimes()->whenHappen( function ( $callback ) {
+				$this->tracking[] = $callback;
+			} );
+		}
+
+		Functions\stubs( [
+			// Action Scheduler, with work pending: each check on a replace scheduled is kept.
+			'get_option'                    => 'pending',
+			'as_has_scheduled_action'       => false,
+			'as_get_scheduled_actions'      => fn( $query ) => array_keys( array_filter( $this->settles, static fn( $args ) => $args === ( $query['args'] ?? $args ) ) ),
+			'as_schedule_single_action'     => function ( $when, $hook, $args ) {
+				$this->settles[] = $args;
+				return 1;
+			},
+			'wp_get_upload_dir'             => [ 'basedir' => $this->uploads ],
+			'path_join'                     => static fn( $base, $path ) => str_starts_with( $path, '/' ) ? $path : rtrim( $base, '/' ) . '/' . $path,
+			'is_wp_error'                   => static fn( $thing ) => $thing instanceof \WP_Error,
+			'get_post_mime_type'            => fn() => $this->store['mime'],
+			'wp_update_post'                => function ( $post ) {
+				$this->store['mime'] = $post['post_mime_type'];
+				return $post['ID'];
+			},
+			'get_attached_file'             => fn() => $this->store['file'],
+			'update_attached_file'          => function ( $id, $file ) {
+				$this->store['file'] = $file;
+				return true;
+			},
+			'wp_get_attachment_metadata'    => fn() => $this->store['meta'],
+			'wp_update_attachment_metadata' => function ( $id, $meta ) {
+				$this->store['meta'] = $meta;
+				return true;
+			},
+			'get_post_meta'                 => fn( $id, $key ) => $this->store[ $key ] ?? '',
+			'update_post_meta'              => function ( $id, $key, $value ) {
+				$this->store[ $key ] = $value;
+				return true;
+			},
+			'add_post_meta'                 => function ( $id, $key, $value, $unique ) {
+				if ( $unique && isset( $this->store[ $key ] ) ) {
+					return false;
+				}
+				$this->store[ $key ] = $value;
+				return 1;
+			},
+			'delete_post_meta'              => function ( $id, $key ) {
+				unset( $this->store[ $key ] );
+				return true;
+			},
+			'clean_attachment_cache'        => null,
+			'wp_delete_file'                => static fn( $file ) => @unlink( $file ),
+			// The new file: 3000 × 2000, so WordPress makes a -scaled copy.
+			'wp_getimagesize'               => [ 3000, 2000, 'mime' => 'image/jpeg' ],
+			'wp_image_editor_supports'      => true,
+			'wp_get_registered_image_subsizes' => [
+				'medium' => [ 'width' => 300, 'height' => 300, 'crop' => false ],
+				'large'  => [ 'width' => 1024, 'height' => 1024, 'crop' => false ],
+				'huge'   => [ 'width' => 4000, 'height' => 4000, 'crop' => false ],
+			],
+			'image_resize_dimensions'       => static fn( $w, $h, $sw, $sh ) => ( $sw && $w > $sw ) || ( $sh && $h > $sh ) ? [ 0, 0, 0, 0, $sw, $sh, $w, $h ] : false,
+		] );
+
+		file_put_contents( "$dir/photo-photopress-replacing.jpg", 'new original' );
+
+		return $dir;
+	}
+
+	private function removeUploads(): void {
+
+		array_map( 'unlink', glob( $this->uploads . '/2024/05/*' ) );
+		rmdir( $this->uploads . '/2024/05' );
+		rmdir( $this->uploads . '/2024' );
+		rmdir( $this->uploads );
+	}
+
+	/**
+	 * What wp_generate_attachment_metadata() does with the new file: a
+	 * -scaled copy, then each size, saving the metadata after each. A size
+	 * in $skipped is not made, as when Imagick fails; $midway runs before
+	 * the large size.
+	 */
+	private function generation( string $dir, array $skipped = [], ?callable $midway = null ): \Closure {
+
+		return function ( $id, $file ) use ( $dir, $skipped, $midway ) {
+
+			$write = function ( $name ) use ( $dir ) {
+				$path = "$dir/$name";
+				foreach ( $this->tracking as $key => $callback ) {
+					if ( 'collected' !== $key && false !== has_filter( 'image_make_intermediate_size', $callback ) ) {
+						$path = $callback( $path );
+					}
+				}
+				file_put_contents( $path, "new $name" );
+			};
+
+			$write( 'photo-scaled.jpg' );
+			update_attached_file( $id, "$dir/photo-scaled.jpg" );
+			$meta = [ 'file' => '2024/05/photo-scaled.jpg', 'width' => 2560, 'height' => 1707, 'original_image' => 'photo.jpg', 'sizes' => [] ];
+			wp_update_attachment_metadata( $id, $meta );
+
+			foreach ( [ 'medium' => 'photo-300x200.jpg', 'large' => 'photo-1024x683.jpg' ] as $size => $name ) {
+				if ( $midway && 'large' === $size ) {
+					$midway();
+				}
+				if ( in_array( $size, $skipped, true ) ) {
+					continue;
+				}
+				$write( $name );
+				$meta['sizes'][ $size ] = [ 'file' => $name ];
+				wp_update_attachment_metadata( $id, $meta );
+			}
+
+			return $meta;
+		};
+	}
+
+	/** The image's files and the image as stored, with the folder as {dir}. */
+	private function state( string $dir ): array {
+
+		$files = [];
+
+		foreach ( glob( "$dir/*" ) as $file ) {
+			$files[ basename( $file ) ] = file_get_contents( $file );
+		}
+
+		ksort( $files );
+
+		return [ 'files' => $files, 'store' => json_decode( str_replace( $dir, '{dir}', json_encode( $this->store, JSON_UNESCAPED_SLASHES ) ), true ) ];
+	}
+
+	private function install( string $dir ) {
+
+		$install = new \ReflectionMethod( MediaRest::class, 'install' );
+		$own = [ "$dir/photo.jpg", "$dir/photo-300x200.jpg", "$dir/photo-1024x683.jpg" ];
+
+		return $install->invoke( null, 12, "$dir/photo-photopress-replacing.jpg", "$dir/photo.jpg", 'image/jpeg', $this->store['file'], $this->store['meta'], $own );
+	}
+
+	private const REPLACED = [
+		'files' => [
+			'photo-1024x683.jpg' => 'new photo-1024x683.jpg',
+			'photo-300x200.jpg'  => 'new photo-300x200.jpg',
+			'photo-scaled.jpg'   => 'new photo-scaled.jpg',
+			'photo.jpg'          => 'new original',
+		],
+		'store' => [
+			'file' => '{dir}/photo-scaled.jpg',
+			'meta' => [ 'file' => '2024/05/photo-scaled.jpg', 'width' => 2560, 'height' => 1707, 'original_image' => 'photo.jpg', 'sizes' => [ 'medium' => [ 'file' => 'photo-300x200.jpg' ], 'large' => [ 'file' => 'photo-1024x683.jpg' ] ] ],
+			'mime' => 'image/jpeg',
+		],
+	];
+
+	public function test_a_new_file_with_every_size_made_replaces_the_old_with_no_backup_left(): void {
+
+		$dir = $this->storedImage();
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir ) );
+
+		try {
+			$this->assertTrue( $this->install( $dir ) );
+			$this->assertSame( self::REPLACED, $this->state( $dir ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_a_size_wordpress_skipped_leaves_the_image_as_it_was(): void {
+
+		$dir = $this->storedImage();
+		$before = $this->state( $dir );
+		unset( $before['files']['photo-photopress-replacing.jpg'] );
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, [ 'large' ] ) );
+
+		try {
+			$error = $this->install( $dir );
+			$this->assertInstanceOf( \WP_Error::class, $error );
+			$this->assertSame( 'photopress_sizes_not_made', $error->get_error_code() );
+			$this->assertStringContainsString( ': large.', $error->get_error_message() );
+			$this->assertSame( [ 'status' => 500, 'sizes' => [ 'large' ] ], $error->get_error_data() );
+
+			// The old files and metadata back; the new files, the -scaled
+			// copy among them, and the backups gone.
+			$this->assertSame( $before, $this->state( $dir ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_an_exception_making_the_sizes_leaves_the_image_as_it_was(): void {
+
+		$dir = $this->storedImage();
+		$before = $this->state( $dir );
+		unset( $before['files']['photo-photopress-replacing.jpg'] );
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, [], static function () {
+			throw new \RuntimeException( 'cache resources exhausted' );
+		} ) );
+
+		try {
+			$this->assertSame( 'cache resources exhausted', $this->install( $dir )->get_error_message() );
+			$this->assertSame( $before, $this->state( $dir ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_a_replace_that_died_is_undone_by_the_next_and_two_end_as_one(): void {
+
+		$dir = $this->storedImage();
+		$before = $this->state( $dir );
+		unset( $before['files']['photo-photopress-replacing.jpg'] );
+
+		// What a PHP that died before the large size left: the new original
+		// and two of its files in place, the backups, and the record.
+		$left = null;
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, [], function () use ( $dir, &$left ) {
+			$left = $this->state( $dir );
+			throw new \RuntimeException( 'died' );
+		} ) );
+		$this->install( $dir );
+
+		array_map( 'unlink', glob( "$dir/*" ) );
+		foreach ( $left['files'] as $name => $contents ) {
+			file_put_contents( "$dir/$name", $contents );
+		}
+		$this->store = json_decode( str_replace( '{dir}', $dir, json_encode( $left['store'], JSON_UNESCAPED_SLASHES ) ), true );
+		$this->assertArrayHasKey( 'photo.jpg.photopress-backup', $left['files'] );
+
+		$end = new \ReflectionMethod( MediaRest::class, 'endPending' );
+
+		try {
+			// Still under way, as far as anyone can tell: another replace waits,
+			// and its new file is removed.
+			$this->assertSame( 409, $end->invoke( null, 12 )->get_error_data()['status'] );
+			file_put_contents( "$dir/photo-photopress-replacing.jpg", 'new original' );
+			$this->assertSame( 409, $this->install( $dir )->get_error_data()['status'] );
+			$this->assertSame( $left, $this->state( $dir ) );
+
+			$this->store[ MediaRest::RESTORE_META_KEY ]['time'] -= MediaRest::REPLACE_SECONDS;
+			$this->assertTrue( $end->invoke( null, 12 ) );
+			$this->assertSame( $before, $this->state( $dir ) );
+			$this->assertTrue( $end->invoke( null, 12 ), 'nothing left to undo' );
+			$this->assertSame( $before, $this->state( $dir ) );
+
+			// Then the replace again, and once more with the same file.
+			Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir ) );
+			file_put_contents( "$dir/photo-photopress-replacing.jpg", 'new original' );
+			$this->assertTrue( $this->install( $dir ) );
+			$this->assertSame( self::REPLACED, $this->state( $dir ) );
+
+			file_put_contents( "$dir/photo-photopress-replacing.jpg", 'new original' );
+			$install = new \ReflectionMethod( MediaRest::class, 'install' );
+			$own = [ "$dir/photo-scaled.jpg", "$dir/photo.jpg", "$dir/photo-300x200.jpg", "$dir/photo-1024x683.jpg" ];
+			$this->assertTrue( $install->invoke( null, 12, "$dir/photo-photopress-replacing.jpg", "$dir/photo.jpg", 'image/jpeg', $this->store['file'], $this->store['meta'], $own ) );
+			$this->assertSame( self::REPLACED, $this->state( $dir ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_a_replace_that_died_is_undone_by_its_scheduled_check_without_another(): void {
+
+		$dir = $this->storedImage();
+		$before = $this->state( $dir );
+		unset( $before['files']['photo-photopress-replacing.jpg'] );
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, [], static function () {
+			throw new \RuntimeException( 'died' );
+		} ) );
+
+		try {
+			// The check is scheduled as the replace begins.
+			$this->install( $dir );
+			$this->assertSame( [ [ 12 ] ], $this->settles );
+
+			// As if the request had died: the record left, and its time past.
+			$this->store[ MediaRest::RESTORE_META_KEY ] = [ 'time' => time() - MediaRest::REPLACE_SECONDS - 1, 'file' => $before['store']['file'] ?? $this->store['file'], 'meta' => $this->store['meta'], 'mime' => $this->store['mime'], 'saved' => "$dir/photo-photopress-replacing.jpg", 'backups' => [] ];
+			MediaRest::settle( 12 );
+			$this->assertArrayNotHasKey( MediaRest::RESTORE_META_KEY, $this->store );
+
+			// Run again: nothing left to do, nothing scheduled.
+			MediaRest::settle( 12 );
+			$this->assertSame( [ [ 12 ] ], $this->settles );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_a_replace_that_died_after_its_files_were_kept_is_finished(): void {
+
+		$dir = $this->storedImage();
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir ) );
+
+		try {
+			$this->assertTrue( $this->install( $dir ) );
+
+			// Died after the new metadata was saved, before the backups went.
+			file_put_contents( "$dir/photo.jpg.photopress-backup", 'old original' );
+			$this->store[ MediaRest::RESTORE_META_KEY ] = [ 'time' => time(), 'committed' => true, 'backups' => [ "$dir/photo.jpg" => "$dir/photo.jpg.photopress-backup" ] ];
+
+			$this->assertTrue( ( new \ReflectionMethod( MediaRest::class, 'endPending' ) )->invoke( null, 12 ) );
+			$this->assertSame( self::REPLACED, $this->state( $dir ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_sizes_too_large_for_the_new_file_or_not_made_are_not_missing(): void {
+
+		$this->storedImage();
+
+		try {
+			$meta = [ 'sizes' => [ 'medium' => [ 'file' => 'a.jpg' ], 'large' => [ 'file' => 'b.jpg' ] ] ];
+			$this->assertSame( [], MediaRest::missingSizes( 12, 'photo.jpg', $meta ), 'huge is larger than the file' );
+			$this->assertSame( [ 'large' ], MediaRest::missingSizes( 12, 'photo.jpg', [ 'sizes' => [ 'medium' => [ 'file' => 'a.jpg' ] ] ] ) );
+
+			// Turned off (the images module), or for a type no editor here handles.
+			\Brain\Monkey\Filters\expectApplied( 'intermediate_image_sizes_advanced' )->once()->andReturn( [ 'medium' => [ 'width' => 300, 'height' => 300, 'crop' => false ] ] );
+			$this->assertSame( [], MediaRest::missingSizes( 12, 'photo.jpg', [ 'sizes' => [ 'medium' => [ 'file' => 'a.jpg' ] ] ] ) );
+			Functions\when( 'wp_image_editor_supports' )->justReturn( false );
+			$this->assertSame( [], MediaRest::missingSizes( 12, 'photo.jpg', [] ) );
+		} finally {
+			$this->removeUploads();
+		}
+	}
+
+	public function test_the_temporary_file_is_removed_when_the_body_cannot_be_saved(): void {
+
+		if ( function_exists( 'posix_geteuid' ) && 0 === posix_geteuid() ) {
+			$this->markTestSkipped( 'Permissions do not hold for root.' );
+		}
+
+		$tmp = sys_get_temp_dir() . '/pp-test-body-' . uniqid() . '.tmp';
+		// As wp_tempnam() makes it, here one that cannot be written.
+		Functions\when( 'wp_tempnam' )->alias( static function () use ( $tmp ) {
+			touch( $tmp );
+			chmod( $tmp, 0444 );
+			return $tmp;
+		} );
+
+		require_once ABSPATH . WPINC . '/rest-api/endpoints/class-wp-rest-posts-controller.php';
+		require_once ABSPATH . WPINC . '/rest-api/endpoints/class-wp-rest-attachments-controller.php';
+
+		$request = new \WP_REST_Request( 'POST', '/photopress/v1/media/12/file' );
+		$request->set_body( 'jpeg' );
+		$request->set_header( 'Content-Disposition', 'attachment; filename="photo.jpg"' );
+
+		$error = @( new \ReflectionMethod( MediaRest::class, 'uploadedFile' ) )->invoke( null, $request );
+
+		$this->assertSame( 'rest_upload_unknown_error', $error->get_error_code() );
+		$this->assertFileDoesNotExist( $tmp );
+	}
+}

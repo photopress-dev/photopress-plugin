@@ -322,4 +322,287 @@ final class ImagesTest extends TestCase {
 
 		$this->assertTrue( images::regenerate( 7, [ 'all' => true ] ) );
 	}
+
+	public function test_imagemagick_is_limited_whenever_wordpress_opens_an_image(): void {
+
+		if ( ! class_exists( 'Imagick' ) ) {
+			$this->markTestSkipped( 'Imagick is not installed.' );
+		}
+
+		$module = ( new \ReflectionClass( images::class ) )->newInstanceWithoutConstructor();
+		$module->definePublicHooks();
+		$this->assertNotFalse( has_filter( 'wp_image_editors', [ images::class, 'limitEditors' ] ) );
+
+		$memory = \Imagick::getResourceLimit( \Imagick::RESOURCETYPE_MEMORY );
+		$map = \Imagick::getResourceLimit( \Imagick::RESOURCETYPE_MAP );
+
+		try {
+			$editors = [ 'WP_Image_Editor_Imagick', 'WP_Image_Editor_GD' ];
+			$this->assertSame( $editors, images::limitEditors( $editors ), 'the editors as they were' );
+			$this->assertEquals( 256 * 1048576, \Imagick::getResourceLimit( \Imagick::RESOURCETYPE_MEMORY ) );
+			$this->assertEquals( 512 * 1048576, \Imagick::getResourceLimit( \Imagick::RESOURCETYPE_MAP ) );
+			$this->assertSame( $this->uploads . '/photopress-tmp', \Imagick::getRegistry( 'temporary-path' ) );
+
+			// Filtered: a limit not above 0 is left as it is.
+			Filters\expectApplied( 'photopress_imagick_limits' )->once()->with( [ 'memory' => 256 * 1048576, 'map' => 512 * 1048576 ], false )->andReturn( [ 'memory' => 128 * 1048576, 'map' => 0 ] );
+			images::limitEditors( $editors );
+			$this->assertEquals( 128 * 1048576, \Imagick::getResourceLimit( \Imagick::RESOURCETYPE_MEMORY ) );
+			$this->assertEquals( 512 * 1048576, \Imagick::getResourceLimit( \Imagick::RESOURCETYPE_MAP ) );
+		} finally {
+			\Imagick::setResourceLimit( \Imagick::RESOURCETYPE_MEMORY, (int) $memory );
+			\Imagick::setResourceLimit( \Imagick::RESOURCETYPE_MAP, (int) $map );
+			\Imagick::setRegistry( 'temporary-path', sys_get_temp_dir() );
+		}
+	}
+
+	/** Callbacks added to the hooks collected, by hook. */
+	private array $hooks = [];
+
+	/** The image as stored: _wp_attached_file, _wp_attachment_metadata and post meta, by key. */
+	private array $store = [];
+
+	/**
+	 * WordPress's storage for image 7, in $store, with the hooks that hold a
+	 * save back run as WordPress runs them.
+	 */
+	private function storage( string $original ): void {
+
+		foreach ( [ 'update_post_metadata', 'add_post_metadata', 'update_attached_file', 'image_make_intermediate_size' ] as $hook ) {
+			if ( ! isset( $this->hooks[ $hook ] ) ) {
+				$this->hooks[ $hook ] = [];
+				Filters\expectAdded( $hook )->zeroOrMoreTimes()->whenHappen( function ( $callback ) use ( $hook ) {
+					$this->hooks[ $hook ][] = $callback;
+				} );
+			}
+		}
+
+		$save = function ( $key, $value ) {
+			if ( null === $this->filter( 'update_post_metadata', null, 7, $key, $value, '' ) ) {
+				$this->store[ $key ] = $value;
+			}
+			return true;
+		};
+
+		Functions\stubs( [
+			'get_post_mime_type'           => 'image/jpeg',
+			'wp_get_original_image_path'   => $original,
+			'get_attached_file'            => fn() => $this->store['_wp_attached_file'],
+			'wp_get_attachment_metadata'   => fn() => $this->store['_wp_attachment_metadata'],
+			'get_post_meta'                => fn( $id, $key ) => $this->store[ $key ] ?? '',
+			'update_post_meta'             => static fn( $id, $key, $value ) => $save( $key, $value ),
+			'delete_post_meta'             => function ( $id, $key ) {
+				unset( $this->store[ $key ] );
+				return true;
+			},
+			'wp_update_attachment_metadata' => static fn( $id, $meta ) => $save( '_wp_attachment_metadata', $meta ),
+			'update_attached_file'         => fn( $id, $file ) => $save( '_wp_attached_file', $this->filter( 'update_attached_file', $file, $id ) ),
+			'wp_delete_file'               => static fn( $file ) => @unlink( $file ),
+		] );
+	}
+
+	/** What apply_filters() gives: $value through each callback collected that is still added. */
+	private function filter( string $hook, $value, ...$args ) {
+
+		foreach ( $this->hooks[ $hook ] ?? [] as $callback ) {
+			if ( false !== has_filter( $hook, $callback ) ) {
+				$value = $callback( $value, ...$args );
+			}
+		}
+
+		return $value;
+	}
+
+	/**
+	 * An image made at quality 85, 2000 × 1333 when the threshold was off:
+	 * its original, a medium and a thumbnail, now turned off. Returns the
+	 * folder.
+	 */
+	private function madeAt85(): string {
+
+		$dir = $this->uploads . '/' . uniqid( 'image-' );
+		mkdir( $dir, 0775, true );
+
+		foreach ( [ 'photo.jpg' => 'original', 'photo-300x200.jpg' => 'old medium', 'photo-150x150.jpg' => 'old thumbnail' ] as $name => $contents ) {
+			file_put_contents( "$dir/$name", $contents );
+		}
+
+		$this->store = [
+			'_wp_attached_file'       => "$dir/photo.jpg",
+			'_wp_attachment_metadata' => [ 'file' => 'photo.jpg', 'width' => 2000, 'height' => 1333, 'sizes' => [ 'medium' => [ 'file' => 'photo-300x200.jpg' ], 'thumbnail' => [ 'file' => 'photo-150x150.jpg' ] ] ],
+			images::QUALITY_META      => '85',
+		];
+		$this->settings( 92, 'thumbnail' );
+		$this->storage( "$dir/photo.jpg" );
+
+		return $dir;
+	}
+
+	/**
+	 * What wp_generate_attachment_metadata() does with the threshold now on:
+	 * a -scaled copy the image is pointed at, then each size, saving the
+	 * metadata after each. $midway runs before the last size.
+	 */
+	private function generation( string $dir, ?callable $midway = null ): \Closure {
+
+		return function ( $id, $file ) use ( $dir, $midway ) {
+
+			$write = fn( $name ) => file_put_contents( $this->filter( 'image_make_intermediate_size', "$dir/$name" ), "new $name" );
+
+			$write( 'photo-scaled.jpg' );
+			update_attached_file( $id, "$dir/photo-scaled.jpg" );
+			$meta = [ 'file' => 'photo-scaled.jpg', 'width' => 1920, 'height' => 1280, 'original_image' => 'photo.jpg', 'sizes' => [] ];
+			wp_update_attachment_metadata( $id, $meta );
+
+			foreach ( [ 'medium' => 'photo-300x200.jpg', '800x800' => 'photo-800x533.jpg' ] as $size => $name ) {
+				if ( $midway && '800x800' === $size ) {
+					$midway();
+				}
+				$write( $name );
+				$meta['sizes'][ $size ] = [ 'file' => $name ];
+				wp_update_attachment_metadata( $id, $meta );
+			}
+
+			// markUpToDate(), on wp_generate_attachment_metadata.
+			update_post_meta( $id, images::QUALITY_META, 92 );
+
+			return $meta;
+		};
+	}
+
+	/** The folder's files and the image as stored, with the folder as {dir}. */
+	private function state( string $dir ): array {
+
+		$files = [];
+
+		foreach ( glob( "$dir/*" ) as $file ) {
+			$files[ basename( $file ) ] = file_get_contents( $file );
+		}
+
+		ksort( $files );
+
+		return [ 'files' => $files, 'store' => json_decode( str_replace( $dir, '{dir}', json_encode( $this->store, JSON_UNESCAPED_SLASHES ) ), true ) ];
+	}
+
+	private function removeImage( string $dir ): void {
+
+		array_map( 'unlink', glob( "$dir/*" ) );
+		rmdir( $dir );
+	}
+
+	public function test_every_size_made_again_is_saved_only_once_all_are_made(): void {
+
+		$dir = $this->madeAt85();
+		$before = $this->state( $dir );
+		$midway = null;
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, function () use ( $dir, &$midway ) {
+			$midway = $this->state( $dir )['store'];
+		} ) );
+
+		try {
+			$this->assertTrue( images::regenerate( 7 ) );
+
+			// A PHP that died there would have left the image as it was.
+			$this->assertSame( $before['store'], $midway );
+
+			$after = $this->state( $dir );
+			$this->assertSame( '{dir}/photo-scaled.jpg', $after['store']['_wp_attached_file'] );
+			$this->assertSame( [
+				'file'           => 'photo-scaled.jpg',
+				'width'          => 1920,
+				'height'         => 1280,
+				'original_image' => 'photo.jpg',
+				'sizes'          => [ 'medium' => [ 'file' => 'photo-300x200.jpg' ], '800x800' => [ 'file' => 'photo-800x533.jpg' ], 'thumbnail' => [ 'file' => 'photo-150x150.jpg' ] ],
+			], $after['store']['_wp_attachment_metadata'] );
+			$this->assertSame( 92, $after['store'][ images::QUALITY_META ] );
+		} finally {
+			$this->removeImage( $dir );
+		}
+	}
+
+	public function test_a_failure_making_the_sizes_leaves_the_image_as_it_was(): void {
+
+		$failures = [
+			'an exception'    => fn( $dir ) => $this->generation( $dir, static function () {
+				throw new \RuntimeException( 'cache resources exhausted' );
+			} ),
+			'no metadata'     => fn( $dir ) => function ( $id, $file ) use ( $dir ) {
+				$this->generation( $dir )( $id, $file );
+				return [];
+			},
+			'a filter\'s error' => fn( $dir ) => function ( $id, $file ) use ( $dir ) {
+				$this->generation( $dir )( $id, $file );
+				return new \WP_Error( 'nope', 'Not today.' );
+			},
+		];
+
+		foreach ( $failures as $how => $generation ) {
+			$dir = $this->madeAt85();
+			$before = $this->state( $dir );
+			Functions\when( 'wp_generate_attachment_metadata' )->alias( $generation( $dir ) );
+
+			try {
+				$this->assertInstanceOf( \WP_Error::class, images::regenerate( 7 ), $how );
+
+				$after = $this->state( $dir );
+				$this->assertSame( $before['store'], $after['store'], "$how: file, metadata and quality as they were" );
+				// The medium made again over its file is kept; the files under
+				// new names are gone.
+				$this->assertSame( [ 'photo-150x150.jpg', 'photo-300x200.jpg', 'photo.jpg' ], array_keys( $after['files'] ), $how );
+				$this->assertSame( 'original', $after['files']['photo.jpg'], $how );
+			} finally {
+				$this->removeImage( $dir );
+			}
+		}
+
+		$this->assertSame( 'cache resources exhausted', ( function () {
+			$dir = $this->madeAt85();
+			Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $dir, static function () {
+				throw new \RuntimeException( 'cache resources exhausted' );
+			} ) );
+			try {
+				return images::regenerate( 7 )->get_error_message();
+			} finally {
+				$this->removeImage( $dir );
+			}
+		} )(), 'the exception\'s message' );
+	}
+
+	public function test_making_the_sizes_again_after_a_death_or_twice_ends_as_once(): void {
+
+		$once = $this->madeAt85();
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $once ) );
+		images::regenerate( 7 );
+		$expected = $this->state( $once );
+
+		// Twice, the second time with every size made again.
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $once ) );
+		$this->assertTrue( images::regenerate( 7 ) );
+		$this->assertTrue( images::regenerate( 7, [ 'all' => true ] ) );
+		$this->assertSame( $expected, $this->state( $once ) );
+		$this->removeImage( $once );
+
+		// A PHP that died before the last size: what it left, then the next
+		// attempt.
+		$died = $this->madeAt85();
+		$left = null;
+		Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $died, function () use ( $died, &$left ) {
+			$left = $this->state( $died );
+			throw new \RuntimeException( 'died' );
+		} ) );
+		images::regenerate( 7 );
+
+		array_map( 'unlink', glob( "$died/*" ) );
+		foreach ( $left['files'] as $name => $contents ) {
+			file_put_contents( "$died/$name", $contents );
+		}
+		$this->store = json_decode( str_replace( '{dir}', $died, json_encode( $left['store'], JSON_UNESCAPED_SLASHES ) ), true );
+
+		try {
+			Functions\when( 'wp_generate_attachment_metadata' )->alias( $this->generation( $died ) );
+			$this->assertTrue( images::regenerate( 7 ) );
+			$this->assertSame( $expected, $this->state( $died ) );
+		} finally {
+			$this->removeImage( $died );
+		}
+	}
 }

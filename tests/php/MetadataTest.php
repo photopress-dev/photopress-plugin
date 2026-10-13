@@ -477,6 +477,7 @@ final class MetadataTest extends TestCase {
 		}
 
 		$updated = 0;
+		Functions\stubs( [ 'update_post_meta' => true, 'delete_post_meta' => true ] );
 		Functions\when( 'get_attached_file' )->justReturn( "$dir/a-scaled.jpg" );
 		Functions\when( 'wp_get_attachment_metadata' )->justReturn( [ 'original_image' => 'a.jpg', 'sizes' => [ 'medium' => [ 'file' => 'a-300x200.jpg' ], 'gone' => [ 'file' => 'a-1x1.jpg' ] ] ] );
 		Functions\when( 'wp_update_attachment_metadata' )->alias( static function () use ( &$updated ) { $updated++; } );
@@ -559,5 +560,86 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( '', $p->get_attribute( 'data-attachment-url' ) );
 		$this->assertSame( '', $p->get_attribute( 'data-aspectratio' ) );
 	}
-}
 
+	public function test_a_license_not_written_is_recorded_on_the_image_shown_and_cleared_once_written(): void {
+
+		\pp_api::$options = [
+			'core/metadata/embed_licensor_enable'   => true,
+			'core/metadata/web_statement_of_rights' => 'https://example.test/license',
+			'core/metadata/licensor_name'           => 'Alice Photography',
+			'core/metadata/licensor_url'            => 'https://alice.example',
+		];
+		$meta = [];
+		$files = [ 7 => '/up/2024/05/photo.jpg', 8 => '/up/2024/05/other.jpg' ];
+		Functions\stubs( [
+			'is_wp_error'      => static fn( $thing ) => $thing instanceof \WP_Error,
+			'get_attached_file' => static fn( $id ) => $files[ $id ],
+			'get_post_meta'    => static function ( $id, $key ) use ( &$meta ) {
+				return $meta[ $id ][ $key ] ?? '';
+			},
+			'update_post_meta' => static function ( $id, $key, $value ) use ( &$meta ) {
+				$meta[ $id ][ $key ] = $value;
+				return true;
+			},
+			'delete_post_meta' => static function ( $id, $key ) use ( &$meta ) {
+				unset( $meta[ $id ][ $key ] );
+				return true;
+			},
+			'get_option'       => 'Y-m-d',
+			'wp_date'          => static fn( $format, $time ) => gmdate( $format, $time ),
+		] );
+
+		// Neither XmpFile nor Imagick can read it.
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$upload = $this->tempFile( 'not an image' );
+		$this->assertNull( $m->embedLicense( null, [ 'tmp_name' => $upload ], $files[7], 'image/jpeg' ) );
+
+		// Recorded on the image made from that upload, not on another.
+		metadata::licenseOnUpload( 8 );
+		$this->assertSame( [], $meta );
+		metadata::licenseOnUpload( 7 );
+		$recorded = $meta[7][ metadata::LICENSE_ERROR_META ];
+		$this->assertNotSame( '', $recorded['message'] );
+		$this->assertEqualsWithDelta( time(), $recorded['time'], 5 );
+
+		// Twice is once.
+		metadata::licenseOnUpload( 7 );
+		metadata::recordLicense( 7, $recorded['message'] );
+		$this->assertSame( [ metadata::LICENSE_ERROR_META ], array_keys( $meta[7] ) );
+		$this->assertSame( $recorded['message'], $meta[7][ metadata::LICENSE_ERROR_META ]['message'] );
+
+		$fields = metadata::licenseErrorField( [ 'align' => [] ], (object) [ 'ID' => 7 ] );
+		$this->assertSame( [ 'align', 'photopress_license_error' ], array_keys( $fields ) );
+		$this->assertSame( 'html', $fields['photopress_license_error']['input'] );
+		$this->assertStringContainsString( 'The license could not be written into this image&#039;s file (' . gmdate( 'Y-m-d' ) . '): ' . htmlspecialchars( $recorded['message'], ENT_QUOTES ), $fields['photopress_license_error']['html'] );
+		$this->assertSame( [ 'align' => [] ], metadata::licenseErrorField( [ 'align' => [] ], (object) [ 'ID' => 8 ] ), 'nothing for an image that has its license' );
+
+		// Written later, by a replace of its file or the license job: cleared,
+		// and clearing again is harmless.
+		$this->assertNull( $m->embedLicense( null, [ 'tmp_name' => $this->tempFile( self::jpeg() ) ], '/up/2024/05/photo-photopress-replacing.jpg', 'image/jpeg' ) );
+		metadata::licenseOnReplace( 7 );
+		metadata::licenseOnReplace( 7 );
+		$this->assertSame( [], $meta[7] );
+
+		metadata::recordLicense( 7, 'No space left on device.' );
+		$dir = sys_get_temp_dir() . '/pp-license-' . uniqid();
+		mkdir( $dir );
+		copy( dirname( __DIR__ ) . '/fixtures/images/02-landscape-3x2.jpg', "$dir/a.jpg" );
+		Functions\stubs( [
+			'get_attached_file'             => "$dir/a.jpg",
+			'wp_get_attachment_metadata'    => [],
+			'wp_update_attachment_metadata' => true,
+			'wp_basename'                   => static fn( $path ) => basename( $path ),
+		] );
+
+		try {
+			$this->assertTrue( $m->embedLicenseInImage( 7 ) );
+			$this->assertTrue( $m->embedLicenseInImage( 7 ) );
+			$this->assertSame( [], $meta[7] );
+			$this->assertSame( [ 'align' => [] ], metadata::licenseErrorField( [ 'align' => [] ], (object) [ 'ID' => 7 ] ) );
+		} finally {
+			unlink( "$dir/a.jpg" );
+			rmdir( $dir );
+		}
+	}
+}
