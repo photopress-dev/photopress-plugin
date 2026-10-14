@@ -32,7 +32,7 @@ test( 'the inserter offers Masonry, Rows, Mosaic, Taxonomy and Child Pages Galle
 	}
 } );
 
-test( 'a Masonry Gallery: its column width and captions set in the PhotoPress panel, saved and laid out on the site', async ( { page, made: fixtures } ) => {
+test( 'a Masonry Gallery: its column width and caption style set in the PhotoPress panel, saved and laid out on the site', async ( { page, made: fixtures } ) => {
 	await openEditor( page );
 	const id = await insertBlock( page, 'core/gallery', { photopressLayout: 'masonry', linkTo: 'none' }, imageBlocks( fixtures.images.slice( 0, 4 ) ) );
 	const sidebar = await selectBlock( page, id );
@@ -41,7 +41,7 @@ test( 'a Masonry Gallery: its column width and captions set in the PhotoPress pa
 	await expect( sidebar.getByLabel( 'Layout', { exact: true } ) ).toHaveValue( 'masonry' );
 	await expect( sidebar.getByLabel( 'Row height', { exact: true } ) ).toHaveCount( 0 );
 	await sidebar.getByRole( 'spinbutton', { name: 'Column width' } ).fill( '250' );
-	await sidebar.getByLabel( 'Hide captions', { exact: true } ).check();
+	await sidebar.getByLabel( 'Captions', { exact: true } ).selectOption( 'below' );
 
 	// WordPress's own Columns setting does nothing in a PhotoPress layout.
 	await expect( sidebar.locator( '[data-pp-hidden="1"]' ) ).toHaveCount( 1 );
@@ -49,19 +49,21 @@ test( 'a Masonry Gallery: its column width and captions set in the PhotoPress pa
 	// The canvas lays it out as the site will.
 	const block = canvas( page ).locator( `[data-block="${ id }"]` );
 	await expect( block ).toHaveClass( /photopress-layout-masonry/ );
-	await expect( block ).toHaveClass( /photopress-hide-captions/ );
+	await expect( block ).toHaveClass( /photopress-captions-below/ );
 	expect( await block.getAttribute( 'style' ) ).toMatch( /--pp-column-width:\s*250px/ );
 
-	expect( await attributesOf( page, id ) ).toMatchObject( { photopressLayout: 'masonry', photopressColumnWidth: 250, photopressHideCaptions: true } );
+	expect( await attributesOf( page, id ) ).toMatchObject( { photopressLayout: 'masonry', photopressColumnWidth: 250, photopressCaptionStyle: 'below' } );
 
 	const post = await save( page );
 	made.push( post.id );
 	const content = savedContent( post.id );
-	expect( content ).toMatch( /<!-- wp:gallery \{[^}]*"photopressLayout":"masonry","photopressColumnWidth":250,"photopressHideCaptions":true/ );
+	expect( content ).toMatch( /<!-- wp:gallery \{[^}]*"photopressLayout":"masonry","photopressColumnWidth":250/ );
+	expect( content ).toMatch( /<!-- wp:gallery \{[^}]*"photopressCaptionStyle":"below"/ );
 
 	await page.goto( post.link );
 	const gallery = page.locator( '.wp-block-gallery.photopress-layout' );
 	await expect( gallery ).toHaveClass( /photopress-layout-masonry/ );
+	await expect( gallery ).toHaveClass( /photopress-captions-below/ );
 	await expect( gallery.locator( '.wp-block-image' ) ).toHaveCount( 4 );
 } );
 

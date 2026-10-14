@@ -134,6 +134,51 @@ final class GalleryLayoutTest extends TestCase {
 		$this->assertStringContainsString( '<figcaption class="wp-element-caption">One</figcaption>', $out );
 	}
 
+	/** The gallery's classes, from the rendered HTML. */
+	private static function galleryClasses( string $html ): string {
+
+		$p = new \WP_HTML_Tag_Processor( $html );
+		$p->next_tag( 'figure' );
+
+		return (string) $p->get_attribute( 'class' );
+	}
+
+	public function test_each_caption_style_marks_the_gallery_and_loads_the_stylesheet(): void {
+
+		Functions\expect( 'wp_enqueue_style' )->times( 3 )->with( 'photopress-frontend' );
+
+		$this->assertStringContainsString( ' photopress-captions-below', self::galleryClasses( $this->render( [ 'photopressCaptionStyle' => 'below' ] ) ) );
+		$this->assertStringContainsString( ' photopress-captions-hover', self::galleryClasses( $this->render( [ 'photopressCaptionStyle' => 'hover' ] ) ) );
+
+		$hidden = $this->render( [ 'photopressCaptionStyle' => 'hidden' ] );
+		$this->assertStringContainsString( ' photopress-hide-captions', self::galleryClasses( $hidden ) );
+		$this->assertStringContainsString( '<figcaption class="wp-element-caption">One</figcaption>', $hidden, 'hidden, not taken out' );
+	}
+
+	public function test_galleries_without_a_caption_style_have_the_gallery_tabs(): void {
+
+		Functions\when( 'wp_enqueue_style' )->justReturn();
+		\pp_api::$options['core/gallery/caption_style'] = 'below';
+
+		$this->assertStringContainsString( 'photopress-captions-below', self::galleryClasses( $this->render( [] ) ) );
+		$this->assertStringContainsString( 'photopress-captions-below', self::galleryClasses( $this->render( [ 'photopressCaptionStyle' => 'tooltip' ] ) ), 'one it does not know' );
+		$this->assertStringContainsString( 'photopress-hide-captions', self::galleryClasses( $this->render( [ 'photopressHideCaptions' => true ] ) ), 'the Hide captions switch' );
+		$this->assertSame( self::GALLERY, $this->render( [ 'photopressCaptionStyle' => 'theme', 'photopressHideCaptions' => true ] ), 'its own, over the switch' );
+
+		\pp_api::$options['core/gallery/caption_style'] = 'sideways';
+		$this->assertSame( 'theme', gallery::defaultCaptionStyle() );
+	}
+
+	public function test_a_gallery_photopress_fills_or_adds_details_to_loads_the_stylesheet(): void {
+
+		// WordPress loads PhotoPress's stylesheet for its own blocks only;
+		// these are core galleries it styles.
+		Functions\expect( 'wp_enqueue_style' )->twice()->with( 'photopress-frontend' );
+
+		$this->assertSame( self::GALLERY, $this->render( [ 'photopressDetails' => true ] ) );
+		$this->assertSame( self::GALLERY, $this->render( [ 'photopressSource' => 'archive' ] ) );
+	}
+
 	public function test_existing_inline_style_is_kept(): void {
 
 		Functions\when( 'wp_enqueue_style' )->justReturn();
@@ -196,7 +241,7 @@ final class GalleryLayoutTest extends TestCase {
 		$module = ( new \ReflectionClass( gallery::class ) )->newInstanceWithoutConstructor();
 
 		$args = $module->addGalleryAttributes( [ 'attributes' => [ 'columns' => [ 'type' => 'number' ] ] ], 'core/gallery' );
-		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions', 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder', 'photopressShowHeading', 'photopressHeading', 'photopressDetails' ], array_keys( $args['attributes'] ) );
+		$this->assertSame( [ 'columns', 'photopressLayout', 'photopressColumnWidth', 'photopressRowHeight', 'photopressSlideshow', 'photopressHideCaptions', 'photopressCaptionStyle', 'photopressSource', 'photopressTaxonomy', 'photopressTerm', 'photopressCount', 'photopressOrder', 'photopressShowHeading', 'photopressHeading', 'photopressDetails' ], array_keys( $args['attributes'] ) );
 
 		$this->assertSame( [ 'x' => 1 ], $module->addGalleryAttributes( [ 'x' => 1 ], 'core/image' ) );
 	}

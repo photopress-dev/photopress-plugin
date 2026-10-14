@@ -1,8 +1,8 @@
 /**
  * The Gallery settings tab: a switch for each PhotoPress layout and for
- * taking deleted images out of galleries, all on until turned off. The
- * editor is offered only the layouts turned on. The settings are put back
- * afterwards.
+ * taking deleted images out of galleries, all on until turned off, and the
+ * caption style of galleries without their own. The editor is offered only
+ * the layouts turned on. The settings are put back afterwards.
  */
 const { test, expect } = require( './test' );
 const { wp, lastLine } = require( './wp' );
@@ -60,3 +60,31 @@ test( 'every switch is on by default, and a layout turned off is not offered in 
 	await featureSwitch( page, 'Remove deleted images' ).click();
 	await expect.poll( () => settings()?.remove_deleted_images, { timeout: 15000 } ).toBe( false );
 } );
+
+/** The caption style the editor is given, as enqueue_block_editor_assets adds it. */
+const editorCaptionStyle = () => {
+	const php = `do_action( 'enqueue_block_editor_assets' ); $before = (array) wp_scripts()->get_data( 'photopress-editor', 'before' ); foreach ( $before as $code ) { if ( preg_match( '/photopressCaptionStyle = ("[a-z]+");/', (string) $code, $m ) ) { echo $m[1]; } }`;
+	return JSON.parse( lastLine( wp( 'eval', php ) ) );
+};
+
+/** The classes a gallery without its own caption style is rendered with. */
+const galleryClasses = () => lastLine( wp( 'eval', `$html = do_blocks( '<!-- wp:gallery {"linkTo":"none"} --><figure class="wp-block-gallery has-nested-images columns-default is-cropped"><!-- wp:image --><figure class="wp-block-image"><img src="x.jpg" alt=""/><figcaption class="wp-element-caption">A caption</figcaption></figure><!-- /wp:image --></figure><!-- /wp:gallery -->' ); preg_match( '/<figure class="([^"]*wp-block-gallery[^"]*)"/', $html, $m ); echo $m[1];` ) );
+
+test( 'galleries’ captions: as the theme styles them until another style is chosen, which galleries without their own then have', async ( { page } ) => {
+	wp( 'option', 'delete', KEY );
+	await page.goto( URL );
+
+	const select = card( page, 'Gallery captions' ).getByLabel( 'Captions', { exact: true } );
+	await expect( select ).toHaveValue( 'theme', { timeout: 30000 } );
+	expect( editorCaptionStyle() ).toBe( 'theme' );
+	expect( galleryClasses() ).not.toMatch( /photopress-captions-|photopress-hide-captions/ );
+
+	await select.selectOption( 'below' );
+	await expect.poll( () => settings()?.caption_style, { timeout: 15000 } ).toBe( 'below' );
+	expect( editorCaptionStyle() ).toBe( 'below' );
+	expect( galleryClasses() ).toMatch( /photopress-captions-below/ );
+
+	await page.reload();
+	await expect( card( page, 'Gallery captions' ).getByLabel( 'Captions', { exact: true } ) ).toHaveValue( 'below', { timeout: 30000 } );
+} );
+
