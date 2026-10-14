@@ -25,6 +25,8 @@ const PHOTOPRESS_UNINSTALL_OPTIONS = [
 	'photopress_cdn_pending',
 	'photopress_cdn_last',
 	'photopress_gallery_upgrade',
+	'photopress_search_relevanssi_added',
+	'photopress_search_relevanssi_synced',
 ];
 
 /** The transients it keeps. */

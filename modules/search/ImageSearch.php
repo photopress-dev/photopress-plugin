@@ -23,9 +23,11 @@ use WP_Query;
  *
  * An image is found by its title, caption, description and alt text, and by
  * the names of its terms in the image taxonomies visitors may see. Without
- * Relevanssi, by extending core's search SQL; with it, Relevanssi's index
- * includes images and those taxonomies, through its options (filtered here,
- * so its settings screen shows the same) and its hooks.
+ * Relevanssi, by extending core's search SQL; with it, through its index and
+ * hooks. While images are in search results, Relevanssi's settings include
+ * Media, those taxonomies and image files, saved as its Indexing tab saves
+ * them (syncRelevanssi()); PhotoPress records what it added, and takes out
+ * only that when images are turned off.
  */
 class ImageSearch {
 
@@ -40,6 +42,16 @@ class ImageSearch {
 
 	/** Images whose terms changed in this request, to index again. */
 	private static $changed = [];
+
+	/** What PhotoPress added to Relevanssi's settings: post_types, taxonomies, image_files. */
+	const RELEVANSSI_ADDED = 'photopress_search_relevanssi_added';
+
+	/**
+	 * What Relevanssi's settings were last brought in line with (images on
+	 * or off, and the taxonomies), so a change made on Relevanssi's settings
+	 * page stands until one of those changes.
+	 */
+	const RELEVANSSI_SYNCED = 'photopress_search_relevanssi_synced';
 
 	public static function addHooks() {
 
@@ -65,7 +77,6 @@ class ImageSearch {
 		}
 
 		// Relevanssi's index, as PhotoPress has it, and its results.
-		Relevanssi::indexing( [ self::class, 'indexedPostTypes' ], [ self::class, 'indexedTaxonomies' ] );
 		Relevanssi::indexingFields( [ self::class, 'indexedFields' ] );
 		Relevanssi::filteringResults( [ self::class, 'onlyImages' ] );
 		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
@@ -87,9 +98,15 @@ class ImageSearch {
 				'pace'          => true,
 			] );
 
-			// Images turned on: into the index, without a trip to Relevanssi.
+			// Images turned on or off: Relevanssi's settings first, so it
+			// takes images; then into the index, without a trip to Relevanssi.
+			add_action( 'add_option_' . search::OPTION, [ self::class, 'syncRelevanssi' ], 5, 0 );
+			add_action( 'update_option_' . search::OPTION, [ self::class, 'syncRelevanssi' ], 5, 0 );
 			add_action( 'add_option_' . search::OPTION, static fn( $option, $value ) => self::maybeIndex( [], $value ), 10, 2 );
 			add_action( 'update_option_' . search::OPTION, [ self::class, 'maybeIndex' ], 10, 2 );
+
+			// Relevanssi activated, or the image taxonomies changed, since.
+			add_action( 'admin_init', [ self::class, 'syncRelevanssi' ], 10, 0 );
 		}
 	}
 
@@ -387,23 +404,76 @@ class ImageSearch {
 	}
 
 	/**
-	 * The taxonomies Relevanssi indexes: the image taxonomies visitors may
-	 * see always, with whatever else the site has chosen.
+	 * Relevanssi's settings brought in line with images in search results,
+	 * when that or the image taxonomies changed since the last time: as a
+	 * site would tick them on Relevanssi's Indexing tab.
 	 */
-	public static function indexedTaxonomies( $taxonomies ) {
+	public static function syncRelevanssi() {
 
-		return array_values( array_unique( array_merge( is_array( $taxonomies ) ? $taxonomies : [], ImageTaxonomies::shownImageTaxonomies() ) ) );
+		if ( ! Relevanssi::active() ) {
+			return;
+		}
+
+		$on         = self::imagesOn();
+		$taxonomies = ImageTaxonomies::shownImageTaxonomies();
+		sort( $taxonomies );
+		$aim = md5( (string) wp_json_encode( [ $on, $taxonomies ] ) );
+
+		if ( get_option( self::RELEVANSSI_SYNCED ) === $aim ) {
+			return;
+		}
+
+		[ $indexing, $added ] = self::relevanssiIndexing( Relevanssi::indexing(), (array) get_option( self::RELEVANSSI_ADDED, [] ), $on, $taxonomies );
+
+		Relevanssi::setIndexing( $indexing );
+		update_option( self::RELEVANSSI_ADDED, $added, false );
+		update_option( self::RELEVANSSI_SYNCED, $aim, true );
 	}
 
 	/**
-	 * The post types Relevanssi indexes: images too, while they are in
-	 * search results.
+	 * Relevanssi's settings with images in search results on or off, and
+	 * what PhotoPress has added to them. On: Media (attachment), the image
+	 * taxonomies visitors see, and image files, each added where missing.
+	 * Off, or no longer wanted: what PhotoPress added taken out; what the
+	 * site chose itself stays.
+	 *
+	 * @param array    $indexing   As Relevanssi::indexing() gives it.
+	 * @param array    $added      What PhotoPress added: post_types, taxonomies, image_files.
+	 * @param bool     $on         Whether images are in search results.
+	 * @param string[] $taxonomies The image taxonomies visitors see.
+	 * @return array [ $indexing, $added ]
 	 */
-	public static function indexedPostTypes( $types ) {
+	public static function relevanssiIndexing( array $indexing, array $added, $on, array $taxonomies ) {
 
-		$types = is_array( $types ) ? $types : [];
+		$want = [
+			'post_types' => $on ? [ 'attachment' ] : [],
+			'taxonomies' => $on ? array_values( $taxonomies ) : [],
+		];
 
-		return self::imagesOn() ? array_values( array_unique( array_merge( $types, [ 'attachment' ] ) ) ) : $types;
+		foreach ( $want as $key => $wanted ) {
+
+			$mine = array_values( (array) ( $added[ $key ] ?? [] ) );
+			$drop = array_diff( $mine, $wanted );
+			$have = array_values( array_diff( (array) $indexing[ $key ], $drop ) );
+			$new  = array_values( array_diff( $wanted, $have ) );
+
+			$indexing[ $key ] = array_merge( $have, $new );
+			$added[ $key ]    = array_values( array_unique( array_merge( array_diff( $mine, $drop ), $new ) ) );
+		}
+
+		$mine = ! empty( $added['image_files'] );
+
+		if ( $on && ! $indexing['image_files'] ) {
+			$indexing['image_files'] = true;
+			$mine = true;
+		} elseif ( ! $on && $mine ) {
+			$indexing['image_files'] = false;
+			$mine = false;
+		}
+
+		$added['image_files'] = $mine;
+
+		return [ $indexing, $added ];
 	}
 
 	/**

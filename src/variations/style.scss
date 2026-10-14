@@ -93,6 +93,15 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 		max-height: var(--pp-row-height, 300px);
 		object-fit: initial;
 	}
+
+	// An image with a srcset is as wide as its sizes say: its aspect ratio
+	// (--pp-ar, set per image by modules/gallery/gallery.php) times the row
+	// height (gallery::layoutSizes()). Given here, the row is laid out the
+	// same before and after the files load, whichever arrives first.
+	// Without --pp-ar, auto.
+	#{$item} img[srcset] {
+		width: calc(var(--pp-ar) * var(--pp-row-height, 300px));
+	}
 }
 
 .wp-block-gallery.has-nested-images.photopress-layout-mosaic {

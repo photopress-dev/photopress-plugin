@@ -137,7 +137,7 @@ class SearchSettings extends Component {
 					title={ __( 'Images in search results' ) }
 					description={ __( 'Find images when visitors search the site, by their titles, captions, alt text and terms.' ) }
 					info={ [
-						<p key="0">{ __( 'A block theme shows them with PhotoPress’s Image Search template: the images in a Taxonomy Gallery, and the posts and pages found listed apart. A classic theme lists them in its own search results. With Relevanssi, PhotoPress has it index images and their terms, and its settings show the same.' ) }</p>,
+						<p key="0">{ __( 'A block theme shows them with PhotoPress’s Image Search template: the images in a Taxonomy Gallery, and the posts and pages found listed apart. A classic theme lists them in its own search results. With Relevanssi, turning this on ticks Media, the image taxonomies and image files in Relevanssi’s indexing settings, where they can be changed; turning it off unticks what it ticked.' ) }</p>,
 					] }
 					checked={ this.getSetting( 'images_in_search' ) }
 					onChange={ ( value ) => this.persistSetting( 'images_in_search', value ) }

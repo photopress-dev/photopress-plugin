@@ -2,8 +2,8 @@
  * Images in search results (the Pages & Search tab): off by default; on, a
  * search finds public images by their terms and alt text, shown in the
  * Image Search template's Taxonomy Gallery, with posts and pages listed
- * apart. With core's search, and with Relevanssi, which PhotoPress has
- * index images and their terms.
+ * apart. With core's search, and with Relevanssi, whose settings PhotoPress
+ * sets to index images and their terms.
  *
  * Only the two search settings are changed, and put back as they were; the
  * images, keyword, posts and page made here are deleted afterwards, and
@@ -160,16 +160,24 @@ test( 'with core\'s search: public images by their terms and alt text, and posts
 test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change, are renamed and are deleted', async ( { page } ) => {
 	relevanssi( true );
 	setSearch( { images_in_search: null } );
+	const indexing = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( [ get_option( 'relevanssi_index_post_types' ), get_option( 'relevanssi_index_taxonomies_list' ), get_option( 'relevanssi_index_image_files' ) ] );` ) ) );
+	const before = indexing();
 	setSearch( { images_in_search: true, posts_in_search: null } );
 
 	// Turning images on started the job that adds them to its index.
 	const jobs = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_column( \\PhotoPress\\jobs\\Jobs::recent( 'search.index' ), 'status' ) );` ) ) );
 	expect( jobs.length ).toBeGreaterThan( 0 );
 
-	// Its settings as PhotoPress has them.
-	const options = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( [ get_option( 'relevanssi_index_post_types' ), get_option( 'relevanssi_index_taxonomies_list' ) ] );` ) ) );
+	// Its settings, saved as its Indexing tab saves them.
+	const options = indexing();
 	expect( options[ 0 ] ).toContain( 'attachment' );
 	expect( options[ 1 ] ).toContain( 'photos_keywords' );
+	expect( options[ 2 ] ).toBe( 'on' );
+
+	// Off: as they were; on again for the rest.
+	setSearch( { images_in_search: false } );
+	expect( indexing() ).toEqual( before );
+	setSearch( { images_in_search: true } );
 
 	// Indexed now, as Relevanssi's Build the index would.
 	wp( 'eval', `foreach ( ${ php( [ ...made.images, made.post ] ) } as $id ) { relevanssi_index_doc( $id, true, relevanssi_get_custom_fields(), true ); }` );
