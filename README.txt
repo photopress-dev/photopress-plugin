@@ -36,7 +36,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Opens over the whole window on the image that was clicked: the Gallery Slideshow block's slideshow, full screen
 * Click or tap the right half for the next image, the left half for the previous one, or swipe; the arrow keys work too
 * A row of thumbnails under the image, with adjustable height; a click on one shows it
-* Configurable caption display (image title, caption and/or description, and a link to the attachment page)
+* Caption, title, description and a link to the image's page, each shown or not
 * Caption box below or to the right of the image, with adjustable padding
 
 = GALLERY SLIDESHOW BLOCK =
@@ -45,7 +45,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 * Clicking an image in the gallery shows it in the slideshow
 * Press or tap the right side of the slideshow for the next image, the left side for the previous one, or swipe
 * Optional row of thumbnails under the slideshow, with adjustable height
-* Slide or fade transitions, and autoplay
+* Slide or fade transitions, and autoplay that pauses while the pointer is over it
 * Fits the window's height, less an offset you set
 * Captions below, left or right of the image, with adjustable padding
 * Caption max width, a share of the slideshow's width (75% by default) that keeps the full width on phones
@@ -81,7 +81,7 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 * Image archives: a keyword's, a camera's or any image taxonomy's archive page shows its images in the Masonry layout, with links to more pages
 * Image pages: the image, its caption and description, its taxonomy terms and its exposure details
 * Both are edited in the Site Editor, like the theme's own templates, and each is there while its kind of page is on in the Pages & Search tab
-* Taxonomy Gallery, a Gallery block variation in any PhotoPress layout: on an image archive template, the archive's images; anywhere else, the latest images or those of a keyword, camera or other term. And the Attachment Image block
+* Taxonomy Gallery, a Gallery block variation in any PhotoPress layout: on an image archive template, the archive's images; anywhere else, the latest images or those of a keyword, camera or other term, its page cleared from the page cache as they change. And the Attachment Image block
 * An archive of an image taxonomy looks for a taxonomy-attachment template, as themes built on the Frame framework do
 
 = PAGES & SEARCH =
@@ -90,7 +90,7 @@ For block themes that have no templates of their own for them (WordPress 6.7 or 
 * Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
 * Attachment pages follow WordPress's setting until the switch is saved; image taxonomy pages are on by default. While each is on, block themes get PhotoPress's template for those pages
 * Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks, to order as you like: the search box, a Search Summary (the terms and the number of images found), the images in a Taxonomy Gallery in rows with each one's file name and title under it, with numbered pages, and the posts and pages found in a Search Posts block
-* With Relevanssi, PhotoPress has it index images, their alt text and the image taxonomies (its settings show the same), keeps an image's entry current as its terms change or are renamed or deleted, and adds existing images to its index in the background
+* With Relevanssi, turning images on ticks Media, the image taxonomies and image files in its indexing settings (turning them off unticks what PhotoPress ticked); PhotoPress has it index images' alt text, keeps an image's entry current as its terms change or are renamed or deleted, and adds existing images to its index in the background
 * Page cache and search index: whether Proxy Cache Purge and Relevanssi are active, installed or not installed, as the Offload Media tab shows WP Offload Media, with a Re-index all images button. Proxy Cache Purge purges a post's pages when it is saved, but not an image's, and nothing when terms change. Through its documented hooks, PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on). A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied. A background job over images, such as re-reading their metadata, empties it once when it ends, rather than purging as it goes. A post whose gallery gains or loses an image, and a replaced image with its files and the posts that show it, are purged too
 
 = IMAGE SIZES =
