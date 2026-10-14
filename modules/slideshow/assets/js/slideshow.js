@@ -1,5 +1,5 @@
 /**
- * Where the lightbox's script was before PhotoPress 1.10. A page cached by
+ * Where the lightbox's script was before PhotoPress 2.0. A page cached by
  * an earlier version still asks for it, after jQuery and Owl Carousel; it
  * now loads the slideshows' script, dist/gallery-slideshow.build.js
  * (src/frontend/gallery-slideshow.js), which needs neither.
