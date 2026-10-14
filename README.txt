@@ -389,6 +389,12 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Background jobs' progress shows when a job waits for a busy server or
   rests between batches.
 * Settings: two switches turned in quick succession are both saved.
+* Relevanssi: turning Images in search results on ticks Media, the image
+  taxonomies visitors see and image files in Relevanssi's indexing
+  settings, saved as its own Indexing tab saves them; turning it off
+  unticks only what PhotoPress ticked. Before, PhotoPress added them as
+  Relevanssi read its settings, so they showed as ticked there, and saving
+  Relevanssi's settings page kept them after images were turned off.
 
 = 1.9.0 =
 
