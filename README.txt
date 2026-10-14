@@ -389,6 +389,8 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Background jobs' progress shows when a job waits for a busy server or
   rests between batches.
 * Settings: two switches turned in quick succession are both saved.
+* Rows layout: an image's width is set from its proportions before it
+  loads, so the rows do not reflow as the images arrive.
 * Relevanssi: turning Images in search results on ticks Media, the image
   taxonomies visitors see and image files in Relevanssi's indexing
   settings, saved as its own Indexing tab saves them; turning it off
