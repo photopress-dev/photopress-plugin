@@ -125,8 +125,8 @@ PhotoPress adds two templates to block themes: Image Archives and Image Pages. T
 
 ### Pages & Search
 
-- With the Attachment pages switch on, each image has a page of its own. With it off, the page's address and links to it go to the image file. This is WordPress's own setting.
-- With the Image taxonomy pages switch on, each keyword, camera or other term has an archive page of its images. With it off, there are no archive pages, and image pages show the terms unlinked.
+- Attachment pages: a switch that publishes, or stops publishing, a page for each image in the Media Library.
+- Image taxonomy pages: a switch that publishes, or stops publishing, an archive page of images for each keyword, camera and other term.
 - Image taxonomy pages are on by default. While each kind of page is on, block themes get PhotoPress's template for it.
 - The Images in search results switch is off by default. When it is on, visitors' searches find images by their titles, captions, alt text and terms. Posts and pages are found too, unless you turn them off.
 - Block themes get an Image Search template made of blocks you can rearrange. It has the search box, a Search Summary with the search terms and the number of images found, and the images in a Taxonomy Gallery. The gallery shows each image's file name and title and has numbered pages. A Search Posts block lists the posts and pages found.
