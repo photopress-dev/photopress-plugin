@@ -1,10 +1,11 @@
 /**
  * The Gallery settings tab: which PhotoPress layouts the Gallery block
- * offers, and taking deleted images out of galleries (modules/gallery).
+ * offers, how galleries show captions, and taking deleted images out of
+ * galleries (modules/gallery).
  */
 const { __ } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
-import { Notice } from '@wordpress/components';
+import { Notice, SelectControl } from '@wordpress/components';
 
 import {
 	setSetting,
@@ -16,6 +17,7 @@ import {
 	persistSetting,
 } from '../shared/options.js';
 import FeatureSection from '../shared/feature-section.js';
+import { CAPTION_STYLES } from '../shared/caption-styles.js';
 
 const KEPT = __( 'Turned off, it is no longer offered for new galleries; galleries that already use it keep it.' );
 
@@ -62,6 +64,7 @@ class GallerySettings extends Component {
 				layout_rows: true,
 				layout_mosaic: true,
 				remove_deleted_images: true,
+				caption_style: 'theme',
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -89,6 +92,24 @@ class GallerySettings extends Component {
 						onChange={ ( value ) => this.persistSetting( layout.key, value ) }
 					/>
 				) ) }
+
+				<FeatureSection
+					title={ __( 'Gallery captions' ) }
+					description={ __( 'How galleries show their images’ captions, unless a gallery sets its own in the editor.' ) }
+					info={ [
+						<p key="0">{ __( 'As the theme styles them: most themes, and WordPress’s own, show a caption over the foot of its image.' ) }</p>,
+						<p key="1">{ __( 'On hover: over the image while the pointer is on it. On touch screens, where nothing hovers, under it.' ) }</p>,
+						<p key="2">{ __( 'Galleries that show each image’s file name and title place those under the images whatever this is.' ) }</p>,
+					] }
+				>
+					<SelectControl
+						__nextHasNoMarginBottom
+						label={ __( 'Captions' ) }
+						value={ this.getSetting( 'caption_style' ) || 'theme' }
+						options={ Object.entries( CAPTION_STYLES ).map( ( [ value, label ] ) => ( { value, label } ) ) }
+						onChange={ ( value ) => this.persistSetting( 'caption_style', value ) }
+					/>
+				</FeatureSection>
 
 				<FeatureSection
 					title={ __( 'Remove deleted images' ) }

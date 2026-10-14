@@ -18,6 +18,75 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 	display: none;
 }
 
+// Nor core's blurred band behind a caption (the item's ::before), which
+// stayed at the foot of each captioned image.
+.wp-block-gallery.has-nested-images.photopress-hide-captions figure.wp-block-image:has(figcaption:not(.photopress-details))::before {
+	content: none;
+}
+
+// Caption styles (gallery.php, CAPTION_STYLES). "theme" adds nothing: core's
+// captions sit over the image's foot, on a blurred band (the item's
+// ::before). File names and titles (.photopress-details) are placed by
+// themselves, below, and not affected.
+
+// Below: each caption under its image, in the gallery's text color.
+@mixin photopress-captions-below {
+
+	#{$item} {
+		flex-direction: column;
+		justify-content: flex-start;
+	}
+
+	#{$item}:has(figcaption)::before {
+		content: none;
+	}
+
+	#{$item} figcaption:not(.photopress-details) {
+		position: static;
+		max-height: none;
+		overflow: visible;
+		padding: 0.5em 0 0;
+		color: inherit;
+		text-shadow: none;
+		text-align: left;
+		background: none;
+		backdrop-filter: none;
+		flex: initial;
+	}
+}
+
+.wp-block-gallery.has-nested-images.photopress-captions-below {
+	@include photopress-captions-below;
+}
+
+// On hover: core's caption, shown while the pointer is on the image or it
+// has the keyboard's focus. Where nothing hovers (touch screens), below.
+@media (hover: hover) {
+
+	.wp-block-gallery.has-nested-images.photopress-captions-hover {
+
+		#{$item}::before,
+		#{$item} figcaption:not(.photopress-details) {
+			opacity: 0;
+			transition: opacity 0.2s ease;
+		}
+
+		#{$item}:hover::before,
+		#{$item}:focus-within::before,
+		#{$item}:hover figcaption:not(.photopress-details),
+		#{$item}:focus-within figcaption:not(.photopress-details) {
+			opacity: 1;
+		}
+	}
+}
+
+@media (hover: none) {
+
+	.wp-block-gallery.has-nested-images.photopress-captions-hover {
+		@include photopress-captions-below;
+	}
+}
+
 // Masonry and mosaic are laid out by a script printed right after each
 // gallery (src/frontend/gallery-layouts-inline.js), which adds
 // photopress-laid-out. The browser may paint the gallery before that script

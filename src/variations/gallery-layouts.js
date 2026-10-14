@@ -28,6 +28,7 @@ import { gallery as galleryIcon } from '@wordpress/icons';
 import { createMasonry } from '../shared/gallery-layout/masonry.js';
 import { justify, release } from '../shared/gallery-layout/justify.js';
 import { keepSettingHidden } from './hidden-setting.js';
+import { CAPTION_STYLES } from '../shared/caption-styles.js';
 import './style.scss';
 
 export const LAYOUTS = {
@@ -43,6 +44,8 @@ const ATTRIBUTES = {
 	photopressRowHeight: { type: 'number', default: 300 },
 	photopressSlideshow: { type: 'boolean', default: false },
 	photopressHideCaptions: { type: 'boolean', default: false },
+	// One of CAPTION_STYLES; unset, the Gallery tab's (captionStyleOf()).
+	photopressCaptionStyle: { type: 'string' },
 	// Taxonomy Gallery (modules/gallery/ImageTemplates.php): "archive", the
 	// archive page's images; "query", those of a term, or the latest. Child
 	// Pages Gallery: "children", the child pages of the page it is on.
@@ -63,6 +66,32 @@ const ATTRIBUTES = {
 const ENABLED = Array.isArray( window.photopressGalleryLayouts ) ? window.photopressGalleryLayouts : Object.keys( LAYOUTS );
 
 const isGallery = ( name ) => name === 'core/gallery';
+
+// The Gallery tab's caption style, for galleries without their own.
+const defaultCaptionStyle = () => ( CAPTION_STYLES[ window.photopressCaptionStyle ] ? window.photopressCaptionStyle : 'theme' );
+
+/**
+ * A gallery's caption style: its own, else "hidden" for the older Hide
+ * captions switch, else the Gallery tab's. As gallery.php captionStyle().
+ */
+export const captionStyleOf = ( attributes ) => {
+	if ( CAPTION_STYLES[ attributes.photopressCaptionStyle ] ) {
+		return attributes.photopressCaptionStyle;
+	}
+
+	return attributes.photopressHideCaptions ? 'hidden' : defaultCaptionStyle();
+};
+
+/** The class the caption style adds to the gallery, as gallery.php does. */
+export const captionClassOf = ( attributes ) => {
+	const style = captionStyleOf( attributes );
+
+	if ( 'hidden' === style ) {
+		return 'photopress-hide-captions';
+	}
+
+	return 'theme' === style ? '' : `photopress-captions-${ style }`;
+};
 
 const layoutOf = ( attributes ) =>
 	LAYOUTS[ attributes.photopressLayout ] ? attributes.photopressLayout : null;
@@ -625,12 +654,17 @@ const withLayoutControls = createHigherOrderComponent( ( BlockEdit ) => ( props 
 						checked={ !! attributes.photopressSlideshow }
 						onChange={ ( value ) => setAttributes( { photopressSlideshow: value } ) }
 					/>
-					<ToggleControl
+					<SelectControl
 						__nextHasNoMarginBottom
-						label={ __( 'Hide captions' ) }
-						help={ __( 'Image captions are kept, but not shown in the gallery.' ) }
-						checked={ !! attributes.photopressHideCaptions }
-						onChange={ ( value ) => setAttributes( { photopressHideCaptions: value } ) }
+						label={ __( 'Captions' ) }
+						help={ __( 'How the images’ captions are shown. Hidden, they are kept but not shown. On hover, they show under the images on touch screens.' ) }
+						value={ CAPTION_STYLES[ attributes.photopressCaptionStyle ] ? attributes.photopressCaptionStyle : ( attributes.photopressHideCaptions ? 'hidden' : '' ) }
+						options={ [
+							/* translators: %s: the caption style set in PhotoPress's Gallery settings. */
+							{ value: '', label: sprintf( __( 'Default (%s)' ), CAPTION_STYLES[ defaultCaptionStyle() ] ) },
+							...Object.entries( CAPTION_STYLES ).map( ( [ value, label ] ) => ( { value, label } ) ),
+						] }
+						onChange={ ( value ) => setAttributes( { photopressCaptionStyle: value || undefined, photopressHideCaptions: false } ) }
 					/>
 				</PanelBody>
 			</InspectorControls>
@@ -664,9 +698,9 @@ const withLayoutClasses = createHigherOrderComponent( ( BlockListBlock ) => ( pr
 	}
 
 	const layout = layoutOf( props.attributes );
-	const hideCaptions = !! props.attributes.photopressHideCaptions;
+	const captionClass = captionClassOf( props.attributes );
 
-	if ( ! layout && ! hideCaptions ) {
+	if ( ! layout && ! captionClass ) {
 		return <BlockListBlock { ...props } />;
 	}
 
@@ -675,7 +709,7 @@ const withLayoutClasses = createHigherOrderComponent( ( BlockListBlock ) => ( pr
 		props.className,
 		layout && 'photopress-layout',
 		layout && `photopress-layout-${ layout }`,
-		hideCaptions && 'photopress-hide-captions',
+		captionClass,
 	].filter( Boolean ).join( ' ' );
 
 	if ( ! layout ) {

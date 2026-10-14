@@ -6,7 +6,7 @@ vi.mock( '@wordpress/blocks', () => ( {
 	registerBlockVariation: ( block, variation ) => registered.push( { block, ...variation } ),
 } ) );
 
-const { childPagesSummaryOf, isImageArchiveTemplate, sourceFor, summaryOf, templateSlugOf } = await import( '../../src/variations/gallery-layouts' );
+const { captionClassOf, captionStyleOf, childPagesSummaryOf, isImageArchiveTemplate, sourceFor, summaryOf, templateSlugOf } = await import( '../../src/variations/gallery-layouts' );
 
 const variation = ( name ) => registered.find( ( v ) => v.name === name );
 
@@ -90,4 +90,26 @@ test( 'a sentence says which child pages it shows', () => {
 	expect( childPagesSummaryOf( attributes ) ).toBe( 'The published pages under the page being viewed, each linked to it with its title, in the Rows layout.' );
 	expect( childPagesSummaryOf( attributes, { total: 0, shown: 0 } ) ).toMatch( /^This page has no published pages under it yet/ );
 	expect( childPagesSummaryOf( attributes, { total: 5, shown: 4 } ) ).toMatch( /^4 of the 5 pages under this one, each linked to it with its title, in the Rows layout\./ );
+} );
+
+test( 'a gallery’s caption style: its own, else hidden for Hide captions, else the Gallery tab’s', () => {
+	expect( captionStyleOf( {} ) ).toBe( 'theme' );
+	expect( captionStyleOf( { photopressCaptionStyle: 'below' } ) ).toBe( 'below' );
+	expect( captionStyleOf( { photopressHideCaptions: true } ) ).toBe( 'hidden' );
+	expect( captionStyleOf( { photopressCaptionStyle: 'theme', photopressHideCaptions: true } ) ).toBe( 'theme' );
+
+	window.photopressCaptionStyle = 'hover';
+	expect( captionStyleOf( {} ) ).toBe( 'hover' );
+	expect( captionStyleOf( { photopressCaptionStyle: 'tooltip' } ) ).toBe( 'hover' );
+	window.photopressCaptionStyle = 'sideways';
+	expect( captionStyleOf( {} ) ).toBe( 'theme' );
+	delete window.photopressCaptionStyle;
+} );
+
+test( 'the class each caption style adds, as gallery.php adds it', () => {
+	expect( captionClassOf( {} ) ).toBe( '' );
+	expect( captionClassOf( { photopressCaptionStyle: 'below' } ) ).toBe( 'photopress-captions-below' );
+	expect( captionClassOf( { photopressCaptionStyle: 'hover' } ) ).toBe( 'photopress-captions-hover' );
+	expect( captionClassOf( { photopressCaptionStyle: 'hidden' } ) ).toBe( 'photopress-hide-captions' );
+	expect( captionClassOf( { photopressHideCaptions: true } ) ).toBe( 'photopress-hide-captions' );
 } );

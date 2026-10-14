@@ -21,6 +21,15 @@ class gallery extends photopress_module {
 
 	const LAYOUTS = [ 'masonry', 'rows', 'mosaic' ];
 
+	/**
+	 * How a gallery shows its images' captions: "theme", as the theme styles
+	 * them (core's: over the image's foot); "below", under the image;
+	 * "hover", over the image while the pointer is on it, and under it where
+	 * nothing hovers (touch screens); "hidden", not at all. A gallery without
+	 * one has the Gallery tab's; the older Hide captions switch is "hidden".
+	 */
+	const CAPTION_STYLES = [ 'theme', 'below', 'hover', 'hidden' ];
+
 	public function definePublicHooks() {
 
 		register_block_type( 'photopress/gallery', [
@@ -115,13 +124,38 @@ class gallery extends photopress_module {
 		return array_values( array_filter( self::LAYOUTS, static fn( $layout ) => (bool) pp_api::getOption( 'core', 'gallery', 'layout_' . $layout ) ) );
 	}
 
+	/** The Gallery tab's caption style, for galleries without their own. */
+	public static function defaultCaptionStyle() {
+
+		$style = (string) pp_api::getOption( 'core', 'gallery', 'caption_style' );
+
+		return in_array( $style, self::CAPTION_STYLES, true ) ? $style : 'theme';
+	}
+
+	/**
+	 * A gallery's caption style: its own, else "hidden" for the Hide captions
+	 * switch, else the Gallery tab's.
+	 *
+	 * @param array $attrs The gallery block's attributes.
+	 */
+	public static function captionStyle( array $attrs ) {
+
+		$style = (string) ( $attrs['photopressCaptionStyle'] ?? '' );
+
+		if ( in_array( $style, self::CAPTION_STYLES, true ) ) {
+			return $style;
+		}
+
+		return ! empty( $attrs['photopressHideCaptions'] ) ? 'hidden' : self::defaultCaptionStyle();
+	}
+
 	/**
 	 * enqueue_block_editor_assets: the layouts the editor offers; see
 	 * src/variations/gallery-layouts.js.
 	 */
 	public function shareEnabledLayouts() {
 
-		wp_add_inline_script( 'photopress-editor', 'window.photopressGalleryLayouts = ' . wp_json_encode( self::enabledLayouts() ) . ';', 'before' );
+		wp_add_inline_script( 'photopress-editor', 'window.photopressGalleryLayouts = ' . wp_json_encode( self::enabledLayouts() ) . '; window.photopressCaptionStyle = ' . wp_json_encode( self::defaultCaptionStyle() ) . ';', 'before' );
 	}
 
 	public function registerOptions() {
@@ -143,6 +177,20 @@ class gallery extends photopress_module {
 				],
 			];
 		}
+
+		$options['caption_style'] = [
+			'default_value' => 'theme',
+			'field'         => [
+				'type'          => 'select',
+				'options'       => self::CAPTION_STYLES,
+				'title'         => 'Gallery captions',
+				'page_name'     => 'gallery',
+				'section'       => 'general',
+				'description'   => 'How galleries show their images\' captions, unless a gallery sets its own.',
+				'label_for'     => 'Gallery captions',
+				'error_message' => '',
+			],
+		];
 
 		$options['remove_deleted_images'] = [
 			'default_value' => true,
@@ -200,6 +248,8 @@ class gallery extends photopress_module {
 			'photopressRowHeight'   => [ 'type' => 'number', 'default' => 300 ],
 			'photopressSlideshow'   => [ 'type' => 'boolean', 'default' => false ],
 			'photopressHideCaptions' => [ 'type' => 'boolean', 'default' => false ],
+			// One of CAPTION_STYLES; unset, the Gallery tab's (captionStyle()).
+			'photopressCaptionStyle' => [ 'type' => 'string' ],
 			// Taxonomy Gallery (ImageTemplates): "archive", the archive page's
 			// images; "query", those of a taxonomy term, or the latest.
 			'photopressSource'      => [ 'type' => 'string' ],
@@ -220,9 +270,13 @@ class gallery extends photopress_module {
 
 	/**
 	 * Applies the PhotoPress options of a core/gallery: the layout classes and
-	 * variables, the per-image hooks the slideshow and mosaic use, and hidden
-	 * captions. The slideshow and hidden captions also work on a gallery
-	 * without a PhotoPress layout. Nothing here is saved in the post.
+	 * variables, the per-image hooks the slideshow and mosaic use, and the
+	 * caption style. The slideshow and caption style also work on a gallery
+	 * without a PhotoPress layout. PhotoPress's stylesheet is loaded for any
+	 * of them, and for a gallery that shows its images' file names and titles
+	 * or is filled by PhotoPress (a Taxonomy Gallery), which it styles too:
+	 * WordPress loads it only for PhotoPress's own blocks. Nothing here is
+	 * saved in the post.
 	 *
 	 * @param string    $content  The rendered gallery.
 	 * @param array     $block    The parsed block.
@@ -233,9 +287,10 @@ class gallery extends photopress_module {
 		$attrs         = $instance ? $instance->attributes : ( $block['attrs'] ?? [] );
 		$layout        = in_array( $attrs['photopressLayout'] ?? '', self::LAYOUTS, true ) ? $attrs['photopressLayout'] : '';
 		$slideshow     = ! empty( $attrs['photopressSlideshow'] );
-		$hide_captions = ! empty( $attrs['photopressHideCaptions'] );
+		$captions      = self::captionStyle( $attrs );
+		$styled        = ! empty( $attrs['photopressDetails'] ) || ! empty( $attrs['photopressSource'] );
 
-		if ( ! $layout && ! $slideshow && ! $hide_captions ) {
+		if ( ! $layout && ! $slideshow && 'theme' === $captions && ! $styled ) {
 			return $content;
 		}
 
@@ -248,8 +303,10 @@ class gallery extends photopress_module {
 			return $content;
 		}
 
-		if ( $hide_captions ) {
+		if ( 'hidden' === $captions ) {
 			$p->add_class( 'photopress-hide-captions' );
+		} elseif ( 'theme' !== $captions ) {
+			$p->add_class( 'photopress-captions-' . $captions );
 		}
 
 		if ( $layout ) {
