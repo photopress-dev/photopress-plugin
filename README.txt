@@ -19,95 +19,108 @@ The broader goal of PHOTOPRESS is to make WordPress easy to use for photographer
 
 = GALLERY LAYOUTS =
 
-Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block variations:
+PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block, as block variations.
 
-* Masonry: columns of a width you set, each image at its own height
-* Rows: rows of a height you set, each image at its own width
-* Mosaic: rows that fill the gallery's width, each image at its own proportions
-* They look the same in the editor as on the site
-* Open the full-screen slideshow when an image is clicked
-* Hide captions option
-* Each image downloaded at the width its layout shows it, not the width of the window
-* An image deleted from the Media Library is taken out of the galleries that show it
-* A Gallery settings tab with a switch for each layout and for removing deleted images, all on by default
+* Masonry arranges images in columns of a width you set. Each image keeps its own height.
+* Rows arranges images in rows of a height you set. Each image keeps its own width.
+* Mosaic fills each row to the gallery's width. Each image keeps its own proportions.
+* The layouts look the same in the editor as on the site.
+* A gallery can open the full-screen slideshow when an image is clicked.
+* A gallery can hide its image captions.
+* Each image is downloaded at the width its layout shows it, not the width of the window.
+* An image deleted from the Media Library is removed from the galleries that show it.
+* The Gallery settings tab has a switch for each layout and one for removing deleted images. All are on by default.
 
 = FULL-SCREEN SLIDESHOW =
 
-* Opens over the whole window on the image that was clicked: the Gallery Slideshow block's slideshow, full screen
-* Click or tap the right half for the next image, the left half for the previous one, or swipe; the arrow keys work too
-* A row of thumbnails under the image, with adjustable height; a click on one shows it
-* Caption, title, description and a link to the image's page, each shown or not
-* Caption box below or to the right of the image, with adjustable padding
+* The slideshow opens over the whole window, on the image that was clicked. It is the Gallery Slideshow block's slideshow, shown full screen.
+* Click or tap the right half of the image for the next image and the left half for the previous one. You can also swipe or use the arrow keys.
+* A row of thumbnails sits under the image. You can set its height. Click a thumbnail to show that image.
+* The caption box can show the image's caption, title and description, and a link to its page. Each is turned on or off separately.
+* The caption box sits below or to the right of the image. You can set its padding.
 
 = GALLERY SLIDESHOW BLOCK =
 
-* A slideshow of a gallery on the same page, placed anywhere on the page
-* Clicking an image in the gallery shows it in the slideshow
-* Press or tap the right side of the slideshow for the next image, the left side for the previous one, or swipe
-* Optional row of thumbnails under the slideshow, with adjustable height
-* Slide or fade transitions, and autoplay that pauses while the pointer is over it
-* Fits the window's height, less an offset you set
-* Captions below, left or right of the image, with adjustable padding
-* Caption max width, a share of the slideshow's width (75% by default) that keeps the full width on phones
-* Option to hide the gallery and show only the slideshow
-* Works with dynamic galleries (WordPress 7.1)
+* The block shows a slideshow of a gallery on the same page. You can place it anywhere on the page.
+* Clicking an image in the gallery shows that image in the slideshow.
+* Press or tap the right side of the slideshow for the next image and the left side for the previous one. You can also swipe.
+* A row of thumbnails can sit under the slideshow. You can set its height.
+* Images change with a slide or a fade. Autoplay is available, and it pauses while the pointer is over the slideshow.
+* The slideshow fits the window's height, less an offset you set.
+* Captions sit below, to the left of or to the right of the image. You can set their padding.
+* You can limit the caption's width to a share of the slideshow's width, 75% by default. On phones the caption keeps the full width.
+* You can hide the gallery and show only the slideshow.
+* The block works with dynamic galleries (WordPress 7.1).
 
 = CHILD PAGES GALLERY =
 
-* A Gallery block variation in any PhotoPress layout: the published pages under the page, in their page order, each as its featured image or else the first image of its gallery, linked to it with its title (useful as an index of gallery pages)
-* The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image
-* The older Child Pages block is converted to a Child Pages Gallery when PhotoPress is updated
+* This Gallery block variation shows the published pages under a page, in their page order. It works in any PhotoPress layout, and makes a good index of gallery pages.
+* Each page appears as its featured image, or else the first image of its gallery, linked to the page with its title.
+* The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image.
+* Updating PhotoPress converts the older Child Pages block to a Child Pages Gallery.
 
 = IMAGE METADATA MANAGEMENT =
 
-* Image taxonomies filled from each photo's embedded EXIF, IPTC and XMP metadata on upload, each with its own archive pages
-* Standard Metadata: camera, lens, city, state, country and keywords, read from wherever cameras and photo software record them, with camera names cleaned up and keyword hierarchies kept as nested terms. Each can be renamed or turned off
-* Hierarchical Keyword Metadata: keywords under a parent keyword (Genre › Portraiture in Lightroom or Capture One, or genre: Portraiture) go to the parent keyword's own taxonomy, each level nested under the one above
-* The parent keywords found in your photos that have no taxonomy are listed, each with a button to add one
-* Custom Metadata: any other metadata field as a taxonomy, chosen from a list of IPTC fields, each with what it holds and where photo software shows it
-* Adding or changing a taxonomy offers to reprocess just the images it affects, in the background, with the progress on the settings page
-* A taxonomy can be for the admin only: its terms are kept and shown in the Media Library, with no archive pages on the site
-* Image Metadata block: an image's terms, such as keywords, people, places and camera, and its exposure details from the file (aperture, shutter speed, ISO, focal length, date taken), in the order you choose
-* The Display Taxonomies and Display Image Exif widgets, for classic widget areas; in the block widgets editor, placed ones transform into the Image Metadata block
-* Alt text from the Alt Text (Accessibility) written in the file by Lightroom Classic or Photoshop, or from a template of words and metadata fields
-* Image descriptions from a template of words and metadata fields
-* Licensing metadata (Licensor, Licensor URL, Web Statement of Rights): embedded into image files on upload, or into every image already uploaded, and added as structured data (JSON-LD) to the pages that show them, with any theme
-* Save and reprocess all images: applies a new template or licensing to the images already uploaded, in the background
+* PhotoPress fills image taxonomies from each photo's embedded EXIF, IPTC and XMP metadata when it is uploaded. Each taxonomy has its own archive pages.
+* Standard Metadata covers camera, lens, city, state, country and keywords. PhotoPress reads them from wherever cameras and photo software record them. It cleans up camera names and keeps keyword hierarchies as nested terms. You can rename or turn off each one.
+* Hierarchical Keyword Metadata handles keywords under a parent keyword, such as Genre › Portraiture in Lightroom or Capture One, or genre: Portraiture. These keywords go to the parent keyword's own taxonomy, with each level nested under the one above.
+* The settings list the parent keywords found in your photos that have no taxonomy yet, each with a button to add one.
+* Custom Metadata turns any other metadata field into a taxonomy. You choose the field from a list of IPTC fields, which says what each holds and where photo software shows it.
+* When you add or change a taxonomy, PhotoPress offers to reprocess only the images it affects. The work runs in the background, and the settings page shows its progress.
+* A taxonomy can be for the admin only. Its terms are kept and shown in the Media Library, and the site has no archive pages for it.
+* The Image Metadata block shows an image's terms, such as keywords, people, places and camera. It also shows exposure details from the file: aperture, shutter speed, ISO, focal length and date taken. You choose the order.
+* The Display Taxonomies and Display Image Exif widgets work in classic widget areas. In the block widgets editor, placed widgets transform into the Image Metadata block.
+* Alt text comes from the Alt Text (Accessibility) field that Lightroom Classic and Photoshop write into the file. Without it, alt text comes from a template of words and metadata fields.
+* Image descriptions come from a template of words and metadata fields.
+* Licensing metadata (Licensor, Licensor URL, Web Statement of Rights) is embedded into image files on upload, or into every image already uploaded. It is also added as structured data (JSON-LD) to the pages that show the images, with any theme.
+* Save and reprocess all images applies a new template or licensing to the images already uploaded, in the background.
 
 = IMAGE TEMPLATES =
 
-For block themes that have no templates of their own for them (WordPress 6.7 or later):
+These templates are for block themes that have none of their own for these pages (WordPress 6.7 or later).
 
-* Image archives: a keyword's, a camera's or any image taxonomy's archive page shows its images in the Masonry layout, with links to more pages
-* Image pages: the image, its caption and description, its taxonomy terms and its exposure details
-* Both are edited in the Site Editor, like the theme's own templates, and each is there while its kind of page is on in the Pages & Search tab
-* Taxonomy Gallery, a Gallery block variation in any PhotoPress layout: on an image archive template, the archive's images; anywhere else, the latest images or those of a keyword, camera or other term, its page cleared from the page cache as they change. And the Attachment Image block
-* An archive of an image taxonomy looks for a taxonomy-attachment template, as themes built on the Frame framework do
+* An image archive page, such as a keyword's or a camera's, shows its images in the Masonry layout, with links to more pages.
+* An image page shows the image, its caption and description, its taxonomy terms and its exposure details.
+* You edit both templates in the Site Editor, like the theme's own. Each is available while its kind of page is turned on in the Pages & Search tab.
+* The Taxonomy Gallery variation of the Gallery block works in any PhotoPress layout. On an image archive template it shows the archive's images. Anywhere else it shows the latest images, or those of a keyword, camera or other term. Its page is cleared from the page cache when those images change.
+* The Attachment Image block shows an image page's image, at the size you choose, with its caption.
+* An image taxonomy archive uses a taxonomy-attachment template when the theme has one, as themes built on the Frame framework do.
 
 = PAGES & SEARCH =
 
-* Attachment pages switch: each image has a page of its own, or its page address and links to it go to the image file (WordPress's own setting)
-* Image taxonomy pages switch: each keyword, camera or other term has an archive page of its images, or none, with the terms still shown on image pages, unlinked
-* Attachment pages follow WordPress's setting until the switch is saved; image taxonomy pages are on by default. While each is on, block themes get PhotoPress's template for those pages
-* Images in search results switch (off by default): visitors' searches find images by their titles, captions, alt text and terms, with posts and pages too unless turned off. Block themes get an Image Search template of blocks, to order as you like: the search box, a Search Summary (the terms and the number of images found), the images in a Taxonomy Gallery in rows with each one's file name and title under it, with numbered pages, and the posts and pages found in a Search Posts block
-* With Relevanssi, turning images on ticks Media, the image taxonomies and image files in its indexing settings (turning them off unticks what PhotoPress ticked); PhotoPress has it index images' alt text, keeps an image's entry current as its terms change or are renamed or deleted, and adds existing images to its index in the background
-* Page cache and search index: whether Proxy Cache Purge and Relevanssi are active, installed or not installed, as the Offload Media tab shows WP Offload Media, with a Re-index all images button. Proxy Cache Purge purges a post's pages when it is saved, but not an image's, and nothing when terms change. Through its documented hooks, PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on). A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied. A background job over images, such as re-reading their metadata, empties it once when it ends, rather than purging as it goes. A post whose gallery gains or loses an image, and a replaced image with its files and the posts that show it, are purged too
+* With the Attachment pages switch on, each image has a page of its own. With it off, the page's address and links to it go to the image file. This is WordPress's own setting.
+* With the Image taxonomy pages switch on, each keyword, camera or other term has an archive page of its images. With it off, there are no archive pages, and image pages show the terms unlinked.
+* Attachment pages follow WordPress's setting until you save the switch. Image taxonomy pages are on by default. While each is on, block themes get PhotoPress's template for those pages.
+* The Images in search results switch is off by default. When it is on, visitors' searches find images by their titles, captions, alt text and terms. Posts and pages are found too, unless you turn them off.
+* Block themes get an Image Search template made of blocks you can rearrange. It has the search box, a Search Summary with the search terms and the number of images found, and the images in a Taxonomy Gallery. The gallery shows each image's file name and title and has numbered pages. A Search Posts block lists the posts and pages found.
+* With Relevanssi, turning images on ticks Media, the image taxonomies and image files in Relevanssi's indexing settings. Turning images off unticks only what PhotoPress ticked. PhotoPress has Relevanssi index each image's alt text. It indexes an image again when its terms change, are renamed or are deleted. It adds existing images to the index in the background.
+* The Page cache and search index card shows whether Proxy Cache Purge and Relevanssi are active, installed or not installed. It has a Re-index all images button.
+* Proxy Cache Purge purges a post's pages when the post is saved. It does not purge an image's pages, and it purges nothing when terms change. PhotoPress fills those gaps through its documented hooks:
+  * When an image is edited or deleted or its terms change, PhotoPress has it purge the image's page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on).
+  * When a term is renamed or deleted, its images and archive are purged. If it has more than 25 images, the whole cache is emptied instead.
+  * A background job over images, such as re-reading their metadata, empties the cache once when it ends instead of purging as it goes.
+  * A post whose gallery gains or loses an image is purged. So are a replaced image, its files and the posts that show it.
+* PhotoPress lists images' pages and image taxonomy archive pages in whichever sitemap the site uses, through that sitemap's documented hooks. The tab shows which sitemap is in use.
+  * WordPress's sitemap lists terms itself but leaves out images. PhotoPress adds public images (unattached, or attached to a published post) while attachment pages are on.
+  * To Jetpack's sitemap, PhotoPress adds term archives and lists each image with its own page. Without attachment pages, it lists an unattached image with its first term's archive, where Jetpack would give the file.
+  * To Yoast SEO's sitemap, PhotoPress adds the images on each term's archive page. While Yoast SEO lists media pages, PhotoPress adds a sitemap of unattached images' pages, which Yoast SEO leaves out.
+  * Pages that are turned off are left out of every sitemap.
 
 = IMAGE SIZES =
 
-* The quality JPEG and WebP sizes are saved at, 92 by default (WordPress's own is 82)
-* Every image size registered by WordPress, the theme and plugins, with a switch to stop making the ones nothing uses
-* Save and regenerate: makes again only what each image needs, in the background, a few images at a time and waiting while the server is busy
+* You set the quality JPEG and WebP sizes are saved at. The default is 92. WordPress's own default is 82.
+* The tab lists every image size registered by WordPress, the theme and plugins. Each has a switch to stop making sizes nothing uses.
+* Save and regenerate makes again only what each image needs. The work runs in the background, a few images at a time, and waits while the server is busy.
 
 = OFFLOAD MEDIA =
 
-With WP Offload Media installed, the Offload Media settings tab shows:
+With WP Offload Media installed, the Offload Media settings tab shows the following.
 
-* Whether Offload Media is active, and where images are stored and served from
-* How long browsers and the CDN cache offloaded images, 1 day by default
-* A replaced image cleared from CloudFront a few seconds later, so the new one shows, and a button to clear the whole CDN
-* An option to delete a replaced image's old files from cloud storage
-* An image replaced with Enable Media Replace is treated as one replaced in PhotoPress: its terms and alt text read from the new file, cleared from CloudFront, and purged from the page cache with the posts that show it
+* Whether Offload Media is active, and where images are stored and served from.
+* How long browsers and the CDN cache offloaded images. The default is 1 day.
+* A replaced image is cleared from CloudFront a few seconds later, so the new one shows. A button clears the whole CDN.
+* An option deletes a replaced image's old files from cloud storage.
+* An image replaced with Enable Media Replace is treated like one replaced in PhotoPress. Its terms and alt text are read from the new file, it is cleared from CloudFront, and it is purged from the page cache with the posts that show it.
 
 == Frequently Asked Questions ==
 
@@ -245,16 +258,18 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   the page cache), through its enable-media-replace-upload-done action.
 * Relevanssi: posts in which a replaced image's links or text were updated
   are indexed again.
-* Child Pages Gallery, a Gallery block variation: the published pages under
-  the page, each as its featured image or else the first image of its
-  gallery, linked with its title, in any PhotoPress layout; its page is
-  cleared from the page cache as they change. The Child Pages block it
-  supersedes is removed: on the first request after the update, a
-  background job converts each one saved in a post, template or synced
-  pattern into a Child Pages Gallery with its columns, image size, crop,
-  alignment and spacing. One it does not reach (in a theme's template file,
-  or imported later) is shown as that gallery. Unlike the old block, a
-  child page with neither a featured image nor a gallery is left out.
+* Child Pages Gallery: a new Gallery block variation that shows the
+  published pages under a page, in any PhotoPress layout. Each page
+  appears as its featured image, or else the first image of its gallery,
+  linked to the page with its title. The page is cleared from the page
+  cache when its child pages change.
+* The legacy Child Pages block is removed. On the first request after the
+  update, a background job converts each one saved in a post, template or
+  synced pattern into a Child Pages Gallery. The gallery keeps the block's
+  columns, image size, crop, alignment and spacing. A block the job does
+  not reach, such as one in a theme's template file or in content imported
+  later, is shown as that gallery. Unlike the old block, the gallery leaves
+  out child pages that have no image.
 * Full-screen slideshow: the Gallery Slideshow block's slideshow, full
   screen, and the same script, loaded only on pages that have either. The
   image takes the whole width, with no arrow columns beside it: a click,
@@ -363,40 +378,47 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Fixed: the block editor warned that the PhotoPress Gallery and Child Pages
   blocks used an old block API version. PhotoPress's settings scripts now
   load only on its own screens.
-* Page cache: a page with a Taxonomy Gallery of a term, or of the latest
-  images, is purged when an image joins or leaves the term, or is uploaded,
-  edited or deleted. Galleries in posts saved before the update are found by
-  the same background job.
-* Gallery Slideshow block: autoplay pauses while the mouse pointer is over
-  the slideshow, as its setting said.
+* Page cache: a page with a Taxonomy Gallery is now purged when the images
+  it shows may have changed. For a gallery of a term, that is when an image
+  joins or leaves the term, or one of its images is edited or deleted. For
+  a gallery of the latest images, it is when any image is uploaded, edited
+  or deleted. A background job finds the galleries in posts saved before
+  the update.
+* Gallery Slideshow block: autoplay now pauses while the mouse pointer is
+  over the slideshow, as its setting always said.
 * Full-screen slideshow: a Ctrl, Cmd, Shift or Alt click on a linked image
-  opens the link as the browser does. Caption, Title, Description and Link
-  to the image's page are four switches of their own; the caption box shows
-  whatever is on.
-* Taxonomy Gallery: File name and title shows with Hide captions on. A
-  Child Pages Gallery's heading is Pages unless set.
-* Adding an uploaded image to a gallery over REST: a Taxonomy or Child
-  Pages Gallery is not a gallery to add to; one named by its anchor is
-  refused with photopress_gallery_generated.
+  now opens the link, as it does elsewhere in the browser.
+* Full-screen slideshow settings: Caption, Title, Description and Link to
+  the image's page are now four separate switches. The caption box shows
+  whichever are on.
+* Taxonomy Gallery: Hide captions no longer hides File name and title.
+* Child Pages Gallery: the heading now defaults to "Pages".
+* Adding an uploaded image to a gallery over REST: Taxonomy and Child Pages
+  Galleries are no longer counted, since their images are chosen when the
+  page is viewed. Naming one by its anchor returns the error
+  photopress_gallery_generated.
 * Removing a deleted image from galleries: a post another user has open in
-  the editor is left until they are done, and done then (tried every five
-  minutes, for up to a day).
-* CDN: the regenerate and license jobs clear the files they rewrote when
-  they end, done or cancelled: each image, its folder, or everything, as
-  few paths as CloudFront allows. The license job did not clear them.
-* Alt text and descriptions are set on upload and replace with the image
-  taxonomies switched off.
-* Background jobs' progress shows when a job waits for a busy server or
-  rests between batches.
-* Settings: two switches turned in quick succession are both saved.
-* Rows layout: an image's width is set from its proportions before it
-  loads, so the rows do not reflow as the images arrive.
-* Relevanssi: turning Images in search results on ticks Media, the image
-  taxonomies visitors see and image files in Relevanssi's indexing
-  settings, saved as its own Indexing tab saves them; turning it off
-  unticks only what PhotoPress ticked. Before, PhotoPress added them as
-  Relevanssi read its settings, so they showed as ticked there, and saving
-  Relevanssi's settings page kept them after images were turned off.
+  the editor is now left alone until they are done. PhotoPress tries again
+  every five minutes, for up to a day.
+* CDN: the regenerate and license jobs now clear the files they rewrote
+  from CloudFront when they end, whether done or cancelled. They clear
+  each image, each folder or everything, using as few paths as CloudFront
+  allows. Before, the license job cleared nothing, and the regenerate job
+  cleared everything only when it finished.
+* Alt text and descriptions are now set on upload and replace even with
+  the image taxonomies switched off.
+* Background jobs: the progress panel now says when a job is waiting for a
+  busy server or resting between batches.
+* Settings: two switches turned in quick succession are now both saved.
+* Rows layout: each image's width is now set from its proportions before
+  it loads, so the rows no longer reflow as the images arrive.
+* Relevanssi: turning Images in search results on now ticks Media, the
+  image taxonomies visitors see and image files in Relevanssi's indexing
+  settings. PhotoPress saves them the way Relevanssi's own Indexing tab
+  does. Turning images off unticks only what PhotoPress ticked. Before,
+  PhotoPress added these settings each time Relevanssi read them. They
+  showed as ticked on Relevanssi's settings page, and saving that page
+  kept them even after images were turned off.
 
 = 1.9.0 =
 
