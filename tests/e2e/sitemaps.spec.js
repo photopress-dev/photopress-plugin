@@ -108,28 +108,48 @@ test.afterAll( () => {
 
 const withMade = ( php ) => `$made = json_decode( '${ JSON.stringify( made ) }', true ); ${ php }`;
 
-test( 'WordPress’s: public images’ pages while attachment pages are on, and image taxonomy terms', () => {
-	const listed = run( withMade( `
-		$posts = new WP_Sitemaps_Posts();
-		$out['types'] = array_keys( $posts->get_object_subtypes() );
-		$out['images'] = [];
-		for ( $page = 1; $page <= $posts->get_max_num_pages( 'attachment' ); $page++ ) {
-			$out['images'] = array_merge( $out['images'], array_column( $posts->get_url_list( $page, 'attachment' ), 'loc' ) );
+/** WordPress's sitemap: its subtypes and terms, and PhotoPress's image sitemap in it, image file => page. */
+const CORE = `
+	$out['types'] = array_keys( ( new WP_Sitemaps_Posts() )->get_object_subtypes() );
+	$terms = new WP_Sitemaps_Taxonomies();
+	$out['terms'] = [];
+	for ( $page = 1; $page <= $terms->get_max_num_pages( 'photos_keywords' ); $page++ ) {
+		$out['terms'] = array_merge( $out['terms'], array_column( $terms->get_url_list( $page, 'photos_keywords' ), 'loc' ) );
+	}
+	$out['providers'] = array_keys( wp_get_sitemap_providers() );
+	$sitemap = wp_get_sitemap_providers()['photopress'];
+	$out['index'] = array_column( $sitemap->get_sitemap_entries(), 'loc' );
+	$out['first'] = \\PhotoPress\\modules\\search\\CoreImageSitemap::url( 1 );
+	$out['images'] = [];
+	for ( $page = 1; $page <= $sitemap->get_max_num_pages(); $page++ ) {
+		$xml = simplexml_load_string( \\PhotoPress\\modules\\search\\CoreImageSitemap::xml( $page ) );
+		foreach ( $xml->url as $url ) {
+			foreach ( $url->children( 'http://www.google.com/schemas/sitemap-image/1.1' )->image as $image ) {
+				$out['images'][ (string) $image->loc ] = (string) $url->loc;
+			}
 		}
-		$terms = new WP_Sitemaps_Taxonomies();
-		$out['terms'] = [];
-		for ( $page = 1; $page <= $terms->get_max_num_pages( 'photos_keywords' ); $page++ ) {
-			$out['terms'] = array_merge( $out['terms'], array_column( $terms->get_url_list( $page, 'photos_keywords' ), 'loc' ) );
-		}
-	` ) );
+	}
+	global $wp_rewrite;
+	$out['rule'] = array_key_exists( '^photopress-image-sitemap-(\\d+)\\.xml$', (array) $wp_rewrite->wp_rewrite_rules() );
+`;
 
-	expect( listed.types ).toContain( 'attachment' );
-	expect( listed.images ).toEqual( expect.arrayContaining( [ made.urls.unattached, made.urls.attached, made.urls.bare ] ) );
-	expect( listed.images, 'an image attached to a draft' ).not.toContain( made.urls.private );
-	expect( listed.terms ).toContain( made.archive );
+test( 'WordPress’s: image taxonomy terms, and PhotoPress’s image sitemap in its index, each image with the page it is shown on', () => {
+	const on = run( withMade( CORE ) );
+	expect( on.terms ).toContain( made.archive );
+	expect( on.types, 'images are in PhotoPress’s sitemap, not WordPress’s' ).not.toContain( 'attachment' );
+	expect( on.providers ).toContain( 'photopress' );
+	expect( on.index[ 0 ] ).toBe( on.first );
+	expect( on.rule, 'its address among the rewrite rules' ).toBe( true );
+	expect( on.images[ made.file ] ).toBe( made.urls.unattached );
+	expect( Object.values( on.images ) ).toEqual( expect.arrayContaining( [ made.urls.attached, made.urls.bare ] ) );
+	expect( Object.values( on.images ), 'an image attached to a draft' ).not.toContain( made.urls.private );
 
-	const off = run( `$out = array_keys( ( new WP_Sitemaps_Posts() )->get_object_subtypes() );`, PAGES_OFF );
-	expect( off ).not.toContain( 'attachment' );
+	// Without attachment pages: attached, its page; unattached, the archive
+	// of one of its terms; with no terms, left out.
+	const off = run( withMade( CORE ), PAGES_OFF );
+	expect( made.archives, 'the archive of one of its terms' ).toContain( off.images[ made.file ] );
+	expect( Object.values( off.images ) ).toContain( made.urls.page );
+	expect( Object.keys( off.images ).filter( ( file ) => file.includes( 'pp-e2e-sitemap-bare' ) ), 'an unattached image with no terms' ).toEqual( [] );
 } );
 
 test( 'Jetpack’s: term archives among its pages, and each image with its own page, or, without attachment pages, where it is shown', () => {

@@ -17,6 +17,8 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  *
  * - Image pages, while attachment pages are on: public images (unattached,
  *   or attached to a published post), as metadata::PUBLIC_IMAGES finds them.
+ * - Each public image with the page it is shown on, for an image sitemap
+ *   (imageEntries()): its own while attachment pages are on.
  * - Image taxonomy terms' archive pages, while image taxonomy pages are on:
  *   terms with images (WordPress counts every image a term has).
  * - The images on a term's archive page: the newest, up to TERM_IMAGES.
@@ -79,9 +81,11 @@ class ImageSitemap {
 	 */
 	public static function images( array $args, $page, $per_page ) {
 
-		if ( ! self::listsImagePages() ) {
-			return [];
-		}
+		return self::listsImagePages() ? self::publicImages( $args, $page, $per_page ) : [];
+	}
+
+	/** A page of public images, by ID, whether or not they have pages of their own. */
+	private static function publicImages( array $args, $page, $per_page ) {
 
 		// Their IDs first, in ID order from the index, then the posts: as
 		// whole rows, a page of up to 2,000 was sorted in a temporary file.
@@ -105,9 +109,11 @@ class ImageSitemap {
 	/** How many public images there are, while attachment pages are on. */
 	public static function countImages( array $args = [] ) {
 
-		if ( ! self::listsImagePages() ) {
-			return 0;
-		}
+		return self::listsImagePages() ? self::countPublicImages( $args ) : 0;
+	}
+
+	/** How many public images there are, whether or not they have pages of their own. */
+	public static function countPublicImages( array $args = [] ) {
 
 		$query = new WP_Query( self::imagesQuery( $args + [
 			'fields'                 => 'ids',
@@ -119,6 +125,59 @@ class ImageSitemap {
 		] ) );
 
 		return (int) $query->found_posts;
+	}
+
+	/**
+	 * A page of public images for an image sitemap, by the page each is
+	 * shown on: its own while attachment pages are on; otherwise the post
+	 * it is attached to, or, unattached, its first term's archive, and left
+	 * out when it has none. Images shown on the same page share its entry.
+	 *
+	 * @param int $page     From 1.
+	 * @param int $per_page Images, not entries.
+	 * @return array[] loc, images (their files) and lastmod (GMT, of the
+	 *                 latest image, or '').
+	 */
+	public static function imageEntries( $page, $per_page ) {
+
+		return self::entriesFor( self::publicImages( [], $page, $per_page ) );
+	}
+
+	/**
+	 * Image sitemap entries for these images (imageEntries()).
+	 *
+	 * @param \WP_Post[] $images
+	 * @return array[]
+	 */
+	public static function entriesFor( array $images ) {
+
+		$own     = self::listsImagePages();
+		$entries = [];
+
+		foreach ( $images as $image ) {
+
+			$file = (string) wp_get_attachment_url( $image->ID );
+
+			if ( $own ) {
+				$loc = (string) get_permalink( (int) $image->ID );
+			} elseif ( $image->post_parent ) {
+				$loc = (string) get_permalink( (int) $image->post_parent );
+			} else {
+				$loc = self::pageFor( $image->ID );
+			}
+
+			if ( '' === $file || '' === $loc ) {
+				continue;
+			}
+
+			$modified = '0000-00-00 00:00:00' === $image->post_modified_gmt ? '' : (string) $image->post_modified_gmt;
+
+			$entries[ $loc ]['loc']      = $loc;
+			$entries[ $loc ]['images'][] = $file;
+			$entries[ $loc ]['lastmod']  = max( $entries[ $loc ]['lastmod'] ?? '', $modified );
+		}
+
+		return array_values( $entries );
 	}
 
 	/**
