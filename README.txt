@@ -94,6 +94,7 @@ Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugi
 = SITEMAPS =
 
 * PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
+* With WordPress's own sitemap, PhotoPress adds an image sitemap to it: each image with the page it is shown on.
 
 Documentation: [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).
 

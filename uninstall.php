@@ -22,6 +22,7 @@ const PHOTOPRESS_UNINSTALL_OPTIONS = [
 	'photopress_purge_after_jobs',
 	'photopress_search_term_changes',
 	'photopress_sitemap_seen',
+	'photopress_sitemap_rewrites',
 	'photopress_cdn_pending',
 	'photopress_cdn_last',
 	'photopress_gallery_upgrade',

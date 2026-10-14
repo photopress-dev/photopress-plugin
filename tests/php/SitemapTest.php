@@ -4,6 +4,7 @@ namespace PhotoPress\Tests;
 
 use Brain\Monkey\Filters;
 use Brain\Monkey\Functions;
+use PhotoPress\modules\search\CoreImageSitemap;
 use PhotoPress\modules\search\CoreSitemap;
 use PhotoPress\modules\search\ImageSitemap;
 use PhotoPress\modules\search\JetpackSitemap;
@@ -13,7 +14,8 @@ use PhotoPress\modules\search\YoastSitemap;
 /**
  * Image and term pages in the site's sitemap, whichever builds it, through
  * its documented filters: WordPress's, Jetpack's and Yoast SEO's, each given
- * what ImageSitemap decides; and which is in use.
+ * what ImageSitemap decides; and which is in use. WordPress's is given an
+ * image sitemap of PhotoPress's own (CoreImageSitemap).
  */
 final class SitemapTest extends TestCase {
 
@@ -33,6 +35,8 @@ final class SitemapTest extends TestCase {
 		if ( ! defined( 'DAY_IN_SECONDS' ) ) {
 			define( 'DAY_IN_SECONDS', 86400 );
 		}
+
+		require_once ABSPATH . WPINC . '/sitemaps/class-wp-sitemaps-provider.php';
 
 		if ( ! interface_exists( '\WPSEO_Sitemap_Provider' ) ) {
 			eval( 'interface WPSEO_Sitemap_Provider { public function handles_type( $type ); public function get_index_links( $max_entries ); public function get_sitemap_links( $type, $max_entries, $current_page ); }' );
@@ -93,16 +97,97 @@ final class SitemapTest extends TestCase {
 		return (object) [ 'ID' => (string) $id, 'post_type' => 'attachment', 'post_parent' => (string) ( 9 === $id ? 50 : 0 ) ];
 	}
 
-	public function test_core_lists_public_images_while_attachment_pages_are_on(): void {
+	/** An image as WordPress gives it, attached to post 50 or not, modified on this day of October. */
+	private static function post( int $id, int $parent, int $day ): object {
 
-		$this->assertSame( [ 'post', 'attachment' ], array_keys( CoreSitemap::postTypes( [ 'post' => (object) [] ] ) ) );
+		return (object) [ 'ID' => $id, 'post_parent' => $parent, 'post_modified_gmt' => sprintf( '2026-10-%02d 12:00:00', $day ) ];
+	}
 
-		$args = CoreSitemap::queryArgs( [ 'post_type' => 'attachment', 'post_status' => [ 'publish' ], 'orderby' => 'ID' ], 'attachment' );
-		$this->assertSame( [ 'inherit', 'image', true, 'ID' ], [ $args['post_status'], $args['post_mime_type'], $args['photopress_public_images'], $args['orderby'] ] );
-		$this->assertSame( [ 'post_status' => [ 'publish' ] ], CoreSitemap::queryArgs( [ 'post_status' => [ 'publish' ] ], 'post' ), 'other post types left alone' );
+	public function test_core_lists_its_image_sitemap_at_an_address_of_its_own(): void {
 
+		global $wp_rewrite;
+
+		Functions\when( 'add_query_arg' )->alias( static fn( $key, $value, $url ) => "$url?$key=$value" );
+		$permalinks = true;
+		$wp_rewrite = new class( $permalinks ) {
+			public function __construct( private bool &$on ) {}
+			public function using_permalinks() { return $this->on; }
+		};
+
+		$sitemap = new CoreImageSitemap();
+		$this->assertSame( 'https://example.com/photopress-image-sitemap-2.xml', $sitemap->get_sitemap_url( 'photopress', 2 ) );
+		$this->assertSame( [], $sitemap->get_url_list( 1 ), 'none for WordPress to render: it would leave out the images' );
+
+		$permalinks = false;
+		$this->assertSame( 'https://example.com/?photopress-image-sitemap=2', CoreImageSitemap::url( 2 ) );
+
+		$this->assertSame( [ 's', 'photopress-image-sitemap' ], CoreSitemap::queryVars( [ 's' ] ) );
+		$wp_rewrite = null;
+	}
+
+	public function test_image_entries_give_each_image_the_page_it_is_shown_on(): void {
+
+		// Image 6 has no file.
+		Functions\when( 'wp_get_attachment_url' )->alias( static fn( $id ) => 6 === $id ? false : "https://example.com/files/$id.jpg" );
+
+		$images = [ self::post( 7, 0, 1 ), self::post( 8, 0, 2 ), self::post( 9, 50, 3 ), self::post( 11, 50, 5 ), self::post( 6, 0, 4 ) ];
+
+		$this->assertSame( [
+			[ 'loc' => 'https://example.com/image-7/', 'images' => [ 'https://example.com/files/7.jpg' ], 'lastmod' => '2026-10-01 12:00:00' ],
+			[ 'loc' => 'https://example.com/image-8/', 'images' => [ 'https://example.com/files/8.jpg' ], 'lastmod' => '2026-10-02 12:00:00' ],
+			[ 'loc' => 'https://example.com/image-9/', 'images' => [ 'https://example.com/files/9.jpg' ], 'lastmod' => '2026-10-03 12:00:00' ],
+			[ 'loc' => 'https://example.com/image-11/', 'images' => [ 'https://example.com/files/11.jpg' ], 'lastmod' => '2026-10-05 12:00:00' ],
+		], ImageSitemap::entriesFor( $images ), 'each with its own page' );
+
+		// Without pages: attached, its post's page, shared with the post's
+		// other images; unattached, its term's archive; with no term, left out.
 		$this->turnOff( 'attachment_pages' );
-		$this->assertSame( [ 'post' ], array_keys( CoreSitemap::postTypes( [ 'post' => (object) [] ] ) ) );
+		$this->assertSame( [
+			[ 'loc' => 'https://example.com/photos_keywords/ojai/', 'images' => [ 'https://example.com/files/7.jpg' ], 'lastmod' => '2026-10-01 12:00:00' ],
+			[ 'loc' => 'https://example.com/image-50/', 'images' => [ 'https://example.com/files/9.jpg', 'https://example.com/files/11.jpg' ], 'lastmod' => '2026-10-05 12:00:00' ],
+		], ImageSitemap::entriesFor( $images ) );
+	}
+
+	public function test_image_sitemap_xml_has_an_image_entry_for_each_image(): void {
+
+		Functions\when( 'esc_url' )->alias( static fn( $url ) => str_replace( '&', '&#038;', $url ) );
+		Functions\when( 'wp_date' )->alias( static fn( $format, $time ) => gmdate( $format, $time ) );
+
+		$xml = CoreImageSitemap::xmlFor( [
+			[ 'loc' => 'https://example.com/?p=50&x=1', 'images' => [ 'https://example.com/files/9.jpg', 'https://example.com/files/11.jpg' ], 'lastmod' => '2026-10-05 12:00:00' ],
+			[ 'loc' => 'https://example.com/image-7/', 'images' => [ 'https://example.com/files/7.jpg' ], 'lastmod' => '' ],
+		] );
+
+		$doc = new \DOMDocument();
+		$this->assertTrue( $doc->loadXML( $xml ), 'well-formed' );
+
+		$path = new \DOMXPath( $doc );
+		$path->registerNamespace( 's', 'http://www.sitemaps.org/schemas/sitemap/0.9' );
+		$path->registerNamespace( 'image', 'http://www.google.com/schemas/sitemap-image/1.1' );
+		$text = static fn( $query ) => array_map( static fn( $node ) => $node->textContent, iterator_to_array( $path->query( $query ) ) );
+
+		$this->assertSame( [ 'https://example.com/?p=50&x=1', 'https://example.com/image-7/' ], $text( '/s:urlset/s:url/s:loc' ) );
+		$this->assertSame( [ 'https://example.com/files/9.jpg', 'https://example.com/files/11.jpg' ], $text( '/s:urlset/s:url[1]/image:image/image:loc' ) );
+		$this->assertSame( [ '2026-10-05T12:00:00+00:00' ], $text( '//s:lastmod' ), 'none for an entry without a date' );
+	}
+
+	public function test_image_sitemap_requests(): void {
+
+		$wp = new \stdClass();
+		$wp->query_vars = [ 'pagename' => 'about' ];
+		$this->assertNull( CoreSitemap::page( $wp ), 'another request' );
+		$this->assertSame( [ 'pagename' => 'about' ], $wp->query_vars );
+
+		// WordPress's sitemap off: a 404.
+		$wp->query_vars = [ 'photopress-image-sitemap' => '1' ];
+		$this->assertNull( CoreSitemap::page( $wp ) );
+		$this->assertSame( [ 'error' => '404' ], $wp->query_vars );
+
+		// On, but no page 0.
+		$this->coreSitemap = true;
+		$wp->query_vars = [ 'photopress-image-sitemap' => '0' ];
+		$this->assertNull( CoreSitemap::page( $wp ) );
+		$this->assertSame( [ 'error' => '404' ], $wp->query_vars );
 	}
 
 	public function test_jetpack_lists_term_archives_among_its_pages(): void {

@@ -38,7 +38,7 @@ const PAGE_CACHE_TEXT = {
 };
 
 const SITEMAP_TEXT = {
-	core: () => __( 'WordPress’s sitemap is in use. PhotoPress adds images’ pages to it while attachment pages are on. It lists image taxonomy terms itself while image taxonomy pages are on.' ),
+	core: () => __( 'WordPress’s sitemap is in use. PhotoPress adds a sitemap of its images to it, each with the page it is shown on: its own while attachment pages are on. WordPress lists image taxonomy terms itself while image taxonomy pages are on.' ),
 	jetpack: ( built ) => sprintf( __( 'Jetpack’s sitemap is in use, last built %s ago. PhotoPress adds image taxonomy terms’ archive pages to it while image taxonomy pages are on, and lists each image with its own page while attachment pages are on.' ), built ),
 	yoast: ( built ) => sprintf( __( 'Yoast SEO’s sitemap is in use, last built %s ago. It lists image taxonomy terms itself, and PhotoPress adds the images on each term’s archive page. While attachment pages are on and Yoast SEO lists media pages, PhotoPress adds the pages of images not attached to a post, which Yoast SEO leaves out.' ), built ),
 	other: () => __( 'Another plugin has turned off WordPress’s sitemap. PhotoPress adds image and term pages to Jetpack’s and Yoast SEO’s, and shows which is in use here once it has been built.' ),
