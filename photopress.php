@@ -7,7 +7,7 @@ Description: Making WordPress work for photographers with beautiful image galler
 Author: Peter Adams
 Author URI: http://www.photopressdev.com
 License: GPL v3
-Version: 2.1.0
+Version: 2.1.1
 */
 
 // If this file is called directly, abort.
