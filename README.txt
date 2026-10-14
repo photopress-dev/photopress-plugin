@@ -76,16 +76,26 @@ PhotoPress adds two templates to block themes: Image Archives and Image Pages. T
 
 Documentation: [Image Templates and Blocks](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Templates-and-Blocks), [Taxonomy Gallery](https://github.com/photopress-dev/photopress-plugin/wiki/Taxonomy-Gallery).
 
-= PAGES & SEARCH =
+= IMAGE AND TAXONOMY PAGES =
 
 * Attachment pages: a switch that publishes, or stops publishing, a page for each image in the Media Library.
 * Image taxonomy pages: a switch that publishes, or stops publishing, an archive page of images for each keyword, camera and other term.
+
+Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev/photopress-plugin/wiki/Attachment-and-Taxonomy-Pages).
+
+= SEARCH =
+
 * Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
 * Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
 * With [Relevanssi](https://wordpress.org/plugins/relevanssi/), PhotoPress has Relevanssi index images with their alt text and taxonomy terms.
+
+Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search).
+
+= SITEMAPS =
+
 * PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
 
-Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev/photopress-plugin/wiki/Attachment-and-Taxonomy-Pages), [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search), [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).
+Documentation: [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).
 
 = PAGE CACHE =
 

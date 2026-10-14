@@ -117,22 +117,32 @@ Documentation: [Image Templates and Blocks](https://github.com/photopress-dev/ph
 ![A keyword's images in the Image Archives template](.wordpress-org/screenshot-17.png)\
 *A keyword's images in the Image Archives template.*
 
-### Pages & Search
+### Image and Taxonomy Pages
 
 - Attachment pages: a switch that publishes, or stops publishing, a page for each image in the Media Library.
 - Image taxonomy pages: a switch that publishes, or stops publishing, an archive page of images for each keyword, camera and other term.
-- Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
-- Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
-- With [Relevanssi](https://wordpress.org/plugins/relevanssi/), PhotoPress has Relevanssi index images with their alt text and taxonomy terms.
-- PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
 
-Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev/photopress-plugin/wiki/Attachment-and-Taxonomy-Pages), [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search), [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).
+Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev/photopress-plugin/wiki/Attachment-and-Taxonomy-Pages).
 
 ![The Pages & Search tab](.wordpress-org/screenshot-18.png)\
 *The Pages & Search settings tab.*
 
+### Search
+
+- Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
+- Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
+- With [Relevanssi](https://wordpress.org/plugins/relevanssi/), PhotoPress has Relevanssi index images with their alt text and taxonomy terms.
+
+Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search).
+
 ![Search results with images](.wordpress-org/screenshot-19.png)\
 *Search results with images, in the Image Search template.*
+
+### Sitemaps
+
+- PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
+
+Documentation: [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).
 
 ### Page Cache
 
