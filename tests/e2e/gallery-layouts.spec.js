@@ -16,9 +16,11 @@ async function load( page, path ) {
 	} );
 	await page.addInitScript( () => {
 		window.__shift = 0;
+		window.__shifts = [];
 		new PerformanceObserver( ( list ) => {
 			for ( const entry of list.getEntries() ) {
 				window.__shift += entry.value;
+				window.__shifts.push( { t: Math.round( entry.startTime ), v: entry.value, sources: ( entry.sources || [] ).map( ( s ) => ( { node: s.node ? ( s.node.outerHTML || s.node.nodeName ).slice( 0, 160 ) : null, from: [ s.previousRect.x, s.previousRect.y, s.previousRect.width, s.previousRect.height ], to: [ s.currentRect.x, s.currentRect.y, s.currentRect.width, s.currentRect.height ] } ) ) } );
 			}
 		} ).observe( { type: 'layout-shift', buffered: true } );
 	} );
@@ -36,6 +38,7 @@ for ( const layout of [ 'masonry', 'mosaic', 'rows' ] ) {
 	test( `${ layout }: nothing moves as the page loads`, async ( { page, made } ) => {
 		await load( page, `/?page_id=${ made.pages[ layout ] }&preview=true` );
 
+		console.log( 'SHIFTS', layout, JSON.stringify( await page.evaluate( () => window.__shifts ) ) );
 		expect( await page.evaluate( () => window.__shift ) ).toBeLessThan( 0.01 );
 		await expect( page.locator( '#after' ) ).toBeVisible();
 		// Shown: masonry and mosaic are hidden only until laid out.
