@@ -2115,14 +2115,17 @@ class metadata extends photopress_module {
 	 * lists images, whose status is inherit, where WordPress would look for
 	 * published posts and find none. Only images WordPress counts as public
 	 * (get_post_status()): unattached, or attached to a published post.
-	 * Other queries on the page, and other taxonomies' archives, are left
-	 * alone.
+	 * Other queries on the page, other taxonomies' archives, and queries
+	 * asking for another status are left alone. Jetpack's infinite scroll
+	 * asks for publish, and private for editors, on the later pages.
 	 *
 	 * @param \WP_Query $query
 	 */
 	public function makeImagesVisibleToTaxQueries( $query ) {
 
-		if ( ! $query->is_main_query() || ! $query->is_tax() || '' !== (string) $query->get( 'post_status' ) ) {
+		$other_statuses = array_diff( (array) $query->get( 'post_status' ), [ '', 'publish', 'private' ] );
+
+		if ( ! $query->is_main_query() || ! $query->is_tax() || $other_statuses ) {
 			return;
 		}
 
