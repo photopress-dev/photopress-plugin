@@ -6,7 +6,7 @@ use Brain\Monkey\Functions;
 use PhotoPress\modules\search\ImageSearch;
 
 /**
- * Images in search results: Relevanssi's settings as PhotoPress has them,
+ * Images in search results: Relevanssi's settings as PhotoPress sets them,
  * where Image Search goes in the template hierarchy, and the search SQL
  * without Relevanssi.
  */
@@ -36,19 +36,43 @@ final class ImageSearchTest extends TestCase {
 		] );
 	}
 
-	public function test_relevanssi_always_indexes_the_image_taxonomies_visitors_see(): void {
+	public function test_images_turned_on_add_media_their_taxonomies_and_image_files_to_relevanssi(): void {
 
-		$this->assertSame( [ 'category', 'photos_keywords', 'pp_genre' ], ImageSearch::indexedTaxonomies( [ 'category', 'photos_keywords' ] ) );
-		$this->assertSame( [ 'photos_keywords', 'pp_genre' ], ImageSearch::indexedTaxonomies( '' ), 'never saved' );
+		$before = [ 'post_types' => [ 'post', 'page' ], 'taxonomies' => [ 'category', 'photos_keywords' ], 'image_files' => false ];
+
+		[ $indexing, $added ] = ImageSearch::relevanssiIndexing( $before, [], true, [ 'photos_keywords', 'pp_genre' ] );
+
+		$this->assertSame( [ 'post_types' => [ 'post', 'page', 'attachment' ], 'taxonomies' => [ 'category', 'photos_keywords', 'pp_genre' ], 'image_files' => true ], $indexing );
+		// photos_keywords was the site's own choice.
+		$this->assertSame( [ 'post_types' => [ 'attachment' ], 'taxonomies' => [ 'pp_genre' ], 'image_files' => true ], $added );
+
+		// Off: what PhotoPress added taken out, the site's own left.
+		[ $off, $none ] = ImageSearch::relevanssiIndexing( $indexing, $added, false, [ 'photos_keywords', 'pp_genre' ] );
+		$this->assertSame( $before, $off );
+		$this->assertSame( [ 'post_types' => [], 'taxonomies' => [], 'image_files' => false ], $none );
 	}
 
-	public function test_relevanssi_indexes_images_only_while_they_are_in_search(): void {
+	public function test_what_the_site_already_indexes_is_not_added_or_taken_out(): void {
 
-		$this->assertSame( [ 'post', 'page' ], ImageSearch::indexedPostTypes( [ 'post', 'page' ] ), 'off by default' );
+		$site = [ 'post_types' => [ 'attachment', 'bogus' ], 'taxonomies' => [ 'photos_keywords' ], 'image_files' => true ];
 
-		$this->saved = [ 'images_in_search' => true ];
-		$this->assertSame( [ 'post', 'page', 'attachment' ], ImageSearch::indexedPostTypes( [ 'post', 'page' ] ) );
-		$this->assertSame( [ 'attachment' ], ImageSearch::indexedPostTypes( [ 'attachment' ] ) );
+		[ $indexing, $added ] = ImageSearch::relevanssiIndexing( $site, [], true, [ 'photos_keywords' ] );
+		$this->assertSame( $site, $indexing );
+		$this->assertSame( [ 'post_types' => [], 'taxonomies' => [], 'image_files' => false ], $added );
+
+		[ $off ] = ImageSearch::relevanssiIndexing( $indexing, $added, false, [ 'photos_keywords' ] );
+		$this->assertSame( $site, $off );
+	}
+
+	public function test_a_taxonomy_no_longer_shown_is_taken_out_if_photopress_added_it(): void {
+
+		$indexing = [ 'post_types' => [ 'attachment' ], 'taxonomies' => [ 'photos_keywords', 'pp_genre' ], 'image_files' => true ];
+		$added    = [ 'post_types' => [ 'attachment' ], 'taxonomies' => [ 'pp_genre' ], 'image_files' => false ];
+
+		[ $indexing, $added ] = ImageSearch::relevanssiIndexing( $indexing, $added, true, [ 'photos_keywords' ] );
+
+		$this->assertSame( [ 'photos_keywords' ], $indexing['taxonomies'] );
+		$this->assertSame( [], $added['taxonomies'] );
 	}
 
 	public function test_relevanssi_indexes_an_images_alt_text(): void {
