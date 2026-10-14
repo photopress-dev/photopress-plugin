@@ -147,7 +147,10 @@ class ImageTaxonomies {
 
 	/**
 	 * One .container row per taxonomy that has terms for the post, and per
-	 * exposure detail its file gave.
+	 * exposure detail its file gave. Each row has a class naming it,
+	 * photopress-taxonomy-{taxonomy} or photopress-exif-{key}, and the colon
+	 * after its label and the commas between its terms are each in a
+	 * .separator, so that a theme can style one row or hide the separators.
 	 *
 	 * @param int      $post_id     The image (attachment) or post.
 	 * @param string[] $taxonomies  Taxonomy names and exif: keys, in display
@@ -181,8 +184,7 @@ class ImageTaxonomies {
 				$value = isset( $fields[ $key ] ) ? self::formatExif( $key, $exif[ $key ] ?? '' ) : '';
 
 				if ( '' !== $value ) {
-					$label = $show_labels ? '<div class="label">' . esc_html( $fields[ $key ] ) . ': </div>' : '';
-					$rows .= '<div class="container">' . $label . '<div class="terms">' . esc_html( $value ) . '</div></div>';
+					$rows .= self::row( 'photopress-exif-' . $key, $show_labels ? $fields[ $key ] : '', esc_html( $value ) );
 				}
 
 				continue;
@@ -217,14 +219,24 @@ class ImageTaxonomies {
 				$names[] = esc_html( $term->name );
 			}
 
-			$label = $show_labels
-				? '<div class="label">' . esc_html( get_taxonomy( $name )->label ) . ': </div>'
-				: '';
-
-			$rows .= '<div class="container">' . $label . '<div class="terms">' . implode( ', ', $names ) . '</div></div>';
+			$rows .= self::row( 'photopress-taxonomy-' . $name, $show_labels ? get_taxonomy( $name )->label : '', implode( '<span class="separator">, </span>', $names ) );
 		}
 
 		return $rows;
+	}
+
+	/**
+	 * A row: its label, if any, and its terms or value.
+	 *
+	 * @param string $class The row's own class.
+	 * @param string $label The label, as text; empty for none.
+	 * @param string $terms The terms or value, as HTML.
+	 */
+	private static function row( $class, $label, $terms ) {
+
+		$label = '' !== $label ? '<div class="label">' . esc_html( $label ) . '<span class="separator">: </span></div>' : '';
+
+		return '<div class="container ' . esc_attr( $class ) . '">' . $label . '<div class="terms">' . $terms . '</div></div>';
 	}
 
 	/**
