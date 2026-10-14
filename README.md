@@ -28,12 +28,16 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 - The Gallery settings tab has a switch for each layout and one for removing deleted images. All are on by default.
 
 ![Masonry layout](.wordpress-org/screenshot-1.png)
+*The Masonry layout.*
 
 ![Rows layout](.wordpress-org/screenshot-2.png)
+*The Rows layout.*
 
 ![Mosaic layout](.wordpress-org/screenshot-3.png)
+*The Mosaic layout.*
 
 ![The Gallery tab](.wordpress-org/screenshot-16.png)
+*The Gallery settings tab.*
 
 ### Full-Screen Slideshow
 
@@ -44,8 +48,10 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 - The caption box sits below or to the right of the image. You can set its padding.
 
 ![Full-screen slideshow](.wordpress-org/screenshot-4.gif)
+*The full-screen slideshow, opened from a gallery.*
 
 ![Slideshow settings](.wordpress-org/screenshot-5.png)
+*The Slideshow settings tab.*
 
 ### Gallery Slideshow Block
 
@@ -61,8 +67,10 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 - The block works with dynamic galleries (WordPress 7.1).
 
 ![Gallery Slideshow block](.wordpress-org/screenshot-6.gif)
+*The Gallery Slideshow block, moved through by pressing either side.*
 
 ![Caption max width on a desktop and a phone](.wordpress-org/screenshot-7.png)
+*Caption width on a desktop and on a phone.*
 
 ### Child Pages Gallery
 
@@ -71,6 +79,7 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 - Updating PhotoPress converts the older Child Pages block to a Child Pages Gallery.
 
 ![Child Pages Gallery](.wordpress-org/screenshot-8.png)
+*A Child Pages Gallery in the Rows layout.*
 
 ### Metadata
 
@@ -87,14 +96,19 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 - Save and reprocess all images applies a new template or licensing to the images already uploaded, in the background.
 
 ![Image Metadata block](.wordpress-org/screenshot-9.png)
+*The Image Metadata block on an image's page.*
 
 ![Image taxonomies](.wordpress-org/screenshot-10.png)
+*The image taxonomies on the Metadata tab.*
 
 ![A parent keyword found in the photos given a taxonomy, and its images reprocessed](.wordpress-org/screenshot-11.gif)
+*A parent keyword given a taxonomy, and its images reprocessed.*
 
 ![Alt text and description templates](.wordpress-org/screenshot-12.png)
+*The alt text and description templates.*
 
 ![Licensing](.wordpress-org/screenshot-13.png)
+*The Licensing settings.*
 
 ### Image Templates
 
@@ -108,6 +122,7 @@ These templates are for block themes that have none of their own for these pages
 - An image taxonomy archive uses a taxonomy-attachment template when the theme has one, as themes built on the Frame framework do.
 
 ![A keyword's images in the Image Archives template](.wordpress-org/screenshot-17.png)
+*A keyword's images in the Image Archives template.*
 
 ### Pages & Search
 
@@ -125,8 +140,10 @@ These templates are for block themes that have none of their own for these pages
   - Pages that are turned off are left out of every sitemap.
 
 ![The Pages & Search tab](.wordpress-org/screenshot-18.png)
+*The Pages & Search settings tab.*
 
 ![Search results with images](.wordpress-org/screenshot-19.png)
+*Search results with images, in the Image Search template.*
 
 ### Page Cache
 
@@ -148,6 +165,7 @@ Proxy Cache Purge purges a post's pages when the post is saved. It does not purg
 - Save and regenerate makes again only what each image needs. The work runs in the background, a few images at a time, and waits while the server is busy.
 
 ![The Image Sizes tab](.wordpress-org/screenshot-14.png)
+*The Image Sizes settings tab.*
 
 ### Offload Media
 
@@ -160,6 +178,7 @@ With [WP Offload Media](https://wordpress.org/plugins/amazon-s3-and-cloudfront/)
 - An image replaced with Enable Media Replace is treated like one replaced in PhotoPress. Its terms and alt text are read from the new file, and it is cleared from CloudFront.
 
 ![The Offload Media tab](.wordpress-org/screenshot-15.png)
+*The Offload Media settings tab.*
 
 ## Requirements
 
