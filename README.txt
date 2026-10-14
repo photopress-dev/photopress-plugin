@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 2.0.1
+Stable tag: 2.1.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -155,6 +155,12 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 19. Search results with images: the Image Search template
 
 == Changelog ==
+
+= 2.1.0 =
+
+* Added caption styles for galleries: as the theme styles them, below each image, on hover, or hidden.
+* Added an image sitemap to WordPress's own sitemap.
+* Fixed file names and titles showing over the images in galleries without a PhotoPress layout.
 
 = 2.0.1 =
 
