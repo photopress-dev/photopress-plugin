@@ -108,6 +108,45 @@ final class ImageTemplatesTest extends TestCase {
 		$this->assertSame( 'other', ImageTemplates::renderSourcedGallery( 'other', [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
 	}
 
+	/**
+	 * An image archive's gallery, as its template has it: in columns, with
+	 * file names and titles; nothing when the archive has no images. Its
+	 * stylesheet comes with core/gallery (gallery::loadStylesheetWithGallery()).
+	 */
+	public function test_an_archive_gallery_in_columns_with_file_names_and_titles(): void {
+
+		require_once ABSPATH . WPINC . '/class-wp-post.php';
+		require_once ABSPATH . WPINC . '/class-wp-query.php';
+
+		global $wp_query;
+		$saved    = $wp_query;
+		$wp_query = new \WP_Query();
+		$wp_query->posts = [ new \WP_Post( (object) [ 'ID' => 10, 'post_type' => 'attachment' ] ) ];
+		$wp_query->max_num_pages = 1;
+
+		Functions\stubs( [
+			'wp_attachment_is_image'      => true,
+			'wp_get_attachment_image_url' => static fn( $id, $size ) => "/up/$id-$size.jpg",
+			'get_attachment_link'         => static fn( $id ) => "/image-$id/",
+			'get_post_meta'               => '',
+			'get_the_title'               => static fn( $id ) => "Ken $id",
+			'get_attached_file'           => static fn( $id ) => "/var/www/uploads/ken-$id.jpg",
+			'wp_basename'                 => static fn( $path ) => basename( $path ),
+			'get_query_var'               => 1,
+			'paginate_links'              => '',
+			'do_blocks'                   => static fn( $markup ) => $markup,
+			'wp_filter_content_tags'      => static fn( $html ) => $html,
+		] );
+		$html = ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive', 'columns' => 4, 'photopressDetails' => true ] ] );
+		$this->assertStringContainsString( 'photopress-details__file', $html );
+
+		// An archive with no images: nothing.
+		$wp_query->posts = [];
+		$this->assertSame( '', ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
+
+		$wp_query = $saved;
+	}
+
 	public function test_each_images_file_name_and_title_under_it_as_a_search_result(): void {
 
 		Functions\stubs( [

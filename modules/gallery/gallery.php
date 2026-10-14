@@ -81,6 +81,7 @@ class gallery extends photopress_module {
 		add_filter( 'register_block_type_args', [ $this, 'addGalleryAttributes' ], 10, 2 );
 		add_filter( 'render_block_data', [ self::class, 'primeGalleryImages' ] );
 		add_filter( 'render_block_core/gallery', [ $this, 'renderGalleryLayout' ], 10, 3 );
+		add_action( 'init', [ self::class, 'loadStylesheetWithGallery' ] );
 		add_filter( 'render_block_core/gallery', [ GallerySlideshow::class, 'hideSourceGallery' ], 10, 2 );
 	}
 
@@ -113,6 +114,21 @@ class gallery extends photopress_module {
 		metadata::primeImages( $ids );
 
 		return $parsed;
+	}
+
+	/**
+	 * init: PhotoPress's stylesheet loaded with every core gallery, through
+	 * WordPress's documented wp_enqueue_block_style(). PhotoPress's layouts,
+	 * caption styles, file names and titles and Taxonomy Gallery page links
+	 * all ride on core/gallery, and WordPress loads a stylesheet only for the
+	 * blocks it belongs to: with a block theme, only on pages with one of
+	 * PhotoPress's own blocks, which a gallery is not. Loaded here, it is on
+	 * every page with a gallery, however the gallery was rendered. Its rules
+	 * apply to PhotoPress's classes only, so a plain gallery is unaffected.
+	 */
+	public static function loadStylesheetWithGallery() {
+
+		wp_enqueue_block_style( 'core/gallery', [ 'handle' => 'photopress-frontend' ] );
 	}
 
 	/**
@@ -272,11 +288,8 @@ class gallery extends photopress_module {
 	 * Applies the PhotoPress options of a core/gallery: the layout classes and
 	 * variables, the per-image hooks the slideshow and mosaic use, and the
 	 * caption style. The slideshow and caption style also work on a gallery
-	 * without a PhotoPress layout. PhotoPress's stylesheet is loaded for any
-	 * of them, and for a gallery that shows its images' file names and titles
-	 * or is filled by PhotoPress (a Taxonomy Gallery), which it styles too:
-	 * WordPress loads it only for PhotoPress's own blocks. Nothing here is
-	 * saved in the post.
+	 * without a PhotoPress layout. Their CSS is loaded with every gallery
+	 * (loadStylesheetWithGallery()). Nothing here is saved in the post.
 	 *
 	 * @param string    $content  The rendered gallery.
 	 * @param array     $block    The parsed block.
@@ -288,9 +301,8 @@ class gallery extends photopress_module {
 		$layout        = in_array( $attrs['photopressLayout'] ?? '', self::LAYOUTS, true ) ? $attrs['photopressLayout'] : '';
 		$slideshow     = ! empty( $attrs['photopressSlideshow'] );
 		$captions      = self::captionStyle( $attrs );
-		$styled        = ! empty( $attrs['photopressDetails'] ) || ! empty( $attrs['photopressSource'] );
 
-		if ( ! $layout && ! $slideshow && 'theme' === $captions && ! $styled ) {
+		if ( ! $layout && ! $slideshow && 'theme' === $captions ) {
 			return $content;
 		}
 
@@ -358,8 +370,6 @@ class gallery extends photopress_module {
 			$p->release_bookmark( 'item' );
 			$position++;
 		}
-
-		wp_enqueue_style( 'photopress-frontend' );
 
 		if ( ! in_array( $layout, [ 'masonry', 'mosaic' ], true ) ) {
 			return $p->get_updated_html();

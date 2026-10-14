@@ -75,7 +75,7 @@ final class GalleryLayoutTest extends TestCase {
 
 	public function test_classes_variables_and_per_image_hooks(): void {
 
-		Functions\expect( 'wp_enqueue_style' )->once()->with( 'photopress-frontend' );
+		Functions\expect( 'wp_enqueue_style' )->never();
 		Functions\expect( 'wp_enqueue_script' )->once();
 
 		$out = $this->render( [ 'photopressLayout' => 'mosaic', 'photopressRowHeight' => 250 ] );
@@ -104,7 +104,7 @@ final class GalleryLayoutTest extends TestCase {
 
 	public function test_slideshow_without_a_layout_prepares_the_images_only(): void {
 
-		Functions\expect( 'wp_enqueue_style' )->once()->with( 'photopress-frontend' );
+		Functions\expect( 'wp_enqueue_style' )->never();
 		Functions\expect( 'wp_enqueue_script' )->never();
 
 		$p = new \WP_HTML_Tag_Processor( $this->render( [ 'photopressSlideshow' => true ] ) );
@@ -143,9 +143,7 @@ final class GalleryLayoutTest extends TestCase {
 		return (string) $p->get_attribute( 'class' );
 	}
 
-	public function test_each_caption_style_marks_the_gallery_and_loads_the_stylesheet(): void {
-
-		Functions\expect( 'wp_enqueue_style' )->times( 3 )->with( 'photopress-frontend' );
+	public function test_each_caption_style_marks_the_gallery(): void {
 
 		$this->assertStringContainsString( ' photopress-captions-below', self::galleryClasses( $this->render( [ 'photopressCaptionStyle' => 'below' ] ) ) );
 		$this->assertStringContainsString( ' photopress-captions-hover', self::galleryClasses( $this->render( [ 'photopressCaptionStyle' => 'hover' ] ) ) );
@@ -169,14 +167,17 @@ final class GalleryLayoutTest extends TestCase {
 		$this->assertSame( 'theme', gallery::defaultCaptionStyle() );
 	}
 
-	public function test_a_gallery_photopress_fills_or_adds_details_to_loads_the_stylesheet(): void {
+	public function test_photopress_stylesheet_is_loaded_with_every_gallery(): void {
 
-		// WordPress loads PhotoPress's stylesheet for its own blocks only;
-		// these are core galleries it styles.
-		Functions\expect( 'wp_enqueue_style' )->twice()->with( 'photopress-frontend' );
+		// WordPress loads a stylesheet only for the blocks it belongs to, and
+		// PhotoPress's galleries are core's: the stylesheet goes with
+		// core/gallery, so a gallery PhotoPress fills (a Taxonomy Gallery) or
+		// gives file names and titles has it, however it was rendered.
+		Functions\expect( 'wp_enqueue_block_style' )->once()->with( 'core/gallery', [ 'handle' => 'photopress-frontend' ] );
+		gallery::loadStylesheetWithGallery();
 
-		$this->assertSame( self::GALLERY, $this->render( [ 'photopressDetails' => true ] ) );
-		$this->assertSame( self::GALLERY, $this->render( [ 'photopressSource' => 'archive' ] ) );
+		Functions\expect( 'wp_enqueue_style' )->never();
+		$this->assertSame( self::GALLERY, $this->render( [ 'photopressDetails' => true ] ), 'nothing for the rendering to add' );
 	}
 
 	public function test_existing_inline_style_is_kept(): void {
