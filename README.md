@@ -112,7 +112,7 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 
 ### Image Templates
 
-These templates are for block themes that have none of their own for these pages (WordPress 6.7 or later).
+PhotoPress adds two templates to block themes: Image Archives and Image Pages. They need WordPress 6.7 or later. If the theme has its own template for these pages, the theme's is used.
 
 - An image archive page, such as a keyword's or a camera's, shows its images in the Masonry layout, with links to more pages.
 - An image page shows the image, its caption and description, its taxonomy terms and its exposure details.
