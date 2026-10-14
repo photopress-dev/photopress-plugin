@@ -642,4 +642,46 @@ final class MetadataTest extends TestCase {
 			rmdir( $dir );
 		}
 	}
+
+	#[DataProvider( 'archiveStatuses' )]
+	public function test_image_archive_lists_public_images_for_these_statuses( $status, bool $widened ): void {
+
+		Functions\when( 'get_taxonomy' )->justReturn( (object) [ 'object_type' => [ 'attachment' ] ] );
+
+		$query = new class( $status ) {
+
+			public $tax_query;
+			public $vars;
+
+			public function __construct( $status ) {
+
+				$this->tax_query = (object) [ 'queried_terms' => [ 'photos_state' => [] ] ];
+				$this->vars      = [ 'post_status' => $status ];
+			}
+
+			public function is_main_query() { return true; }
+			public function is_tax() { return true; }
+			public function get( $key ) { return $this->vars[ $key ] ?? ''; }
+			public function set( $key, $value ) { $this->vars[ $key ] = $value; }
+		};
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$m->makeImagesVisibleToTaxQueries( $query );
+
+		$this->assertSame( $widened ? 'inherit' : $status, $query->get( 'post_status' ) );
+		$this->assertSame( $widened, ! empty( $query->vars[ metadata::PUBLIC_IMAGES ] ) );
+	}
+
+	public static function archiveStatuses(): array {
+
+		return [
+			'none'                             => [ '', true ],
+			'publish'                          => [ 'publish', true ],
+			'infinite scroll'                  => [ [ 'publish' ], true ],
+			'infinite scroll, for an editor'   => [ [ 'publish', 'private' ], true ],
+			'draft'                            => [ 'draft', false ],
+			'publish and draft'                => [ [ 'publish', 'draft' ], false ],
+			'any'                              => [ 'any', false ],
+		];
+	}
 }
