@@ -56,7 +56,6 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 
 * This Gallery block variation shows the published pages under a page, in their page order. It works in any PhotoPress layout, and makes a good index of gallery pages.
 * Each page appears as its featured image, or else the first image of its gallery, linked to the page with its title.
-* The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image.
 * Updating PhotoPress converts the older Child Pages block to a Child Pages Gallery.
 
 = IMAGE METADATA MANAGEMENT =
@@ -64,7 +63,6 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 * PhotoPress fills image taxonomies from each photo's embedded EXIF, IPTC and XMP metadata when it is uploaded. Each taxonomy has its own archive pages.
 * Standard Metadata covers camera, lens, city, state, country and keywords. PhotoPress reads them from wherever cameras and photo software record them. It cleans up camera names and keeps keyword hierarchies as nested terms. You can rename or turn off each one.
 * Hierarchical Keyword Metadata handles keywords under a parent keyword, such as Genre › Portraiture in Lightroom or Capture One, or genre: Portraiture. These keywords go to the parent keyword's own taxonomy, with each level nested under the one above.
-* The settings list the parent keywords found in your photos that have no taxonomy yet, each with a button to add one.
 * Custom Metadata turns any other metadata field into a taxonomy. You choose the field from a list of IPTC fields, which says what each holds and where photo software shows it.
 * When you add or change a taxonomy, PhotoPress offers to reprocess only the images it affects. The work runs in the background, and the settings page shows its progress.
 * A taxonomy can be for the admin only. Its terms are kept and shown in the Media Library, and the site has no archive pages for it.
@@ -82,7 +80,7 @@ These templates are for block themes that have none of their own for these pages
 * An image archive page, such as a keyword's or a camera's, shows its images in the Masonry layout, with links to more pages.
 * An image page shows the image, its caption and description, its taxonomy terms and its exposure details.
 * You edit both templates in the Site Editor, like the theme's own. Each is available while its kind of page is turned on in the Pages & Search tab.
-* The Taxonomy Gallery variation of the Gallery block works in any PhotoPress layout. On an image archive template it shows the archive's images. Anywhere else it shows the latest images, or those of a keyword, camera or other term. Its page is cleared from the page cache when those images change.
+* The Taxonomy Gallery variation of the Gallery block works in any PhotoPress layout. On an image archive template it shows the archive's images. Anywhere else it shows the latest images, or those of a keyword, camera or other term.
 * The Attachment Image block shows an image page's image, at the size you choose, with its caption.
 * An image taxonomy archive uses a taxonomy-attachment template when the theme has one, as themes built on the Frame framework do.
 
@@ -95,16 +93,24 @@ These templates are for block themes that have none of their own for these pages
 * Block themes get an Image Search template made of blocks you can rearrange. It has the search box, a Search Summary with the search terms and the number of images found, and the images in a Taxonomy Gallery. The gallery shows each image's file name and title and has numbered pages. A Search Posts block lists the posts and pages found.
 * With Relevanssi, turning images on ticks Media, the image taxonomies and image files in Relevanssi's indexing settings. Turning images off unticks only what PhotoPress ticked. PhotoPress has Relevanssi index each image's alt text. It indexes an image again when its terms change, are renamed or are deleted. It adds existing images to the index in the background.
 * The Page cache and search index card shows whether Proxy Cache Purge and Relevanssi are active, installed or not installed. It has a Re-index all images button.
-* Proxy Cache Purge purges a post's pages when the post is saved. It does not purge an image's pages, and it purges nothing when terms change. PhotoPress fills those gaps through its documented hooks:
-  * When an image is edited or deleted or its terms change, PhotoPress has it purge the image's page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on).
-  * When a term is renamed or deleted, its images and archive are purged. If it has more than 25 images, the whole cache is emptied instead.
-  * A background job over images, such as re-reading their metadata, empties the cache once when it ends instead of purging as it goes.
-  * A post whose gallery gains or loses an image is purged. So are a replaced image, its files and the posts that show it.
 * PhotoPress lists images' pages and image taxonomy archive pages in whichever sitemap the site uses, through that sitemap's documented hooks. The tab shows which sitemap is in use.
   * WordPress's sitemap lists terms itself but leaves out images. PhotoPress adds public images (unattached, or attached to a published post) while attachment pages are on.
   * To Jetpack's sitemap, PhotoPress adds term archives and lists each image with its own page. Without attachment pages, it lists an unattached image with its first term's archive, where Jetpack would give the file.
   * To Yoast SEO's sitemap, PhotoPress adds the images on each term's archive page. While Yoast SEO lists media pages, PhotoPress adds a sitemap of unattached images' pages, which Yoast SEO leaves out.
   * Pages that are turned off are left out of every sitemap.
+
+= PAGE CACHE =
+
+This feature applies only to a site with a Varnish page cache and the Proxy Cache Purge plugin. Without them, PhotoPress sends no purges.
+
+Proxy Cache Purge purges a post's pages when the post is saved. It does not purge an image's pages, and it purges nothing when terms change. PhotoPress fills those gaps through Proxy Cache Purge's documented hooks.
+
+* When an image is edited or deleted or its terms change, PhotoPress purges the image's page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on).
+* When a term is renamed or deleted, its images and archive are purged. If it has more than 25 images, the whole cache is emptied instead.
+* A background job over images, such as re-reading their metadata, empties the cache once when it ends instead of purging as it goes.
+* A post whose gallery gains or loses an image is purged. So are a replaced image, its files and the posts that show it, including images replaced with Enable Media Replace.
+* A page with a Child Pages Gallery is purged when a page under it is published, moved, renamed, reordered or given another image.
+* A page with a Taxonomy Gallery is purged when the images it shows may have changed.
 
 = IMAGE SIZES =
 
@@ -120,7 +126,7 @@ With WP Offload Media installed, the Offload Media settings tab shows the follow
 * How long browsers and the CDN cache offloaded images. The default is 1 day.
 * A replaced image is cleared from CloudFront a few seconds later, so the new one shows. A button clears the whole CDN.
 * An option deletes a replaced image's old files from cloud storage.
-* An image replaced with Enable Media Replace is treated like one replaced in PhotoPress. Its terms and alt text are read from the new file, it is cleared from CloudFront, and it is purged from the page cache with the posts that show it.
+* An image replaced with Enable Media Replace is treated like one replaced in PhotoPress. Its terms and alt text are read from the new file, and it is cleared from CloudFront.
 
 == Frequently Asked Questions ==
 
@@ -253,16 +259,17 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   first term's archive. Yoast SEO's: the images on each term's archive
   page, and, while it lists media pages, a sitemap of unattached images'
   pages, which it leaves out. Pages that are turned off are left out.
-* Enable Media Replace: an image it replaces is treated as one replaced in
-  PhotoPress (its terms and alt text read from the new file, CloudFront,
-  the page cache), through its enable-media-replace-upload-done action.
+* Enable Media Replace: an image it replaces is now treated like one
+  replaced in PhotoPress. Its terms and alt text are read from the new
+  file, and it is cleared from CloudFront. With Proxy Cache Purge, it is
+  also purged from the page cache. PhotoPress uses Enable Media Replace's
+  enable-media-replace-upload-done action.
 * Relevanssi: posts in which a replaced image's links or text were updated
   are indexed again.
 * Child Pages Gallery: a new Gallery block variation that shows the
   published pages under a page, in any PhotoPress layout. Each page
   appears as its featured image, or else the first image of its gallery,
-  linked to the page with its title. The page is cleared from the page
-  cache when its child pages change.
+  linked to the page with its title.
 * The legacy Child Pages block is removed. On the first request after the
   update, a background job converts each one saved in a post, template or
   synced pattern into a Child Pages Gallery. The gallery keeps the block's
@@ -378,12 +385,12 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Fixed: the block editor warned that the PhotoPress Gallery and Child Pages
   blocks used an old block API version. PhotoPress's settings scripts now
   load only on its own screens.
-* Page cache: a page with a Taxonomy Gallery is now purged when the images
-  it shows may have changed. For a gallery of a term, that is when an image
-  joins or leaves the term, or one of its images is edited or deleted. For
-  a gallery of the latest images, it is when any image is uploaded, edited
-  or deleted. A background job finds the galleries in posts saved before
-  the update.
+* Page cache, with a Varnish cache and Proxy Cache Purge: a page with a
+  Taxonomy Gallery is now purged when the images it shows may have
+  changed. For a gallery of a term, that is when an image joins or leaves
+  the term, or one of its images is edited or deleted. For a gallery of
+  the latest images, it is when any image is uploaded, edited or deleted.
+  A background job finds the galleries in posts saved before the update.
 * Gallery Slideshow block: autoplay now pauses while the mouse pointer is
   over the slideshow, as its setting always said.
 * Full-screen slideshow: a Ctrl, Cmd, Shift or Alt click on a linked image
