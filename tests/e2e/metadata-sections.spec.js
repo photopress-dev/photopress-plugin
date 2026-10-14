@@ -160,7 +160,7 @@ test( 'Slideshow: each switch hides what it governs', async ( { page } ) => {
 	const before = lastLine( wp( 'option', 'get', SLIDESHOW, '--format=json' ) );
 
 	try {
-		wp( 'option', 'update', SLIDESHOW, JSON.stringify( { ...JSON.parse( before ), enable: true, showThumbnails: false, showCaptions: true, showAttachmentLink: false } ), '--format=json' );
+		wp( 'option', 'update', SLIDESHOW, JSON.stringify( { ...JSON.parse( before ), enable: true, showThumbnails: false, showCaptions: true, showTitleInCaption: false, showDescriptionInCaption: false, showAttachmentLink: false } ), '--format=json' );
 		await page.goto( '/wp-admin/admin.php?page=photopress-core-base#photopress_core_slideshow' );
 
 		const tab = card( page, 'Slideshows' );
@@ -169,11 +169,19 @@ test( 'Slideshow: each switch hides what it governs', async ( { page } ) => {
 		await expect( tab.getByLabel( 'Attachment Link Text' ) ).toHaveCount( 0 );
 		await expect( tab.getByLabel( 'Caption Info Box Position' ) ).toBeVisible();
 
+		// Caption, Title, Description and Link are peers: the box's
+		// position shows while any of them is on.
+		await tab.getByLabel( 'Caption', { exact: true } ).click();
+		await expect( tab.getByLabel( 'Caption Info Box Position' ) ).toHaveCount( 0 );
+		await tab.getByLabel( 'Title', { exact: true } ).click();
+		await expect( tab.getByLabel( 'Caption Info Box Position' ) ).toBeVisible();
+		await expect.poll( () => JSON.parse( lastLine( wp( 'option', 'get', SLIDESHOW, '--format=json' ) ) ) ).toMatchObject( { showCaptions: false, showTitleInCaption: true } );
+
 		await tab.getByLabel( 'Link to the image’s page' ).click();
 		await expect( tab.getByLabel( 'Attachment Link Text' ) ).toBeVisible();
 
 		await featureSwitch( tab, 'Slideshows' ).click();
-		await expect( tab.getByLabel( 'Caption info' ) ).toHaveCount( 0 );
+		await expect( tab.getByLabel( 'Title', { exact: true } ) ).toHaveCount( 0 );
 		await expect.poll( () => JSON.parse( lastLine( wp( 'option', 'get', SLIDESHOW, '--format=json' ) ) ).enable ).toBe( false );
 	} finally {
 		wp( 'option', 'update', SLIDESHOW, before, '--format=json' );

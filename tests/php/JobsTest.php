@@ -410,4 +410,15 @@ final class JobsTest extends TestCase {
 		$this->assertIsArray( Jobs::start( 'test.items' ) );
 		$this->assertArrayNotHasKey( 'photopress_job_start_' . md5( 'test.items' ), $this->options );
 	}
+
+	public function test_the_rest_api_gives_the_panel_next_and_waiting_but_not_the_cursor(): void {
+
+		$job = [ 'id' => 'j1', 'type' => 'test.items', 'status' => 'running', 'done' => 2, 'next' => 1700000000, 'waiting' => 'busy', 'cursor' => 9, 'args' => [ 'a' ] ];
+
+		$shown = \PhotoPress\jobs\JobsRest::present( $job );
+
+		$this->assertSame( [ 1700000000, 'busy' ], [ $shown['next'], $shown['waiting'] ] );
+		$this->assertArrayNotHasKey( 'cursor', $shown );
+		$this->assertArrayNotHasKey( 'args', $shown );
+	}
 }

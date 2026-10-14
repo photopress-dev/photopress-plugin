@@ -1,7 +1,7 @@
 <?php
 /**
- * PhotoPress deleted: its settings and records (options and transients),
- * on each site of a network. The images, their terms and their metadata
+ * PhotoPress deleted: its settings and records (options, transients and
+ * what posts' Taxonomy Galleries show), on each site of a network. The images, their terms and their metadata
  * stay, as do other PhotoPress plugins' settings (photopress_seo_*,
  * photopress_pro_*). Action Scheduler's every-minute WP-Cron event goes too,
  * unless an active plugin still uses Action Scheduler.
@@ -24,6 +24,7 @@ const PHOTOPRESS_UNINSTALL_OPTIONS = [
 	'photopress_sitemap_seen',
 	'photopress_cdn_pending',
 	'photopress_cdn_last',
+	'photopress_gallery_upgrade',
 ];
 
 /** The transients it keeps. */
@@ -46,14 +47,18 @@ function photopress_uninstall_site() {
 	}
 
 	// The settings of each module (photopress_core_<module>), each job with
-	// its lock (photopress_job_<id>, photopress_job_<id>_lock), and random
-	// galleries' kept IDs.
-	foreach ( [ 'photopress_core_', 'photopress_job_', '_transient_photopress_gallery_ids_', '_transient_timeout_photopress_gallery_ids_' ] as $prefix ) {
+	// its lock (photopress_job_<id>, photopress_job_<id>_lock) and the CDN
+	// paths it rewrote (photopress_cdn_job_<id>), and random galleries' kept
+	// IDs.
+	foreach ( [ 'photopress_core_', 'photopress_job_', 'photopress_cdn_job_', '_transient_photopress_gallery_ids_', '_transient_timeout_photopress_gallery_ids_' ] as $prefix ) {
 		$names = $wpdb->get_col( $wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( $prefix ) . '%' ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery
 		foreach ( $names as $name ) {
 			delete_option( $name );
 		}
 	}
+
+	// What each post's Taxonomy Galleries show, for the page cache.
+	delete_post_meta_by_key( '_photopress_gallery_terms' );
 
 	// Another active plugin's copy of Action Scheduler runs its queue from
 	// this event; without one, nothing would.

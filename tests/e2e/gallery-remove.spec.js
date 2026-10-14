@@ -110,3 +110,43 @@ test( 'with Remove deleted images off, galleries keep a deleted image', async ( 
 		}
 	}
 } );
+
+test( 'a post another user has open in the editor is left, and done by the retry once they are not', async ( { page, made } ) => {
+	wp( 'option', 'delete', KEY );
+	await page.goto( '/' );
+	const editor = Number( lastLine( wp( 'user', 'create', `pp-e2e-lock-${ Date.now() }`, `pp-e2e-lock-${ Date.now() }@example.com`, '--role=editor', '--porcelain' ) ) );
+	let image;
+	let post;
+
+	try {
+		image = await upload( page, '03-square.jpg' );
+		const id = image;
+		const created = await rest( page, { method: 'POST', route: '/wp/v2/pages', json: { title: 'E2E: gallery of a deleted image, being edited', status: 'draft', content: gallery( [ made.images[ 0 ], image ] ) } } );
+		expect( created.status, JSON.stringify( created.data ) ).toBe( 201 );
+		post = created.data.id;
+		wp( 'post', 'meta', 'update', String( post ), '_edit_lock', `${ Math.floor( Date.now() / 1000 ) }:${ editor }` );
+
+		const removed = await rest( page, { method: 'DELETE', route: `/wp/v2/media/${ image }?force=true` } );
+		expect( removed.status ).toBe( 200 );
+		image = null;
+
+		expect( galleryIds( post ) ).toEqual( [ [ made.images[ 0 ], id ] ] );
+		const retry = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_values( array_map( fn( $a ) => $a->get_args(), as_get_scheduled_actions( [ 'hook' => 'photopress_gallery_remove_retry', 'status' => 'pending', 'group' => 'photopress' ] ) ) ) );` ) ) );
+		const mine = retry.find( ( args ) => args[ 0 ] === post );
+		expect( mine?.[ 1 ] ).toEqual( [ id ] );
+
+		// The editor gone, the retry takes the image out.
+		wp( 'post', 'meta', 'delete', String( post ), '_edit_lock' );
+		wp( 'eval', `do_action( 'photopress_gallery_remove_retry', ...${ JSON.stringify( mine ) } );` );
+		expect( galleryIds( post ) ).toEqual( [ [ made.images[ 0 ] ] ] );
+	} finally {
+		wp( 'eval', `foreach ( as_get_scheduled_actions( [ 'hook' => 'photopress_gallery_remove_retry', 'status' => 'pending', 'group' => 'photopress' ] ) as $id => $a ) { if ( ( $a->get_args()[0] ?? 0 ) === ${ post || 0 } ) { ActionScheduler::store()->cancel_action( $id ); } }` );
+		if ( image ) {
+			await rest( page, { method: 'DELETE', route: `/wp/v2/media/${ image }?force=true` } );
+		}
+		if ( post ) {
+			await rest( page, { method: 'DELETE', route: `/wp/v2/pages/${ post }?force=true` } );
+		}
+		wp( 'user', 'delete', String( editor ), '--yes' );
+	}
+} );

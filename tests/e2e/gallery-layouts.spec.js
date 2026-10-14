@@ -3,7 +3,8 @@
  * Masonry and mosaic are laid out by an inline script right after the
  * gallery, before the page is first painted; rows by CSS alone. The plugin's
  * scripts are held back a second here, so the page is painted before they
- * run, as on a slow connection: a layout left to them would jump.
+ * run, as on a slow connection: a layout left to them would jump. A shift
+ * fails the test with what moved.
  */
 const { test, expect } = require( './test' );
 
@@ -14,11 +15,17 @@ async function load( page, path ) {
 		await new Promise( ( resolve ) => setTimeout( resolve, 1000 ) );
 		await route.fallback();
 	} );
+	// The theme's web fonts left out: when they arrive is up to the
+	// network, and the text they swap in moves what is below it.
+	await page.route( /\.woff2?(\?|$)/, ( route ) => route.abort() );
 	await page.addInitScript( () => {
 		window.__shift = 0;
+		window.__shifts = [];
 		new PerformanceObserver( ( list ) => {
 			for ( const entry of list.getEntries() ) {
 				window.__shift += entry.value;
+				// What moved, for the failure message.
+				window.__shifts.push( { t: Math.round( entry.startTime ), v: entry.value, sources: ( entry.sources || [] ).map( ( s ) => ( { node: s.node ? ( s.node.outerHTML || s.node.nodeName ).slice( 0, 160 ) : null, from: [ s.previousRect.x, s.previousRect.y, s.previousRect.width, s.previousRect.height ], to: [ s.currentRect.x, s.currentRect.y, s.currentRect.width, s.currentRect.height ] } ) ) } );
 			}
 		} ).observe( { type: 'layout-shift', buffered: true } );
 	} );
@@ -36,7 +43,8 @@ for ( const layout of [ 'masonry', 'mosaic', 'rows' ] ) {
 	test( `${ layout }: nothing moves as the page loads`, async ( { page, made } ) => {
 		await load( page, `/?page_id=${ made.pages[ layout ] }&preview=true` );
 
-		expect( await page.evaluate( () => window.__shift ) ).toBeLessThan( 0.01 );
+		const { shift, shifts } = await page.evaluate( () => ( { shift: window.__shift, shifts: window.__shifts } ) );
+		expect( shift, JSON.stringify( shifts ) ).toBeLessThan( 0.01 );
 		await expect( page.locator( '#after' ) ).toBeVisible();
 		// Shown: masonry and mosaic are hidden only until laid out.
 		await expect( page.locator( GALLERY ) ).toHaveCSS( 'visibility', 'visible' );

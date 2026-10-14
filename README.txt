@@ -56,7 +56,7 @@ Masonry, Rows and Mosaic layouts for the WordPress Gallery block, as block varia
 
 * A Gallery block variation in any PhotoPress layout: the published pages under the page, in their page order, each as its featured image or else the first image of its gallery, linked to it with its title (useful as an index of gallery pages)
 * The page is cleared from the page cache when a page under it is published, moved, renamed, reordered or given another image
-* The older Child Pages block still shows where it was used; it is no longer offered, and turns into a Child Pages Gallery
+* The older Child Pages block is converted to a Child Pages Gallery when PhotoPress is updated
 
 = IMAGE METADATA MANAGEMENT =
 
@@ -249,8 +249,12 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
   the page, each as its featured image or else the first image of its
   gallery, linked with its title, in any PhotoPress layout; its page is
   cleared from the page cache as they change. The Child Pages block it
-  supersedes now lists published child pages only (not drafts or attached
-  images), with their images' srcset, and opens them in the same tab.
+  supersedes is removed: on the first request after the update, a
+  background job converts each one saved in a post, template or synced
+  pattern into a Child Pages Gallery with its columns, image size, crop,
+  alignment and spacing. One it does not reach (in a theme's template file,
+  or imported later) is shown as that gallery. Unlike the old block, a
+  child page with neither a featured image nor a gallery is left out.
 * Full-screen slideshow: the Gallery Slideshow block's slideshow, full
   screen, and the same script, loaded only on pages that have either. The
   image takes the whole width, with no arrow columns beside it: a click,
@@ -359,6 +363,32 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Fixed: the block editor warned that the PhotoPress Gallery and Child Pages
   blocks used an old block API version. PhotoPress's settings scripts now
   load only on its own screens.
+* Page cache: a page with a Taxonomy Gallery of a term, or of the latest
+  images, is purged when an image joins or leaves the term, or is uploaded,
+  edited or deleted. Galleries in posts saved before the update are found by
+  the same background job.
+* Gallery Slideshow block: autoplay pauses while the mouse pointer is over
+  the slideshow, as its setting said.
+* Full-screen slideshow: a Ctrl, Cmd, Shift or Alt click on a linked image
+  opens the link as the browser does. Caption, Title, Description and Link
+  to the image's page are four switches of their own; the caption box shows
+  whatever is on.
+* Taxonomy Gallery: File name and title shows with Hide captions on. A
+  Child Pages Gallery's heading is Pages unless set.
+* Adding an uploaded image to a gallery over REST: a Taxonomy or Child
+  Pages Gallery is not a gallery to add to; one named by its anchor is
+  refused with photopress_gallery_generated.
+* Removing a deleted image from galleries: a post another user has open in
+  the editor is left until they are done, and done then (tried every five
+  minutes, for up to a day).
+* CDN: the regenerate and license jobs clear the files they rewrote when
+  they end, done or cancelled: each image, its folder, or everything, as
+  few paths as CloudFront allows. The license job did not clear them.
+* Alt text and descriptions are set on upload and replace with the image
+  taxonomies switched off.
+* Background jobs' progress shows when a job waits for a busy server or
+  rests between batches.
+* Settings: two switches turned in quick succession are both saved.
 
 = 1.9.0 =
 

@@ -212,6 +212,53 @@ test( 'a child page moved, given another featured image, or its dynamic gallery 
 	}
 } );
 
+test( 'an image given a term, edited and deleted: the pages whose Taxonomy Gallery shows the term, or the latest', () => {
+	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() ? 'yes' : 'no';` ) );
+	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active.' );
+
+	const word = `ppgallery${ stamp }`;
+	const made = step( `
+		$term = wp_insert_term( '${ word }', 'photos_keywords' );
+		$out['term'] = $term['term_id'];
+		$gallery = static fn( $attrs ) => '<!-- wp:gallery ' . wp_json_encode( [ 'photopressSource' => 'query' ] + $attrs ) . ' -->' . "\n" . '<figure class="wp-block-gallery has-nested-images columns-default is-cropped"></figure>' . "\n" . '<!-- /wp:gallery -->';
+		foreach ( [ 'term' => [ 'photopressTaxonomy' => 'photos_keywords', 'photopressTerm' => $out['term'] ], 'latest' => [] ] as $key => $attrs ) {
+			$out[ $key . 'Page' ] = wp_insert_post( wp_slash( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => "PP E2E cache $key gallery ${ stamp }", 'post_content' => $gallery( $attrs ) ] ) );
+			$out[ $key . 'Url' ] = wp_make_link_relative( get_permalink( $out[ $key . 'Page' ] ) );
+		}
+		$out['other'] = wp_insert_post( [ 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => 'PP E2E cache no gallery ${ stamp }' ] );
+		$out['otherUrl'] = wp_make_link_relative( get_permalink( $out['other'] ) );
+		$out['meta'] = get_post_meta( $out['termPage'], '_photopress_gallery_terms' );
+	` ).out;
+
+	expect( made.meta ).toEqual( [ `photos_keywords:${ made.term }` ] );
+	let image = 0;
+
+	try {
+		// Uploaded: the latest. Then tagged: the term's.
+		const uploaded = step( `
+			$tmp = wp_tempnam( 'pp-e2e-cache' );
+			copy( ${ JSON.stringify( path.join( __dirname, '../fixtures/images' ) ) } . '/03-square.jpg', $tmp );
+			$out['image'] = media_handle_sideload( [ 'name' => 'pp-e2e-cache-gallery.jpg', 'tmp_name' => $tmp ], 0, 'PP E2E cache gallery image' );
+		` );
+		image = uploaded.out.image;
+		expect( uploaded.purged ).toContain( made.latestUrl );
+
+		const tagged = step( `wp_set_object_terms( ${ image }, [ ${ made.term } ], 'photos_keywords', true );` );
+		expect( tagged.purged ).toContain( made.termUrl );
+		expect( tagged.purged ).not.toContain( made.otherUrl );
+
+		const edited = step( `wp_update_post( [ 'ID' => ${ image }, 'post_title' => 'PP E2E cache gallery image, retitled' ] );` );
+		expect( edited.purged ).toEqual( expect.arrayContaining( [ made.termUrl, made.latestUrl ] ) );
+
+		const deleted = step( `wp_delete_attachment( ${ image }, true );` );
+		image = 0;
+		expect( deleted.purged ).toEqual( expect.arrayContaining( [ made.termUrl, made.latestUrl ] ) );
+		expect( deleted.purged ).not.toContain( made.otherUrl );
+	} finally {
+		wp( 'eval', `foreach ( [ ${ made.termPage }, ${ made.latestPage }, ${ made.other } ] as $id ) { wp_delete_post( $id, true ); } if ( ${ image } ) { wp_delete_attachment( ${ image }, true ); } wp_delete_term( ${ made.term }, 'photos_keywords' );` );
+	}
+} );
+
 test( 'a reprocess job: nothing purged for each image, the cache emptied once when the job ends', ( { made } ) => {
 	const ready = lastLine( wp( 'eval', `echo ${ NS }\\PageCache::purges() ? 'yes' : 'no';` ) );
 	test.skip( 'yes' !== ready, 'Proxy Cache Purge is not active.' );

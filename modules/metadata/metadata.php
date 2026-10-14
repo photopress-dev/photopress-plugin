@@ -53,6 +53,15 @@ class metadata extends photopress_module {
 		// the description of an image whose file was replaced (see MediaRest)
 		add_filter( 'photopress_attachment_description', [ $this, 'descriptionForReplacedFile' ], 10, 3 );
 		
+		// A new image's terms, alt text and description from its metadata;
+		// and an image's, when it is given a new file (MediaRest, or Enable
+		// Media Replace through EnableMediaReplace), unless the client asked
+		// for them to be left alone. Alt text and description follow their
+		// own switches; the terms are set only while the image taxonomies
+		// are on, as they are registered only then (setTaxonomyTerms).
+		add_action( 'add_attachment', [ $this, 'addAttachment' ] );
+		add_action( 'photopress_attachment_file_replaced', [ $this, 'fileReplaced' ], 10, 4 );
+		
 		// re-reading the metadata of every image, as a background job. Each
 		// image's terms, alt text and description are written, and its pages
 		// purged from the page cache: a few at a time, resting between
@@ -153,25 +162,6 @@ class metadata extends photopress_module {
 				]
 			);
 			
-			/**
-			 * Taxonomy handler for when new images are uploaded
-			 */
-			add_action('add_attachment', [ $this, 'addAttachment' ] );
-			
-			/**
-			 * Handler for extracting meta data from image file and storing it as
-			 * part of the Post's meta data.
-			 */
-			//add_filter('wp_generate_attachment_metadata', 'papt_storeNewMeta',1,2);
-
-			/**
-			 * Handler for when an image is given a new file (MediaRest, or
-			 * Enable Media Replace through EnableMediaReplace): its terms and
-			 * alt text come from the new file, unless the client asked for
-			 * them to be left alone.
-			 */
-			add_action( 'photopress_attachment_file_replaced', [ $this, 'fileReplaced' ], 10, 4 );
-						
 			// Images on the archive pages of image taxonomies.
 			add_action( 'pre_get_posts', [ $this, 'makeImagesVisibleToTaxQueries' ] );
 			
@@ -1679,6 +1669,9 @@ class metadata extends photopress_module {
 		// Only when a file changed: run again, nothing is copied anew.
 		if ( $changed ) {
 			wp_update_attachment_metadata( $id, wp_get_attachment_metadata( $id ) );
+
+			/** This action is documented in modules/images/images.php */
+			do_action( 'photopress_image_files_rewritten', $id );
 		}
 
 		self::recordLicense( $id, $failed ? implode( ' ', $failed ) : null );

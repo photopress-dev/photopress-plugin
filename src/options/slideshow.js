@@ -143,14 +143,56 @@ class SlideshowSettings extends Component {
 					) }
 
 					<hr />
+					<h3>{ __( 'Caption info' ) }</h3>
+					<p>{ __( 'A box below or beside the image with what is turned on here. It is shown when an image has any of them.' ) }</p>
 					<SwitchRow
-						label={ __( 'Caption info' ) }
-						help={ __( 'A box with the image’s caption and details, below or beside it.' ) }
+						label={ __( 'Caption' ) }
+						help={ __( 'The image’s caption.' ) }
 						checked={ this.getSetting( 'showCaptions' ) }
 						onChange={ ( value ) => this.persistSetting( 'showCaptions', value ) }
 					/>
-					{ this.getSetting( 'showCaptions' ) && (
+					<SwitchRow
+						label={ __( 'Title' ) }
+						help={ __( 'The image’s title.' ) }
+						checked={ this.getSetting( 'showTitleInCaption' ) }
+						onChange={ ( value ) => this.persistSetting( 'showTitleInCaption', value ) }
+					/>
+					<SwitchRow
+						label={ __( 'Description' ) }
+						help={ __( 'The image’s description.' ) }
+						checked={ this.getSetting( 'showDescriptionInCaption' ) }
+						onChange={ ( value ) => this.persistSetting( 'showDescriptionInCaption', value ) }
+					/>
+					<SwitchRow
+						label={ __( 'Link to the image’s page' ) }
+						help={ __( 'A link to the image’s attachment page.' ) }
+						checked={ this.getSetting( 'showAttachmentLink' ) }
+						onChange={ ( value ) => this.persistSetting( 'showAttachmentLink', value ) }
+					/>
+					{ this.getSetting( 'showAttachmentLink' ) && (
 						<div className="photopress-subsettings">
+							<TextControl
+								id={ 'attachment_link_text' }
+								label={ __( 'Attachment Link Text' ) }
+								value={ this.getSetting( 'attachmentLinkText' ) }
+								className=" right-pad"
+								help={ __( 'The text of the link.' ) }
+								onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value ) }
+								onBlur={ ( event ) => this.setSetting( 'attachmentLinkText', sanitize( event.target.value, 'string' ) ) }
+							/>
+
+							<Button
+								isPrimary
+								disabled={ this.state.isAPISaving }
+								onClick={ this.saveSettings }
+								className="components-base-control__field"
+							>
+								{ __( 'Save' ) }
+							</Button>
+						</div>
+					) }
+					{ [ 'showCaptions', 'showTitleInCaption', 'showDescriptionInCaption', 'showAttachmentLink' ].some( ( key ) => this.getSetting( key ) ) && (
+						<>
 							<SelectControl
 								label={ __( 'Caption Info Box Position' ) }
 								value={ this.getSetting( 'detail_position' ) }
@@ -170,48 +212,7 @@ class SlideshowSettings extends Component {
 								max={ 100 }
 								step={ 1 }
 							/>
-
-							<SwitchRow
-								label={ __( 'Title' ) }
-								help={ __( 'The image’s title in the caption info.' ) }
-								checked={ this.getSetting( 'showTitleInCaption' ) }
-								onChange={ ( value ) => this.persistSetting( 'showTitleInCaption', value ) }
-							/>
-							<SwitchRow
-								label={ __( 'Description' ) }
-								help={ __( 'The image’s description in the caption info.' ) }
-								checked={ this.getSetting( 'showDescriptionInCaption' ) }
-								onChange={ ( value ) => this.persistSetting( 'showDescriptionInCaption', value ) }
-							/>
-							<SwitchRow
-								label={ __( 'Link to the image’s page' ) }
-								help={ __( 'A link to the image’s attachment page in the caption info.' ) }
-								checked={ this.getSetting( 'showAttachmentLink' ) }
-								onChange={ ( value ) => this.persistSetting( 'showAttachmentLink', value ) }
-							/>
-							{ this.getSetting( 'showAttachmentLink' ) && (
-								<div className="photopress-subsettings">
-									<TextControl
-										id={ 'attachment_link_text' }
-										label={ __( 'Attachment Link Text' ) }
-										value={ this.getSetting( 'attachmentLinkText' ) }
-										className=" right-pad"
-										help={ __( 'The text of the link.' ) }
-										onChange={ ( value ) => this.setSetting( 'attachmentLinkText', value ) }
-										onBlur={ ( event ) => this.setSetting( 'attachmentLinkText', sanitize( event.target.value, 'string' ) ) }
-									/>
-
-									<Button
-										isPrimary
-										disabled={ this.state.isAPISaving }
-										onClick={ this.saveSettings }
-										className="components-base-control__field"
-									>
-										{ __( 'Save' ) }
-									</Button>
-								</div>
-							) }
-						</div>
+						</>
 					) }
 				</FeatureSection>
 			</Fragment>

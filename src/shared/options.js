@@ -153,9 +153,20 @@ function savedSettings() {
 /**
  * Saves one setting, as a switch does: the others are sent as last saved, so
  * what is typed elsewhere on the tab is not saved with it, and stays on
- * screen to be saved with its own Save.
+ * screen to be saved with its own Save. One save at a time, each after the
+ * last has answered: two switches turned at once would each send the other
+ * as it was.
  */
 export function saveSetting( key, value ) {
+
+	const save = () => saveOne.call( this, key, value );
+
+	this.settingSaves = ( this.settingSaves || Promise.resolve() ).then( save );
+
+	return this.settingSaves;
+}
+
+function saveOne( key, value ) {
 
 	const module_name = this.props.settingsGroup;
 	const saved = savedSettings.call( this );

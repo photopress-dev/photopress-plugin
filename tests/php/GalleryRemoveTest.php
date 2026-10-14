@@ -85,4 +85,33 @@ final class GalleryRemoveTest extends TestCase {
 		$this->assertSame( $parsed, GalleryRemove::withoutImages( $parsed, [ 11 ], $removed ) );
 		$this->assertSame( 0, $removed );
 	}
+
+	public function test_a_post_open_in_the_editor_is_tried_again_later_for_a_day(): void {
+
+		\Brain\Monkey\Functions\stubs( [ 'as_has_scheduled_action' => false, 'get_option' => 'pending', 'did_action' => 1 ] );
+		\Brain\Monkey\Functions\when( 'wp_check_post_lock' )->justReturn( 3 );
+		\Brain\Monkey\Functions\expect( 'get_post' )->never();
+
+		$scheduled = [];
+		\Brain\Monkey\Functions\when( 'as_schedule_single_action' )->alias( static function ( $when, $hook, $args, $group ) use ( &$scheduled ) {
+			$scheduled[] = [ $when - time(), $hook, $args, $group ];
+			return 1;
+		} );
+
+		$since = time() - 60;
+		$this->assertNull( GalleryRemove::removeUnlessLocked( 7, [ 11, 12 ], $since ) );
+		$this->assertSame( [ [ 300, 'photopress_gallery_remove_retry', [ 7, [ 11, 12 ], $since ], 'photopress' ] ], $scheduled );
+
+		// A day on, it is left.
+		$scheduled = [];
+		$this->assertNull( GalleryRemove::removeUnlessLocked( 7, [ 11 ], time() - 86400 ) );
+		$this->assertSame( [], $scheduled );
+	}
+
+	public function test_a_retry_stops_once_the_setting_is_off(): void {
+
+		\Brain\Monkey\Functions\expect( 'wp_check_post_lock' )->never();
+
+		GalleryRemove::retry( 7, [ 11 ], time() );
+	}
 }

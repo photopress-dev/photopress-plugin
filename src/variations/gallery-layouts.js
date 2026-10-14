@@ -53,7 +53,8 @@ const ATTRIBUTES = {
 	photopressOrder: { type: 'string', default: 'date-desc' },
 	// Shown above a Taxonomy Gallery's images, when on and it found some.
 	photopressShowHeading: { type: 'boolean', default: false },
-	photopressHeading: { type: 'string', default: __( 'Images' ) },
+	// Unset: headingOf()'s, by what the gallery shows.
+	photopressHeading: { type: 'string' },
 	// Each image's file name and title under it, as a search result.
 	photopressDetails: { type: 'boolean', default: false },
 };
@@ -103,6 +104,16 @@ const ORDERS = {
 	title: __( 'by title' ),
 	rand: __( 'in random order' ),
 };
+
+/**
+ * A sourced gallery's heading: the one set, or "Pages" for a Child Pages
+ * Gallery and "Images" for a Taxonomy Gallery (ImageTemplates::headingOf()).
+ *
+ * @param {Object} attributes The gallery's.
+ */
+export function headingOf( attributes ) {
+	return attributes.photopressHeading ?? ( 'children' === attributes.photopressSource ? __( 'Pages' ) : __( 'Images' ) );
+}
 
 /**
  * What a Taxonomy Gallery shows, in a sentence.
@@ -427,7 +438,7 @@ function TaxonomyGalleryEdit( { attributes, setAttributes } ) {
 	return (
 		<>
 			<div { ...useBlockProps() }>
-				{ attributes.photopressShowHeading && attributes.photopressHeading && <h2 className="wp-block-heading photopress-gallery-heading">{ attributes.photopressHeading }</h2> }
+				{ attributes.photopressShowHeading && headingOf( attributes ) && <h2 className="wp-block-heading photopress-gallery-heading">{ headingOf( attributes ) }</h2> }
 				<Placeholder icon={ galleryIcon } label={ __( 'Taxonomy Gallery' ) } instructions={ summaryOf( { ...attributes, photopressSource: source }, { taxonomy: taxonomy?.name, term: term?.name } ) } />
 			</div>
 			<InspectorControls>
@@ -440,7 +451,7 @@ function TaxonomyGalleryEdit( { attributes, setAttributes } ) {
 						onChange={ ( value ) => setAttributes( { photopressShowHeading: value } ) }
 					/>
 					{ attributes.photopressShowHeading && (
-						<TextControl __nextHasNoMarginBottom label={ __( 'Heading' ) } value={ attributes.photopressHeading ?? '' } onChange={ ( value ) => setAttributes( { photopressHeading: value } ) } />
+						<TextControl __nextHasNoMarginBottom label={ __( 'Heading' ) } value={ headingOf( attributes ) } onChange={ ( value ) => setAttributes( { photopressHeading: value } ) } />
 					) }
 					<ToggleControl
 						__nextHasNoMarginBottom
@@ -528,7 +539,7 @@ function ChildPagesGalleryEdit( { attributes, setAttributes } ) {
 	return (
 		<>
 			<div { ...useBlockProps() }>
-				{ attributes.photopressShowHeading && attributes.photopressHeading && <h2 className="wp-block-heading photopress-gallery-heading">{ attributes.photopressHeading }</h2> }
+				{ attributes.photopressShowHeading && headingOf( attributes ) && <h2 className="wp-block-heading photopress-gallery-heading">{ headingOf( attributes ) }</h2> }
 				<Placeholder icon={ galleryIcon } label={ __( 'Child Pages Gallery' ) } instructions={ childPagesSummaryOf( attributes, pages ) } />
 			</div>
 			<InspectorControls>
@@ -541,7 +552,7 @@ function ChildPagesGalleryEdit( { attributes, setAttributes } ) {
 						onChange={ ( value ) => setAttributes( { photopressShowHeading: value } ) }
 					/>
 					{ attributes.photopressShowHeading && (
-						<TextControl __nextHasNoMarginBottom label={ __( 'Heading' ) } value={ attributes.photopressHeading ?? '' } onChange={ ( value ) => setAttributes( { photopressHeading: value } ) } />
+						<TextControl __nextHasNoMarginBottom label={ __( 'Heading' ) } value={ headingOf( attributes ) } onChange={ ( value ) => setAttributes( { photopressHeading: value } ) } />
 					) }
 					<SelectControl __nextHasNoMarginBottom label={ __( 'Image size' ) } value={ attributes.sizeSlug || 'large' } options={ IMAGE_SIZES } onChange={ ( value ) => setAttributes( { sizeSlug: value } ) } />
 				</PanelBody>

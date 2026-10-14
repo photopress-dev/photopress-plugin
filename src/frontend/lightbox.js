@@ -145,6 +145,12 @@ class Lightbox {
 			return;
 		}
 
+		// Modified clicks on a linked image open the link in a new tab or
+		// window, as usual.
+		if ( ( event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ) && target.closest( 'a[href]' ) ) {
+			return;
+		}
+
 		event.preventDefault();
 
 		const gallery = item.closest( GALLERY );

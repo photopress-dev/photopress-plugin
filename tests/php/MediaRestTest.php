@@ -319,6 +319,70 @@ final class MediaRestTest extends TestCase {
 		$this->assertSame( [ '/*' ], $batch( $scattered ), 'more folders than that: everything' );
 	}
 
+	public function test_a_jobs_paths_are_narrowed_as_they_are_kept(): void {
+
+		$cdn   = \PhotoPress\modules\media\CdnInvalidator::class;
+		$paths = [];
+
+		foreach ( range( 1, 15 ) as $i ) {
+			$paths = $cdn::narrow( $paths, '/u/2026/' . ( $i % 3 ? '10' : '09' ) . "/img$i*" );
+		}
+		$this->assertCount( 15, $paths, 'up to 15: each image' );
+
+		$paths = $cdn::narrow( $paths, '/u/2026/10/img16*' );
+		$this->assertSame( [ '/u/2026/09/*', '/u/2026/10/*' ], $this->sorted( $paths ), 'more: their folders' );
+
+		$paths = $cdn::narrow( $paths, '/u/2026/08/img17*' );
+		$this->assertSame( [ '/u/2026/08/*', '/u/2026/09/*', '/u/2026/10/*' ], $this->sorted( $paths ), 'then a new image adds its folder' );
+
+		foreach ( range( 1, 13 ) as $i ) {
+			$paths = $cdn::narrow( $paths, "/u/folder$i/img*" );
+		}
+		$this->assertSame( [ '/*' ], $paths, 'more folders than 15: everything' );
+		$this->assertSame( [ '/*' ], $cdn::narrow( $paths, '/u/2026/10/img1*' ) );
+	}
+
+	public function test_the_images_a_job_rewrote_are_cleared_when_it_ends_and_others_are_queued(): void {
+
+		$cdn = \PhotoPress\modules\media\CdnInvalidator::class;
+		$as3cf = new class() {
+			public function get_setting( $key ) {
+				return [ 'bucket' => 'images.example.com', 'region' => 'us-east-1', 'serve-from-s3' => true, 'enable-delivery-domain' => true, 'delivery-domain' => 'cdn.example.com' ][ $key ] ?? null;
+			}
+		};
+		\PhotoPress\modules\media\OffloadMedia::init( $as3cf );
+
+		$options = [];
+		Functions\stubs( [
+			'wp_parse_url'               => static fn( $url, $part = -1 ) => parse_url( $url, $part ),
+			'wp_get_attachment_url'      => static fn( $id ) => "https://cdn.example.com/u/2026/10/img$id.jpg",
+			'wp_get_original_image_path' => static fn( $id ) => "/srv/u/2026/10/img$id.jpg",
+			'get_option'                 => static function ( $key, $default = false ) use ( &$options ) { return $options[ $key ] ?? $default; },
+			'update_option'              => static function ( $key, $value ) use ( &$options ) { $options[ $key ] = $value; return true; },
+			'delete_option'              => static function ( $key ) use ( &$options ) { unset( $options[ $key ] ); return true; },
+			'as_has_scheduled_action'    => false,
+			'as_get_scheduled_actions'   => [],
+			'as_schedule_single_action'  => 1,
+			'did_action'                 => 1,
+		] );
+
+		try {
+			$cdn::batchStarted( [ 'id' => 'j1' ] );
+			$cdn::rewritten( 5 );
+			$cdn::rewritten( 6 );
+			$cdn::batchEnded( [ 'id' => 'j1' ] );
+
+			$this->assertSame( [ '/u/2026/10/img5*', '/u/2026/10/img6*' ], $options['photopress_cdn_job_j1'] );
+			$this->assertArrayNotHasKey( 'photopress_cdn_pending', $options );
+
+			// Outside a job's batch, as a replaced image's.
+			$cdn::rewritten( 7 );
+			$this->assertSame( [ '/u/2026/10/img7*' ], $options['photopress_cdn_pending'] );
+		} finally {
+			\PhotoPress\modules\media\OffloadMedia::init( null );
+		}
+	}
+
 	private function sorted( array $paths ): array {
 
 		sort( $paths );

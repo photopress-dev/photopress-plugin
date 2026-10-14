@@ -95,7 +95,7 @@ class photopress_plugin {
 						'package_name'			=> 'core',
 						'package_label'			=> 'PhotoPress',
 						'version'				=> PHOTOPRESS_CORE_VERSION,
-						'modules'				=> ['base', 'childpages', 'gallery', 'slideshow', 'metadata', 'search', 'images', 'media'],
+						'modules'				=> ['base', 'gallery', 'slideshow', 'metadata', 'search', 'images', 'media'],
 						'dependencies'			=> []
 					)
 				);
