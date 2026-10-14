@@ -1161,7 +1161,7 @@ class metadata extends photopress_module {
 	
 	/**
 	 * Whether the site has terms in photos_people, the People parent keyword
-	 * of the defaults before 1.10. Worked out once and remembered.
+	 * of the defaults before 2.0. Worked out once and remembered.
 	 */
 	public static function hasOldPeople() {
 
@@ -1234,7 +1234,7 @@ class metadata extends photopress_module {
 			
 		];	
 		
-		// Before 1.10 the defaults had a People parent keyword. A site that
+		// Before 2.0 the defaults had a People parent keyword. A site that
 		// never saved its taxonomy settings, so runs on these, keeps it while
 		// it has People terms; new sites start with the standard ones only.
 		if ( self::hasOldPeople() ) {

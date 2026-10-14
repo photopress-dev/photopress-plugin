@@ -36,7 +36,7 @@ class LegacyChildPages {
 	/**
 	 * The Child Pages Gallery for a legacy block, as the block editor saves
 	 * one, and as the block's transform makes it (src/blocks/child_pages
-	 * until 1.10). The legacy block's defaults were 2 columns, the medium
+	 * until 2.0). The legacy block's defaults were 2 columns, the medium
 	 * size, cropped, and 10px between images.
 	 *
 	 * @param array $block The parsed legacy block.

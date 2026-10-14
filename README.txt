@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 1.10.0
+Stable tag: 2.0.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -155,268 +155,125 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 
 == Changelog ==
 
-= 1.10.0 =
+= 2.0.0 =
 
-* Metadata tab: Image Taxonomies, Alt Text, Description and Licensing, each
-  a card with its switch. Each has Save, and Save and reprocess all images
-  to apply a change to the images already uploaded, with the progress shown
-  as soon as it is clicked.
-* Reprocessing images' metadata, alt text or descriptions works ten images
-  at a time and rests between batches, longer while the server is busy.
-* Licensing: the license is embedded in uploads and given in image pages'
-  structured data only while Licensing is switched on and its name, URL and
-  web statement of rights are all filled in. 1.9.0 gave the structured data
-  with the switch off.
-* Image taxonomies: Standard Metadata, Hierarchical Keyword Metadata and
-  Custom Metadata, each in a table with its term count and archive pages.
-  Taxonomies are added and edited on screens of their own, with a preview of
-  what a photo gets.
-* Hierarchical Keyword Metadata: the parent keywords found in your photos
-  that have no taxonomy are listed, each with a button to add one, or to add
-  it to a taxonomy whose parent keyword it looks like. A parent keyword can
-  be written more than one way (Also written as).
-* Custom Metadata: the field is chosen from a list of IPTC fields, grouped
-  as photo software shows them, with what each holds and a link to the IPTC
-  guide. Parts of structured fields, such as the city of the location shown,
-  can be chosen too, and coded fields are filed in words.
-* A taxonomy can be made admin only with its Public switch: it has no
-  archive or term pages, and the Image Taxonomies block and widget leave it
-  out, while its terms are kept and shown in the Media Library and under
-  Media. The tables' Public column shows which are.
-* Each taxonomy's term count links to its terms under Media.
-* Saving a taxonomy change offers to reprocess just the images it affects.
-  Terms of images whose files have nothing for a taxonomy are kept unless
-  Empty the terms is checked under Advanced options.
-* Keywords and parent keyword taxonomies keep keyword hierarchies as nested
-  terms, parent keywords are matched in any case, and camera names are
-  cleaned up. Images uploaded or reprocessed may get different terms than
-  before.
-* Alt text and description templates: words typed around the photo's
-  metadata fields, each shown as a pill and added from a list, with an
-  example of what a photo gets.
-* Alt text: the Alt Text (Accessibility) that Lightroom Classic and
-  Photoshop write into the file is used when it has one, in place of the
-  template.
-* New sites start without a People parent keyword. A new taxonomy gets an
-  ID and archive URL no other has.
-* Image Sizes tab: Save, or Save and regenerate the images a change affects.
-  Each image's record of the quality it was made at means a regenerate does
-  only what it needs: a size turned on is made alone, and a new quality
-  makes every size again from the original. A size turned off applies to new
-  uploads; those already made are kept.
-* Offload Media tab: plainer wording. Offloaded images are cached for the
-  set time, then shown for up to 5 more minutes while a new copy is checked
-  for; that second setting is gone.
-* Settings: a switch saves only its own setting.
-* Gallery block: an image deleted from the Media Library is taken out of
-  every gallery that shows it, in an edit of each post, rather than left as
-  a broken image. Galleries in the format of WordPress before 5.9 are left
-  as they are.
-* Gallery tab: switches for the Masonry, Rows and Mosaic layouts and for
-  removing deleted images from galleries, all on by default. A layout turned off is no longer offered in the editor;
-  galleries that already use it keep it.
-* Pages & Search tab: a switch that publishes, or stops publishing, a page
-  for each image in the Media Library, and a switch that does the same for
-  the archive pages of image taxonomy terms. While each is on, block themes
-  get PhotoPress's template for those pages.
-* Images in search results (Pages & Search tab, off by default): searches
-  find images by their titles, captions, alt text and terms, and posts and
-  pages too unless turned off. In block themes, the Image Search template
-  shows the search terms and count (Search Summary block), the images in a
-  Taxonomy Gallery with each one's file name and title under it, paged, and
-  the posts and pages in a Search Posts block. The Taxonomy Gallery and
-  Search Posts have optional headings. With Relevanssi, PhotoPress drives its index: images, alt
-  text and the image taxonomies, an image indexed again when its terms
-  change, a renamed or deleted term's images indexed again, and a background
-  job that adds existing images when images are turned on.
-* Page cache and search index (Pages & Search tab): whether Proxy Cache
-  Purge and Relevanssi are active, installed or not installed, with a
-  Re-index all images button. Through Proxy Cache Purge's documented hooks,
-  PhotoPress has it purge an image when the image is edited or deleted or
-  its terms change: its page, while attachment pages are on, and every page
-  of its terms' archives, while image taxonomy pages are on. A term renamed
-  or deleted has its images and archive purged, or, with more than 25
-  images, the whole cache emptied. A background job over images, such as
-  re-reading their metadata, empties it once when it ends, rather than
-  purging as it goes. A post whose gallery gains or loses an
-  image, and a replaced image with its files and the posts that show it,
-  are purged too.
-* Sitemap (Pages & Search tab): images' pages and image taxonomy terms'
-  archive pages are listed in whichever sitemap the site uses, through its
-  documented hooks, and the tab shows which. WordPress's: public images
-  (unattached, or attached to a published post) while attachment pages are
-  on; it lists terms itself. Jetpack's: term archives, and each image with
-  its own page, or, without attachment pages, an unattached image with its
-  first term's archive. Yoast SEO's: the images on each term's archive
-  page, and, while it lists media pages, a sitemap of unattached images'
-  pages, which it leaves out. Pages that are turned off are left out.
-* Enable Media Replace: an image it replaces is now treated like one
-  replaced in PhotoPress. Its terms and alt text are read from the new
-  file, and it is cleared from CloudFront. With Proxy Cache Purge, it is
-  also purged from the page cache. PhotoPress uses Enable Media Replace's
-  enable-media-replace-upload-done action.
-* Relevanssi: posts in which a replaced image's links or text were updated
-  are indexed again.
-* Child Pages Gallery: a new Gallery block variation that shows the
-  published pages under a page, in any PhotoPress layout. Each page
-  appears as its featured image, or else the first image of its gallery,
-  linked to the page with its title.
-* The legacy Child Pages block is removed. On the first request after the
-  update, a background job converts each one saved in a post, template or
-  synced pattern into a Child Pages Gallery. The gallery keeps the block's
-  columns, image size, crop, alignment and spacing. A block the job does
-  not reach, such as one in a theme's template file or in content imported
-  later, is shown as that gallery. Unlike the old block, the gallery leaves
-  out child pages that have no image.
-* Full-screen slideshow: the Gallery Slideshow block's slideshow, full
-  screen, and the same script, loaded only on pages that have either. The
-  image takes the whole width, with no arrow columns beside it: a click,
-  press or tap on either half moves, as in the block, and so does a swipe.
-  It had needed jQuery, jQuery Migrate, imagesLoaded and Owl Carousel,
-  which is no longer maintained: some 59 KB compressed, now 5 KB. Its
-  thumbnails are a row that scrolls, the current one brought to the middle;
-  a click on one shows it, and the last image goes round to the first.
-* Gallery Slideshow block: Show thumbnails, a row under the slideshow with
-  a height to choose, as the full-screen slideshow has.
-* Both slideshows show the chevron for a moment where a tap lands, the way
-  it moved.
-* Pages load only what they use: the data the slideshow reads is added only
-  to the images of galleries that open it, and a gallery's images are
-  loaded in one query, not one each. Action Scheduler is loaded only while
-  PhotoPress has background work, or when it schedules some, so an idle
-  site skips it and its every-minute WP-Cron run. Where another plugin
-  bundles Action Scheduler, the newest copy is still the one used.
-* With Proxy Cache Purge, the cache is emptied once after PhotoPress is
-  updated, so no cached page asks for the scripts an earlier version had.
-* Gallery layouts: each image's sizes attribute is the width its layout
-  shows it at (a Masonry column; a Rows or Mosaic image at the row height),
-  so browsers download smaller files; with lazy loading, WordPress's
-  sizes="auto" goes before it.
-* Image templates for block themes: image taxonomy archives show their
-  images in the Masonry layout (Taxonomy Gallery, a Gallery block variation
-  whose layout can be changed), and image pages show
-  the image, its caption and description, its terms and its exposure details
-  (Attachment Image block). A theme's own taxonomy-attachment or attachment
-  template is used instead, and each is there while its kind of page is on
-  in the Pages & Search tab.
-* Image Metadata block (formerly Image Taxonomies): also shows the exposure
-  details WordPress read from the file, in any order among the taxonomies.
-  Rows line up in two columns.
-* Widgets: in the block widgets editor, the Display Taxonomies and Display
-  Image Exif widgets are no longer offered, and placed ones transform into
-  the Image Metadata block. The Exif widget shows the details it is set to
-  (it always showed ISO, aperture and camera), labelled and formatted
-  (f/2.8, 1/250 s), and only on image pages.
-* Fixed: on the archive pages of any custom taxonomy, including other
-  plugins', every query on the page listed draft and private posts.
-  Image taxonomy archives now list only public images: unattached, or
-  attached to a published post.
-* Fixed: background jobs (re-reading metadata, regenerating images, the
-  search index, term changes) stopped after their first batch unless their
-  settings page was open, and blocked new jobs of their kind. Each batch now
-  queues the next; a job left without its next batch, as by a batch that
-  ran out of memory, is given one; and a job whose kind is no longer
-  available (a plugin it needs switched off) is stopped, saying why. A CDN
-  invalidation that failed is tried again five minutes later, as intended.
-* Deactivating PhotoPress unschedules its background work, and the every-
-  minute WP-Cron run of Action Scheduler when no other plugin uses it.
-  Activating it again rebuilds the image taxonomies' URLs, as does turning
-  the image taxonomies off. Deleting PhotoPress deletes its settings and
-  records; images, their terms and metadata stay.
-* Security: the data the full-screen slideshow shows of an image (caption,
-  title, description, page link) is cleaned before it is shown, including
-  what post content carries itself, so it cannot run scripts. Replacing an
-  image's file puts its caption and alt text only into posts the user may
-  edit, and looks for references to it by file name rather than any text
-  containing its name. An admin-only taxonomy's terms are readable over the
-  REST API only by users who can add images, and anonymous media responses
-  no longer list image taxonomy terms as classes. PHP files exit when
-  requested directly.
-* Faster on large sites: deleting an image looks only through posts with
-  block content; renaming or deleting a term loads its images together; the
-  sitemap loads only the images it lists for each term.
-* Fixed: links in a slideshow's captions could not be clicked.
-* Image files that claim more than they hold (a damaged or crafted file)
-  no longer exhaust PHP's memory or time while PhotoPress reads their
-  metadata: reads stop at the end of the file, a metadata packet over 16 MB
-  is not read, and compressed metadata is inflated no further than that.
-  When the license is embedded with Imagick, the upload is replaced only by
-  a complete image, so a full disk can no longer truncate it.
-* A background job's image that stops a batch (out of memory or time) is
-  recorded as failed and skipped, rather than tried again for ever; paced
-  jobs also wait while less than 300 MB of memory is available.
-* Background jobs are safe to run again: the license job leaves a file
-  that has the license already as it is (no rewrite, no new upload to the
-  CDN, no growth of a TIFF), and two starts of one job at once make one.
-* Faster on large sites without Relevanssi: image search finds a word's
-  terms once rather than for every image; a gallery in random order picks
-  from its images' IDs, kept for ten minutes, rather than sorting them all
-  on each page view; sitemaps list images without sorting whole rows.
-* On a network, only a network admin can clear everything from the CDN,
-  and anyone at most once in ten minutes. An upload that adds to a gallery
-  tells a user who may not upload nothing about the post. A taxonomy's ID
-  is never one of WordPress's own, nor longer than WordPress allows.
-* ImageMagick's memory is capped (256 MB, then a 512 MB map, then disk in
-  uploads/photopress-tmp) whenever WordPress makes image sizes, on upload
-  and replace as in the regenerate job; filterable as
-  photopress_imagick_limits.
-* Regenerating every size of an image saves its file and metadata only once
-  all are made: a failure, or a request that dies midway, leaves the image
-  as it was, and files made under new names are removed on a failure.
-* Replacing an image's file keeps the old files as backups until the new
-  sizes are made. If WordPress skips a size (as when short of memory), or
-  the request fails, the image is put back as it was and the request says
-  which sizes failed; a replace that died midway is undone by the next.
-* An image whose license could not be written into its file says so, and
-  why, in the Media Library; the record is cleared once the license is
-  written.
-* Faster reading of JPEG metadata past long runs of fill bytes.
-* Fixed: Masonry, Rows and Mosaic galleries of one or two images were laid
-  out in WordPress's columns instead.
-* Fixed: the block editor warned that the PhotoPress Gallery and Child Pages
-  blocks used an old block API version. PhotoPress's settings scripts now
-  load only on its own screens.
-* Page cache, with a Varnish cache and Proxy Cache Purge: a page with a
-  Taxonomy Gallery is now purged when the images it shows may have
-  changed. For a gallery of a term, that is when an image joins or leaves
-  the term, or one of its images is edited or deleted. For a gallery of
-  the latest images, it is when any image is uploaded, edited or deleted.
-  A background job finds the galleries in posts saved before the update.
-* Gallery Slideshow block: autoplay now pauses while the mouse pointer is
-  over the slideshow, as its setting always said.
-* Full-screen slideshow: a Ctrl, Cmd, Shift or Alt click on a linked image
-  now opens the link, as it does elsewhere in the browser.
-* Full-screen slideshow settings: Caption, Title, Description and Link to
-  the image's page are now four separate switches. The caption box shows
-  whichever are on.
-* Taxonomy Gallery: Hide captions no longer hides File name and title.
-* Child Pages Gallery: the heading now defaults to "Pages".
-* Adding an uploaded image to a gallery over REST: Taxonomy and Child Pages
-  Galleries are no longer counted, since their images are chosen when the
-  page is viewed. Naming one by its anchor returns the error
-  photopress_gallery_generated.
-* Removing a deleted image from galleries: a post another user has open in
-  the editor is now left alone until they are done. PhotoPress tries again
-  every five minutes, for up to a day.
-* CDN: the regenerate and license jobs now clear the files they rewrote
-  from CloudFront when they end, whether done or cancelled. They clear
-  each image, each folder or everything, using as few paths as CloudFront
-  allows. Before, the license job cleared nothing, and the regenerate job
-  cleared everything only when it finished.
-* Alt text and descriptions are now set on upload and replace even with
-  the image taxonomies switched off.
-* Background jobs: the progress panel now says when a job is waiting for a
-  busy server or resting between batches.
-* Settings: two switches turned in quick succession are now both saved.
-* Rows layout: each image's width is now set from its proportions before
-  it loads, so the rows no longer reflow as the images arrive.
-* Relevanssi: turning Images in search results on now ticks Media, the
-  image taxonomies visitors see and image files in Relevanssi's indexing
-  settings. PhotoPress saves them the way Relevanssi's own Indexing tab
-  does. Turning images off unticks only what PhotoPress ticked. Before,
-  PhotoPress added these settings each time Relevanssi read them. They
-  showed as ticked on Relevanssi's settings page, and saving that page
-  kept them even after images were turned off.
+PhotoPress 2.0 removes the legacy Child Pages block. After the update, a background job converts each one on your site into a Child Pages Gallery.
+
+**Metadata**
+
+* The Metadata tab has a card for each of Image Taxonomies, Alt Text, Description and Licensing. Each card has its own switch.
+* Each card has a "Save and reprocess all images" button that applies a change to the images you have already uploaded.
+* Reprocessing works through ten images at a time and rests between batches. It rests longer while the server is busy.
+* Image taxonomies are listed in three tables: Standard Metadata, Hierarchical Keyword Metadata and Custom Metadata. Each taxonomy's term count links to its terms under Media.
+* You add and edit a taxonomy on its own screen, which previews the terms a photo would get.
+* A Custom Metadata taxonomy can read any IPTC field. You choose the field from a list grouped the way photo software shows it.
+* A taxonomy's Public switch makes it admin only. Its terms stay in the Media Library, but it has no public pages.
+* After you change a taxonomy, PhotoPress offers to reprocess only the images the change affects.
+* Keyword hierarchies are kept as nested terms. Parent keywords are matched in any case, and camera names are cleaned up. Reprocessed images may get different terms than before.
+* You build the alt text and description templates from the photo's metadata fields, and the screen shows an example of the result.
+* Alt text uses the Alt Text (Accessibility) field that Lightroom Classic and Photoshop write, when the file has one.
+* Alt text and descriptions are set on upload and on replace, even when the image taxonomies are off.
+* The license is embedded in uploads and given in image pages' structured data only while Licensing is on and its name, URL and web statement are filled in. In 1.9.0 the structured data was given with the switch off.
+* An image whose license could not be written into its file says so, and why, in the Media Library.
+* New sites start without a People parent keyword.
+
+**Galleries**
+
+* Child Pages Gallery is a new Gallery block variation. It shows the pages under a page, in any PhotoPress layout.
+* The legacy Child Pages block is removed. The converted galleries keep its columns, image size, crop, alignment and spacing. Pages that have no image are left out.
+* A Child Pages block the job does not reach, such as one in a theme's template file, is shown as a Child Pages Gallery.
+* The Gallery tab has a switch for each of the Masonry, Rows and Mosaic layouts. A layout you turn off is no longer offered in the editor, and galleries that already use it keep it.
+* When you delete an image from the Media Library, PhotoPress removes it from every gallery that shows it. A post that someone has open in the editor is left until they are done. You can turn this off in the Gallery tab.
+* Each gallery image downloads a file of the size its layout shows it at.
+* Rows galleries no longer reflow as their images load.
+* Masonry, Rows and Mosaic galleries of one or two images now use their layout.
+
+**Slideshows**
+
+* The full-screen slideshow now uses the Gallery Slideshow block's script. It no longer needs jQuery or Owl Carousel, and its script is 5 KB compressed instead of about 59 KB.
+* The full-screen image takes the whole width of the screen. Click, tap or swipe either half to move.
+* The thumbnails are a scrolling row under the image. The last image leads back to the first.
+* The full-screen slideshow settings have separate switches for the caption, title, description and a link to the image's page.
+* A Ctrl, Cmd, Shift or Alt click on a linked image opens the link.
+* The Gallery Slideshow block can show a row of thumbnails, at a height you choose.
+* Gallery Slideshow autoplay pauses while the mouse pointer is over the slideshow.
+* Fixed: links in slideshow captions could not be clicked.
+
+**Image and Taxonomy Pages**
+
+* The Pages & Search tab has a switch that publishes, or stops publishing, a page for each image in the Media Library. A second switch does the same for the archive pages of image taxonomy terms.
+* Block themes get PhotoPress templates for these pages. A taxonomy archive shows its images in a Taxonomy Gallery. An image page shows the image, its caption and description, its terms and its exposure details.
+* A theme's own templates for these pages are used instead of PhotoPress's when the theme has them.
+* The Image Metadata block, formerly Image Taxonomies, also shows the exposure details WordPress read from the file.
+* In the block widgets editor, the old Display Taxonomies and Display Image Exif widgets turn into Image Metadata blocks.
+* Fixed: the archive pages of any custom taxonomy, including other plugins' taxonomies, listed draft and private posts. Image taxonomy archives now list only public images.
+
+**Search**
+
+* Images in search results is a new switch in the Pages & Search tab, off by default. While it is on, searches find images by their titles, captions, alt text and terms.
+* In block themes, the Image Search template shows the matching images in a gallery and the matching posts and pages below them.
+* With [Relevanssi](https://wordpress.org/plugins/relevanssi/), PhotoPress turns on Media, the image taxonomies and image files in Relevanssi's indexing settings. Turning images off turns off only what PhotoPress turned on.
+* With Relevanssi, an image is indexed again when its terms change. A background job adds the existing images, and the Pages & Search tab has a Re-index all images button.
+* With Relevanssi, the posts in which a replaced image's links or text were updated are indexed again.
+
+**Sitemaps**
+
+* Image pages and image taxonomy archive pages are listed in the sitemap your site uses: WordPress's, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s. The Pages & Search tab shows which.
+
+**Page Cache**
+
+* With a Varnish page cache and [Proxy Cache Purge](https://wordpress.org/plugins/varnish-http-purge/), PhotoPress purges the pages that show an image when the image changes. These are its own page, its terms' archives, and the posts whose galleries show it.
+* The whole cache is emptied once when a background job ends, and once after PhotoPress is updated.
+
+**Image Sizes and Files**
+
+* The Image Sizes tab has Save, and Save and regenerate. A regenerate makes only what the change needs.
+* Regenerating an image's sizes saves the image only once every size is made. If one fails, the image is left as it was.
+* Replacing an image's file keeps the old files until the new sizes are made. If a size fails, the image is put back as it was.
+* An image replaced with [Enable Media Replace](https://wordpress.org/plugins/enable-media-replace/) is handled like one replaced in PhotoPress. Its terms and alt text are read from the new file.
+* ImageMagick's memory is capped whenever WordPress makes image sizes. The `photopress_imagick_limits` filter changes the caps.
+
+**Offload Media**
+
+* The regenerate and license jobs clear the files they rewrote from CloudFront when they end.
+* A failed CloudFront invalidation is tried again five minutes later.
+* The setting for how long an expired image may still be shown is gone. It is 5 minutes.
+* On a network, only a network admin can clear everything from the CDN, and at most once in ten minutes.
+
+**Background Jobs**
+
+* Fixed: background jobs stopped after their first batch unless their settings page was open. Each batch now queues the next.
+* An image that stops a batch, by running out of memory or time, is recorded as failed and skipped.
+* Paced jobs wait while less than 300 MB of memory is available.
+* The progress panel says when a job is waiting for a busy server or resting between batches.
+* A job can safely run again. The license job leaves files that already have the license as they are.
+
+**Performance**
+
+* Action Scheduler is loaded only while PhotoPress has background work, so an idle site skips its every-minute WP-Cron run.
+* A gallery's images are loaded in one query.
+* Search without Relevanssi, random-order galleries, sitemaps, image deletion and term changes are faster on large sites.
+* JPEG metadata is read faster.
+* PhotoPress's settings scripts load only on its own screens. The block editor no longer warns about an old block API version.
+
+**Security**
+
+* The full-screen slideshow cleans the caption, title and description it shows, so they cannot run scripts.
+* Replacing an image's file updates only the posts the user may edit.
+* An admin-only taxonomy's terms are readable over the REST API only by users who can upload images.
+* Damaged or crafted image files no longer exhaust PHP's memory or time while PhotoPress reads their metadata.
+* When the license is embedded with Imagick, the upload is replaced only by a complete image.
+* PHP files exit when requested directly.
+
+**Settings and Lifecycle**
+
+* A switch saves only its own setting. Two switches turned in quick succession are both saved.
+* Deactivating PhotoPress unschedules its background work.
+* Deleting PhotoPress deletes its settings and records. Images, their terms and their metadata stay.
+
+**Developers**
+
+* Adding an uploaded image to a Taxonomy or Child Pages Gallery over REST returns the error `photopress_gallery_generated`, because those galleries choose their images when the page is viewed.
 
 = 1.9.0 =
 
