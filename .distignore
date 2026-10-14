@@ -7,6 +7,13 @@
 /config
 /scripts
 
+# Written into the workspace by php-actions/composer. DOCKER_ENV holds the
+# runner's environment, a token included.
+/DOCKER_ENV
+/docker_tag
+/output.log
+/Dockerfile-php-build
+
 .DS_Store
 .editorconfig
 .eslintignore
@@ -14,6 +21,7 @@
 .eslintrc.json
 .distignore
 .gitignore
+.npmrc
 CHANGELOG.md
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
