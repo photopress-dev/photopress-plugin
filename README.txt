@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -154,6 +154,10 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 19. Search results with images: the Image Search template
 
 == Changelog ==
+
+= 2.0.1 =
+
+* Fixed infinite scroll stopping early on image taxonomy pages.
 
 = 2.0.0 =
 
