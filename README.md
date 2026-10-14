@@ -119,7 +119,6 @@ PhotoPress adds two templates to block themes: Image Archives and Image Pages. T
 - You edit both templates in the Site Editor, like the theme's own. Each is available while its kind of page is turned on in the Pages & Search tab.
 - The Taxonomy Gallery variation of the Gallery block works in any PhotoPress layout. On an image archive template it shows the archive's images. Anywhere else it shows the latest images, or those of a keyword, camera or other term.
 - The Attachment Image block shows an image page's image, at the size you choose, with its caption.
-- An image taxonomy archive uses a taxonomy-attachment template when the theme has one, as themes built on the Frame framework do.
 
 ![A keyword's images in the Image Archives template](.wordpress-org/screenshot-17.png)\
 *A keyword's images in the Image Archives template.*
@@ -128,7 +127,7 @@ PhotoPress adds two templates to block themes: Image Archives and Image Pages. T
 
 - With the Attachment pages switch on, each image has a page of its own. With it off, the page's address and links to it go to the image file. This is WordPress's own setting.
 - With the Image taxonomy pages switch on, each keyword, camera or other term has an archive page of its images. With it off, there are no archive pages, and image pages show the terms unlinked.
-- Attachment pages follow WordPress's setting until you save the switch. Image taxonomy pages are on by default. While each is on, block themes get PhotoPress's template for those pages.
+- Image taxonomy pages are on by default. While each kind of page is on, block themes get PhotoPress's template for it.
 - The Images in search results switch is off by default. When it is on, visitors' searches find images by their titles, captions, alt text and terms. Posts and pages are found too, unless you turn them off.
 - Block themes get an Image Search template made of blocks you can rearrange. It has the search box, a Search Summary with the search terms and the number of images found, and the images in a Taxonomy Gallery. The gallery shows each image's file name and title and has numbered pages. A Search Posts block lists the posts and pages found.
 - With Relevanssi, turning images on ticks Media, the image taxonomies and image files in Relevanssi's indexing settings. Turning images off unticks only what PhotoPress ticked. PhotoPress has Relevanssi index each image's alt text. It indexes an image again when its terms change, are renamed or are deleted. It adds existing images to the index in the background.
