@@ -130,12 +130,12 @@ PhotoPress adds two templates to block themes: Image Archives and Image Pages. T
 - Image taxonomy pages are on by default. While each kind of page is on, block themes get PhotoPress's template for it.
 - The Images in search results switch is off by default. When it is on, visitors' searches find images by their titles, captions, alt text and terms. Posts and pages are found too, unless you turn them off.
 - Block themes get an Image Search template made of blocks you can rearrange. It has the search box, a Search Summary with the search terms and the number of images found, and the images in a Taxonomy Gallery. The gallery shows each image's file name and title and has numbered pages. A Search Posts block lists the posts and pages found.
-- With Relevanssi, turning images on ticks Media, the image taxonomies and image files in Relevanssi's indexing settings. Turning images off unticks only what PhotoPress ticked. PhotoPress has Relevanssi index each image's alt text. It indexes an image again when its terms change, are renamed or are deleted. It adds existing images to the index in the background.
+- With [Relevanssi](https://wordpress.org/plugins/relevanssi/), turning images on ticks Media, the image taxonomies and image files in Relevanssi's indexing settings. Turning images off unticks only what PhotoPress ticked. PhotoPress has Relevanssi index each image's alt text. It indexes an image again when its terms change, are renamed or are deleted. It adds existing images to the index in the background.
 - The Page cache and search index card shows whether Proxy Cache Purge and Relevanssi are active, installed or not installed. It has a Re-index all images button.
 - PhotoPress lists images' pages and image taxonomy archive pages in whichever sitemap the site uses, through that sitemap's documented hooks. The tab shows which sitemap is in use.
   - WordPress's sitemap lists terms itself but leaves out images. PhotoPress adds public images (unattached, or attached to a published post) while attachment pages are on.
-  - To Jetpack's sitemap, PhotoPress adds term archives and lists each image with its own page. Without attachment pages, it lists an unattached image with its first term's archive, where Jetpack would give the file.
-  - To Yoast SEO's sitemap, PhotoPress adds the images on each term's archive page. While Yoast SEO lists media pages, PhotoPress adds a sitemap of unattached images' pages, which Yoast SEO leaves out.
+  - To [Jetpack](https://wordpress.org/plugins/jetpack/)'s sitemap, PhotoPress adds term archives and lists each image with its own page. Without attachment pages, it lists an unattached image with its first term's archive, where Jetpack would give the file.
+  - To [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s sitemap, PhotoPress adds the images on each term's archive page. While Yoast SEO lists media pages, PhotoPress adds a sitemap of unattached images' pages, which Yoast SEO leaves out.
   - Pages that are turned off are left out of every sitemap.
 
 ![The Pages & Search tab](.wordpress-org/screenshot-18.png)\
@@ -153,7 +153,7 @@ Proxy Cache Purge purges a post's pages when the post is saved. It does not purg
 - When an image is edited or deleted or its terms change, PhotoPress purges the image's page (while attachment pages are on) and every page of its terms' archives (while image taxonomy pages are on).
 - When a term is renamed or deleted, its images and archive are purged. If it has more than 25 images, the whole cache is emptied instead.
 - A background job over images, such as re-reading their metadata, empties the cache once when it ends instead of purging as it goes.
-- A post whose gallery gains or loses an image is purged. So are a replaced image, its files and the posts that show it, including images replaced with Enable Media Replace.
+- A post whose gallery gains or loses an image is purged. So are a replaced image, its files and the posts that show it, including images replaced with [Enable Media Replace](https://wordpress.org/plugins/enable-media-replace/).
 - A page with a Child Pages Gallery is purged when a page under it is published, moved, renamed, reordered or given another image.
 - A page with a Taxonomy Gallery is purged when the images it shows may have changed.
 
