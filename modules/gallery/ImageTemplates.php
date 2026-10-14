@@ -211,13 +211,6 @@ class ImageTemplates {
 			return '';
 		}
 
-		// Its file names and titles, page links and heading are styled by
-		// PhotoPress's stylesheet, which WordPress loads only for PhotoPress's
-		// own blocks. The gallery it is rendered as no longer has the source's
-		// attributes (galleryMarkup()), so gallery::renderGalleryLayout()
-		// cannot tell it is one of PhotoPress's.
-		wp_enqueue_style( 'photopress-frontend' );
-
 		$heading = empty( $attributes['photopressShowHeading'] ) ? '' : self::headingOf( $attributes );
 
 		return ( '' !== $heading ? '<h2 class="wp-block-heading photopress-gallery-heading">' . esc_html( $heading ) . '</h2>' : '' )

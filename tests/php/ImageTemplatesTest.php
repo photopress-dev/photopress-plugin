@@ -110,10 +110,10 @@ final class ImageTemplatesTest extends TestCase {
 
 	/**
 	 * An image archive's gallery, as its template has it: in columns, with
-	 * file names and titles. Rendered without the source's attributes, so
-	 * the gallery's own rendering cannot load the stylesheet for it.
+	 * file names and titles; nothing when the archive has no images. Its
+	 * stylesheet comes with core/gallery (gallery::loadStylesheetWithGallery()).
 	 */
-	public function test_an_archive_gallery_loads_photopress_stylesheet(): void {
+	public function test_an_archive_gallery_in_columns_with_file_names_and_titles(): void {
 
 		require_once ABSPATH . WPINC . '/class-wp-post.php';
 		require_once ABSPATH . WPINC . '/class-wp-query.php';
@@ -137,12 +137,10 @@ final class ImageTemplatesTest extends TestCase {
 			'do_blocks'                   => static fn( $markup ) => $markup,
 			'wp_filter_content_tags'      => static fn( $html ) => $html,
 		] );
-		Functions\expect( 'wp_enqueue_style' )->once()->with( 'photopress-frontend' );
-
 		$html = ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive', 'columns' => 4, 'photopressDetails' => true ] ] );
 		$this->assertStringContainsString( 'photopress-details__file', $html );
 
-		// An archive with no images: nothing, and no stylesheet.
+		// An archive with no images: nothing.
 		$wp_query->posts = [];
 		$this->assertSame( '', ImageTemplates::renderSourcedGallery( null, [ 'blockName' => 'core/gallery', 'attrs' => [ 'photopressSource' => 'archive' ] ] ) );
 
