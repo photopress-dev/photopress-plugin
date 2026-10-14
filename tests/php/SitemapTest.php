@@ -171,7 +171,10 @@ final class SitemapTest extends TestCase {
 		$this->assertSame( [ 'sitemap' => 'other' ], ImageSitemap::inUse(), 'WordPress’s off, and no other built yet' );
 
 		ImageSitemap::seen( 'jetpack' );
-		$this->assertSame( [ 'sitemap' => 'jetpack', 'url' => 'https://example.com/sitemap.xml', 'built' => '0 seconds' ], ImageSitemap::inUse() );
+		$used = ImageSitemap::inUse();
+		// The clock may tick between the two calls.
+		$this->assertMatchesRegularExpression( '/^[01] seconds$/', $used['built'] );
+		$this->assertSame( [ 'sitemap' => 'jetpack', 'url' => 'https://example.com/sitemap.xml' ], array_diff_key( $used, [ 'built' => 1 ] ) );
 
 		// Built again within a day: not noted again.
 		$this->options[ ImageSitemap::SEEN ] = [ 'jetpack' => time() - 3600, 'yoast' => time() - 40 * DAY_IN_SECONDS ];
