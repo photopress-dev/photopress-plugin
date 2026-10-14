@@ -81,7 +81,6 @@ PhotoPress adds Masonry, Rows and Mosaic layouts to the WordPress Gallery block,
 - When you add or change a taxonomy, PhotoPress offers to reprocess only the images it affects. The work runs in the background, and the settings page shows its progress.
 - A taxonomy can be for the admin only. Its terms are kept and shown in the Media Library, and the site has no archive pages for it.
 - The Image Metadata block shows an image's terms, such as keywords, people, places and camera. It also shows exposure details from the file: aperture, shutter speed, ISO, focal length and date taken. You choose the order.
-- The Display Taxonomies and Display Image Exif widgets work in classic widget areas. In the block widgets editor, placed widgets transform into the Image Metadata block.
 - Alt text comes from the Alt Text (Accessibility) field that Lightroom Classic and Photoshop write into the file. Without it, alt text comes from a template of words and metadata fields.
 - Image descriptions come from a template of words and metadata fields.
 - Licensing metadata (Licensor, Licensor URL, Web Statement of Rights) is embedded into image files on upload, or into every image already uploaded. It is also added as structured data (JSON-LD) to the pages that show the images, with any theme.
