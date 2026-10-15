@@ -495,6 +495,9 @@ class ImageTemplates {
 			return '';
 		}
 
+		// The file the image's license JSON-LD names.
+		metadata::shown( $id, wp_get_attachment_image_url( $id, $size ) );
+
 		if ( ! empty( $attributes['linkToFile'] ) ) {
 			$img = sprintf( '<a href="%s">%s</a>', esc_url( wp_get_attachment_url( $id ) ), $img );
 		}

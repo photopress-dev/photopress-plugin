@@ -9,6 +9,14 @@ use PHPUnit\Framework\Attributes\DataProvider;
 
 final class MetadataTest extends TestCase {
 
+	protected function setUp(): void {
+
+		parent::setUp();
+
+		// The files images were shown with, noted by an earlier test.
+		( new \ReflectionProperty( metadata::class, 'shown' ) )->setValue( null, [] );
+	}
+
 	private static function lookup( array $values ): \Closure {
 
 		return static fn( $tag ) => $values[ $tag ] ?? '';
@@ -381,6 +389,18 @@ final class MetadataTest extends TestCase {
 		$this->assertSame( [ 'From IPTC', 'IPTC caption' ], [ $meta['title'], $meta['caption'] ], 'IPTC wins' );
 	}
 
+	public function test_xmp_gives_the_credit_and_copyright_when_iptc_does_not(): void {
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$file = $this->tempFile( file_get_contents( __DIR__ . '/fixtures/xmp/capture-one.xml' ), '.xmp' );
+
+		$meta = $m->storeMoreMetaData( [ 'title' => 'T', 'caption' => 'C', 'credit' => '', 'copyright' => '' ], $file, 2, [], [] );
+		$this->assertSame( [ 'Alice', 'Copyright Alice Photography.' ], [ $meta['credit'], $meta['copyright'] ] );
+
+		$meta = $m->storeMoreMetaData( [ 'title' => 'T', 'caption' => 'C', 'credit' => 'Bob', 'copyright' => '© Bob' ], $file, 2, [], [] );
+		$this->assertSame( [ 'Bob', '© Bob' ], [ $meta['credit'], $meta['copyright'] ], 'IPTC wins' );
+	}
+
 	public function test_description_template(): void {
 
 		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
@@ -454,7 +474,10 @@ final class MetadataTest extends TestCase {
 
 	public function test_an_image_gets_its_license_json_ld_once_a_page(): void {
 
-		Functions\stubs( [ 'wp_get_attachment_url' => static fn( $id ) => "https://example.test/up/$id.jpg" ] );
+		Functions\stubs( [
+			'wp_get_attachment_url'      => static fn( $id ) => "https://example.test/up/$id.jpg",
+			'wp_get_attachment_metadata' => [],
+		] );
 		\pp_api::$options['core/metadata/licensor_name'] = 'Alice Photography';
 
 		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
@@ -465,6 +488,46 @@ final class MetadataTest extends TestCase {
 		$this->assertStringContainsString( '/up/8.jpg', $footer );
 		$this->assertStringNotContainsString( '/up/7.jpg', $footer );
 		$this->assertSame( '', $m->renderLicensingSchema( [ 7, 8 ] ) );
+	}
+
+	public function test_the_license_json_ld_names_the_file_shown_and_who_made_the_image(): void {
+
+		Functions\stubs( [
+			'wp_get_attachment_url'      => static fn( $id ) => "https://example.test/up/$id.jpg",
+			'wp_get_attachment_metadata' => static fn( $id ) => 7 === $id ? [ 'image_meta' => [ 'credit' => 'Alice', 'copyright' => '© Alice' ] ] : [ 'image_meta' => [ 'credit' => '', 'copyright' => '' ] ],
+			'get_post'                   => static fn( $id ) => (object) [ 'ID' => $id ],
+			'wp_cache_get'               => true,
+		] );
+		\pp_api::$options['core/metadata/web_statement_of_rights'] = 'https://alice.example/terms';
+		\pp_api::$options['core/metadata/licensor_url'] = 'https://alice.example/buy';
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+
+		// An image block shows image 7 at its large size.
+		$html = '<figure class="wp-block-image"><img class="wp-image-7" src="https://example.test/up/7-1024x683.jpg"></figure>';
+		$out  = $m->addLicensingToContent( $html, [ 'blockName' => 'core/image' ] );
+
+		$this->assertSame( [
+			'@context'           => 'https://schema.org/',
+			'@type'              => 'ImageObject',
+			'contentUrl'         => 'https://example.test/up/7-1024x683.jpg',
+			'creator'            => [ '@type' => 'Person', 'name' => 'Alice' ],
+			'creditText'         => 'Alice',
+			'copyrightNotice'    => '© Alice',
+			'license'            => 'https://alice.example/terms',
+			'acquireLicensePage' => 'https://alice.example/buy',
+		], json_decode( substr( $out, strpos( $out, '[' ), strrpos( $out, ']' ) - strpos( $out, '[' ) + 1 ), true )[0] );
+
+		// Image 8, never shown in a block: its full size, and nothing it lacks.
+		metadata::shown( 7, 'https://example.test/up/7-300x200.jpg' );
+		$this->assertSame( [
+			'@context'           => 'https://schema.org/',
+			'@type'              => 'ImageObject',
+			'contentUrl'         => 'https://example.test/up/8.jpg',
+			'license'            => 'https://alice.example/terms',
+			'acquireLicensePage' => 'https://alice.example/buy',
+		], $m->generateImageLicenseSchema( 8 ) );
+		$this->assertSame( 'https://example.test/up/7-1024x683.jpg', $m->generateImageLicenseSchema( 7 )['contentUrl'], 'the first file shown stays' );
 	}
 
 	public function test_the_license_is_written_into_each_file_of_an_image_without_re_encoding(): void {

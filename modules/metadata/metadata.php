@@ -22,7 +22,10 @@ class metadata extends photopress_module {
 
 	/** Images whose license JSON-LD this request has printed, so none is printed twice. */
 	private $licensed = [];
-	
+
+	/** The file each image is shown with on this page, by ID, for its license JSON-LD (shown()). */
+	private static $shown = [];
+
 	public $label = 'Metadata'; 
 
 	/**
@@ -499,7 +502,20 @@ class metadata extends photopress_module {
 			return $content;
 		}
 
-		$ids = self::imageIdsIn( $content );
+		$p   = new \WP_HTML_Tag_Processor( (string) $content );
+		$ids = [];
+
+		while ( $p->next_tag( 'img' ) ) {
+
+			$id = self::attachmentIdOf( $p );
+
+			if ( $id ) {
+				$ids[ $id ] = true;
+				self::shown( $id, $p->get_attribute( 'src' ) );
+			}
+		}
+
+		$ids = array_keys( $ids );
 
 		if ( ! $ids ) {
 			return $content;
@@ -508,6 +524,23 @@ class metadata extends photopress_module {
 		self::primeImages( $ids );
 
 		return $content . $this->renderLicensingSchema( array_filter( $ids, 'get_post' ) );
+	}
+
+	/**
+	 * Notes the file an image is shown with on this page, the src of its img
+	 * tag, as its license JSON-LD's contentUrl: Google applies the license to
+	 * the image whose address matches. The first one noted stays.
+	 *
+	 * @param int    $id
+	 * @param string $src
+	 */
+	public static function shown( $id, $src ) {
+
+		$id = (int) $id;
+
+		if ( $id && is_string( $src ) && '' !== $src && ! isset( self::$shown[ $id ] ) ) {
+			self::$shown[ $id ] = $src;
+		}
 	}
 
 	/**
@@ -827,35 +860,59 @@ class metadata extends photopress_module {
 		return $schema_block;
 	}
 	
+	/**
+	 * An image's license JSON-LD: the file the page shows it with (shown()),
+	 * or its full size, and its creator and copyright notice from its
+	 * metadata when it has them.
+	 */
 	public function generateImageLicenseSchema( $attachment_id ) {
-		
+
+		$meta  = wp_get_attachment_metadata( $attachment_id );
+		$image = is_array( $meta['image_meta'] ?? null ) ? $meta['image_meta'] : [];
+
 		$schema = [
-			
-			"@context"				=> "https://schema.org/",
-			"@type"					=> "ImageObject",
-			"contentUrl" 			=> wp_get_attachment_url( $attachment_id ),
-			"license" 				=> pp_api::getOption( 'core', 'metadata', 'web_statement_of_rights'),
-			"acquireLicensePage" 	=> pp_api::getOption( 'core', 'metadata', 'licensor_url')
-			
+			"@context"   => "https://schema.org/",
+			"@type"      => "ImageObject",
+			"contentUrl" => self::$shown[ (int) $attachment_id ] ?? wp_get_attachment_url( $attachment_id ),
 		];
-		
+
+		if ( ! empty( $image['credit'] ) ) {
+			$schema['creator']    = [ '@type' => 'Person', 'name' => $image['credit'] ];
+			$schema['creditText'] = $image['credit'];
+		}
+
+		if ( ! empty( $image['copyright'] ) ) {
+			$schema['copyrightNotice'] = $image['copyright'];
+		}
+
+		$schema['license']            = pp_api::getOption( 'core', 'metadata', 'web_statement_of_rights' );
+		$schema['acquireLicensePage'] = pp_api::getOption( 'core', 'metadata', 'licensor_url' );
+
 		return $schema;
 	}
 	
 	public function storeMoreMetaData( $meta, $file, $image_type, $iptc, $exif ) {
 		
-		// WordPress takes the title and caption from IPTC or EXIF only. Files
-		// with XMP but no IPTC give theirs from dc:title and dc:description,
-		// on upload and when a file is replaced alike.
-		if ( empty( $meta['title'] ) || empty( $meta['caption'] ) ) {
-			
+		// WordPress takes the title, caption, credit and copyright from IPTC
+		// or EXIF only. Files with XMP but no IPTC give theirs from dc:title,
+		// dc:description, dc:creator and dc:rights, on upload and when a file
+		// is replaced alike.
+		$from_xmp = [ 'title' => 'dc:title', 'caption' => 'dc:description', 'credit' => 'dc:creator', 'copyright' => 'dc:rights' ];
+
+		if ( array_filter( array_keys( $from_xmp ), static fn( $key ) => empty( $meta[ $key ] ) ) ) {
+
 			$md = new XmpReader();
 			$md->loadFromFile( $file );
-			
-			foreach ( [ 'title' => 'dc:title', 'caption' => 'dc:description' ] as $key => $tag ) {
-				
+
+			foreach ( $from_xmp as $key => $tag ) {
+
 				$value = $md->getXmp( $tag );
-				
+
+				// dc:creator is a list.
+				if ( is_array( $value ) ) {
+					$value = implode( ', ', array_filter( array_map( 'trim', array_filter( $value, 'is_string' ) ) ) );
+				}
+
 				if ( empty( $meta[ $key ] ) && is_string( $value ) && '' !== trim( $value ) ) {
 					$meta[ $key ] = trim( $value );
 				}
