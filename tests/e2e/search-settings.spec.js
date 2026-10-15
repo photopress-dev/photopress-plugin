@@ -15,7 +15,7 @@ let saved;
 const settings = () => JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( get_option( '${ KEY }', null ) );` ) ) );
 
 // The tab's other settings, such as images in search, are left alone.
-const KEYS = [ 'attachment_pages', 'taxonomy_pages' ];
+const KEYS = [ 'attachment_pages', 'taxonomy_pages', 'archives_off', 'author_archives_off', 'date_archives_off', 'format_archives_off' ];
 const php = ( value ) => `json_decode( base64_decode( '${ Buffer.from( JSON.stringify( value ) ).toString( 'base64' ) }' ), true )`;
 
 /** Sets these keys, or with null clears them back to their defaults. */
@@ -205,4 +205,33 @@ test( 'the sitemap card: the sitemap in use, with a link to it', async ( { page 
 	} else {
 		await expect( status.getByRole( 'link' ) ).toHaveCount( 0 );
 	}
+} );
+
+test( 'unneeded archives: off until turned on, then author archives and the others all off, each with its own switch', async ( { page } ) => {
+	defaults();
+	const author = lastLine( wp( 'eval', 'echo wp_make_link_relative( get_author_posts_url( 1 ) );' ) );
+	const home = lastLine( wp( 'eval', "echo home_url( '/' );" ) );
+	// A query string of its own each time, past any page cache.
+	let n = 0;
+	const status = async ( path ) => {
+		const response = await page.request.get( `${ path }?pp-archives=${ Date.now() }-${ n++ }`, { maxRedirects: 0 } );
+		return [ response.status(), response.headers().location || '' ];
+	};
+
+	expect( ( await status( author ) )[ 0 ] ).toBe( 200 );
+
+	await page.goto( URL );
+	const subSwitch = ( name ) => page.getByRole( 'checkbox', { name, exact: true } );
+	await expect( subSwitch( 'Author archives' ) ).toHaveCount( 0 );
+
+	await featureSwitch( page, 'Unneeded archives' ).click();
+	await expect.poll( () => settings()?.archives_off, { timeout: 15000 } ).toBe( true );
+	for ( const name of [ 'Author archives', 'Date archives', 'Post format archives' ] ) {
+		await expect( subSwitch( name ) ).toBeChecked();
+	}
+	expect( await status( author ) ).toEqual( [ 301, home ] );
+
+	await subSwitch( 'Author archives' ).click();
+	await expect.poll( () => settings()?.author_archives_off, { timeout: 15000 } ).toBe( false );
+	expect( ( await status( author ) )[ 0 ] ).toBe( 200 );
 } );

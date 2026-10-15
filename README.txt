@@ -80,6 +80,7 @@ Documentation: [Image Templates and Blocks](https://github.com/photopress-dev/ph
 
 * Attachment pages: a switch that publishes, or stops publishing, a page for each image in the Media Library.
 * Image taxonomy pages: a switch that publishes, or stops publishing, an archive page of images for each keyword, camera and other term.
+* Unneeded archives: a switch that turns off author, date and post format archives, each on its own, redirecting them to the home page and leaving them out of the sitemap.
 
 Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev/photopress-plugin/wiki/Attachment-and-Taxonomy-Pages).
 

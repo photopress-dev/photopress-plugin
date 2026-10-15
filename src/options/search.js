@@ -1,8 +1,9 @@
 /**
  * The Pages & Search settings tab: whether images and image taxonomy terms
  * have pages of their own on the site (modules/search), with PhotoPress's
- * templates for them in block themes; the sitemap they are listed in;
- * images in search results; and the page cache and search index.
+ * templates for them in block themes; archives a photography site rarely
+ * needs, to turn off; the sitemap they are listed in; images in search
+ * results; and the page cache and search index.
  */
 const { __, sprintf } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
@@ -72,6 +73,10 @@ class SearchSettings extends Component {
 				taxonomy_pages: true,
 				images_in_search: false,
 				posts_in_search: true,
+				archives_off: false,
+				author_archives_off: true,
+				date_archives_off: true,
+				format_archives_off: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -116,6 +121,35 @@ class SearchSettings extends Component {
 					checked={ this.getSetting( 'taxonomy_pages' ) }
 					onChange={ ( value ) => this.persistSetting( 'taxonomy_pages', value ) }
 				/>
+
+				<FeatureSection
+					title={ __( 'Unneeded archives' ) }
+					description={ __( 'Turn off archives a photography site rarely needs. Their addresses redirect to the home page.' ) }
+					info={ [
+						<p key="0">{ __( 'An archive turned off answers with a permanent redirect to the home page, its feeds and later pages too, so search engines drop its addresses. WordPress’s sitemap leaves out authors while author archives are off, and post formats while theirs are. An author archive’s address shows the author’s login name, as does ?author=1, which WordPress redirects to it.' ) }</p>,
+					] }
+					checked={ this.getSetting( 'archives_off' ) }
+					onChange={ ( value ) => this.persistSetting( 'archives_off', value ) }
+				>
+					<SwitchRow
+						label={ __( 'Author archives' ) }
+						help={ __( 'Each author’s posts, at an address that shows the author’s login name.' ) }
+						checked={ this.getSetting( 'author_archives_off' ) }
+						onChange={ ( value ) => this.persistSetting( 'author_archives_off', value ) }
+					/>
+					<SwitchRow
+						label={ __( 'Date archives' ) }
+						help={ __( 'Posts by year, month and day.' ) }
+						checked={ this.getSetting( 'date_archives_off' ) }
+						onChange={ ( value ) => this.persistSetting( 'date_archives_off', value ) }
+					/>
+					<SwitchRow
+						label={ __( 'Post format archives' ) }
+						help={ __( 'Posts of one format, such as Gallery or Image.' ) }
+						checked={ this.getSetting( 'format_archives_off' ) }
+						onChange={ ( value ) => this.persistSetting( 'format_archives_off', value ) }
+					/>
+				</FeatureSection>
 
 				<FeatureSection
 					title={ __( 'Sitemap' ) }

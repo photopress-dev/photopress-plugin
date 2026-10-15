@@ -248,4 +248,22 @@ final class PageCacheTest extends TestCase {
 		PageCache::versionChanged();
 		$this->assertSame( [], $this->purged() );
 	}
+
+	public function test_the_cache_is_emptied_when_a_pages_and_search_switch_changes(): void {
+
+		// The same switches, or one saved as it was by default: nothing.
+		PageCache::settingsChanged( [ 'taxonomy_pages' => true ], [ 'taxonomy_pages' => true, 'archives_off' => false ] );
+		$this->assertSame( [], $this->purged() );
+
+		// Unneeded archives turned on, with or without image pages: once.
+		$this->saved = [ 'attachment_pages' => false, 'taxonomy_pages' => false ];
+		PageCache::settingsChanged( [ 'taxonomy_pages' => false ], [ 'taxonomy_pages' => false, 'archives_off' => true ] );
+		PageCache::settingsChanged( [ 'archives_off' => true ], [ 'archives_off' => true, 'date_archives_off' => false ] );
+		$this->assertSame( [ 'all' ], $this->purged() );
+
+		// The first save of the tab, as add_option gives it.
+		( new \ReflectionProperty( PageCache::class, 'emptied' ) )->setValue( null, false );
+		PageCache::settingsChanged( [], [ 'images_in_search' => true ] );
+		$this->assertSame( [ 'all' ], $this->purged() );
+	}
 }
