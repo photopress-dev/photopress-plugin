@@ -30,7 +30,9 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  *   while attachment pages are off, nor its terms' REST API addresses,
  *   which page caches pass by and visitors cannot read;
  * - an event to empty the cache once PhotoPress is updated, so pages cached
- *   by the earlier version do not ask for its scripts;
+ *   by the earlier version do not ask for its scripts, and when a switch of
+ *   the Pages & Search or SEO tab changes, which decide what pages the site
+ *   has and what its search finds (the SEO module hooks its own option);
  * - during a PhotoPress job's batch (photopress_job_batch_started and
  *   _ended), nothing for the items it changes: once the job has ended, the
  *   cache emptied, if any of its batches changed a page. Each batch would
@@ -83,6 +85,8 @@ class PageCache {
 		add_action( 'attachment_updated', [ self::class, 'imageEdited' ], 10, 3 );
 
 		add_action( 'wp_loaded', [ self::class, 'versionChanged' ] );
+		add_action( 'add_option_' . search::OPTION, static fn( $option, $value ) => self::settingsChanged( [], $value ), 10, 2 );
+		add_action( 'update_option_' . search::OPTION, [ self::class, 'settingsChanged' ], 10, 2 );
 
 		add_action( 'photopress_job_batch_started', [ self::class, 'batchStarted' ] );
 		add_action( 'photopress_job_batch_ended', [ self::class, 'batchEnded' ] );
@@ -320,7 +324,38 @@ class PageCache {
 	 */
 	public static function purgeAll() {
 
-		if ( ! self::$emptied && self::purges() && self::imagePages() ) {
+		if ( self::imagePages() ) {
+			self::emptyCache();
+		}
+	}
+
+	/**
+	 * add_ and update_option_ of the Pages & Search and SEO tabs' options:
+	 * the whole cache emptied when a switch changed. Pages that were turned
+	 * off, such as an author archive, would otherwise still be served from
+	 * it, as would sitemaps that listed them.
+	 *
+	 * @param mixed $before
+	 * @param mixed $after
+	 */
+	public static function settingsChanged( $before, $after ) {
+
+		$before = is_array( $before ) ? $before : [];
+		$after  = is_array( $after ) ? $after : [];
+
+		foreach ( array_unique( array_merge( array_keys( $before ), array_keys( $after ) ) ) as $key ) {
+
+			if ( ! empty( $before[ $key ] ) !== ! empty( $after[ $key ] ) ) {
+				self::emptyCache();
+				return;
+			}
+		}
+	}
+
+	/** The whole cache emptied, once a request, by Proxy Cache Purge. */
+	private static function emptyCache() {
+
+		if ( ! self::$emptied && self::purges() ) {
 			self::$emptied = true;
 			do_action( self::ALL );
 		}

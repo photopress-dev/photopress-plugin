@@ -28,7 +28,7 @@ use photopress_module;
  * and terms, with Relevanssi or without (ImageSearch).
  *
  * The pages of both are listed in the site's sitemap, whichever builds it
- * (ImageSitemap).
+ * (ImageSitemap), which the SEO tab shows (modules/seo).
  */
 class search extends photopress_module {
 
@@ -116,7 +116,7 @@ class search extends photopress_module {
 
 	/**
 	 * admin_enqueue_scripts: for the settings page, the state of Proxy Cache
-	 * Purge and Relevanssi, and the sitemap in use.
+	 * Purge and Relevanssi.
 	 */
 	public static function shareStatus() {
 
@@ -127,7 +127,7 @@ class search extends photopress_module {
 		$relevanssi = [ 'plugin' => photopress_util::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
 		$cache = [ 'plugin' => photopress_util::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
-		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . '; window.photopressSitemap = ' . wp_json_encode( ImageSitemap::inUse() ) . ';', 'before' );
+		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );
 	}
 
 
