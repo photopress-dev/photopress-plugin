@@ -45,8 +45,8 @@ final class ImageTaxonomiesTest extends TestCase {
 		$html = ImageTaxonomies::renderRows( 7, [ 'photos_keywords', 'photos_city' ], true, true );
 
 		$this->assertSame(
-			'<div class="container"><div class="label">Keywords: </div><div class="terms"><a href="https://example.test/photos_keywords/portrait/" rel="tag">portrait</a>, <a href="https://example.test/photos_keywords/qa/" rel="tag">Q&amp;A &lt;b&gt;</a></div></div>'
-			. '<div class="container"><div class="label">Cities: </div><div class="terms"><a href="https://example.test/photos_city/los-angeles/" rel="tag">Los Angeles</a></div></div>',
+			'<div class="container photopress-taxonomy-photos_keywords"><div class="label">Keywords<span class="separator">: </span></div><div class="terms"><a href="https://example.test/photos_keywords/portrait/" rel="tag">portrait</a><span class="separator">, </span><a href="https://example.test/photos_keywords/qa/" rel="tag">Q&amp;A &lt;b&gt;</a></div></div>'
+			. '<div class="container photopress-taxonomy-photos_city"><div class="label">Cities<span class="separator">: </span></div><div class="terms"><a href="https://example.test/photos_city/los-angeles/" rel="tag">Los Angeles</a></div></div>',
 			$html
 		);
 	}
@@ -54,7 +54,7 @@ final class ImageTaxonomiesTest extends TestCase {
 	public function test_unlinked_and_without_labels(): void {
 
 		$this->assertSame(
-			'<div class="container"><div class="terms">Los Angeles</div></div>',
+			'<div class="container photopress-taxonomy-photos_city"><div class="terms">Los Angeles</div></div>',
 			ImageTaxonomies::renderRows( 7, [ 'photos_city' ], false, false )
 		);
 	}
@@ -62,7 +62,7 @@ final class ImageTaxonomiesTest extends TestCase {
 	public function test_no_choice_means_every_taxonomy_and_empty_or_unknown_ones_are_skipped(): void {
 
 		$html = ImageTaxonomies::renderRows( 7, [], true, true );
-		$this->assertSame( 2, substr_count( $html, 'class="container"' ), 'Lenses has no terms' );
+		$this->assertSame( 2, substr_count( $html, 'class="container ' ), 'Lenses has no terms' );
 
 		$this->assertSame( '', ImageTaxonomies::renderRows( 7, [ 'photos_people', 'photos_lens' ] ) );
 		$this->assertSame( '', ImageTaxonomies::renderRows( 0, [ 'photos_city' ] ) );
@@ -80,7 +80,7 @@ final class ImageTaxonomiesTest extends TestCase {
 		$block = (object) [ 'context' => [ 'postId' => 7 ] ];
 		$html = ImageTaxonomies::renderBlock( [ 'taxonomies' => [ 'photos_city' ], 'linkTerms' => false, 'showLabels' => true ], '', $block );
 
-		$this->assertSame( '<div class="display-taxonomy-terms-widget wp-block-photopress-image-taxonomies"><div class="container"><div class="label">Cities: </div><div class="terms">Los Angeles</div></div></div>', $html );
+		$this->assertSame( '<div class="display-taxonomy-terms-widget wp-block-photopress-image-taxonomies"><div class="container photopress-taxonomy-photos_city"><div class="label">Cities<span class="separator">: </span></div><div class="terms">Los Angeles</div></div></div>', $html );
 	}
 
 	public function test_block_with_nothing_to_show_renders_nothing(): void {
@@ -103,7 +103,7 @@ final class ImageTaxonomiesTest extends TestCase {
 		);
 
 		$this->assertSame(
-			'<section><h2>Image Details</h2><div class="display-taxonomy-terms-widget"><div class="container"><div class="label">Cities: </div><div class="terms"><a href="https://example.test/photos_city/los-angeles/" rel="tag">Los Angeles</a></div></div></div></section>',
+			'<section><h2>Image Details</h2><div class="display-taxonomy-terms-widget"><div class="container photopress-taxonomy-photos_city"><div class="label">Cities<span class="separator">: </span></div><div class="terms"><a href="https://example.test/photos_city/los-angeles/" rel="tag">Los Angeles</a></div></div></div></section>',
 			ob_get_clean()
 		);
 	}
@@ -118,13 +118,13 @@ final class ImageTaxonomiesTest extends TestCase {
 		$html = ImageTaxonomies::renderRows( 7, [ 'exif:camera', 'photos_city', 'exif:aperture', 'exif:shutter_speed', 'exif:iso', 'exif:focal_length', 'exif:created_timestamp' ], false, true );
 
 		$this->assertSame(
-			'<div class="container"><div class="label">Camera model: </div><div class="terms">Canon EOS R5</div></div>'
-			. '<div class="container"><div class="label">Cities: </div><div class="terms">Los Angeles</div></div>'
-			. '<div class="container"><div class="label">Aperture: </div><div class="terms">f/2.8</div></div>'
-			. '<div class="container"><div class="label">Shutter speed: </div><div class="terms">1/250 s</div></div>'
-			. '<div class="container"><div class="label">ISO: </div><div class="terms">400</div></div>'
-			. '<div class="container"><div class="label">Focal length: </div><div class="terms">50 mm</div></div>'
-			. '<div class="container"><div class="label">Date taken: </div><div class="terms">2013-01-06</div></div>',
+			'<div class="container photopress-exif-camera"><div class="label">Camera model<span class="separator">: </span></div><div class="terms">Canon EOS R5</div></div>'
+			. '<div class="container photopress-taxonomy-photos_city"><div class="label">Cities<span class="separator">: </span></div><div class="terms">Los Angeles</div></div>'
+			. '<div class="container photopress-exif-aperture"><div class="label">Aperture<span class="separator">: </span></div><div class="terms">f/2.8</div></div>'
+			. '<div class="container photopress-exif-shutter_speed"><div class="label">Shutter speed<span class="separator">: </span></div><div class="terms">1/250 s</div></div>'
+			. '<div class="container photopress-exif-iso"><div class="label">ISO<span class="separator">: </span></div><div class="terms">400</div></div>'
+			. '<div class="container photopress-exif-focal_length"><div class="label">Focal length<span class="separator">: </span></div><div class="terms">50 mm</div></div>'
+			. '<div class="container photopress-exif-created_timestamp"><div class="label">Date taken<span class="separator">: </span></div><div class="terms">2013-01-06</div></div>',
 			$html
 		);
 	}
@@ -168,7 +168,7 @@ final class ImageTaxonomiesTest extends TestCase {
 		ob_start();
 		$widget->widget( $args, [ 'title' => 'Exposure', 'keys' => 'aperture, ISO' ] );
 		$this->assertSame(
-			'<section><h2>Exposure</h2><div class="display-exif-widget display-taxonomy-terms-widget"><div class="container"><div class="label">Aperture: </div><div class="terms">f/2.8</div></div><div class="container"><div class="label">ISO: </div><div class="terms">400</div></div></div></section>',
+			'<section><h2>Exposure</h2><div class="display-exif-widget display-taxonomy-terms-widget"><div class="container photopress-exif-aperture"><div class="label">Aperture<span class="separator">: </span></div><div class="terms">f/2.8</div></div><div class="container photopress-exif-iso"><div class="label">ISO<span class="separator">: </span></div><div class="terms">400</div></div></div></section>',
 			ob_get_clean()
 		);
 
@@ -193,7 +193,7 @@ final class ImageTaxonomiesTest extends TestCase {
 		Functions\when( 'is_taxonomy_viewable' )->justReturn( false );
 
 		$this->assertSame(
-			'<div class="container"><div class="label">Cities: </div><div class="terms">Los Angeles</div></div>',
+			'<div class="container photopress-taxonomy-photos_city"><div class="label">Cities<span class="separator">: </span></div><div class="terms">Los Angeles</div></div>',
 			ImageTaxonomies::renderRows( 7, [ 'photos_city', 'pp_client' ], true, true )
 		);
 		$this->assertSame( [ 'photos_city', 'photos_keywords', 'photos_lens' ], ImageTaxonomies::allTaxonomies() );
