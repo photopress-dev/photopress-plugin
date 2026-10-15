@@ -124,8 +124,14 @@ test( 'with licensing on, an archive describes each image\'s license once', asyn
 	wp( 'eval', `update_option( '${ META }', array_merge( (array) get_option( '${ META }' ), [ 'embed_licensor_enable' => true, 'licensor_name' => 'Jane Smith', 'web_statement_of_rights' => 'https://www.example.com/license-statement', 'licensor_url' => 'https://www.example.com/purchase-license' ] ) );` );
 
 	try {
-		const files = JSON.parse( lastLine( wp( 'eval', `echo wp_json_encode( array_map( 'wp_get_attachment_url', ${ JSON.stringify( made.images.slice( 0, 2 ) ) } ) );` ) ) );
 		await page.goto( made.archive );
+
+		// Each image's license names the file the archive shows it with.
+		const files = [];
+		for ( const id of made.images.slice( 0, 2 ) ) {
+			files.push( await page.locator( `img.wp-image-${ id }` ).first().getAttribute( 'src' ) );
+		}
+
 		const described = await page.locator( 'script[type="application/ld+json"]' ).evaluateAll( ( scripts ) => scripts.flatMap( ( script ) => {
 			try {
 				const data = JSON.parse( script.textContent );
