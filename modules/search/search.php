@@ -28,10 +28,7 @@ use photopress_module;
  * and terms, with Relevanssi or without (ImageSearch).
  *
  * The pages of both are listed in the site's sitemap, whichever builds it
- * (ImageSitemap).
- *
- * And the archives a photography site rarely needs, author, date and post
- * format archives, each to be turned off (Archives).
+ * (ImageSitemap), which the SEO tab shows (modules/seo).
  */
 class search extends photopress_module {
 
@@ -86,7 +83,6 @@ class search extends photopress_module {
 		TermChanges::addHooks();
 		CoreSitemap::addHooks();
 		JetpackSitemap::addHooks();
-		Archives::addHooks();
 		add_action( 'admin_enqueue_scripts', [ self::class, 'shareStatus' ], 20 );
 
 		if ( ! self::enabled( 'attachment_pages' ) ) {
@@ -120,7 +116,7 @@ class search extends photopress_module {
 
 	/**
 	 * admin_enqueue_scripts: for the settings page, the state of Proxy Cache
-	 * Purge and Relevanssi, and the sitemap in use.
+	 * Purge and Relevanssi.
 	 */
 	public static function shareStatus() {
 
@@ -131,7 +127,7 @@ class search extends photopress_module {
 		$relevanssi = [ 'plugin' => photopress_util::pluginState( Relevanssi::active(), [ 'relevanssi/', 'relevanssi-premium/' ] ) ];
 		$cache = [ 'plugin' => photopress_util::pluginState( PageCache::purges(), [ 'varnish-http-purge/' ] ) ];
 
-		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . '; window.photopressSitemap = ' . wp_json_encode( ImageSitemap::inUse() ) . ';', 'before' );
+		wp_add_inline_script( 'photopress-options-script', 'window.photopressRelevanssi = ' . wp_json_encode( $relevanssi ) . '; window.photopressPageCache = ' . wp_json_encode( $cache ) . ';', 'before' );
 	}
 
 
@@ -188,58 +184,6 @@ class search extends photopress_module {
 					'section'       => 'general',
 					'description'   => 'Give each term of an image taxonomy, such as a keyword or a camera, an archive page of its images.',
 					'label_for'     => 'Image taxonomy pages',
-					'error_message' => '',
-				],
-			],
-
-			'archives_off' => [
-				'default_value' => false,
-				'field'         => [
-					'type'          => 'boolean',
-					'title'         => 'Unneeded archives',
-					'page_name'     => 'search',
-					'section'       => 'general',
-					'description'   => 'Turn off archives a photography site rarely needs. Their addresses redirect to the home page.',
-					'label_for'     => 'Unneeded archives',
-					'error_message' => '',
-				],
-			],
-
-			'author_archives_off' => [
-				'default_value' => true,
-				'field'         => [
-					'type'          => 'boolean',
-					'title'         => 'Author archives',
-					'page_name'     => 'search',
-					'section'       => 'general',
-					'description'   => 'Each author\'s posts, at an address that shows the author\'s login name.',
-					'label_for'     => 'Author archives',
-					'error_message' => '',
-				],
-			],
-
-			'date_archives_off' => [
-				'default_value' => true,
-				'field'         => [
-					'type'          => 'boolean',
-					'title'         => 'Date archives',
-					'page_name'     => 'search',
-					'section'       => 'general',
-					'description'   => 'Posts by year, month and day.',
-					'label_for'     => 'Date archives',
-					'error_message' => '',
-				],
-			],
-
-			'format_archives_off' => [
-				'default_value' => true,
-				'field'         => [
-					'type'          => 'boolean',
-					'title'         => 'Post format archives',
-					'page_name'     => 'search',
-					'section'       => 'general',
-					'description'   => 'Posts of one format, such as Gallery or Image.',
-					'label_for'     => 'Post format archives',
 					'error_message' => '',
 				],
 			],

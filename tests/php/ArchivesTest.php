@@ -3,8 +3,8 @@
 namespace PhotoPress\Tests;
 
 use Brain\Monkey\Functions;
-use PhotoPress\modules\search\Archives;
-use PhotoPress\modules\search\search;
+use PhotoPress\modules\seo\Archives;
+use PhotoPress\modules\seo\seo;
 
 /**
  * Unneeded archives: off by default; once turned on, author, date and post
@@ -48,7 +48,7 @@ final class ArchivesTest extends TestCase {
 			$this->assertFalse( Archives::off( $archive ), "$archive, never saved" );
 		}
 
-		$this->options[ search::OPTION ] = [ 'archives_off' => true ];
+		$this->options[ seo::OPTION ] = [ 'archives_off' => true ];
 
 		foreach ( [ 'author', 'date', 'format' ] as $archive ) {
 			$this->assertTrue( Archives::off( $archive ), "$archive, its switch never saved" );
@@ -59,20 +59,20 @@ final class ArchivesTest extends TestCase {
 
 	public function test_each_archive_has_its_own_switch(): void {
 
-		$this->options[ search::OPTION ] = [ 'archives_off' => true, 'date_archives_off' => false ];
+		$this->options[ seo::OPTION ] = [ 'archives_off' => true, 'date_archives_off' => false ];
 
 		$this->assertTrue( Archives::off( 'author' ) );
 		$this->assertFalse( Archives::off( 'date' ) );
 		$this->assertTrue( Archives::off( 'format' ) );
 
 		// The main switch off turns them all on again, whatever their own.
-		$this->options[ search::OPTION ] = [ 'archives_off' => false, 'author_archives_off' => true ];
+		$this->options[ seo::OPTION ] = [ 'archives_off' => false, 'author_archives_off' => true ];
 		$this->assertFalse( Archives::off( 'author' ) );
 	}
 
 	public function test_a_request_for_an_archive_that_is_off_redirects_to_the_home_page(): void {
 
-		$this->options[ search::OPTION ] = [ 'archives_off' => true, 'format_archives_off' => false ];
+		$this->options[ seo::OPTION ] = [ 'archives_off' => true, 'format_archives_off' => false ];
 
 		$this->request = 'author';
 		$this->assertTrue( Archives::requested() );
@@ -106,7 +106,7 @@ final class ArchivesTest extends TestCase {
 		$this->assertSame( $users, Archives::sitemapProvider( $users, 'users' ) );
 		$this->assertSame( $taxonomies, Archives::sitemapTaxonomies( $taxonomies ) );
 
-		$this->options[ search::OPTION ] = [ 'archives_off' => true ];
+		$this->options[ seo::OPTION ] = [ 'archives_off' => true ];
 
 		$this->assertFalse( Archives::sitemapProvider( $users, 'users' ) );
 		$this->assertSame( $users, Archives::sitemapProvider( $users, 'posts' ), 'other sitemaps stay' );
@@ -119,7 +119,7 @@ final class ArchivesTest extends TestCase {
 		$this->assertFalse( has_filter( 'wpseo_sitemap_exclude_author', '__return_empty_array' ), 'not hooked while author archives are on' );
 		$this->assertFalse( Archives::yoastExcludeTaxonomy( false, 'post_format' ) );
 
-		$this->options[ search::OPTION ] = [ 'archives_off' => true ];
+		$this->options[ seo::OPTION ] = [ 'archives_off' => true ];
 
 		Archives::addHooks();
 		$this->assertNotFalse( has_filter( 'wpseo_sitemap_exclude_author', '__return_empty_array' ) );

@@ -31,8 +31,8 @@ use PhotoPress\modules\metadata\ImageTaxonomies;
  *   which page caches pass by and visitors cannot read;
  * - an event to empty the cache once PhotoPress is updated, so pages cached
  *   by the earlier version do not ask for its scripts, and when a switch of
- *   the Pages & Search tab changes, which decide what pages the site has
- *   and what its search finds;
+ *   the Pages & Search or SEO tab changes, which decide what pages the site
+ *   has and what its search finds (the SEO module hooks its own option);
  * - during a PhotoPress job's batch (photopress_job_batch_started and
  *   _ended), nothing for the items it changes: once the job has ended, the
  *   cache emptied, if any of its batches changed a page. Each batch would
@@ -330,10 +330,10 @@ class PageCache {
 	}
 
 	/**
-	 * add_ and update_option_photopress_core_search: the whole cache
-	 * emptied when a switch of the Pages & Search tab changed. Pages that
-	 * were turned off, such as an author archive, would otherwise still be
-	 * served from it, as would sitemaps that listed them.
+	 * add_ and update_option_ of the Pages & Search and SEO tabs' options:
+	 * the whole cache emptied when a switch changed. Pages that were turned
+	 * off, such as an author archive, would otherwise still be served from
+	 * it, as would sitemaps that listed them.
 	 *
 	 * @param mixed $before
 	 * @param mixed $after

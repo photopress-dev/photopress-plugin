@@ -302,6 +302,7 @@ test.describe( 'settings', () => {
 	// Shown on and filled in; the settings are put back afterwards.
 	const EXAMPLES = {
 		photopress_core_slideshow: { enable: true },
+		photopress_core_seo: { archives_off: true },
 		photopress_core_metadata: {
 			alt_text_enable: true,
 			description_enable: true,
@@ -347,8 +348,9 @@ test.describe( 'settings', () => {
 				function_exists( 'as_unschedule_all_actions' ) && as_unschedule_all_actions( 'photopress_job_batch', [ $id ], 'photopress' );
 			}
 			update_option( 'photopress_jobs', $before['jobs'], false );
+			// Deleted again if it did not exist.
 			foreach ( $before['settings'] as $key => $value ) {
-				update_option( $key, $value );
+				false === $value ? delete_option( $key ) : update_option( $key, $value );
 			}
 		` );
 	} );
@@ -374,6 +376,13 @@ test.describe( 'settings', () => {
 			const content = await tab( page, 'Pages & Search' );
 			await expect( feature( page, 'Page cache and search index' ) ).toBeVisible( { timeout: 30000 } );
 			await content.screenshot( { path: path.join( OUT, 'screenshot-18.png' ) } );
+		} );
+
+		test( 'screenshot-20: the SEO tab', async ( { page } ) => {
+			const content = await tab( page, 'SEO' );
+			await expect( feature( page, 'Unneeded archives' ) ).toBeVisible( { timeout: 30000 } );
+			await expect( content.getByRole( 'checkbox', { name: 'Post format archives', exact: true } ) ).toBeChecked();
+			await content.screenshot( { path: path.join( OUT, 'screenshot-20.png' ) } );
 		} );
 
 		test( 'screenshot-16: the Gallery tab', async ( { page } ) => {

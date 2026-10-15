@@ -80,7 +80,6 @@ Documentation: [Image Templates and Blocks](https://github.com/photopress-dev/ph
 
 * Attachment pages: a switch that publishes, or stops publishing, a page for each image in the Media Library.
 * Image taxonomy pages: a switch that publishes, or stops publishing, an archive page of images for each keyword, camera and other term.
-* Unneeded archives: a switch that turns off author, date and post format archives, each on its own, redirecting them to the home page and leaving them out of the sitemap.
 
 Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev/photopress-plugin/wiki/Attachment-and-Taxonomy-Pages).
 
@@ -92,10 +91,11 @@ Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev
 
 Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search).
 
-= SITEMAPS =
+= SEO =
 
 * PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
 * With WordPress's own sitemap, PhotoPress adds an image sitemap to it: each image with the page it is shown on.
+* Unneeded archives: a switch that turns off author, date and post format archives, each on its own, redirecting them to the home page and leaving them out of the sitemap.
 
 Documentation: [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).
 
@@ -152,8 +152,9 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
 16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
 17. Image Archives template: a keyword's images in the Masonry layout
-18. Pages & Search tab: attachment pages, image taxonomy pages, the sitemap in use, images in search results, and the page cache and search index
+18. Pages & Search tab: attachment pages, image taxonomy pages, images in search results, and the page cache and search index
 19. Search results with images: the Image Search template
+20. SEO tab: the sitemap in use, and unneeded archives turned off
 
 == Changelog ==
 

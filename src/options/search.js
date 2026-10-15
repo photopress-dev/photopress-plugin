@@ -1,11 +1,10 @@
 /**
  * The Pages & Search settings tab: whether images and image taxonomy terms
  * have pages of their own on the site (modules/search), with PhotoPress's
- * templates for them in block themes; archives a photography site rarely
- * needs, to turn off; the sitemap they are listed in; images in search
- * results; and the page cache and search index.
+ * templates for them in block themes; images in search results; and the page
+ * cache and search index. The sitemap they are listed in is on the SEO tab.
  */
-const { __, sprintf } = wp.i18n;
+const { __ } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
 import { Notice } from '@wordpress/components';
 
@@ -28,22 +27,10 @@ import PluginState from '../shared/plugin-state.js';
 const RELEVANSSI = window.photopressRelevanssi || { plugin: 'missing' };
 const PAGE_CACHE = window.photopressPageCache || { plugin: 'missing' };
 
-// The sitemap in use, which PhotoPress adds image and term pages to
-// (modules/search/ImageSitemap.php).
-const SITEMAP = window.photopressSitemap || { sitemap: 'other' };
-
 const PAGE_CACHE_TEXT = {
 	active: __( 'PhotoPress has it purge an image when the image is edited or deleted or its terms change: its page, while attachment pages are on, and every page of its terms’ archives, while image taxonomy pages are on. A term renamed or deleted has its images and archive purged, or, with more than 25 images, the whole cache emptied. A background job over images, such as re-reading their metadata, empties it once when it ends.' ),
 	inactive: __( 'Activate it to clear the pages of images and image taxonomy terms from the page cache when they change.' ),
 	missing: __( 'Proxy Cache Purge clears pages from a Varnish or NGINX page cache when posts change. Once it’s active, PhotoPress has it clear the pages of images and image taxonomy terms too.' ),
-};
-
-const SITEMAP_TEXT = {
-	core: () => __( 'WordPress’s sitemap is in use. PhotoPress adds a sitemap of its images to it, each with the page it is shown on: its own while attachment pages are on. WordPress lists image taxonomy terms itself while image taxonomy pages are on.' ),
-	jetpack: ( built ) => sprintf( __( 'Jetpack’s sitemap is in use, last built %s ago. PhotoPress adds image taxonomy terms’ archive pages to it while image taxonomy pages are on, and lists each image with its own page while attachment pages are on.' ), built ),
-	yoast: ( built ) => sprintf( __( 'Yoast SEO’s sitemap is in use, last built %s ago. It lists image taxonomy terms itself, and PhotoPress adds the images on each term’s archive page. While attachment pages are on and Yoast SEO lists media pages, PhotoPress adds the pages of images not attached to a post, which Yoast SEO leaves out.' ), built ),
-	other: () => __( 'Another plugin has turned off WordPress’s sitemap. PhotoPress adds image and term pages to Jetpack’s and Yoast SEO’s, and shows which is in use here once it has been built.' ),
-	none: () => __( 'Search engines are discouraged from indexing this site (Settings › Reading), so it has no sitemap.' ),
 };
 
 const RELEVANSSI_TEXT = {
@@ -73,10 +60,6 @@ class SearchSettings extends Component {
 				taxonomy_pages: true,
 				images_in_search: false,
 				posts_in_search: true,
-				archives_off: false,
-				author_archives_off: true,
-				date_archives_off: true,
-				format_archives_off: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -121,51 +104,6 @@ class SearchSettings extends Component {
 					checked={ this.getSetting( 'taxonomy_pages' ) }
 					onChange={ ( value ) => this.persistSetting( 'taxonomy_pages', value ) }
 				/>
-
-				<FeatureSection
-					title={ __( 'Unneeded archives' ) }
-					description={ __( 'Turn off archives a photography site rarely needs. Their addresses redirect to the home page.' ) }
-					info={ [
-						<p key="0">{ __( 'An archive turned off answers with a permanent redirect to the home page, its feeds and later pages too, so search engines drop its addresses. WordPress’s sitemap leaves out authors while author archives are off, and post formats while theirs are. An author archive’s address shows the author’s login name, as does ?author=1, which WordPress redirects to it.' ) }</p>,
-					] }
-					checked={ this.getSetting( 'archives_off' ) }
-					onChange={ ( value ) => this.persistSetting( 'archives_off', value ) }
-				>
-					<SwitchRow
-						label={ __( 'Author archives' ) }
-						help={ __( 'Each author’s posts, at an address that shows the author’s login name.' ) }
-						checked={ this.getSetting( 'author_archives_off' ) }
-						onChange={ ( value ) => this.persistSetting( 'author_archives_off', value ) }
-					/>
-					<SwitchRow
-						label={ __( 'Date archives' ) }
-						help={ __( 'Posts by year, month and day.' ) }
-						checked={ this.getSetting( 'date_archives_off' ) }
-						onChange={ ( value ) => this.persistSetting( 'date_archives_off', value ) }
-					/>
-					<SwitchRow
-						label={ __( 'Post format archives' ) }
-						help={ __( 'Posts of one format, such as Gallery or Image.' ) }
-						checked={ this.getSetting( 'format_archives_off' ) }
-						onChange={ ( value ) => this.persistSetting( 'format_archives_off', value ) }
-					/>
-				</FeatureSection>
-
-				<FeatureSection
-					title={ __( 'Sitemap' ) }
-					className="photopress-search-sitemap"
-					description={ __( 'The pages of images and image taxonomy terms are listed in the site’s sitemap for search engines, whichever plugin builds it.' ) }
-				>
-					<p data-sitemap={ SITEMAP.sitemap }>
-						{ ( SITEMAP_TEXT[ SITEMAP.sitemap ] || SITEMAP_TEXT.other )( SITEMAP.built ) }
-						{ SITEMAP.url && (
-							<>
-								{ ' ' }
-								<a href={ SITEMAP.url } target="_blank" rel="noreferrer">{ __( 'View the sitemap' ) }</a>
-							</>
-						) }
-					</p>
-				</FeatureSection>
 
 				<FeatureSection
 					title={ __( 'Images in search results' ) }

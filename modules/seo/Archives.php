@@ -1,12 +1,12 @@
 <?php
 
-namespace PhotoPress\modules\search;
+namespace PhotoPress\modules\seo;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Archives a photography site rarely needs, turned off with the Pages &
- * Search tab's Unneeded archives switch (off by default) and one switch each,
+ * Archives a photography site rarely needs, turned off with the SEO tab's
+ * Unneeded archives switch (off by default) and one switch each,
  * all on once it is: author archives (/author/name/, whose address shows the
  * author's login name, as does ?author=1, which WordPress redirects there),
  * date archives, and post format archives.
@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Archives {
 
-	/** The archives, each with its switch in the search module's option. */
+	/** The archives, each with its switch in the SEO module's option. */
 	const ARCHIVES = [
 		'author' => 'author_archives_off',
 		'date'   => 'date_archives_off',
@@ -48,8 +48,8 @@ class Archives {
 	public static function off( $archive ) {
 
 		return isset( self::ARCHIVES[ $archive ] )
-			&& search::enabled( 'archives_off', false )
-			&& search::enabled( self::ARCHIVES[ $archive ] );
+			&& seo::enabled( 'archives_off', false )
+			&& seo::enabled( self::ARCHIVES[ $archive ] );
 	}
 
 	/** Whether the request is for an archive turned off. */
