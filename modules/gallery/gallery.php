@@ -67,6 +67,7 @@ class gallery extends photopress_module {
 		LegacyChildPages::addHooks();
 		TaxonomyGalleryPages::addHooks();
 		GalleryUpgrade::addHooks();
+		EditorAutoAttach::addHooks();
 
 		if ( pp_api::getOption( 'core', 'gallery', 'remove_deleted_images' ) ) {
 			GalleryRemove::addHooks();
