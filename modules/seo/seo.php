@@ -75,7 +75,7 @@ class seo extends photopress_module {
 					'title'         => 'Unneeded archives',
 					'page_name'     => 'seo',
 					'section'       => 'general',
-					'description'   => 'Turn off archives a photography site rarely needs. Their addresses redirect to the home page.',
+					'description'   => 'Disable archives a photography site rarely needs. Their addresses redirect to the home page.',
 					'label_for'     => 'Unneeded archives',
 					'error_message' => '',
 				],

@@ -1,7 +1,7 @@
 /**
  * The SEO settings tab (modules/seo): the sitemap in use, which PhotoPress
  * lists the pages of images and image taxonomy terms in, and archives a
- * photography site rarely needs, to turn off.
+ * photography site rarely needs, to disable.
  */
 const { __, sprintf } = wp.i18n;
 import { Component, Fragment } from '@wordpress/element';
@@ -88,9 +88,9 @@ class SeoSettings extends Component {
 
 				<FeatureSection
 					title={ __( 'Unneeded archives' ) }
-					description={ __( 'Turn off archives a photography site rarely needs. Their addresses redirect to the home page.' ) }
+					description={ __( 'Disable archives a photography site rarely needs. Their addresses redirect to the home page.' ) }
 					info={ [
-						<p key="0">{ __( 'An archive turned off answers with a permanent redirect to the home page, its feeds and later pages too, so search engines drop its addresses. WordPress’s and Yoast SEO’s sitemaps leave out authors while author archives are off, and post formats while theirs are. An author archive’s address shows the author’s login name, as does ?author=1, which WordPress redirects to it.' ) }</p>,
+						<p key="0">{ __( 'A disabled archive answers with a permanent redirect to the home page, its feeds and later pages too, so search engines drop its addresses. WordPress’s and Yoast SEO’s sitemaps leave out authors while author archives are disabled, and post formats while theirs are. An author archive’s address shows the author’s login name, as does ?author=1, which WordPress redirects to it.' ) }</p>,
 					] }
 					checked={ this.getSetting( 'archives_off' ) }
 					onChange={ ( value ) => this.persistSetting( 'archives_off', value ) }
