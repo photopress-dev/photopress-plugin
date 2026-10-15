@@ -279,9 +279,13 @@ class Jobs {
 			$job['next'] = time() + self::BUSY_WAIT_SECONDS;
 			$job['waiting'] = 'busy';
 			$job['updated'] = time();
-			self::save( $job );
+			$running = self::saveBatch( $job );
 			self::unlock( $id );
-			self::queueBatch( $id );
+
+			if ( $running ) {
+				self::queueBatch( $id );
+			}
+
 			return false;
 		}
 
@@ -298,7 +302,10 @@ class Jobs {
 			$job['cursor'] = $job['current'];
 			$job['current'] = null;
 			$job['updated'] = time();
-			self::save( $job );
+
+			if ( ! self::saveBatch( $job ) ) {
+				return self::endCancelledBatch( $job );
+			}
 		}
 
 		/**
@@ -314,18 +321,11 @@ class Jobs {
 
 		foreach ( $items as $item ) {
 
-			// Canceled from elsewhere while this batch runs.
-			$current = self::get( $id );
-
-			if ( ! $current || 'cancelled' === $current['status'] ) {
-				self::unlock( $id );
-				/** This action is documented in jobs/Jobs.php */
-				do_action( 'photopress_job_batch_ended', $current ?: [ 'status' => 'cancelled' ] + $job );
-				return true;
-			}
-
 			$job['current'] = $item;
-			self::save( $job );
+
+			if ( ! self::saveBatch( $job ) ) {
+				return self::endCancelledBatch( $job );
+			}
 
 			try {
 				$result = call_user_func( $type['process'], $item, $job['args'] );
@@ -342,7 +342,12 @@ class Jobs {
 			$job['cursor'] = $item;
 			$job['current'] = null;
 			$job['updated'] = time();
-			self::save( $job );
+
+			// Cancelled while the item was processed: its result is kept.
+			if ( ! self::saveBatch( $job ) ) {
+				return self::endCancelledBatch( $job );
+			}
+
 			// Still at work: the lock is not taken over while items take long.
 			update_option( self::OPTION_PREFIX . $id . '_lock', time(), false );
 
@@ -364,7 +369,8 @@ class Jobs {
 		}
 
 		$job['updated'] = time();
-		self::save( $job );
+		// Cancelled meanwhile: it ends here, cancelled, below.
+		self::saveBatch( $job );
 		self::unlock( $id );
 
 		/**
@@ -403,6 +409,46 @@ class Jobs {
 		$job['failed']++;
 		$job['errors'][] = [ 'item' => $item, 'message' => $message ];
 		$job['errors'] = array_slice( $job['errors'], -self::MAX_ERRORS );
+	}
+
+	/**
+	 * Saves the job its batch has changed, unless it was cancelled from
+	 * elsewhere meanwhile, as while an item was processed. Then the batch's
+	 * progress is saved with the job still cancelled, rather than the
+	 * batch's copy putting it back to running.
+	 *
+	 * @param array $job The batch's copy; set to cancelled when it was.
+	 * @return bool Whether the job is still to run (false: cancelled).
+	 */
+	protected static function saveBatch( array &$job ) {
+
+		$current = self::get( $job['id'] );
+
+		if ( $current && 'cancelled' !== $current['status'] ) {
+			self::save( $job );
+			return true;
+		}
+
+		$job['status']   = 'cancelled';
+		$job['finished'] = $current['finished'] ?? time();
+		$job['current']  = null;
+
+		// A job deleted meanwhile stays deleted.
+		if ( $current ) {
+			self::save( $job );
+		}
+
+		return false;
+	}
+
+	/** A batch whose job was cancelled while it ran: it stops here. */
+	protected static function endCancelledBatch( array $job ) {
+
+		self::unlock( $job['id'] );
+		/** This action is documented in jobs/Jobs.php */
+		do_action( 'photopress_job_batch_ended', $job );
+
+		return true;
 	}
 
 	/**
