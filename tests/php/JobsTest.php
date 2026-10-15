@@ -113,6 +113,34 @@ final class JobsTest extends TestCase {
 		$this->assertSame( 0, Jobs::get( $job['id'] )['done'] );
 	}
 
+	public function test_a_job_cancelled_while_an_item_is_processed_stays_cancelled(): void {
+
+		$id = null;
+		Jobs::register( 'test.cancelled', [
+			'count'       => static fn() => 5,
+			'items'       => static fn( $after, $limit ) => array_slice( array_values( array_filter( [ 1, 2, 3, 4, 5 ], static fn( $i ) => $i > (int) $after ) ), 0, $limit ),
+			// The admin cancels while item 2 is processed.
+			'process'     => static function ( $item ) use ( &$id ) {
+				if ( 2 === $item ) {
+					Jobs::cancel( $id );
+				}
+				return true;
+			},
+			'batch_items' => 5,
+		] );
+		$job = Jobs::start( 'test.cancelled' );
+		$id  = $job['id'];
+
+		$this->assertTrue( Jobs::runBatch( $id ) );
+		$after = Jobs::get( $id );
+
+		$this->assertSame( 'cancelled', $after['status'], 'the batch did not put it back to running' );
+		$this->assertSame( [ 2, 2, null ], [ $after['done'], $after['cursor'], $after['current'] ], 'item 2 is counted; none after it ran' );
+		$this->assertSame( [], $this->queued, 'no next batch' );
+		$this->assertArrayNotHasKey( Jobs::OPTION_PREFIX . $id . '_lock', $this->options, 'its lock is let go' );
+		$this->assertFalse( Jobs::runBatch( $id ) );
+	}
+
 	public function test_one_batch_at_a_time(): void {
 
 		$job = Jobs::start( 'test.items' );
