@@ -141,7 +141,7 @@ Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugi
 ### SEO
 
 - PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
-- Unneeded archives: a switch that turns off author, date and post format archives, each on its own, redirecting them to the home page and leaving them out of the sitemap.
+- Unneeded archives: a switch that disables author, date and post format archives, each on its own, redirecting them to the home page and leaving them out of the sitemap.
 
 ![The SEO tab](.wordpress-org/screenshot-20.png)\
 *The SEO settings tab.*
