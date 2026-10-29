@@ -5,8 +5,16 @@
  */
 const path = require( 'path' );
 const { test, expect } = require( './test' );
+const { rest, file } = require( './rest' );
 
 const IMAGES = path.join( __dirname, '..', 'fixtures', 'images' );
+
+// The image is shared with media-replace.spec.js, which expects its own
+// file: put back.
+test.afterEach( async ( { page, made } ) => {
+	const restored = await rest( page, { method: 'POST', route: `/photopress/v1/media/${ made.replace.image }/file`, file: file( '02-landscape-3x2.jpg', 'pp-fixture-replace-me.jpg' ) } );
+	expect( restored.status, JSON.stringify( restored.data ) ).toBe( 200 );
+} );
 
 test( 'edit screen: the file is replaced and the page shows its new text', async ( { page, made } ) => {
 	const { image } = made.replace;
