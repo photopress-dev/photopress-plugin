@@ -331,15 +331,30 @@ function MasonryPreview( { clientId, columnWidth, gap } ) {
  */
 function MosaicPreview( { clientId, rowHeight, gap } ) {
 	const ref = useRef();
+	const schedule = useRef( () => {} );
 
 	// "innerClientId:ratio" pairs as one string, so the effect below reruns
-	// only when an image or its size changes.
+	// only when an image or its size changes. The sizes come in one request
+	// per hundred images (core's Image block fetches its attachment only
+	// once selected), by ID order, so reordering asks for nothing new.
 	const ratios = useSelect( ( select ) => {
-		const { getMedia } = select( coreStore );
+		const images = select( blockEditorStore ).getBlocks( clientId );
+		const ids = [ ...new Set( images.map( ( image ) => image.attributes.id ).filter( Boolean ) ) ].sort( ( a, b ) => a - b );
+		const sizes = {};
 
-		return select( blockEditorStore ).getBlocks( clientId ).map( ( image ) => {
-			const media = image.attributes.id && getMedia( image.attributes.id, { context: 'view' } );
-			const { width, height } = media?.media_details || {};
+		for ( let i = 0; i < ids.length; i += 100 ) {
+			( select( coreStore ).getEntityRecords( 'postType', 'attachment', {
+				include: ids.slice( i, i + 100 ),
+				per_page: 100,
+				context: 'view',
+				_fields: 'id,media_details',
+			} ) || [] ).forEach( ( media ) => {
+				sizes[ media.id ] = media.media_details || {};
+			} );
+		}
+
+		return images.map( ( image ) => {
+			const { width, height } = sizes[ image.attributes.id ] || {};
 
 			return `${ image.clientId }:${ width && height ? ( width / height ).toFixed( 4 ) : '' }`;
 		} ).join( ',' );
@@ -354,17 +369,8 @@ function MosaicPreview( { clientId, rowHeight, gap } ) {
 			return;
 		}
 
-		ratios.split( ',' ).forEach( ( pair ) => {
-			const [ imageId, ratio ] = pair.split( ':' );
-			const item = doc.getElementById( `block-${ imageId }` );
-
-			if ( item && ratio ) {
-				item.style.setProperty( '--pp-ar', ratio );
-			}
-		} );
-
 		let frame = null;
-		const schedule = () => {
+		schedule.current = () => {
 			if ( frame === null ) {
 				frame = view.requestAnimationFrame( () => {
 					frame = null;
@@ -374,13 +380,19 @@ function MosaicPreview( { clientId, rowHeight, gap } ) {
 		};
 
 		// Lay out again as the canvas width changes and as images are added,
-		// removed, reordered or replaced.
-		const resizes = new view.ResizeObserver( schedule );
-		const mutations = new view.MutationObserver( schedule );
+		// removed, reordered or replaced. Not as its height changes: each
+		// layout changes the height, and it would lay out again.
+		let width = null;
+		const resizes = new view.ResizeObserver( ( [ entry ] ) => {
+			if ( entry.contentRect.width !== width ) {
+				width = entry.contentRect.width;
+				schedule.current();
+			}
+		} );
+		const mutations = new view.MutationObserver( () => schedule.current() );
 
 		resizes.observe( figure.parentNode );
 		mutations.observe( figure, { childList: true } );
-		schedule();
 
 		return () => {
 			resizes.disconnect();
@@ -388,8 +400,25 @@ function MosaicPreview( { clientId, rowHeight, gap } ) {
 			if ( frame !== null ) {
 				view.cancelAnimationFrame( frame );
 			}
+			schedule.current = () => {};
 			release( figure );
 		};
+	}, [ clientId, rowHeight, gap ] );
+
+	// The ratios, set without undoing the layout.
+	useEffect( () => {
+		const doc = ref.current.ownerDocument;
+
+		ratios.split( ',' ).forEach( ( pair ) => {
+			const [ imageId, ratio ] = pair.split( ':' );
+			const item = doc.getElementById( `block-${ imageId }` );
+
+			if ( item && ratio ) {
+				item.style.setProperty( '--pp-ar', ratio );
+			}
+		} );
+
+		schedule.current();
 	}, [ clientId, rowHeight, gap, ratios ] );
 
 	return <span ref={ ref } hidden />;
