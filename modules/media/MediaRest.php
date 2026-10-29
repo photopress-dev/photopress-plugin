@@ -147,7 +147,7 @@ class MediaRest {
 					'default'     => true,
 				],
 				'reprocess_metadata' => [
-					'description' => __( 'Read the new file\'s metadata as for an upload: the image taxonomies, and the alt text from its template. When false, they are left as they are.' ),
+					'description' => __( 'Read the new file\'s metadata as for an upload: the title, caption, description, image taxonomies and alt text. When false, they are left as they are.' ),
 					'type'        => 'boolean',
 					'default'     => true,
 				],
@@ -368,13 +368,17 @@ class MediaRest {
 		$replacements = self::fileReplacements( $old_files, $new_files, self::sizeWidths( $old_meta ), self::sizeWidths( $new_meta ) );
 		$rewritten = $request['update_references'] ? self::updateReferences( self::stem( $name ), $replacements ) : [];
 
-		// 8. Title, caption and description follow the file.
-		$text_changed = self::updateText( $id, $target, $name );
+		// 8. Title, caption and description follow the file, when asked.
+		// Not asked, they are left as they are.
+		$reprocess = (bool) $request['reprocess_metadata'];
+		$text_before = self::text( $id );
+
+		if ( $reprocess ) {
+			self::updateText( $id, $target, $name );
+		}
 
 		// 9. Taxonomies and alt text, when asked (the metadata module), and
 		// anything else hooked here.
-		$reprocess = (bool) $request['reprocess_metadata'];
-		$alt_before = (string) get_post_meta( $id, '_wp_attachment_image_alt', true );
 
 		/**
 		 * Fires after an image was given a new file.
@@ -387,7 +391,7 @@ class MediaRest {
 		 */
 		do_action( 'photopress_attachment_file_replaced', $id, $replacements, $rewritten, [ 'reprocess_metadata' => $reprocess ] );
 
-		$text_changed = $text_changed || (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) !== $alt_before;
+		$text_changed = self::text( $id ) !== $text_before;
 
 		// 10. Every placement of the image, when asked.
 		$synced = $request['sync_embedded'] ? self::syncEmbedded( $id ) : [];
@@ -695,6 +699,14 @@ class MediaRest {
 		}
 
 		return $missing;
+	}
+
+	/** An image's title, caption, description and alt text. */
+	protected static function text( $id ) {
+
+		$post = get_post( $id );
+
+		return [ $post->post_title, $post->post_excerpt, $post->post_content, (string) get_post_meta( $id, '_wp_attachment_image_alt', true ) ];
 	}
 
 	/**
