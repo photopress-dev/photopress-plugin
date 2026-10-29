@@ -161,6 +161,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 = 2.3.0 =
 
 * Added a switch to set image titles from their Title and captions from their Headline.
+* Added a Replace file button to the Media Library.
 * Changed descriptions to come from each image's Description by default on new sites.
 * Added the creator and copyright to the license structured data, which now names the file shown.
 * Fixed a job cancel made while an image was processed being lost.
