@@ -421,6 +421,59 @@ final class MetadataTest extends TestCase {
 		$this->assertNull( $m->generateDescription( $md ), 'off: leave the description alone' );
 	}
 
+	public function test_title_comes_from_the_title_and_caption_from_the_headline(): void {
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'dc:title' => 'Bob', 'photoshop:Headline' => 'Bob at the lake', 'dc:description' => 'Bob swims.' ] ] );
+		Functions\when( 'get_post' )->justReturn( (object) [ 'post_title' => 'Bob at the lake', 'post_excerpt' => 'Bob swims.' ] );
+
+		\pp_api::$options['core/metadata/title_caption_enable'] = true;
+		Functions\expect( 'wp_update_post' )->once()->with( [ 'ID' => 42, 'post_excerpt' => 'Bob at the lake', 'post_title' => 'Bob' ] );
+		$m->applyTitleAndCaption( 42, $md );
+	}
+
+	public function test_a_file_without_a_title_keeps_the_title_and_one_without_a_headline_empties_the_caption(): void {
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'dc:description' => 'Bob swims.' ] ] );
+		Functions\when( 'get_post' )->justReturn( (object) [ 'post_title' => 'Bob at the lake', 'post_excerpt' => 'Bob swims.' ] );
+
+		\pp_api::$options['core/metadata/title_caption_enable'] = true;
+		Functions\expect( 'wp_update_post' )->once()->with( [ 'ID' => 42, 'post_excerpt' => '' ] );
+		$m->applyTitleAndCaption( 42, $md );
+	}
+
+	public function test_title_and_caption_off_or_unchanged_are_left_alone(): void {
+
+		$m = ( new \ReflectionClass( metadata::class ) )->newInstanceWithoutConstructor();
+		$md = new XmpReader();
+		$md->loadFromArray( [ 'xmp' => [ 'dc:title' => 'Bob', 'photoshop:Headline' => 'Bob at the lake' ] ] );
+		Functions\when( 'get_post' )->justReturn( (object) [ 'post_title' => 'Bob', 'post_excerpt' => 'Bob at the lake' ] );
+		Functions\expect( 'wp_update_post' )->never();
+
+		\pp_api::$options['core/metadata/title_caption_enable'] = true;
+		$m->applyTitleAndCaption( 42, $md );
+
+		\pp_api::$options['core/metadata/title_caption_enable'] = false;
+		$m->applyTitleAndCaption( 42, ( new XmpReader() ) );
+	}
+
+	public function test_sites_saved_before_the_title_and_caption_switch_keep_wordpresss(): void {
+
+		$stored = [ 'photopress_core_metadata' => [ 'description_enable' => true ] ];
+		Functions\when( 'get_option' )->alias( static function ( $key ) use ( &$stored ) { return $stored[ $key ] ?? false; } );
+		Functions\when( 'update_option' )->alias( static function ( $key, $value ) use ( &$stored ) { $stored[ $key ] = $value; } );
+
+		metadata::addDescriptionSwitch();
+		$this->assertFalse( $stored['photopress_core_metadata']['title_caption_enable'] );
+
+		$stored['photopress_core_metadata']['title_caption_enable'] = true;
+		metadata::addDescriptionSwitch();
+		$this->assertTrue( $stored['photopress_core_metadata']['title_caption_enable'], 'a saved switch stays' );
+	}
+
 	public function test_sites_saved_before_the_description_switch_get_it_on_where_a_template_is_set(): void {
 
 		$stored = [

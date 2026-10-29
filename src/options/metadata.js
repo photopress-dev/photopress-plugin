@@ -64,7 +64,8 @@ class MetadataSettings extends Component {
 				
 				custom_taxonomies_enable: true,
 				embed_licensor_enable: false,
-				description_enable: false,
+				title_caption_enable: true,
+				description_enable: true,
 				web_statement_of_rights: '',
 				licensor_name: '',
 				licensor_url: '',
@@ -73,7 +74,7 @@ class MetadataSettings extends Component {
 				alt_text_enable: true,
 				alt_text_from_file: true,
 				alt_text_template: '[photoshop:Headline]. [photopress:stringOfKeywords].',
-				description_template: '',
+				description_template: '[dc:description]',
 				strip_metadata_from_resized_image: false
 			},
 			dirtyFields: [],
@@ -305,6 +306,17 @@ class MetadataSettings extends Component {
 					{ this.jobPanel( 'metadata.alt_text', __( 'Reprocessing alt text' ) ) }
 				</BaseControl>
 			</FeatureSection>
+
+			<FeatureSection
+				title={ __( 'Title and Caption' ) }
+				description={ __( 'Set each image’s title from its Title and its caption from its Headline when it is uploaded or its file is replaced.' ) }
+				info={ [
+					<p key="0">{ __( 'Off, WordPress’s own choice applies: the Headline as the title and the Description as the caption.' ) }</p>,
+					<p key="1">{ __( 'Re-read image metadata applies it to the images already uploaded.' ) }</p>,
+				] }
+				checked={ this.getSetting( 'title_caption_enable' ) }
+				onChange={ ( value ) => this.persistSetting( 'title_caption_enable', value ) }
+			/>
 
 			<FeatureSection
 				title={ __( 'Description' ) }
