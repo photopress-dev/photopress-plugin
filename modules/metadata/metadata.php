@@ -1153,7 +1153,7 @@ class metadata extends photopress_module {
 					'title'									=> 'Title and caption from metadata',
 					'page_name'								=> 'metadata',
 					'section'								=> 'general',
-					'description'							=> 'Sets each image\'s title from its Title and its caption from its Headline, in place of WordPress\'s Headline and Description.',
+					'description'							=> 'Use the IPTC Title as the image\'s title and the IPTC Headline as its caption.',
 					'label_for'								=> 'Title and caption from metadata.',
 					'error_message'							=> ''
 				]
