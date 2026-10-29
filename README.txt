@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 2.3.0
+Stable tag: 2.3.1
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -158,6 +158,11 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 20. SEO tab: the sitemap in use, and unneeded archives turned off
 
 == Changelog ==
+
+= 2.3.1 =
+
+* Changed the Title and Caption switch's description to name the IPTC fields it uses.
+* Fixed Mosaic galleries laying themselves out over and over in the editor.
 
 = 2.3.0 =
 
