@@ -47,20 +47,21 @@ test( 'same type: the name stays, sizes follow the new shape, text follows the f
 	expect( again.data.photopress_replaced.posts_updated ).toEqual( [] );
 	expect( again.data.photopress_replaced.text_updated ).toBe( false );
 
-	// reprocess_metadata off: hand-written alt text stays, but the title
-	// still follows the file. sync_embedded puts the image's alt text and
-	// caption into the post's image block.
+	// reprocess_metadata off: the title, caption and hand-written alt text
+	// stay as they are. sync_embedded puts the image's alt text and caption
+	// into the post's image block.
 	expect( ( await rest( page, { method: 'POST', route: `/wp/v2/media/${ image }`, json: { alt_text: 'Written by hand' } } ) ).status ).toBe( 200 );
 	const second = await rest( page, { method: 'POST', route: `/photopress/v1/media/${ image }/file?reprocess_metadata=false&sync_embedded=true`, file: file( '03-square.jpg', 'IMG_1234.jpg' ), multipart: true } );
 	expect( second.status, JSON.stringify( second.data ) ).toBe( 200 );
 	expect( second.data.source_url ).toBe( before.source_url );
 	expect( [ second.data.media_details.width, second.data.media_details.height ] ).toEqual( [ 1000, 1000 ] );
 	expect( second.data.alt_text ).toBe( 'Written by hand' );
-	expect( second.data.title.raw ).toBe( 'Carol' );
+	expect( second.data.title.raw ).toBe( 'Alice' );
+	expect( second.data.caption.raw ).toMatch( /^Alice, a 800.1200 test image\.$/ );
 	expect( second.data.photopress_replaced.embedded_synced ).toEqual( [ post ] );
 	content = ( await rest( page, { route: `/wp/v2/pages/${ post }?context=edit` } ) ).data.content.raw;
 	expect( content ).toContain( 'alt="Written by hand"' );
-	expect( content ).toMatch( /<figcaption class="wp-element-caption">Carol, a 1000.1000 test image\.<\/figcaption>/ );
+	expect( content ).toMatch( /<figcaption class="wp-element-caption">Alice, a 800.1200 test image\.<\/figcaption>/ );
 
 	// The block as sync_embedded wrote it is one the editor accepts.
 	await page.goto( `/wp-admin/post.php?post=${ post }&action=edit` );
