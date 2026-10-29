@@ -164,6 +164,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 * Changed descriptions to come from each image's Description by default on new sites.
 * Added the creator and copyright to the license structured data, which now names the file shown.
 * Fixed a job cancel made while an image was processed being lost.
+* Fixed Replace File changing an image's title and caption when asked not to read its metadata.
 
 = 2.2.0 =
 
