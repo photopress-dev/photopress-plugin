@@ -309,10 +309,32 @@ class MetadataSettings extends Component {
 
 			<FeatureSection
 				title={ __( 'Title and Caption' ) }
-				description={ __( 'Set each image’s title from its Title and its caption from its Headline when it is uploaded or its file is replaced.' ) }
+				description={ __( 'Use the IPTC Title as the image’s title and the IPTC Headline as its caption.' ) }
 				info={ [
-					<p key="0">{ __( 'Off, WordPress’s own choice applies: the Headline as the title and the Description as the caption.' ) }</p>,
-					<p key="1">{ __( 'Re-read image metadata applies it to the images already uploaded.' ) }</p>,
+					<table key="0" className="widefat striped">
+						<thead>
+							<tr>
+								<th>{ __( 'WordPress field' ) }</th>
+								<th>{ __( 'Switch on' ) }</th>
+								<th>{ __( 'Switch off (WordPress’s default)' ) }</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td>{ __( 'Title' ) }</td>
+								<td>{ __( 'IPTC Title' ) }</td>
+								<td>{ __( 'IPTC Headline' ) }</td>
+							</tr>
+							<tr>
+								<td>{ __( 'Caption' ) }</td>
+								<td>{ __( 'IPTC Headline' ) }</td>
+								<td>{ __( 'IPTC Description (“Caption” in Lightroom)' ) }</td>
+							</tr>
+						</tbody>
+					</table>,
+					<p key="1">{ __( 'A photo with no Title keeps the title it has. A photo with no Headline gets no caption.' ) }</p>,
+					<p key="2">{ __( 'The description is set by the Description card below.' ) }</p>,
+					<p key="3">{ __( 'To apply this to photos already uploaded, run Re-read image metadata.' ) }</p>,
 				] }
 				checked={ this.getSetting( 'title_caption_enable' ) }
 				onChange={ ( value ) => this.persistSetting( 'title_caption_enable', value ) }
