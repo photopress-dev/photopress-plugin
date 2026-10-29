@@ -71,7 +71,7 @@ class metadata extends photopress_module {
 		// batches and while the server is busy, on a shared database.
 		\PhotoPress\jobs\Jobs::register( 'metadata.reprocess', [
 			'label'       => __( 'Re-read image metadata' ),
-			'description' => __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, alt text and description. For after changing the taxonomies or templates.' ),
+			'description' => __( 'Reads every image\'s embedded metadata again, as on upload: its image taxonomies, title, caption, alt text and description. For after changing the taxonomies or templates.' ),
 			'count'       => [ ImageQuery::class, 'count' ],
 			'items'       => [ ImageQuery::class, 'next' ],
 			'process'     => [ $this, 'reprocessImage' ],
@@ -318,15 +318,30 @@ class metadata extends photopress_module {
 	/**
 	 * Sites saved before the description had its own switch: on where a
 	 * description template is set, as the template alone turned it on.
+	 * Sites saved before the title and caption switch keep WordPress's
+	 * title and caption.
 	 */
 	public static function addDescriptionSwitch() {
 
 		$key   = photopress_util::getModuleOptionKey( 'core', 'metadata' );
 		$saved = get_option( $key );
 
-		if ( is_array( $saved ) && ! array_key_exists( 'description_enable', $saved ) ) {
-			$saved['description_enable'] = '' !== trim( (string) ( $saved['description_template'] ?? '' ) );
-			update_option( $key, $saved );
+		if ( ! is_array( $saved ) ) {
+			return;
+		}
+
+		$added = [];
+
+		if ( ! array_key_exists( 'description_enable', $saved ) ) {
+			$added['description_enable'] = '' !== trim( (string) ( $saved['description_template'] ?? '' ) );
+		}
+
+		if ( ! array_key_exists( 'title_caption_enable', $saved ) ) {
+			$added['title_caption_enable'] = false;
+		}
+
+		if ( $added ) {
+			update_option( $key, $saved + $added );
 		}
 	}
 
@@ -1130,9 +1145,23 @@ class metadata extends photopress_module {
 				]
 			],
 			
+			'title_caption_enable'	=> [
+				
+				'default_value'							=> true,
+				'field'									=> [
+					'type'									=> 'boolean',
+					'title'									=> 'Title and caption from metadata',
+					'page_name'								=> 'metadata',
+					'section'								=> 'general',
+					'description'							=> 'Sets each image\'s title from its Title and its caption from its Headline, in place of WordPress\'s Headline and Description.',
+					'label_for'								=> 'Title and caption from metadata.',
+					'error_message'							=> ''
+				]
+			],
+			
 			'description_enable'	=> [
 				
-				'default_value'							=> false,
+				'default_value'							=> true,
 				'field'									=> [
 					'type'									=> 'boolean',
 					'title'									=> 'Description from metadata',
@@ -1146,7 +1175,7 @@ class metadata extends photopress_module {
 			
 			'description_template'	=> [
 				
-				'default_value'							=> '',
+				'default_value'							=> '[dc:description]',
 				'field'									=> [
 					'type'									=> 'text',
 					'title'									=> 'XMP template for Description',
@@ -1393,8 +1422,9 @@ class metadata extends photopress_module {
 	}
 	
 	/**
-	 * Reads an image's metadata into its terms, description and alt text.
-	 * $force: empty terms the file has nothing for (see setTaxonomyTerms).
+	 * Reads an image's metadata into its terms, title, caption, description
+	 * and alt text. $force: empty terms the file has nothing for (see
+	 * setTaxonomyTerms).
 	 */
 	public function addAttachment( $id, $force = false, $only = null ) {
 		
@@ -1413,13 +1443,41 @@ class metadata extends photopress_module {
 		// set the taxonomy terms
 		$this->setTaxonomyTerms( $id, $md, $force, $only );
 		
-		// Only some taxonomies: the alt text and description stay.
+		// Only some taxonomies: the title, caption, alt text and description stay.
 		if ( $only ) {
 			return;
 		}
 		
+		$this->applyTitleAndCaption( $id, $md );
 		$this->applyDescription( $id, $md );
 		$this->applyAltText( $id, $md );
+	}
+	
+	/**
+	 * Sets an image's title from its Title (dc:title) and its caption from
+	 * its Headline, when the switch is on. WordPress gives them the Headline
+	 * and the Description on upload. A file with no Title leaves the title
+	 * alone; one with no Headline empties the caption.
+	 */
+	public function applyTitleAndCaption( $id, $md ) {
+		
+		if ( ! pp_api::getOption( 'core', 'metadata', 'title_caption_enable' ) ) {
+			return;
+		}
+		
+		$fields = [ 'post_excerpt' => self::altTextValue( $md->getXmp( 'photoshop:Headline' ) ) ];
+		$title  = self::altTextValue( $md->getXmp( 'dc:title' ) );
+		
+		if ( '' !== $title ) {
+			$fields['post_title'] = $title;
+		}
+		
+		$post    = get_post( $id );
+		$changes = array_filter( $fields, static fn( $value, $field ) => $value !== (string) $post->$field, ARRAY_FILTER_USE_BOTH );
+		
+		if ( $changes ) {
+			wp_update_post( wp_slash( [ 'ID' => $id ] + $changes ) );
+		}
 	}
 	
 	/**

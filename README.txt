@@ -59,7 +59,7 @@ Documentation: [Child Pages Gallery](https://github.com/photopress-dev/photopres
 * Image taxonomies: PhotoPress files each uploaded photo under its camera, lens, location, keywords and other metadata, with an archive page for each.
 * You choose which metadata fields become taxonomies, including keyword hierarchies from Lightroom or Capture One and any IPTC field.
 * The Image Metadata block shows an image's terms and exposure details on its page.
-* Alt text and descriptions are written from each photo's metadata when it is uploaded.
+* Titles, captions, alt text and descriptions are written from each photo's metadata when it is uploaded: the title from its Title, the caption from its Headline and the description from its Description.
 * Licensing metadata is embedded in your image files and published as structured data on the pages that show them.
 * Changes can be applied to the images already in the Media Library, in the background.
 
