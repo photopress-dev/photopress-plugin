@@ -10,6 +10,8 @@
  *   gallery-layouts-inline.build.js  the same, printed inline after each gallery
  *   gallery-slideshow.build.js  the slideshows: the Gallery Slideshow block's and the
  *                               full-screen one galleries open (modules/slideshow/slideshow.php)
+ *   replace-file.build.js     the Replace file button in an image's details
+ *                             (modules/media/ReplaceFileButton.php)
  *
  * Each JS file is accompanied by a .asset.php listing its script dependencies,
  * which the PHP reads instead of hardcoding them.
@@ -60,6 +62,7 @@ module.exports = {
 		'gallery-layouts.build': './src/frontend/gallery-layouts.js',
 		'gallery-layouts-inline.build': './src/frontend/gallery-layouts-inline.js',
 		'gallery-slideshow.build': './src/frontend/gallery-slideshow.js',
+		'replace-file.build': './src/admin/replace-file.js',
 	},
 	output: {
 		...defaultConfig.output,

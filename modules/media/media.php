@@ -41,6 +41,7 @@ class media extends photopress_module {
 		MediaRest::addHooks();
 		CdnInvalidator::addHooks();
 		EnableMediaReplace::addHooks();
+		ReplaceFileButton::addHooks();
 
 		OffloadMedia::filteringUploads( [ $this, 'setCacheControl' ] );
 		add_action( 'rest_api_init', [ $this, 'registerRoutes' ] );
