@@ -19,7 +19,8 @@ use WP_Query;
  * in a block theme, PhotoPress's Image Search template shows the images and
  * lists posts and pages apart (the Search Posts block), so the main query is
  * of images alone. A search for a post type of its own (?post_type=post) is
- * left as it is.
+ * left as it is. A search with no words finds nothing, unless the Nothing
+ * for a blank search switch is off; WordPress would list every image.
  *
  * An image is found by its title, caption, description and alt text, and by
  * the names of its terms in the image taxonomies visitors may see. Without
@@ -79,6 +80,7 @@ class ImageSearch {
 		// Relevanssi's index, as PhotoPress has it, and its results.
 		Relevanssi::indexingFields( [ self::class, 'indexedFields' ] );
 		Relevanssi::filteringResults( [ self::class, 'onlyImages' ] );
+		Relevanssi::decidingSearch( [ self::class, 'searchUnlessBlank' ] );
 		add_action( 'photopress_image_terms_changed', [ self::class, 'imageTermsChanged' ], 10, 2 );
 		add_action( 'photopress_post_changed', [ self::class, 'contentRewritten' ], 10, 2 );
 		add_filter( 'photopress_term_images_job', [ self::class, 'termImagesJob' ] );
@@ -157,6 +159,17 @@ class ImageSearch {
 	}
 
 	/**
+	 * Whether the image search has no words to search for, with the Nothing
+	 * for a blank search switch on.
+	 *
+	 * @param WP_Query $query
+	 */
+	public static function blank( $query ) {
+
+		return $query instanceof WP_Query && $query->get( self::FLAG ) && '' === trim( (string) $query->get( 's' ) ) && search::enabled( 'blank_search_empty' );
+	}
+
+	/**
 	 * The post types listed with images: those core searches, but images.
 	 *
 	 * @return string[]
@@ -191,6 +204,22 @@ class ImageSearch {
 		$query->set( 'post_status', count( $types ) > 1 ? [ 'publish', 'inherit' ] : 'inherit' );
 		$query->set( metadata::PUBLIC_IMAGES, true );
 		$query->set( self::FLAG, true );
+
+		if ( self::blank( $query ) ) {
+			$query->set( 'post__in', [ 0 ] );
+		}
+	}
+
+	/**
+	 * relevanssi_search_ok: not for a blank image search, which WordPress
+	 * then answers with nothing (searchImages()).
+	 *
+	 * @param bool     $ok
+	 * @param WP_Query $query
+	 */
+	public static function searchUnlessBlank( $ok, $query ) {
+
+		return self::blank( $query ) ? false : $ok;
 	}
 
 	/**
@@ -294,7 +323,7 @@ class ImageSearch {
 	 * render_callback of photopress/search-posts: on an image search, the
 	 * posts and pages found, a few, under its heading when that is on, with a
 	 * link to all of them; and when neither they nor images were found, a
-	 * note saying so.
+	 * note saying so. For a blank search, a note asking for words.
 	 */
 	public static function renderPosts( $attributes ) {
 
@@ -302,6 +331,14 @@ class ImageSearch {
 
 		if ( ! is_search() || ! $wp_query instanceof WP_Query || ! $wp_query->get( self::FLAG ) ) {
 			return '';
+		}
+
+		if ( self::blank( $wp_query ) ) {
+			return sprintf(
+				'<div %s><p>%s</p></div>',
+				get_block_wrapper_attributes( [ 'class' => 'is-empty' ] ),
+				esc_html__( 'Enter words to search for.', 'photopress' )
+			);
 		}
 
 		$terms  = get_search_query( false );

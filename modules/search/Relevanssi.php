@@ -12,7 +12,7 @@ use WP_Query;
  *
  * Its documented functions (relevanssi_do_query(), and relevanssi_index_doc()
  * with relevanssi_get_custom_fields() as its documentation shows) and filters
- * (relevanssi_index_custom_fields, relevanssi_hits_filter). Which post types
+ * (relevanssi_index_custom_fields, relevanssi_hits_filter, relevanssi_search_ok). Which post types
  * and taxonomies it indexes, and whether image files, it has no filter for:
  * they are its settings, read and saved here as its Indexing tab saves them
  * (indexing(), setIndexing()), so its settings page shows what PhotoPress
@@ -110,5 +110,17 @@ class Relevanssi {
 	public static function filteringResults( callable $hits ) {
 
 		add_filter( 'relevanssi_hits_filter', $hits, 10, 2 );
+	}
+
+	/**
+	 * Whether Relevanssi searches a query: the callback is given its answer
+	 * and the WP_Query, and returns it. Not searched, the query is left to
+	 * WordPress.
+	 *
+	 * @param callable $ok
+	 */
+	public static function decidingSearch( callable $ok ) {
+
+		add_filter( 'relevanssi_search_ok', $ok, 10, 2 );
 	}
 }
