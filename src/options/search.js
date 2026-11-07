@@ -123,7 +123,7 @@ class SearchSettings extends Component {
 					/>
 					<SwitchRow
 						label={ __( 'Prevent empty search queries' ) }
-						help={ __( 'Turned off, a search with no words lists every image.' ) }
+						help={ __( 'Prevent default WordPress behavior of showing all possible results when searches are made with an empty query.' ) }
 						checked={ this.getSetting( 'prevent_empty_search' ) }
 						onChange={ ( value ) => this.persistSetting( 'prevent_empty_search', value ) }
 					/>

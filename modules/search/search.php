@@ -182,7 +182,7 @@ class search extends photopress_module {
 					'title'         => 'Prevent empty search queries',
 					'page_name'     => 'search',
 					'section'       => 'general',
-					'description'   => 'With images in search results, a search with no words finds nothing, rather than every image.',
+					'description'   => 'Prevent default WordPress behavior of showing all possible results when searches are made with an empty query.',
 					'label_for'     => 'Prevent empty search queries',
 					'error_message' => '',
 				],
