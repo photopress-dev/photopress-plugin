@@ -77,8 +77,10 @@ test.afterAll( () => {
 		wp( 'eval', `
 			foreach ( ${ php( made.images ) } as $id ) { wp_delete_attachment( $id, true ); }
 			foreach ( [ ${ made.post }, ${ made.draft }, ${ made.draftPage } ] as $id ) { wp_delete_post( $id, true ); }
-			$t = get_term_by( 'name', '${ WORD }', 'photos_keywords' );
-			if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); }
+			foreach ( [ '${ WORD }', '${ WORD }tag' ] as $name ) {
+				$t = get_term_by( 'name', $name, 'photos_keywords' );
+				if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); }
+			}
 		` );
 	}
 } );
@@ -155,6 +157,43 @@ test( 'with core\'s search: public images by their terms and alt text, and posts
 	await page.goto( `/?s=${ WORD }&post_type=post` );
 	await expect( gallery( page ) ).toHaveCount( 0 );
 	await expect( page.locator( 'body' ) ).toContainText( `PP E2E post about ${ WORD }` );
+} );
+
+test( 'Image Filters: a term narrows the search, and its chip takes it off', async ( { page } ) => {
+	relevanssi( false );
+	setSearch( { images_in_search: true, posts_in_search: null } );
+	const [ byTerm, byAlt ] = made.images;
+	const TAG = `${ WORD }tag`;
+	wp( 'eval', `wp_set_object_terms( ${ byTerm }, '${ TAG }', 'photos_keywords', true );` );
+	const filters = page.locator( 'nav.wp-block-photopress-image-filters' );
+
+	await page.goto( `/?s=${ WORD }` );
+	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 2 );
+
+	// One of the two images has it: listed, with its count.
+	const keywords = filters.locator( '.photopress-image-filters__menu--photos_keywords' );
+	await keywords.locator( 'summary' ).click();
+	const link = keywords.getByRole( 'link', { name: new RegExp( `^${ TAG }\\s*1$` ) } );
+	await expect( link ).toHaveAttribute( 'rel', 'nofollow' );
+	await link.click();
+
+	await expect( page ).toHaveURL( new RegExp( `photos_keywords=${ TAG }` ) );
+	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 1 );
+	await expect( gallery( page ).locator( `img.wp-image-${ byTerm }` ) ).toHaveCount( 1 );
+
+	// Applied, it is a chip, and no longer in a menu.
+	const chip = filters.locator( '.photopress-image-filters__applied' ).getByRole( 'link', { name: new RegExp( `^${ TAG }` ) } );
+	await expect( chip ).toBeVisible();
+	await expect( filters.locator( '.photopress-image-filters__panel' ).getByRole( 'link', { name: new RegExp( `^${ TAG }` ) } ) ).toHaveCount( 0 );
+	await chip.click();
+	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 2 );
+	await expect( gallery( page ).locator( `img.wp-image-${ byAlt }` ) ).toHaveCount( 1 );
+
+	// No words: no images, and no filters.
+	await page.goto( '/?s=' );
+	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 0 );
+	await expect( filters ).toHaveCount( 0 );
+	await expect( page.locator( 'body' ) ).toContainText( 'Enter words to search for.' );
 } );
 
 test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change, are renamed and are deleted', async ( { page } ) => {

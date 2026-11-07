@@ -300,3 +300,120 @@ $gap: var(--wp--style--unstable-gallery-gap, 16px);
 		font-size: 18px;
 	}
 }
+
+// Image Filters: the filters applied, then a row of menus, each opening a
+// list of terms over the page.
+.wp-block-photopress-image-filters {
+	margin-block: 1.5em;
+	font-size: 14px;
+
+	ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	a {
+		text-decoration: none;
+	}
+
+	.photopress-image-filters__applied {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		margin-bottom: 12px;
+
+		a {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 3px 10px;
+			border: 1px solid currentColor;
+			border-radius: 999px;
+		}
+	}
+
+	.photopress-image-filters__clear a {
+		border-color: transparent;
+		text-decoration: underline;
+	}
+
+	.photopress-image-filters__menus {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+	}
+
+	.photopress-image-filters__menu {
+		position: relative;
+
+		> summary {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			padding: 4px 12px;
+			border: 1px solid rgba(127, 127, 127, 0.5);
+			border-radius: 4px;
+			cursor: pointer;
+			list-style: none;
+
+			&::-webkit-details-marker {
+				display: none;
+			}
+
+			&::after {
+				content: "";
+				width: 6px;
+				height: 6px;
+				border-right: 1.5px solid currentColor;
+				border-bottom: 1.5px solid currentColor;
+				transform: translateY(-2px) rotate(45deg);
+			}
+		}
+
+		&[open] > summary::after {
+			transform: translateY(1px) rotate(-135deg);
+		}
+	}
+
+	.photopress-image-filters__panel {
+		position: absolute;
+		z-index: 20;
+		top: calc(100% + 4px);
+		left: 0;
+		min-width: 220px;
+		max-width: min(320px, calc(100vw - 32px));
+		max-height: 360px;
+		padding: 6px 0;
+		overflow-y: auto;
+		color: var(--wp--preset--color--contrast, #111);
+		background: var(--wp--preset--color--base, #fff);
+		border: 1px solid rgba(127, 127, 127, 0.35);
+		border-radius: 4px;
+		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+
+		a {
+			display: flex;
+			justify-content: space-between;
+			gap: 16px;
+			padding: 4px 14px;
+			color: inherit;
+
+			&:hover,
+			&:focus-visible {
+				background: rgba(127, 127, 127, 0.12);
+			}
+		}
+	}
+
+	.photopress-image-filters__count {
+		opacity: 0.6;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.photopress-image-filters__more > summary {
+		padding: 4px 14px;
+		cursor: pointer;
+		opacity: 0.75;
+	}
+}
