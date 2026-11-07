@@ -19,8 +19,8 @@ use WP_Query;
  * in a block theme, PhotoPress's Image Search template shows the images and
  * lists posts and pages apart (the Search Posts block), so the main query is
  * of images alone. A search for a post type of its own (?post_type=post) is
- * left as it is. A search with no words finds nothing, unless the Nothing
- * for a blank search switch is off; WordPress would list every image.
+ * left as it is. A search with no words finds nothing, unless the Prevent
+ * empty search queries switch is off; WordPress would list every image.
  *
  * An image is found by its title, caption, description and alt text, and by
  * the names of its terms in the image taxonomies visitors may see. Without
@@ -159,14 +159,14 @@ class ImageSearch {
 	}
 
 	/**
-	 * Whether the image search has no words to search for, with the Nothing
-	 * for a blank search switch on.
+	 * Whether the image search has no words to search for, with the Prevent
+	 * empty search queries switch on.
 	 *
 	 * @param WP_Query $query
 	 */
 	public static function blank( $query ) {
 
-		return $query instanceof WP_Query && $query->get( self::FLAG ) && '' === trim( (string) $query->get( 's' ) ) && search::enabled( 'blank_search_empty' );
+		return $query instanceof WP_Query && $query->get( self::FLAG ) && '' === trim( (string) $query->get( 's' ) ) && search::enabled( 'prevent_empty_search' );
 	}
 
 	/**

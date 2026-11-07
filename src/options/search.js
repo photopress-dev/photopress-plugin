@@ -60,7 +60,7 @@ class SearchSettings extends Component {
 				taxonomy_pages: true,
 				images_in_search: false,
 				posts_in_search: true,
-				blank_search_empty: true,
+				prevent_empty_search: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -122,10 +122,10 @@ class SearchSettings extends Component {
 						onChange={ ( value ) => this.persistSetting( 'posts_in_search', value ) }
 					/>
 					<SwitchRow
-						label={ __( 'Nothing for a blank search' ) }
+						label={ __( 'Prevent empty search queries' ) }
 						help={ __( 'Turned off, a search with no words lists every image.' ) }
-						checked={ this.getSetting( 'blank_search_empty' ) }
-						onChange={ ( value ) => this.persistSetting( 'blank_search_empty', value ) }
+						checked={ this.getSetting( 'prevent_empty_search' ) }
+						onChange={ ( value ) => this.persistSetting( 'prevent_empty_search', value ) }
 					/>
 				</FeatureSection>
 

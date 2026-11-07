@@ -126,7 +126,7 @@ final class ImageSearchTest extends TestCase {
 		$this->assertFalse( ImageSearch::searchUnlessBlank( true, $search( '' ) ) );
 		$this->assertTrue( ImageSearch::searchUnlessBlank( true, $search( 'fog' ) ) );
 
-		$this->saved['blank_search_empty'] = false;
+		$this->saved['prevent_empty_search'] = false;
 		$this->assertSame( '', $search( '' )->get( 'post__in' ), 'switch off: every image, as WordPress lists them' );
 		$this->assertTrue( ImageSearch::searchUnlessBlank( true, $search( '' ) ) );
 

@@ -43,7 +43,7 @@ class search extends photopress_module {
 	 * defaults.
 	 *
 	 * @param string $key     attachment_pages, taxonomy_pages, images_in_search,
-	 *                        posts_in_search or blank_search_empty.
+	 *                        posts_in_search or prevent_empty_search.
 	 * @param bool   $default When it was never saved.
 	 */
 	public static function enabled( $key, $default = true ) {
@@ -175,15 +175,15 @@ class search extends photopress_module {
 				],
 			],
 
-			'blank_search_empty' => [
+			'prevent_empty_search' => [
 				'default_value' => true,
 				'field'         => [
 					'type'          => 'boolean',
-					'title'         => 'Nothing for a blank search',
+					'title'         => 'Prevent empty search queries',
 					'page_name'     => 'search',
 					'section'       => 'general',
 					'description'   => 'With images in search results, a search with no words finds nothing, rather than every image.',
-					'label_for'     => 'Nothing for a blank search',
+					'label_for'     => 'Prevent empty search queries',
 					'error_message' => '',
 				],
 			],
