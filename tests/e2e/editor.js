@@ -69,6 +69,15 @@ async function openEditor( page, { type = 'post', id = 0 } = {} ) {
 	}
 }
 
+/** The theme's template, or PhotoPress's, open in the Site Editor, ready. */
+async function openTemplate( page, slug ) {
+	preferences();
+	const theme = lastLine( wp( 'eval', 'echo get_stylesheet();' ) );
+	await page.goto( `/wp-admin/site-editor.php?postType=wp_template&postId=${ encodeURIComponent( `${ theme }//${ slug }` ) }&canvas=edit` );
+	await page.waitForFunction( () => window.wp?.data?.select( 'core/block-editor' )?.getBlocks().length > 0, null, { timeout: 60000 } );
+	await settle( page );
+}
+
 /** Where the blocks are drawn: the editor's iframe, when it has one. */
 function canvas( page ) {
 	return page.frameLocator( 'iframe[name="editor-canvas"]' );
@@ -192,6 +201,7 @@ function makePost( content, type = 'page' ) {
 module.exports = {
 	editorOnly,
 	openEditor,
+	openTemplate,
 	canvas,
 	insertBlock,
 	imageBlocks,

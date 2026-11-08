@@ -131,19 +131,24 @@ Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev
 
 - Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
 - Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
+- A search with no words finds nothing, rather than every image. A switch turns this off.
+- The Image Filters block narrows search results by the terms of the images found: a menu per image taxonomy, with how many images have each term. Each menu is an Image Filter block, to reorder, rename or remove in the editor.
 - With [Relevanssi](https://wordpress.org/plugins/relevanssi/), PhotoPress has Relevanssi index images with their alt text and taxonomy terms.
 
 Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search).
 
 ![Search results with images](.wordpress-org/screenshot-19.png)\
-*Search results with images, in the Image Search template.*
+*Search results with images, in the Image Search template, with Image Filters.*
+
+![Image Filter blocks in the Site Editor](.wordpress-org/screenshot-20.png)\
+*Image Filter blocks in the Site Editor: Keywords moved first and named Subjects.*
 
 ### SEO
 
 - PhotoPress adds image pages and image taxonomy archive pages to the site's sitemap, whether it is WordPress's own, [Jetpack](https://wordpress.org/plugins/jetpack/)'s or [Yoast SEO](https://wordpress.org/plugins/wordpress-seo/)'s.
 - Unneeded archives: a switch that disables author, date and post format archives, each on its own, redirecting them to the home page and leaving them out of the sitemap.
 
-![The SEO tab](.wordpress-org/screenshot-20.png)\
+![The SEO tab](.wordpress-org/screenshot-21.png)\
 *The SEO settings tab.*
 
 Documentation: [Sitemaps](https://github.com/photopress-dev/photopress-plugin/wiki/Sitemaps).

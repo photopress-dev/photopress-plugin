@@ -1,22 +1,14 @@
 /**
  * PhotoPress's templates in the Site Editor: listed while their kind of page
  * is on, and opening with their blocks as they are meant to show there.
- * Nothing is saved. Runs only with PP_E2E_EDITOR=1 (editor.js).
+ * Only the Image Search test saves, and it deletes what it saved. Runs only
+ * with PP_E2E_EDITOR=1 (editor.js).
  */
 const { test, expect } = require( './test' );
 const { wp, lastLine } = require( './wp' );
-const { editorOnly, canvas, settle, invalidBlocks } = require( './editor' );
+const { editorOnly, openTemplate, canvas, invalidBlocks } = require( './editor' );
 
 test.beforeEach( editorOnly );
-
-const theme = () => lastLine( wp( 'eval', 'echo get_stylesheet();' ) );
-
-/** A template open in the Site Editor, ready. */
-async function openTemplate( page, slug ) {
-	await page.goto( `/wp-admin/site-editor.php?postType=wp_template&postId=${ encodeURIComponent( `${ theme() }//${ slug }` ) }&canvas=edit` );
-	await page.waitForFunction( () => window.wp?.data?.select( 'core/block-editor' )?.getBlocks().length > 0, null, { timeout: 60000 } );
-	await settle( page );
-}
 
 test( 'Image Archives and Image Pages are among the templates', async ( { page } ) => {
 	await page.goto( '/wp-admin/site-editor.php?postType=wp_template' );
