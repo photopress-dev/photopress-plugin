@@ -26,6 +26,8 @@ use photopress_module;
  *
  * And images in search results, found by their titles, captions, alt text
  * and terms, with Relevanssi or without (ImageSearch).
+ * The Image Filters block narrows them by
+ * their terms (ImageFilters).
  *
  * The pages of both are listed in the site's sitemap, whichever builds it
  * (ImageSitemap), which the SEO tab shows (modules/seo).
@@ -79,6 +81,7 @@ class search extends photopress_module {
 		add_filter( 'pre_option_wp_attachment_pages_enabled', [ self::class, 'attachmentPagesOption' ] );
 
 		ImageSearch::addHooks();
+		ImageFilters::addHooks();
 		PageCache::addHooks();
 		TermChanges::addHooks();
 		CoreSitemap::addHooks();
