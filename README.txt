@@ -7,7 +7,7 @@ License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl.html
 Requires at least: 6.6
 Tested up to: 7.1
-Stable tag: 2.3.1
+Stable tag: 2.4.0
 
 Making WordPress work for photographers with beautiful image galleries, slideshows, meta-data tools, and more.
 
@@ -155,11 +155,16 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
 16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
 17. Image Archives template: a keyword's images in the Masonry layout
-18. Pages & Search tab: attachment pages, image taxonomy pages, images in search results, and the page cache and search index
+18. Pages & Search tab: attachment pages, image taxonomy pages, images in search results and empty searches, and the page cache and search index
 19. Search results with images: the Image Search template
 20. SEO tab: the sitemap in use, and unneeded archives turned off
 
 == Changelog ==
+
+= 2.4.0 =
+
+* Added the Image Filters block, to narrow search results by the terms of the images found.
+* Changed a search with no words to find nothing, with a switch to list every image.
 
 = 2.3.1 =
 
