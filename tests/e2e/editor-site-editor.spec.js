@@ -57,8 +57,9 @@ test( 'Image Search opens with an Image Filter per taxonomy in Image Filters, ea
 		// per taxonomy once they load.
 		const filters = () => page.evaluate( () => {
 			const { getBlocks, getBlocksByName } = window.wp.data.select( 'core/block-editor' );
+			const { getActiveBlockVariation } = window.wp.data.select( 'core/blocks' );
 			const [ parent ] = getBlocksByName( 'photopress/image-filters' );
-			return getBlocks( parent ).map( ( b ) => window.wp.blocks.getActiveBlockVariation( b.name, b.attributes )?.title ?? b.attributes.taxonomy );
+			return getBlocks( parent ).map( ( b ) => getActiveBlockVariation( b.name, b.attributes )?.title ?? b.attributes.taxonomy );
 		} );
 		await expect.poll( filters, { timeout: 30000 } ).toEqual( titles );
 		await expect( canvas( page ).locator( '.wp-block-photopress-image-filter summary' ) ).toHaveText( titles );
