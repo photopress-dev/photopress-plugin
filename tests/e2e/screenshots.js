@@ -8,8 +8,11 @@ const fs = require( 'fs' );
 const path = require( 'path' );
 const { test, expect } = require( './test' );
 const { wp, lastLine } = require( './wp' );
+const { editorOnly, openTemplate, canvas } = require( './editor' );
 
 const OUT = process.env.PP_SHOTS_OUT || path.resolve( __dirname, '../../.wordpress-org' );
+// Images for the wiki, made with the screenshots.
+const WIKI = process.env.PP_WIKI_OUT || path.join( __dirname, '.results', 'wiki' );
 const SLIDESHOW = '.wp-block-photopress-gallery-slideshow';
 
 // Captions for the slideshows; the people and places are the test images'
@@ -298,6 +301,89 @@ test( 'screenshot-19: search results with images, in the Image Search template',
 	}
 } );
 
+// The block editor, as in CI only (editor.js).
+test.describe( 'in the Site Editor', () => {
+	let before;
+
+	test.beforeEach( editorOnly );
+
+	// Images in search results, which registers the Image Search template:
+	// the setting put back. Nothing is saved.
+	test.beforeAll( () => {
+		before = lastLine( wp( 'eval', `$o = get_option( 'photopress_core_search' ); echo wp_json_encode( is_array( $o ) ? $o : null );` ) );
+		wp( 'eval', `$o = get_option( 'photopress_core_search' ); $o = is_array( $o ) ? $o : []; $o['images_in_search'] = true; update_option( 'photopress_core_search', $o );` );
+	} );
+
+	test.afterAll( () => {
+		wp( 'eval', `$o = json_decode( '${ before }', true ); null === $o ? delete_option( 'photopress_core_search' ) : update_option( 'photopress_core_search', $o );` );
+	} );
+
+	/**
+	 * The Image Search template with its Image Filter blocks filled in, the
+	 * Keywords one moved first, named Subjects and selected, and the block
+	 * settings open. Returns the block settings.
+	 */
+	async function imageFilters( page, { listView = false } = {} ) {
+		await openTemplate( page, 'search-images' );
+		const filters = () => page.evaluate( () => {
+			const { getBlocks, getBlocksByName } = window.wp.data.select( 'core/block-editor' );
+			const [ parent ] = getBlocksByName( 'photopress/image-filters' );
+			return parent ? getBlocks( parent ).length : 0;
+		} );
+		await expect.poll( filters, { timeout: 30000 } ).toBeGreaterThan( 1 );
+		await page.evaluate( ( open ) => {
+			const { getBlocks, getBlocksByName } = window.wp.data.select( 'core/block-editor' );
+			const { moveBlocksToPosition, updateBlockAttributes, selectBlock } = window.wp.data.dispatch( 'core/block-editor' );
+			const [ parent ] = getBlocksByName( 'photopress/image-filters' );
+			const keywords = getBlocks( parent ).find( ( b ) => 'photos_keywords' === b.attributes.taxonomy );
+			moveBlocksToPosition( [ keywords.clientId ], parent, parent, 0 );
+			updateBlockAttributes( keywords.clientId, { label: 'Subjects' } );
+			selectBlock( keywords.clientId );
+			window.wp.data.dispatch( 'core/editor' ).setIsListViewOpened( open );
+			window.wp.data.dispatch( 'core/interface' ).enableComplementaryArea( 'core', 'edit-post/block' );
+		}, listView );
+		const inspector = page.locator( '.block-editor-block-inspector' );
+		await expect( inspector.getByRole( 'textbox', { name: 'Label' } ) ).toHaveValue( 'Subjects' );
+		await canvas( page ).locator( '.wp-block-photopress-image-filters' ).scrollIntoViewIfNeeded();
+		await expect( canvas( page ).locator( '.wp-block-photopress-image-filter summary' ).first() ).toHaveText( 'Subjects' );
+		return inspector;
+	}
+
+	// The Settings panel of the selected block's settings.
+	const settingsPanel = ( page, inspector ) => inspector.locator( '.components-panel__body' ).filter( { has: page.getByRole( 'button', { name: 'Settings', exact: true } ) } );
+
+	test.describe( 'at the editor\'s size', () => {
+		test.use( { viewport: { width: 1440, height: 900 } } );
+
+		test( 'screenshot-20: Image Filter blocks in the Site Editor', async ( { page } ) => {
+			await imageFilters( page, { listView: true } );
+			await expect( page.locator( '.block-editor-list-view-tree' ) ).toBeVisible();
+			await page.waitForTimeout( 500 );
+			// Below the admin bar.
+			const bar = await page.locator( '#wpadminbar' ).boundingBox();
+			const top = bar ? Math.ceil( bar.y + bar.height ) : 0;
+			await page.screenshot( { path: path.join( OUT, 'screenshot-20.png' ), clip: { x: 0, y: top, width: 1440, height: 900 - top } } );
+		} );
+	} );
+
+	test.describe( 'at twice the size', () => {
+		test.use( { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 } );
+
+		test( 'the Image Filter and Image Filters settings, for the wiki', async ( { page } ) => {
+			fs.mkdirSync( WIKI, { recursive: true } );
+			const inspector = await imageFilters( page );
+			await settingsPanel( page, inspector ).screenshot( { path: path.join( WIKI, 'editor-image-filter-panel.png' ) } );
+
+			await page.evaluate( () => {
+				const { getBlocksByName } = window.wp.data.select( 'core/block-editor' );
+				window.wp.data.dispatch( 'core/block-editor' ).selectBlock( getBlocksByName( 'photopress/image-filters' )[ 0 ] );
+			} );
+			await expect( inspector.getByLabel( 'Show counts' ) ).toBeVisible();
+			await settingsPanel( page, inspector ).screenshot( { path: path.join( WIKI, 'editor-image-filters-panel.png' ) } );
+		} );
+	} );
+} );
+
 test.describe( 'settings', () => {
 	// Shown on and filled in; the settings are put back afterwards.
 	const EXAMPLES = {
@@ -378,11 +464,11 @@ test.describe( 'settings', () => {
 			await content.screenshot( { path: path.join( OUT, 'screenshot-18.png' ) } );
 		} );
 
-		test( 'screenshot-20: the SEO tab', async ( { page } ) => {
+		test( 'screenshot-21: the SEO tab', async ( { page } ) => {
 			const content = await tab( page, 'SEO' );
 			await expect( feature( page, 'Unneeded archives' ) ).toBeVisible( { timeout: 30000 } );
 			await expect( content.getByRole( 'checkbox', { name: 'Post format archives', exact: true } ) ).toBeChecked();
-			await content.screenshot( { path: path.join( OUT, 'screenshot-20.png' ) } );
+			await content.screenshot( { path: path.join( OUT, 'screenshot-21.png' ) } );
 		} );
 
 		test( 'screenshot-16: the Gallery tab', async ( { page } ) => {

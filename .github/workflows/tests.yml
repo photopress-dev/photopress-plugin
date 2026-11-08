@@ -132,6 +132,19 @@ jobs:
         curl -sf -o /dev/null -w 'Home page: %{http_code}, through %header{via}\n' "$PP_E2E_URL/"
     - name: Playwright
       run: npm run test:e2e
+    # The screenshots and wiki images of the block editor, which only the
+    # runner has memory for (screenshots.js), kept with the run.
+    - name: Editor screenshots
+      run: npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor"
+      env:
+        PP_SHOTS_OUT: tests/e2e/.results/editor-screenshots
+        PP_WIKI_OUT: tests/e2e/.results/editor-screenshots
+    - uses: actions/upload-artifact@v4
+      with:
+        name: editor-screenshots
+        path: tests/e2e/.results/editor-screenshots
+        include-hidden-files: true
+        retention-days: 7
     - name: Results
       if: failure()
       run: cp /tmp/php-server.log "$PP_E2E_WP_PATH/wp-content/debug.log" tests/e2e/.results/ 2>/dev/null || true
