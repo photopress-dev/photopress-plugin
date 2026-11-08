@@ -81,6 +81,8 @@ test.afterAll( () => {
 				$t = get_term_by( 'name', $name, 'photos_keywords' );
 				if ( $t ) { wp_delete_term( $t->term_id, 'photos_keywords' ); }
 			}
+			$t = get_term_by( 'name', '${ WORD }person', 'photos_people' );
+			if ( $t ) { wp_delete_term( $t->term_id, 'photos_people' ); }
 		` );
 	}
 } );
@@ -194,6 +196,35 @@ test( 'Image Filters: a term narrows the search, and its chip takes it off', asy
 	await expect( gallery( page ).locator( 'img' ) ).toHaveCount( 0 );
 	await expect( filters ).toHaveCount( 0 );
 	await expect( page.locator( 'body' ) ).toContainText( 'Enter words to search for.' );
+} );
+
+test( 'Image Filters: its Image Filter blocks set which menus show, in their order, with their names', async ( { page } ) => {
+	relevanssi( false );
+	setSearch( { images_in_search: true, posts_in_search: null } );
+	const [ byTerm ] = made.images;
+	wp( 'eval', `wp_set_object_terms( ${ byTerm }, '${ WORD }tag', 'photos_keywords', true ); wp_set_object_terms( ${ byTerm }, '${ WORD }person', 'photos_people', true );` );
+
+	// A Site Editor copy of Image Search: People, named Who, then
+	// Keywords, without counts. Deleted afterwards.
+	const template = Number( lastLine( wp( 'eval', `
+		$filters = '<!-- wp:photopress/image-filters {"showCounts":false} --><!-- wp:photopress/image-filter {"taxonomy":"photos_people","label":"Who"} /--><!-- wp:photopress/image-filter {"taxonomy":"photos_keywords"} /--><!-- /wp:photopress/image-filters -->';
+		$content = str_replace( '<!-- wp:photopress/image-filters /-->', $filters, file_get_contents( dirname( ( new ReflectionClass( '\\PhotoPress\\modules\\search\\ImageFilters' ) )->getFileName() ) . '/templates/search-images.html' ) );
+		$id = wp_insert_post( [ 'post_type' => 'wp_template', 'post_status' => 'publish', 'post_name' => 'search-images', 'post_title' => 'Image Search', 'post_content' => $content ] );
+		wp_set_object_terms( $id, get_stylesheet(), 'wp_theme' );
+		echo $id;
+	` ) ) );
+
+	try {
+		await page.goto( `/?s=${ WORD }` );
+		const menus = page.locator( 'nav.wp-block-photopress-image-filters .photopress-image-filters__menu' );
+		await expect( menus.locator( '> summary' ) ).toHaveText( [ 'Who', 'Keywords' ] );
+		await expect( menus.first() ).toHaveClass( /wp-block-photopress-image-filter\b/ );
+		await menus.first().locator( 'summary' ).click();
+		await expect( menus.first().getByRole( 'link', { name: `${ WORD }person`, exact: true } ) ).toBeVisible();
+		await expect( page.locator( '.photopress-image-filters__count' ) ).toHaveCount( 0 );
+	} finally {
+		wp( 'post', 'delete', String( template ), '--force' );
+	}
 } );
 
 test( 'with Relevanssi: its index has images and their terms, kept up to date as terms change, are renamed and are deleted', async ( { page } ) => {

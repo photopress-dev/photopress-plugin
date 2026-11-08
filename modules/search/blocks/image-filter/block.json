@@ -1,0 +1,24 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "photopress/image-filter",
+	"title": "Image Filter",
+	"category": "theme",
+	"parent": [ "photopress/image-filters" ],
+	"description": "One image taxonomy's menu in Image Filters: the terms the images found have, to narrow the search by.",
+	"keywords": [ "photopress", "search", "filter", "facet", "taxonomy" ],
+	"textdomain": "photopress",
+	"attributes": {
+		"taxonomy": { "type": "string", "default": "" },
+		"label": { "type": "string", "default": "" }
+	},
+	"usesContext": [ "photopress/showCounts" ],
+	"supports": {
+		"html": false,
+		"reusable": false,
+		"typography": { "fontSize": true },
+		"color": { "text": true, "background": true }
+	},
+	"editorScript": "photopress-editor",
+	"style": "photopress-frontend"
+}

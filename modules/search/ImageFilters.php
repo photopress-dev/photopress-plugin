@@ -5,12 +5,17 @@ namespace PhotoPress\modules\search;
 defined( 'ABSPATH' ) || exit;
 
 use PhotoPress\modules\metadata\ImageTaxonomies;
+use WP_Block;
 use WP_Query;
 
 /**
  * The Image Filters block: on an image search, a menu per image taxonomy of
  * the terms the images found have, each with how many of them have it, to
  * narrow the search by; and the filters applied, each to be taken off.
+ *
+ * Its menus are Image Filter blocks inside it, one per taxonomy, in the
+ * order the editor gives them. Without any, as the block was first made, it
+ * shows every taxonomy but those in hiddenTaxonomies.
  *
  * A filter is the taxonomy's own query var, with term slugs, which WordPress
  * already turns into a taxonomy query on the search, with Relevanssi or
@@ -42,10 +47,22 @@ class ImageFilters {
 	 */
 	private static $hits = null;
 
+	/**
+	 * The search's filters and terms for the blocks, worked out once a
+	 * request; false when they show nothing.
+	 *
+	 * @var array|false|null
+	 */
+	private static $state = null;
+
 	public static function addHooks() {
 
 		register_block_type( __DIR__ . '/blocks/image-filters', [
 			'render_callback' => [ self::class, 'render' ],
+		] );
+		register_block_type( __DIR__ . '/blocks/image-filter', [
+			'render_callback'    => [ self::class, 'renderFilter' ],
+			'variation_callback' => [ self::class, 'variations' ],
 		] );
 
 		// After ImageSearch::onlyImages(), added before it.
@@ -203,41 +220,101 @@ class ImageFilters {
 	}
 
 	/**
-	 * render_callback of photopress/image-filters: on an image search with
-	 * words, the filters applied, then the menus.
+	 * Image Filter's variations, one per taxonomy offered, so that the
+	 * inserter and List View name each by its taxonomy.
 	 */
-	public static function render( $attributes ) {
+	public static function variations() {
+
+		$variations = [];
+
+		foreach ( self::taxonomies() as $taxonomy ) {
+
+			$object = get_taxonomy( $taxonomy );
+
+			$variations[] = [
+				'name'       => $taxonomy,
+				'title'      => $object->labels->name,
+				'attributes' => [ 'taxonomy' => $taxonomy ],
+				'isActive'   => [ 'taxonomy' ],
+				'scope'      => [ 'inserter', 'block', 'transform' ],
+			];
+		}
+
+		return $variations;
+	}
+
+	/**
+	 * On an image search with words, its words, the taxonomies, the filters
+	 * applied, and each taxonomy's terms to narrow by (none past MOST
+	 * filters); otherwise null.
+	 *
+	 * @return array{words: string, taxonomies: string[], applied: array<string, string[]>, tally: array}|null
+	 */
+	public static function state() {
 
 		global $wp_query;
 
-		if ( ! is_search() || ! $wp_query instanceof WP_Query || ! $wp_query->get( ImageSearch::FLAG ) || ImageSearch::blank( $wp_query ) ) {
+		if ( null === self::$state ) {
+
+			self::$state = false;
+			$taxonomies  = self::taxonomies();
+
+			if ( is_search() && $wp_query instanceof WP_Query && $wp_query->get( ImageSearch::FLAG ) && ! ImageSearch::blank( $wp_query ) && $taxonomies ) {
+
+				$applied = self::applied( $taxonomies );
+				$tally   = [];
+
+				if ( array_sum( array_map( 'count', $applied ) ) < self::MOST ) {
+
+					$ids   = self::hits( $wp_query );
+					$terms = $ids ? wp_get_object_terms( $ids, $taxonomies, [ 'fields' => 'all_with_object_id', 'update_term_meta_cache' => false ] ) : [];
+					$tally = is_wp_error( $terms ) ? [] : self::tally( $terms, count( $ids ), $applied );
+				}
+
+				self::$state = [
+					'words'      => get_search_query( false ),
+					'taxonomies' => $taxonomies,
+					'applied'    => $applied,
+					'tally'      => $tally,
+				];
+			}
+		}
+
+		return self::$state ?: null;
+	}
+
+	/**
+	 * render_callback of photopress/image-filters: on an image search with
+	 * words, the filters applied, then the menus, its Image Filter blocks.
+	 *
+	 * @param array    $attributes
+	 * @param string   $content The Image Filter blocks.
+	 * @param WP_Block $block
+	 */
+	public static function render( $attributes, $content = '', $block = null ) {
+
+		$state = self::state();
+
+		if ( ! $state ) {
 			return '';
 		}
 
-		$taxonomies = self::taxonomies( array_map( 'strval', (array) ( $attributes['hiddenTaxonomies'] ?? [] ) ) );
+		if ( $block instanceof WP_Block && $block->inner_blocks ) {
+			$menus = trim( (string) $content );
+		} else {
 
-		if ( ! $taxonomies ) {
-			return '';
-		}
+			$hidden = array_map( 'strval', (array) ( $attributes['hiddenTaxonomies'] ?? [] ) );
+			$counts = ! isset( $attributes['showCounts'] ) || $attributes['showCounts'];
+			$menus  = '';
 
-		$words   = get_search_query( false );
-		$applied = self::applied( $taxonomies );
-		$counts  = ! isset( $attributes['showCounts'] ) || $attributes['showCounts'];
-		$active  = self::renderApplied( $words, $applied, $taxonomies );
-		$menus   = '';
-
-		if ( array_sum( array_map( 'count', $applied ) ) < self::MOST ) {
-
-			$ids   = self::hits( $wp_query );
-			$terms = $ids ? wp_get_object_terms( $ids, $taxonomies, [ 'fields' => 'all_with_object_id', 'update_term_meta_cache' => false ] ) : [];
-			$tally = is_wp_error( $terms ) ? [] : self::tally( $terms, count( $ids ), $applied );
-
-			foreach ( $taxonomies as $taxonomy ) {
-				if ( ! empty( $tally[ $taxonomy ] ) ) {
-					$menus .= self::renderMenu( $taxonomy, $tally[ $taxonomy ], $words, $applied, $taxonomies, $counts );
+			foreach ( $state['taxonomies'] as $taxonomy ) {
+				if ( ! in_array( $taxonomy, $hidden, true ) && ! empty( $state['tally'][ $taxonomy ] ) ) {
+					$menus .= self::renderMenu( $taxonomy, '', $state, $counts, 'class="photopress-image-filters__menu photopress-image-filters__menu--' . esc_attr( $taxonomy ) . '" name="photopress-image-filters"' );
 				}
 			}
 		}
+
+		$active = self::renderApplied( $state );
 
 		if ( '' === $active && '' === $menus ) {
 			return '';
@@ -252,8 +329,35 @@ class ImageFilters {
 		);
 	}
 
+	/**
+	 * render_callback of photopress/image-filter: its taxonomy's menu, while
+	 * it has terms that narrow the search.
+	 *
+	 * @param array    $attributes
+	 * @param string   $content
+	 * @param WP_Block $block
+	 */
+	public static function renderFilter( $attributes, $content = '', $block = null ) {
+
+		$state    = self::state();
+		$taxonomy = (string) ( $attributes['taxonomy'] ?? '' );
+
+		if ( ! $state || empty( $state['tally'][ $taxonomy ] ) ) {
+			return '';
+		}
+
+		$counts = $block instanceof WP_Block ? $block->context['photopress/showCounts'] ?? true : true;
+
+		return self::renderMenu( $taxonomy, (string) ( $attributes['label'] ?? '' ), $state, (bool) $counts, get_block_wrapper_attributes( [
+			'class' => 'photopress-image-filters__menu photopress-image-filters__menu--' . $taxonomy,
+			'name'  => 'photopress-image-filters',
+		] ) );
+	}
+
 	/** The filters applied, each a link without it, and one without any. */
-	private static function renderApplied( $words, array $applied, array $taxonomies ) {
+	private static function renderApplied( array $state ) {
+
+		[ 'words' => $words, 'applied' => $applied, 'taxonomies' => $taxonomies ] = $state;
 
 		if ( ! $applied ) {
 			return '';
@@ -291,10 +395,16 @@ class ImageFilters {
 	/**
 	 * A taxonomy's menu: its first terms, and the rest in a More list. The
 	 * menus share a name, so one open closes the others.
+	 *
+	 * @param string $label   Its name; '' for the taxonomy's.
+	 * @param string $wrapper The details element's attributes.
 	 */
-	private static function renderMenu( $taxonomy, array $rows, $words, array $applied, array $taxonomies, $counts ) {
+	private static function renderMenu( $taxonomy, $label, array $state, $counts, $wrapper ) {
+
+		[ 'words' => $words, 'applied' => $applied, 'taxonomies' => $taxonomies ] = $state;
 
 		$object = get_taxonomy( $taxonomy );
+		$rows   = $state['tally'][ $taxonomy ];
 		$items  = [];
 
 		foreach ( array_slice( $rows, 0, self::FIRST + self::MORE ) as $row ) {
@@ -313,9 +423,9 @@ class ImageFilters {
 		$rest = array_slice( $items, self::FIRST );
 
 		return sprintf(
-			'<details class="photopress-image-filters__menu photopress-image-filters__menu--%s" name="photopress-image-filters"><summary>%s</summary><div class="photopress-image-filters__panel"><ul>%s</ul>%s</div></details>',
-			esc_attr( $taxonomy ),
-			esc_html( $object ? $object->labels->name : $taxonomy ),
+			'<details %s><summary>%s</summary><div class="photopress-image-filters__panel"><ul>%s</ul>%s</div></details>',
+			$wrapper,
+			esc_html( '' !== $label ? $label : ( $object ? $object->labels->name : $taxonomy ) ),
 			implode( '', array_slice( $items, 0, self::FIRST ) ),
 			$rest ? sprintf( '<details class="photopress-image-filters__more"><summary>%s</summary><ul>%s</ul></details>', esc_html__( 'More', 'photopress' ), implode( '', $rest ) ) : ''
 		);

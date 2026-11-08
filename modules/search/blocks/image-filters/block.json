@@ -4,7 +4,7 @@
 	"name": "photopress/image-filters",
 	"title": "Image Filters",
 	"category": "theme",
-	"description": "On search results, a menu per image taxonomy of the terms the images found have, to narrow the search by, and the filters applied.",
+	"description": "On search results, the filters applied, and a menu per image taxonomy of the terms the images found have, to narrow the search by.",
 	"keywords": [ "photopress", "search", "filters", "facets", "taxonomy" ],
 	"textdomain": "photopress",
 	"attributes": {
@@ -14,6 +14,9 @@
 			"default": []
 		},
 		"showCounts": { "type": "boolean", "default": true }
+	},
+	"providesContext": {
+		"photopress/showCounts": "showCounts"
 	},
 	"supports": {
 		"html": false,
