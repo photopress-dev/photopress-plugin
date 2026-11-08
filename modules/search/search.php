@@ -42,8 +42,8 @@ class search extends photopress_module {
 	 * ask while WordPress is starting, before this one has registered its
 	 * defaults.
 	 *
-	 * @param string $key     attachment_pages, taxonomy_pages, images_in_search
-	 *                        or posts_in_search.
+	 * @param string $key     attachment_pages, taxonomy_pages, images_in_search,
+	 *                        posts_in_search or prevent_empty_search.
 	 * @param bool   $default When it was never saved.
 	 */
 	public static function enabled( $key, $default = true ) {
@@ -171,6 +171,19 @@ class search extends photopress_module {
 					'section'       => 'general',
 					'description'   => 'With images in search results, find posts and pages too.',
 					'label_for'     => 'Posts and pages in search results',
+					'error_message' => '',
+				],
+			],
+
+			'prevent_empty_search' => [
+				'default_value' => true,
+				'field'         => [
+					'type'          => 'boolean',
+					'title'         => 'Prevent empty search queries',
+					'page_name'     => 'search',
+					'section'       => 'general',
+					'description'   => 'Prevent default WordPress behavior of showing all possible results when searches are made with an empty query.',
+					'label_for'     => 'Prevent empty search queries',
 					'error_message' => '',
 				],
 			],

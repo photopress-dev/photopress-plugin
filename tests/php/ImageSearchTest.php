@@ -99,6 +99,44 @@ final class ImageSearchTest extends TestCase {
 		$wp_query = null;
 	}
 
+	public function test_a_blank_search_finds_nothing_until_its_switch_is_off(): void {
+
+		global $wp_the_query;
+
+		Functions\stubs( [
+			'is_admin'           => false,
+			'wp_is_block_theme'  => true,
+		] );
+		$this->saved = [ 'images_in_search' => true ];
+
+		$search = static function ( $words ) use ( &$wp_the_query ) {
+			$query = new \WP_Query();
+			$query->is_search = true;
+			$query->set( 's', $words );
+			$wp_the_query = $query;
+			ImageSearch::searchImages( $query );
+			return $query;
+		};
+
+		$this->assertSame( [ 0 ], $search( '' )->get( 'post__in' ) );
+		$this->assertSame( [ 0 ], $search( '   ' )->get( 'post__in' ), 'spaces only' );
+		$this->assertSame( '', $search( 'fog' )->get( 'post__in' ) );
+
+		// Relevanssi leaves a blank one to WordPress, and searches the rest.
+		$this->assertFalse( ImageSearch::searchUnlessBlank( true, $search( '' ) ) );
+		$this->assertTrue( ImageSearch::searchUnlessBlank( true, $search( 'fog' ) ) );
+
+		$this->saved['prevent_empty_search'] = false;
+		$this->assertSame( '', $search( '' )->get( 'post__in' ), 'switch off: every image, as WordPress lists them' );
+		$this->assertTrue( ImageSearch::searchUnlessBlank( true, $search( '' ) ) );
+
+		// Not the image search: left alone.
+		$this->saved = [ 'images_in_search' => false ];
+		$this->assertSame( '', $search( '' )->get( 'post__in' ) );
+
+		$wp_the_query = null;
+	}
+
 	public function test_an_image_is_found_by_its_terms_and_alt_text_word_by_word(): void {
 
 		global $wpdb;

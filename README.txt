@@ -88,6 +88,7 @@ Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev
 
 * Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
 * Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
+* A search with no words finds nothing, rather than every image. A switch turns this off.
 * With [Relevanssi](https://wordpress.org/plugins/relevanssi/), PhotoPress has Relevanssi index images with their alt text and taxonomy terms.
 
 Documentation: [Image Search](https://github.com/photopress-dev/photopress-plugin/wiki/Image-Search).

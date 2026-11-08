@@ -60,6 +60,7 @@ class SearchSettings extends Component {
 				taxonomy_pages: true,
 				images_in_search: false,
 				posts_in_search: true,
+				prevent_empty_search: true,
 				...this.props.data,
 			},
 			dirtyFields: [],
@@ -119,6 +120,12 @@ class SearchSettings extends Component {
 						help={ __( 'Turned off, a search finds images alone.' ) }
 						checked={ this.getSetting( 'posts_in_search' ) }
 						onChange={ ( value ) => this.persistSetting( 'posts_in_search', value ) }
+					/>
+					<SwitchRow
+						label={ __( 'Prevent empty search queries' ) }
+						help={ __( 'Prevent default WordPress behavior of showing all possible results when searches are made with an empty query.' ) }
+						checked={ this.getSetting( 'prevent_empty_search' ) }
+						onChange={ ( value ) => this.persistSetting( 'prevent_empty_search', value ) }
 					/>
 				</FeatureSection>
 
