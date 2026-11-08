@@ -51,6 +51,16 @@ final class ImageFiltersTest extends TestCase {
 		$this->assertSame( [ 'photos_people' ], ImageFilters::taxonomies( [ 'pp_genre' ] ) );
 	}
 
+	public function test_image_filter_has_a_variation_per_taxonomy_offered(): void {
+
+		$variations = ImageFilters::variations();
+
+		$this->assertSame( [ 'photos_people', 'pp_genre' ], array_column( $variations, 'name' ) );
+		$this->assertSame( [ 'Photos_people', 'Pp_genre' ], array_column( $variations, 'title' ) );
+		$this->assertSame( [ 'taxonomy' => 'pp_genre' ], $variations[1]['attributes'] );
+		$this->assertSame( [ 'taxonomy' ], $variations[1]['isActive'] );
+	}
+
 	public function test_the_filters_applied_are_the_query_vars_terms_however_joined(): void {
 
 		$this->vars = [ 'photos_people' => 'ken-thompson+dennis-ritchie', 'pp_genre' => 'portrait,portrait' ];

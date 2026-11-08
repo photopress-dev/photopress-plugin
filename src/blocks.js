@@ -20,6 +20,7 @@ import * as attachmentImage from './blocks/attachment-image/index.js';
 import * as searchPosts from './blocks/search-posts/index.js';
 import * as searchSummary from './blocks/search-summary/index.js';
 import * as imageFilters from './blocks/image-filters/index.js';
+import * as imageFilter from './blocks/image-filter/index.js';
 import './variations/gallery-layouts.js';
 
 
@@ -56,6 +57,7 @@ export const registerPhotoPressBlocks = () => {
 		searchPosts,
 		searchSummary,
 		imageFilters,
+		imageFilter,
 	].forEach( registerBlock );
 };
 
