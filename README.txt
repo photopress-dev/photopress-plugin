@@ -156,7 +156,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
 17. Image Archives template: a keyword's images in the Masonry layout
 18. Pages & Search tab: attachment pages, image taxonomy pages, images in search results and empty searches, and the page cache and search index
-19. Search results with images: the Image Search template
+19. Search results with images: the Image Search template, with Image Filters
 20. SEO tab: the sitemap in use, and unneeded archives turned off
 
 == Changelog ==
