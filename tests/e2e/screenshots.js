@@ -350,7 +350,7 @@ test.describe( 'in the Site Editor', () => {
 	}
 
 	// The Settings panel of the selected block's settings.
-	const settingsPanel = ( inspector ) => inspector.locator( '.components-panel__body' ).filter( { has: inspector.getByRole( 'button', { name: 'Settings', exact: true } ) } );
+	const settingsPanel = ( page, inspector ) => inspector.locator( '.components-panel__body' ).filter( { has: page.getByRole( 'button', { name: 'Settings', exact: true } ) } );
 
 	test.describe( 'at the editor\'s size', () => {
 		test.use( { viewport: { width: 1440, height: 900 } } );
@@ -359,7 +359,10 @@ test.describe( 'in the Site Editor', () => {
 			await imageFilters( page, { listView: true } );
 			await expect( page.locator( '.block-editor-list-view-tree' ) ).toBeVisible();
 			await page.waitForTimeout( 500 );
-			await page.screenshot( { path: path.join( OUT, 'screenshot-20.png' ) } );
+			// Below the admin bar.
+			const bar = await page.locator( '#wpadminbar' ).boundingBox();
+			const top = bar ? Math.ceil( bar.y + bar.height ) : 0;
+			await page.screenshot( { path: path.join( OUT, 'screenshot-20.png' ), clip: { x: 0, y: top, width: 1440, height: 900 - top } } );
 		} );
 	} );
 
@@ -369,14 +372,14 @@ test.describe( 'in the Site Editor', () => {
 		test( 'the Image Filter and Image Filters settings, for the wiki', async ( { page } ) => {
 			fs.mkdirSync( WIKI, { recursive: true } );
 			const inspector = await imageFilters( page );
-			await settingsPanel( inspector ).screenshot( { path: path.join( WIKI, 'editor-image-filter-panel.png' ) } );
+			await settingsPanel( page, inspector ).screenshot( { path: path.join( WIKI, 'editor-image-filter-panel.png' ) } );
 
 			await page.evaluate( () => {
 				const { getBlocksByName } = window.wp.data.select( 'core/block-editor' );
 				window.wp.data.dispatch( 'core/block-editor' ).selectBlock( getBlocksByName( 'photopress/image-filters' )[ 0 ] );
 			} );
 			await expect( inspector.getByLabel( 'Show counts' ) ).toBeVisible();
-			await settingsPanel( inspector ).screenshot( { path: path.join( WIKI, 'editor-image-filters-panel.png' ) } );
+			await settingsPanel( page, inspector ).screenshot( { path: path.join( WIKI, 'editor-image-filters-panel.png' ) } );
 		} );
 	} );
 } );
