@@ -86,7 +86,7 @@ Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev
 
 = SEARCH =
 
-* Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
+* Image search: a switch that allows visitors to find images by searching their titles, captions, alt text, and terms.
 * Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
 * A search with no words finds nothing, rather than every image. A switch turns this off.
 * The Image Filters block narrows search results by the terms of the images found: a menu per image taxonomy, with how many images have each term. Each menu is an Image Filter block, to reorder, rename or remove in the editor.
@@ -132,7 +132,7 @@ Documentation: [Offload Media and CDN](https://github.com/photopress-dev/photopr
 
 A taxonomy's ID is the name WordPress stores its terms under. Themes (taxonomy-{ID}.php templates), search plugins such as Relevanssi, the Image Metadata block and the widget refer to taxonomies by it. It never changes, even when the taxonomy is renamed.
 
-The six Standard Metadata taxonomies always have these IDs: photos_camera, photos_lens, photos_city, photos_state, photos_country and photos_keywords.
+The six standard metadata taxonomies always have these IDs: photos_camera, photos_lens, photos_city, photos_state, photos_country and photos_keywords.
 
 Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_genre for Genre, pp_person for a People parent keyword. Taxonomies made by earlier versions keep the IDs they have, such as photos_people for People.
 
@@ -147,7 +147,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 7. Gallery Slideshow captions at 75% of the slideshow's width on a desktop, and the full width on a phone
 8. Child Pages Gallery: a page's child pages, in the Rows layout
 9. Image Metadata block on an image's page
-10. Image taxonomies filled from the photos' metadata: Standard Metadata, Hierarchical Keyword Metadata and Custom Metadata
+10. Image taxonomies filled from the photos' metadata: standard metadata, hierarchical keyword metadata and custom metadata
 11. A parent keyword found in the photos given a taxonomy of its own, and the images it affects reprocessed
 12. Alt text and descriptions from the photos' metadata
 13. Licensing metadata embedded into images
@@ -155,7 +155,7 @@ Every other taxonomy, added in the settings, gets pp_ and its singular name: pp_
 15. Offload Media tab: where images are stored and served from, their cache lifetime, and clearing replaced images from CloudFront
 16. Gallery tab: the layouts offered in the editor, and removing deleted images from galleries
 17. Image Archives template: a keyword's images in the Masonry layout
-18. Pages & Search tab: attachment pages, image taxonomy pages, images in search results and empty searches, and the page cache and search index
+18. Pages & Search tab: attachment pages, image taxonomy pages, image search and empty searches, and the page cache and search index
 19. Search results with images: the Image Search template, with Image Filters
 20. Image Filter blocks in the Site Editor: each menu of Image Filters, to reorder, rename or remove
 21. SEO tab: the sitemap in use, and unneeded archives turned off

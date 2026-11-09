@@ -100,7 +100,7 @@ class MetadataSettings extends Component {
 				type: 'url',
 				validations: [
 					
-					{ type: 'url', errorSection: 'licensor', errorMsg: 'Web Statement of Rights URL is not a valid url. Be sure the URL begins with http:// or https:// .'}
+					{ type: 'url', errorSection: 'licensor', errorMsg: 'Web statement of rights URL is not a valid url. Be sure the URL begins with http:// or https:// .'}
 				]
 			},
 			
@@ -122,8 +122,8 @@ class MetadataSettings extends Component {
 	 */
 	saveLicensing() {
 		const missing = [
-			[ 'licensor_name', __( 'Licensor Name' ) ],
-			[ 'web_statement_of_rights', __( 'Web Statement of Rights URL' ) ],
+			[ 'licensor_name', __( 'Licensor name' ) ],
+			[ 'web_statement_of_rights', __( 'Web statement of rights URL' ) ],
 			[ 'licensor_url', __( 'Licensing URL' ) ],
 		].filter( ( [ key ] ) => ! String( this.getSetting( key ) || '' ).trim() ).map( ( [ , label ] ) => label );
 
@@ -250,11 +250,11 @@ class MetadataSettings extends Component {
 				</Notice>
 			) }
 			<FeatureSection
-				title={ __( 'Image Taxonomies' ) }
+				title={ __( 'Image taxonomies' ) }
 				description={ __( 'Let visitors browse your photos by camera, place, person and more.' ) }
 				info={ [
 					<p key="0">{ __( 'Each image taxonomy has its own archive pages, and PhotoPress fills them from the metadata embedded in each photo when it is uploaded.' ) }</p>,
-					<p key="1">{ __( 'Standard Metadata is built in. Map the keyword hierarchies and other metadata fields you use to taxonomies of their own below.' ) }</p>,
+					<p key="1">{ __( 'Standard metadata is built in. Map the keyword hierarchies and other metadata fields you use to taxonomies of their own below.' ) }</p>,
 				] }
 				checked={ this.getSetting( 'custom_taxonomies_enable' ) }
 				onChange={ ( value ) => this.persistSetting( 'custom_taxonomies_enable', value ) }
@@ -264,7 +264,7 @@ class MetadataSettings extends Component {
 			</FeatureSection>
 			
 			<FeatureSection
-				title={ __( 'Alt Text' ) }
+				title={ __( 'Alt text' ) }
 				description={ __( 'Set each image’s alt text from its metadata when it is uploaded.' ) }
 				info={ [
 					<p key="0">{ __( 'The alt text written in the image’s file is used when it has one: the Alt Text (Accessibility) field that Lightroom Classic and Photoshop write. Otherwise the template’s fields, in square brackets, are filled from the file’s metadata, e.g. [photoshop:Headline]; with none of them, its description or title.' ) }</p>,
@@ -284,7 +284,7 @@ class MetadataSettings extends Component {
 
 					<TemplateEditor
 						id="alt_text_template"
-						label={ __( 'Alt Text Template' ) }
+						label={ __( 'Alt text template' ) }
 						value={ this.getSetting( 'alt_text_template' ) || '' }
 						help={ this.getSetting( 'alt_text_from_file' )
 							? __( 'For images whose files have no alt text of their own. Type the words around the fields; a field an image doesn’t have is left out.' )
@@ -308,7 +308,7 @@ class MetadataSettings extends Component {
 			</FeatureSection>
 
 			<FeatureSection
-				title={ __( 'Title and Caption' ) }
+				title={ __( 'Title and caption' ) }
 				description={ __( 'Use the IPTC Title as the image’s title and the IPTC Headline as its caption.' ) }
 				info={ [
 					<table key="0" className="widefat striped">
@@ -353,7 +353,7 @@ class MetadataSettings extends Component {
 				<BaseControl>
 					<TemplateEditor
 						id="description_template"
-						label={ __( 'Description Template' ) }
+						label={ __( 'Description template' ) }
 						value={ this.getSetting( 'description_template' ) || '' }
 						help={ __( 'Type the words around the fields; a field an image doesn’t have is left out.' ) }
 						onChange={ ( value ) => this.setSetting( 'description_template', value ) }
@@ -393,7 +393,7 @@ class MetadataSettings extends Component {
 
 					<TextControl
 						id={ 'licensor_name' }
-						label={ __( 'Licensor Name' ) }
+						label={ __( 'Licensor name' ) }
 						value={ this.getSetting( 'licensor_name' ) }
 						className=" right-pad"
 						help={ __( 'The name of the person or organization that licenses your images.' ) }
@@ -403,7 +403,7 @@ class MetadataSettings extends Component {
 
 					<TextControl
 						id={ 'web_statement_of_rights' }
-						label={ __( 'Web Statement of Rights URL' ) }
+						label={ __( 'Web statement of rights URL' ) }
 						value={ this.getSetting( 'web_statement_of_rights' ) }
 						className=" right-pad"
 						help={ __( 'Used by search engines to display a link to the license statement of your images.' ) }

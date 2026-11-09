@@ -9,7 +9,7 @@ import { STANDARD } from '../../src/options/taxonomy-model.js';
 const fields = FIELD_GROUPS.flatMap( ( group ) => group.fields );
 
 describe( 'metadata fields', () => {
-	it( 'lists each field once, none of them Standard Metadata', () => {
+	it( 'lists each field once, none of them Standard metadata', () => {
 		const tags = fields.map( ( f ) => f.tag );
 		expect( new Set( tags ).size ).toBe( tags.length );
 		for ( const s of STANDARD ) {

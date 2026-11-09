@@ -25,8 +25,8 @@ import { __ } from '@wordpress/i18n';
 
 	const linkOptions = [
 	
-			{ value: 'attachment', label: __( 'Attachment Page' ) },
-			{ value: 'media', label: __( 'Media File' ) },
+			{ value: 'attachment', label: __( 'Attachment page' ) },
+			{ value: 'media', label: __( 'Media file' ) },
 			{ value: 'none', label: __( 'None' ) },
 		];
 		
@@ -206,7 +206,7 @@ class Inspector extends Component {
 					{galleryStyle === 'rows' &&
 						
 						<RangeControl
-							label={ __( 'Row Height' ) }
+							label={ __( 'Row height' ) }
 							value={ rowHeight }
 							onChange={ ( value ) => { this.setAttributes( {rowHeight: value} ) } }
 							min={ 100 }
@@ -218,7 +218,7 @@ class Inspector extends Component {
 					{galleryStyle === 'mosaic' &&
 						
 						<RangeControl
-							label={ __( 'Row Height' ) }
+							label={ __( 'Row height' ) }
 							value={ rowHeight }
 							onChange={ ( value ) => { this.setAttributes( {rowHeight: value} ) } }
 							min={ 100 }
@@ -231,7 +231,7 @@ class Inspector extends Component {
 					
 
 						<RangeControl
-							label={ __( 'Column Width' ) }
+							label={ __( 'Column width' ) }
 							value={ columnWidth }
 							onChange={ ( value ) => { this.setColumnWidth( value ) } }
 							min={ 100 }
@@ -265,7 +265,7 @@ class Inspector extends Component {
 					}
 
 					<ToggleControl
-						label={ __( 'Show Captions' ) }
+						label={ __( 'Show captions' ) }
 						checked={ !! showCaptions }
 						onChange={ ( value ) => { this.setAttributes( {showCaptions: value} ) } }
 						help={ "Display image captions." }

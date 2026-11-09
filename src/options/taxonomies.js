@@ -388,7 +388,7 @@ function ParentEditor( { def, prefill, list, parents, status, separators, onSave
 
 	return (
 		<Editor
-			title={ def ? sprintf( __( 'Parent keyword: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add Hierarchical Keyword Taxonomy' ) }
+			title={ def ? sprintf( __( 'Parent keyword: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add hierarchical keyword taxonomy' ) }
 			saveLabel={ def ? __( 'Save' ) : __( 'Add' ) }
 			reprocess={ scopeChoice( scope, sprintf( __( 'Keywords and %s terms' ), capitalize( plural || __( 'parent keyword' ) ) ) ) }
 			error={ error }
@@ -513,7 +513,7 @@ function CustomEditor( { def, list, standardTags, onSave, onCancel, saving } ) {
 
 	return (
 		<Editor
-			title={ def ? sprintf( __( 'Custom metadata: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add Custom Metadata Taxonomy' ) }
+			title={ def ? sprintf( __( 'Custom metadata: %s' ), capitalize( def.pluralLabel ) ) : __( 'Add custom metadata taxonomy' ) }
 			reprocess={ tag ? {
 				label: __( 'Save and reprocess all images' ),
 				missing: sprintf( __( '%s field' ), fieldLabel( tag ) ),
@@ -772,7 +772,7 @@ export default function TaxonomySettings( { component, route } ) {
 				</div>
 
 				<Section
-					title={ __( 'Standard Metadata' ) }
+					title={ __( 'Standard metadata' ) }
 					intro={ __( 'Built in. Each knows every place its information can be stored, so you don’t need to know which fields your photo software writes. Turn off the ones you don’t want.' ) }
 				>
 					<Table
@@ -804,7 +804,7 @@ export default function TaxonomySettings( { component, route } ) {
 				</Section>
 
 				<Section
-					title={ __( 'Hierarchical Keyword Metadata' ) }
+					title={ __( 'Hierarchical keyword metadata' ) }
 					intro={ __( 'Map specific keyword hierarchies set in Lightroom or Capture One into their own image taxonomies. For example, an image file containing Genre › Portraiture will be tagged Portraiture in a Genres taxonomy, with its own archive page at /genre/portraiture.' ) }
 					action={ <Button variant="primary" aria-label={ __( 'Add a hierarchical keyword taxonomy' ) } onClick={ () => setScreen( { type: 'parent' } ) }>{ __( 'Add' ) }</Button> }
 				>
@@ -885,7 +885,7 @@ export default function TaxonomySettings( { component, route } ) {
 									if ( ! reprocess ) {
 										return setSeparatorNotice( { status: 'success', text: __( 'Separators saved.' ) } );
 									}
-									startReprocess( reprocess ).then( ( then ) => setSeparatorNotice( { status: then.status, text: __( 'Separators saved.' ) + ' ' + then.text.replace( __( 'the progress is below.' ), __( 'the progress is at the top of Image Taxonomies.' ) ), progress: true } ) );
+									startReprocess( reprocess ).then( ( then ) => setSeparatorNotice( { status: then.status, text: __( 'Separators saved.' ) + ' ' + then.text.replace( __( 'the progress is below.' ), __( 'the progress is at the top of Image taxonomies.' ) ), progress: true } ) );
 								} );
 							} }
 						/>
@@ -904,7 +904,7 @@ export default function TaxonomySettings( { component, route } ) {
 				</Section>
 
 				<Section
-					title={ __( 'Custom Metadata' ) }
+					title={ __( 'Custom metadata' ) }
 					intro={ __( 'Any other metadata field as a taxonomy. Every value in the field becomes a term, as written.' ) }
 					action={ <Button variant="primary" aria-label={ __( 'Add a custom metadata taxonomy' ) } onClick={ () => setScreen( { type: 'custom' } ) }>{ __( 'Add' ) }</Button> }
 				>

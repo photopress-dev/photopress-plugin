@@ -179,6 +179,6 @@ test( 'the page cache and search index card: Proxy Cache Purge and Relevanssi as
 		await expect( reindex ).toBeEnabled();
 	} else {
 		await expect( reindex ).toHaveCount( 0 );
-		await expect( relevanssi ).toContainText( 'Turn on Images in search results to add images to the index.' );
+		await expect( relevanssi ).toContainText( 'Turn on Image search to add images to the index.' );
 	}
 } );

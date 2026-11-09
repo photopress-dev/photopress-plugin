@@ -30,7 +30,7 @@ const card = ( page, title ) => page.locator( '.photopress-feature' ).filter( { 
 const featureSwitch = ( panel, title ) => panel.getByRole( 'checkbox', { name: title, exact: true } );
 
 const sections = [
-	{ title: 'Alt Text', key: 'alt_text_enable', field: '#alt_text_template', job: 'metadata.alt_text' },
+	{ title: 'Alt text', key: 'alt_text_enable', field: '#alt_text_template', job: 'metadata.alt_text' },
 	{ title: 'Description', key: 'description_enable', field: '#description_template', job: 'metadata.description' },
 ];
 
@@ -67,7 +67,7 @@ test( 'a template is typed with its fields as pills, and saved with them in brac
 	patch( { alt_text_enable: true, alt_text_template: '' } );
 	await page.goto( URL );
 
-	const panel = card( page, 'Alt Text' );
+	const panel = card( page, 'Alt text' );
 	const editor = panel.locator( '#alt_text_template' );
 	const pills = editor.locator( '.photopress-template__pill' );
 	const insert = async ( label ) => {
@@ -90,7 +90,7 @@ test( 'a template is typed with its fields as pills, and saved with them in brac
 	await editor.getByRole( 'button', { name: 'Remove City' } ).click();
 	await editor.press( 'End' );
 	await page.keyboard.type( ' [dc:title]' );
-	await panel.getByRole( 'heading', { name: 'Alt Text' } ).click();
+	await panel.getByRole( 'heading', { name: 'Alt text' } ).click();
 	await expect( pills ).toHaveText( [ 'Person Shown×', 'Title×' ] );
 
 	await panel.getByRole( 'button', { name: 'Save', exact: true } ).click();
@@ -120,7 +120,7 @@ test( 'Licensing: the switch shows the settings, all three are required, and the
 
 	await panel.locator( '#licensor_url' ).fill( 'https://licensor.example/buy' );
 	await panel.getByRole( 'button', { name: 'Save', exact: true } ).click();
-	await expect( panel.locator( '.components-notice.is-error' ) ).toContainText( 'Fill in: Web Statement of Rights URL.' );
+	await expect( panel.locator( '.components-notice.is-error' ) ).toContainText( 'Fill in: Web statement of rights URL.' );
 	expect( settings().licensor_name ).toBe( '' );
 
 	await panel.locator( '#web_statement_of_rights' ).fill( 'https://licensor.example/terms' );
@@ -165,20 +165,20 @@ test( 'Slideshow: each switch hides what it governs', async ( { page } ) => {
 
 		const tab = card( page, 'Slideshows' );
 		await expect( featureSwitch( tab, 'Slideshows' ) ).toBeChecked( { timeout: 30000 } );
-		await expect( tab.getByLabel( 'Thumbnail Height' ) ).toHaveCount( 0 );
-		await expect( tab.getByLabel( 'Attachment Link Text' ) ).toHaveCount( 0 );
-		await expect( tab.getByLabel( 'Caption Info Box Position' ) ).toBeVisible();
+		await expect( tab.getByLabel( 'Thumbnail height' ) ).toHaveCount( 0 );
+		await expect( tab.getByLabel( 'Attachment link text' ) ).toHaveCount( 0 );
+		await expect( tab.getByLabel( 'Caption info box position' ) ).toBeVisible();
 
 		// Caption, Title, Description and Link are peers: the box's
 		// position shows while any of them is on.
 		await tab.getByLabel( 'Caption', { exact: true } ).click();
-		await expect( tab.getByLabel( 'Caption Info Box Position' ) ).toHaveCount( 0 );
+		await expect( tab.getByLabel( 'Caption info box position' ) ).toHaveCount( 0 );
 		await tab.getByLabel( 'Title', { exact: true } ).click();
-		await expect( tab.getByLabel( 'Caption Info Box Position' ) ).toBeVisible();
+		await expect( tab.getByLabel( 'Caption info box position' ) ).toBeVisible();
 		await expect.poll( () => JSON.parse( lastLine( wp( 'option', 'get', SLIDESHOW, '--format=json' ) ) ) ).toMatchObject( { showCaptions: false, showTitleInCaption: true } );
 
 		await tab.getByLabel( 'Link to the image’s page' ).click();
-		await expect( tab.getByLabel( 'Attachment Link Text' ) ).toBeVisible();
+		await expect( tab.getByLabel( 'Attachment link text' ) ).toBeVisible();
 
 		await featureSwitch( tab, 'Slideshows' ).click();
 		await expect( tab.getByLabel( 'Title', { exact: true } ) ).toHaveCount( 0 );
@@ -190,11 +190,11 @@ test( 'Slideshow: each switch hides what it governs', async ( { page } ) => {
 
 test( 'a feature explains itself behind its info button, and the separators are under Advanced options', async ( { page } ) => {
 	await page.goto( URL );
-	const panel = card( page, 'Image Taxonomies' );
-	await expect( featureSwitch( panel, 'Image Taxonomies' ) ).toBeChecked( { timeout: 30000 } );
+	const panel = card( page, 'Image taxonomies' );
+	await expect( featureSwitch( panel, 'Image taxonomies' ) ).toBeChecked( { timeout: 30000 } );
 
 	await expect( panel.locator( '.photopress-feature__info' ) ).toHaveCount( 0 );
-	await panel.getByRole( 'button', { name: 'About Image Taxonomies' } ).click();
+	await panel.getByRole( 'button', { name: 'About Image taxonomies' } ).click();
 	await expect( panel.locator( '.photopress-feature__info' ) ).toContainText( 'archive pages' );
 
 	await expect( panel.getByLabel( 'Prefix separators' ) ).toHaveCount( 0 );

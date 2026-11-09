@@ -107,23 +107,25 @@ class SearchSettings extends Component {
 				/>
 
 				<FeatureSection
-					title={ __( 'Images in search results' ) }
-					description={ __( 'Find images when visitors search the site, by their titles, captions, alt text and terms.' ) }
+					title={ __( 'Image search' ) }
+					description={ __( 'Allow visitors to find images by searching their titles, captions, alt text, and terms.' ) }
 					info={ [
-						<p key="0">{ __( 'A block theme shows them with PhotoPress’s Image Search template: the images in a Taxonomy Gallery, and the posts and pages found listed apart. A classic theme lists them in its own search results. With Relevanssi, turning this on ticks Media, the image taxonomies and image files in Relevanssi’s indexing settings, where they can be changed; turning it off unticks what it ticked.' ) }</p>,
+						<p key="0">{ __( 'In a block theme, search results show the images found in a gallery. With Include posts and pages on, matching posts and pages are listed below it. To change this layout, edit the Image Search template in the Site Editor.' ) }</p>,
+						<p key="1">{ __( 'In a classic theme, images appear in the theme’s own search results.' ) }</p>,
+						<p key="2">{ __( 'If Relevanssi is active, PhotoPress also sets Relevanssi to index images and their terms. Turning this off undoes only the changes PhotoPress made.' ) }</p>,
 					] }
 					checked={ this.getSetting( 'images_in_search' ) }
 					onChange={ ( value ) => this.persistSetting( 'images_in_search', value ) }
 				>
 					<SwitchRow
-						label={ __( 'Posts and pages too' ) }
-						help={ __( 'Turned off, a search finds images alone.' ) }
+						label={ __( 'Include posts and pages' ) }
+						help={ __( 'Include links to relevant posts and pages in search results.' ) }
 						checked={ this.getSetting( 'posts_in_search' ) }
 						onChange={ ( value ) => this.persistSetting( 'posts_in_search', value ) }
 					/>
 					<SwitchRow
 						label={ __( 'Prevent empty search queries' ) }
-						help={ __( 'Prevent default WordPress behavior of showing all possible results when searches are made with an empty query.' ) }
+						help={ __( 'A search with no words finds nothing, instead of listing every image.' ) }
 						checked={ this.getSetting( 'prevent_empty_search' ) }
 						onChange={ ( value ) => this.persistSetting( 'prevent_empty_search', value ) }
 					/>
@@ -155,7 +157,7 @@ class SearchSettings extends Component {
 									refresh={ this.state.settings.images_in_search }
 								/>
 								{ ! this.getSetting( 'images_in_search' ) && (
-									<p className="components-base-control__help">{ __( 'Turn on Images in search results to add images to the index.' ) }</p>
+									<p className="components-base-control__help">{ __( 'Turn on Image search to add images to the index.' ) }</p>
 								) }
 							</>
 						) : (

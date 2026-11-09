@@ -209,7 +209,7 @@ class slideshow extends photopress_module {
 				'default_value'							=> 120,
 				'field'									=> array(
 					'type'									=> 'integer',
-					'title'									=> 'Thumbnail Height',
+					'title'									=> 'Thumbnail height',
 					'page_name'								=> 'gallery-slideshow',
 					'section'								=> 'general',
 					'description'							=> 'Height of thumbnails.',
@@ -221,7 +221,7 @@ class slideshow extends photopress_module {
 				'default_value'							=> 0,
 				'field'									=> array(
 					'type'									=> 'integer',
-					'title'									=> 'Caption Padding',
+					'title'									=> 'Caption padding',
 					'page_name'								=> 'gallery-slideshow',
 					'section'								=> 'general',
 					'description'							=> 'Space around the caption area, in pixels.',

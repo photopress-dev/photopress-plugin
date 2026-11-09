@@ -1052,7 +1052,7 @@ class metadata extends photopress_module {
 				'default_value'							=> '',
 				'field'									=> [
 					'type'									=> 'text',
-					'title'									=> 'Licensor Name',
+					'title'									=> 'Licensor name',
 					'page_name'								=> 'metadata',
 					'section'								=> 'general',
 					'description'							=> 'The legal name of the licensor of your images.',
@@ -1108,7 +1108,7 @@ class metadata extends photopress_module {
 				'default_value'							=> true,
 				'field'									=> [
 					'type'									=> 'boolean',
-					'title'									=> 'Populate Alt Text With Meta-data ',
+					'title'									=> 'Populate alt text with metadata',
 					'page_name'								=> 'metadata',
 					'section'								=> 'general',
 					'description'							=> 'Enable meta-data driven alt text.',
@@ -1136,7 +1136,7 @@ class metadata extends photopress_module {
 				'default_value'							=> '[photoshop:Headline]. [photopress:stringOfKeywords].',
 				'field'									=> [
 					'type'									=> 'text',
-					'title'									=> 'XMP template for Alt Text',
+					'title'									=> 'XMP template for alt text',
 					'page_name'								=> 'metadata',
 					'section'								=> 'general',
 					'description'							=> 'The XMP tag template used to populate image alt text.',
@@ -1193,7 +1193,7 @@ class metadata extends photopress_module {
 				'default_value'							=> 'photoshop:Headline',
 				'field'									=> [
 					'type'									=> 'text',
-					'title'									=> 'XMP Template for Alt Text',
+					'title'									=> 'XMP template for alt text',
 					'page_name'								=> 'metadata',
 					'section'								=> 'general',
 					'description'							=> 'The XMP template used to populate image alt text.',

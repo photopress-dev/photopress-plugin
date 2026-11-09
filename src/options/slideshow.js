@@ -132,7 +132,7 @@ class SlideshowSettings extends Component {
 					{ this.getSetting( 'showThumbnails' ) && (
 						<div className="photopress-subsettings">
 							<RangeControl
-								label={ __( 'Thumbnail Height' ) }
+								label={ __( 'Thumbnail height' ) }
 								value={ this.getSetting( 'thumbnailHeight' ) }
 								onChange={ ( value ) => this.persistSetting( 'thumbnailHeight', value ) }
 								min={ 75 }
@@ -173,7 +173,7 @@ class SlideshowSettings extends Component {
 						<div className="photopress-subsettings">
 							<TextControl
 								id={ 'attachment_link_text' }
-								label={ __( 'Attachment Link Text' ) }
+								label={ __( 'Attachment link text' ) }
 								value={ this.getSetting( 'attachmentLinkText' ) }
 								className=" right-pad"
 								help={ __( 'The text of the link.' ) }
@@ -194,7 +194,7 @@ class SlideshowSettings extends Component {
 					{ [ 'showCaptions', 'showTitleInCaption', 'showDescriptionInCaption', 'showAttachmentLink' ].some( ( key ) => this.getSetting( key ) ) && (
 						<>
 							<SelectControl
-								label={ __( 'Caption Info Box Position' ) }
+								label={ __( 'Caption info box position' ) }
 								value={ this.getSetting( 'detail_position' ) }
 								onChange={ ( value ) => this.persistSetting( 'detail_position', value ) }
 								options={ [
@@ -204,7 +204,7 @@ class SlideshowSettings extends Component {
 							/>
 
 							<RangeControl
-								label={ __( 'Caption Padding (px)' ) }
+								label={ __( 'Caption padding (px)' ) }
 								help={ __( 'Space around the caption area.' ) }
 								value={ this.getSetting( 'captionPadding' ) || 0 }
 								onChange={ ( value ) => this.persistSetting( 'captionPadding', value ?? 0 ) }

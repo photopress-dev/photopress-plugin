@@ -67,8 +67,8 @@ test( 'the three kinds are listed, each standard taxonomy with a switch', async 
 	// Linked to the taxonomy's terms in the admin.
 	await expect( standard.locator( 'tr[data-kind="keywords"] td.num a' ) ).toHaveAttribute( 'href', 'edit-tags.php?taxonomy=photos_keywords&post_type=attachment' );
 	await expect( standard.getByRole( 'checkbox', { name: 'Keywords on' } ) ).toBeVisible();
-	await expect( page.getByRole( 'heading', { name: 'Hierarchical Keyword Metadata' } ) ).toBeVisible();
-	await expect( page.getByRole( 'heading', { name: 'Custom Metadata' } ) ).toBeVisible();
+	await expect( page.getByRole( 'heading', { name: 'Hierarchical keyword metadata' } ) ).toBeVisible();
+	await expect( page.getByRole( 'heading', { name: 'Custom metadata' } ) ).toBeVisible();
 	await expect( page.locator( '.photopress-job[data-job-type="metadata.reprocess"]' ) ).toBeVisible();
 
 	if ( process.env.PP_E2E_SHOTS ) {
@@ -101,7 +101,7 @@ test( 'a parent keyword is added, edited and removed', async ( { page } ) => {
 		await page.locator( '.photopress-taxonomies__editor' ).screenshot( { path: `${ process.env.PP_E2E_SHOTS }/add-parent.png` } );
 	}
 
-	await expect( page.getByRole( 'heading', { name: 'Add Hierarchical Keyword Taxonomy' } ) ).toBeVisible();
+	await expect( page.getByRole( 'heading', { name: 'Add hierarchical keyword taxonomy' } ) ).toBeVisible();
 	await page.locator( '.photopress-taxonomies__editor' ).getByRole( 'button', { name: 'Add', exact: true } ).click();
 
 	// Back on the tab, at its top, where it says so, once saved.
