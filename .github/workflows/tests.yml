@@ -136,19 +136,24 @@ jobs:
     # runner has memory for (screenshots.js), kept with the run.
     - name: Editor screenshots
       run: |
-        # Once, to be reverted: the fonts the screenshots made on the test site's server fall back to.
-        sudo apt-get install -y --no-install-recommends fonts-urw-base35
-        # Noto Sans 2.013, variable: the same file as the test site's server has (sha256 8b23d634...).
-        curl -sL -o /tmp/noto.zip https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.013/NotoSans-v2.013.zip
-        mkdir -p ~/.local/share/fonts && unzip -j -o -q /tmp/noto.zip 'NotoSans/unhinted/slim-variable-ttf/*' -d ~/.local/share/fonts
-        sha256sum ~/.local/share/fonts/NotoSans*.ttf
-        sudo apt-get remove -y fonts-liberation fonts-liberation2 >/dev/null 2>&1 || true
-        mkdir -p ~/.config/fontconfig
-        printf '%s\n' '<?xml version="1.0"?>' '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">' '<fontconfig>' \
-          '<alias binding="strong"><family>sans-serif</family><prefer><family>Noto Sans</family></prefer></alias>' \
-          '<alias binding="strong"><family>monospace</family><prefer><family>Nimbus Mono PS</family></prefer></alias>' \
-          '</fontconfig>' > ~/.config/fontconfig/fonts.conf
-        fc-cache -f >/dev/null; fc-match sans-serif; fc-match monospace; fc-match "Helvetica Neue"; fc-match Arial
+        # Once, to be reverted: the fonts of the test site the other screenshots are made on. Its
+        # Font Library has Roboto 100 and 300, which WordPress prints on admin pages too.
+        mkdir -p "$PP_E2E_WP_PATH/wp-content/uploads/fonts"
+        for f in KFOlCnqEu92Fr1MmSU5vBh05IsDqlA KFOjCnqEu92Fr1Mu51TjARc4AMX6lJBP KFOkCnqEu92Fr1MmgWxKKTM1K9nz KFOiCnqEu92Fr1Mu51QrIzIXLsnzjYk; do
+          curl -sfL -A 'PhotoPress CI (open web analytics)' -o "$PP_E2E_WP_PATH/wp-content/uploads/fonts/$f.woff2" "https://test.photopressdev.com/wp-content/uploads/fonts/$f.woff2"
+        done
+        ls -la "$PP_E2E_WP_PATH/wp-content/uploads/fonts"
+        wp --path="$PP_E2E_WP_PATH" eval '
+          $post = WP_Theme_JSON_Resolver::get_user_data_from_wp_global_styles( wp_get_theme(), true );
+          $data = json_decode( $post["post_content"], true );
+          $faces = [];
+          foreach ( [ [ "KFOlCnqEu92Fr1MmSU5vBh05IsDqlA", "normal", "300" ], [ "KFOkCnqEu92Fr1MmgWxKKTM1K9nz", "normal", "100" ], [ "KFOiCnqEu92Fr1Mu51QrIzIXLsnzjYk", "italic", "100" ], [ "KFOjCnqEu92Fr1Mu51TjARc4AMX6lJBP", "italic", "300" ] ] as [ $file, $style, $weight ] ) {
+            $faces[] = [ "fontFamily" => "Roboto", "fontStyle" => $style, "fontWeight" => $weight, "src" => content_url( "uploads/fonts/$file.woff2" ) ];
+          }
+          $data["settings"]["typography"]["fontFamilies"]["custom"] = [ [ "fontFace" => $faces, "fontFamily" => "Roboto, sans-serif", "name" => "Roboto", "slug" => "roboto" ] ];
+          wp_update_post( [ "ID" => $post["ID"], "post_content" => wp_slash( wp_json_encode( $data ) ) ] );
+          echo "global styles {$post["ID"]}\n";'
+        curl -s "$PP_E2E_URL/wp-login.php" | grep -c "font-family: Roboto" || true
         npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor|screenshot-1[01]:"
       env:
         PP_SHOTS_OUT: tests/e2e/.results/editor-screenshots
