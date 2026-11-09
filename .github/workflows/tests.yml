@@ -137,7 +137,11 @@ jobs:
     - name: Editor screenshots
       run: |
         # Once, to be reverted: the fonts the screenshots made on the test site's server fall back to.
-        sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-noto-extra fonts-urw-base35
+        sudo apt-get install -y --no-install-recommends fonts-urw-base35
+        # Noto Sans 2.013, variable: the same file as the test site's server has (sha256 8b23d634...).
+        curl -sL -o /tmp/noto.zip https://github.com/notofonts/latin-greek-cyrillic/releases/download/NotoSans-v2.013/NotoSans-v2.013.zip
+        mkdir -p ~/.local/share/fonts && unzip -j -o -q /tmp/noto.zip 'NotoSans/unhinted/slim-variable-ttf/*' -d ~/.local/share/fonts
+        sha256sum ~/.local/share/fonts/NotoSans*.ttf
         sudo apt-get remove -y fonts-liberation fonts-liberation2 >/dev/null 2>&1 || true
         mkdir -p ~/.config/fontconfig
         printf '%s\n' '<?xml version="1.0"?>' '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">' '<fontconfig>' \
