@@ -135,7 +135,16 @@ jobs:
     # The screenshots and wiki images of the block editor, which only the
     # runner has memory for (screenshots.js), kept with the run.
     - name: Editor screenshots
-      run: npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor|screenshot-1[01]:"
+      run: |
+        # Once, to be reverted: the fonts the screenshots made on the test site's server fall back to.
+        sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-urw-base35
+        mkdir -p ~/.config/fontconfig
+        printf '%s\n' '<?xml version="1.0"?>' '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">' '<fontconfig>' \
+          '<alias binding="strong"><family>sans-serif</family><prefer><family>Noto Sans</family></prefer></alias>' \
+          '<alias binding="strong"><family>monospace</family><prefer><family>Nimbus Mono PS</family></prefer></alias>' \
+          '</fontconfig>' > ~/.config/fontconfig/fonts.conf
+        fc-cache -f >/dev/null; fc-match sans-serif; fc-match monospace
+        npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor|screenshot-1[01]:"
       env:
         PP_SHOTS_OUT: tests/e2e/.results/editor-screenshots
         PP_WIKI_OUT: tests/e2e/.results/editor-screenshots
