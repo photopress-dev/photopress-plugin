@@ -135,7 +135,7 @@ jobs:
     # The screenshots and wiki images of the block editor, which only the
     # runner has memory for (screenshots.js), kept with the run.
     - name: Editor screenshots
-      run: npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor"
+      run: npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor|screenshot-1[01]:"
       env:
         PP_SHOTS_OUT: tests/e2e/.results/editor-screenshots
         PP_WIKI_OUT: tests/e2e/.results/editor-screenshots
