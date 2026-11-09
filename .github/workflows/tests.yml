@@ -92,7 +92,7 @@ jobs:
     - name: Varnish and ExifTool
       run: |
         sudo apt-get update -q
-        sudo apt-get install -y --no-install-recommends varnish libimage-exiftool-perl
+        sudo apt-get install -y --no-install-recommends varnish libimage-exiftool-perl imagemagick
         sudo systemctl stop varnish
     - name: Composer
       run: composer install --no-dev --no-interaction --no-progress

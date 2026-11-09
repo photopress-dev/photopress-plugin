@@ -462,6 +462,9 @@ test.describe( 'settings', () => {
 			const content = await tab( page, 'Pages & Search' );
 			await expect( feature( page, 'Page cache and search index' ) ).toBeVisible( { timeout: 30000 } );
 			await content.screenshot( { path: path.join( OUT, 'screenshot-18.png' ) } );
+			fs.mkdirSync( WIKI, { recursive: true } );
+			await content.screenshot( { path: path.join( WIKI, 'settings-pages-and-search-tab.png' ) } );
+			await feature( page, 'Image search' ).screenshot( { path: path.join( WIKI, 'settings-pages-and-search-image-search.png' ) } );
 		} );
 
 		test( 'screenshot-21: the SEO tab', async ( { page } ) => {
@@ -556,6 +559,8 @@ test.describe( 'settings', () => {
 			const section = feature( page, 'Image taxonomies' );
 			await expect( section.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_genre"] td.num' ) ).toHaveText( /^[1-9]/, { timeout: 30000 } );
 			await section.screenshot( { path: path.join( OUT, 'screenshot-10.png' ) } );
+			fs.mkdirSync( WIKI, { recursive: true } );
+			await section.screenshot( { path: path.join( WIKI, 'settings-metadata-image-taxonomies.png' ) } );
 		} );
 
 		test( 'screenshot-12 and 13: alt text and description templates, and licensing', async ( { page } ) => {
@@ -569,6 +574,8 @@ test.describe( 'settings', () => {
 			await page.screenshot( { path: path.join( OUT, 'screenshot-12.png' ), fullPage: true, clip: { x: top.x, y: top.y + scrolled, width: top.width, height: bottom.y + bottom.height - top.y } } );
 
 			await feature( page, 'Licensing' ).screenshot( { path: path.join( OUT, 'screenshot-13.png' ) } );
+			fs.mkdirSync( WIKI, { recursive: true } );
+			await alt.screenshot( { path: path.join( WIKI, 'settings-metadata-alt-text.png' ) } );
 		} );
 
 		test( 'screenshot-14: the Image Sizes tab', async ( { page } ) => {
