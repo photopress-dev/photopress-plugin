@@ -130,7 +130,7 @@ export default function Edit( { attributes, setAttributes } ) {
 				label={ metadata.title }
 				instructions={ galleries.length
 					? __( 'Choose the gallery this slideshow shows.' )
-					: __( 'Add a Gallery to this page, then choose it here.' ) }
+					: __( 'Add a gallery to this page, then choose it here.' ) }
 			>
 				{ galleries.length > 0 && (
 					<SelectControl __nextHasNoMarginBottom value="" options={ galleryOptions } onChange={ chooseGallery } />

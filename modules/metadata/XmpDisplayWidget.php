@@ -88,7 +88,7 @@ class XmpDisplayWidget extends WP_Widget {
 		</p>
 		
 		<p>
-			<label for="<?php echo $this->get_field_id( 'taxonomies' ); ?>">Image Taxonomies:</label>
+			<label for="<?php echo $this->get_field_id( 'taxonomies' ); ?>">Image taxonomies:</label>
 			<input id="<?php echo $this->get_field_id( 'taxonomies' ); ?>" name="<?php echo $this->get_field_name( 'taxonomies' ); ?>" value="<?php echo esc_attr( $instance['taxonomies'] ); ?>" style="width:100%;" />
 		</p>
 

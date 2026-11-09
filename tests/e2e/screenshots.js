@@ -495,7 +495,7 @@ test.describe( 'settings', () => {
 
 		const found = page.locator( '.photopress-taxonomies__found li' ).filter( { has: page.locator( 'code', { hasText: /^genre$/ } ) } );
 		await expect( found ).toBeVisible( { timeout: 30000 } );
-		await page.getByRole( 'heading', { name: 'Hierarchical Keyword Metadata' } ).evaluate( ( el ) => window.scrollBy( 0, el.getBoundingClientRect().top - 60 ) );
+		await page.getByRole( 'heading', { name: 'Hierarchical keyword metadata' } ).evaluate( ( el ) => window.scrollBy( 0, el.getBoundingClientRect().top - 60 ) );
 		await page.waitForTimeout( 300 );
 
 		const card = await page.locator( '.components-tab-panel__tab-content' ).boundingBox();
@@ -542,7 +542,7 @@ test.describe( 'settings', () => {
 		// The new taxonomy, with its terms.
 		const genres = page.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_genre"]' );
 		await expect( genres.locator( 'td.num' ) ).toHaveText( /^[1-9]/, { timeout: 30000 } );
-		await page.getByRole( 'heading', { name: 'Hierarchical Keyword Metadata' } ).evaluate( ( el ) => window.scrollBy( 0, el.getBoundingClientRect().top - 60 ) );
+		await page.getByRole( 'heading', { name: 'Hierarchical keyword metadata' } ).evaluate( ( el ) => window.scrollBy( 0, el.getBoundingClientRect().top - 60 ) );
 		await page.waitForTimeout( 300 );
 		await rec.frame( 400 );
 		rec.save( 'screenshot-11.gif' );
@@ -551,16 +551,16 @@ test.describe( 'settings', () => {
 	test.describe( 'at twice the size, after', () => {
 		test.use( { viewport: { width: 1100, height: 1400 }, deviceScaleFactor: 2 } );
 
-		test( 'screenshot-10: the Image Taxonomies section of the Metadata tab', async ( { page } ) => {
+		test( 'screenshot-10: the Image taxonomies section of the Metadata tab', async ( { page } ) => {
 			await tab( page, 'Metadata' );
-			const section = feature( page, 'Image Taxonomies' );
+			const section = feature( page, 'Image taxonomies' );
 			await expect( section.locator( '.photopress-taxonomies__parents tr[data-taxonomy="pp_genre"] td.num' ) ).toHaveText( /^[1-9]/, { timeout: 30000 } );
 			await section.screenshot( { path: path.join( OUT, 'screenshot-10.png' ) } );
 		} );
 
 		test( 'screenshot-12 and 13: alt text and description templates, and licensing', async ( { page } ) => {
 			await tab( page, 'Metadata' );
-			const alt = feature( page, 'Alt Text' );
+			const alt = feature( page, 'Alt text' );
 			await expect( alt.locator( '#alt_text_template' ) ).toBeVisible( { timeout: 30000 } );
 			// Both cards, from the top of the page.
 			const scrolled = await page.evaluate( () => window.scrollY );

@@ -129,7 +129,7 @@ Documentation: [Attachment and Taxonomy Pages](https://github.com/photopress-dev
 
 ### Search
 
-- Images in search results: a switch that adds images to the site's search results, found by their titles, captions, alt text and terms.
+- Image search: a switch that allows visitors to find images by searching their titles, captions, alt text, and terms.
 - Block themes get an Image Search template that shows the images found in a gallery and lists the matching posts and pages below it.
 - A search with no words finds nothing, rather than every image. A switch turns this off.
 - The Image Filters block narrows search results by the terms of the images found: a menu per image taxonomy, with how many images have each term. Each menu is an Image Filter block, to reorder, rename or remove in the editor.
