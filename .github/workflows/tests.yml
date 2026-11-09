@@ -138,12 +138,13 @@ jobs:
       run: |
         # Once, to be reverted: the fonts the screenshots made on the test site's server fall back to.
         sudo apt-get install -y --no-install-recommends fonts-noto-core fonts-urw-base35
+        sudo apt-get remove -y fonts-liberation fonts-liberation2 >/dev/null 2>&1 || true
         mkdir -p ~/.config/fontconfig
         printf '%s\n' '<?xml version="1.0"?>' '<!DOCTYPE fontconfig SYSTEM "fonts.dtd">' '<fontconfig>' \
           '<alias binding="strong"><family>sans-serif</family><prefer><family>Noto Sans</family></prefer></alias>' \
           '<alias binding="strong"><family>monospace</family><prefer><family>Nimbus Mono PS</family></prefer></alias>' \
           '</fontconfig>' > ~/.config/fontconfig/fonts.conf
-        fc-cache -f >/dev/null; fc-match sans-serif; fc-match monospace
+        fc-cache -f >/dev/null; fc-match sans-serif; fc-match monospace; fc-match "Helvetica Neue"; fc-match Arial
         npx playwright test --config tests/e2e/screenshots.config.js -g "in the Site Editor|screenshot-1[01]:"
       env:
         PP_SHOTS_OUT: tests/e2e/.results/editor-screenshots
